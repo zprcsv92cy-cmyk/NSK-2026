@@ -716,6 +716,7 @@ window.NSK2App = (() => {
       }
 
       attachLineupHandlers();
+      rememberCurrentGoalie();
       updateVisiblePlayers();
       syncGoalieAgainstPlayers();
       syncSelectedPlayersAcrossLineup();
@@ -856,12 +857,36 @@ window.NSK2App = (() => {
     }
   }
 
+  // When the goalkeeper is changed to a current outfield player, swap their
+  // roles instead of leaving an empty position and blocking the autosave.
+  let previousGoalieId = "";
+  function rememberCurrentGoalie() {
+    previousGoalieId = cleanUUID(byId("lineupGoalie")?.value) || "";
+  }
+
+  function swapGoalieWithPlayer() {
+    const newGoalie = cleanUUID(byId("lineupGoalie")?.value) || "";
+    const oldGoalie = previousGoalieId;
+    const count = safeInt(byId("lineupPlayerCount")?.value || "3", 3);
+    for (let i = 1; i <= count; i++) {
+      const sel = byId(`lineupPlayer${i}`);
+      if (sel && newGoalie && sel.value === newGoalie) {
+        // An empty value is preferable to assigning the same person twice.
+        sel.value = oldGoalie && oldGoalie !== newGoalie ? oldGoalie : "";
+        break;
+      }
+    }
+    previousGoalieId = newGoalie;
+    syncGoalieAgainstPlayers();
+    syncSelectedPlayersAcrossLineup();
+  }
+
   function attachLineupHandlers() {
     const goalie = byId("lineupGoalie");
     if (goalie && !goalie.dataset.bound) {
       goalie.dataset.bound = "1";
       goalie.addEventListener("change", async () => {
-        syncGoalieAgainstPlayers();
+        swapGoalieWithPlayer();
         syncSelectedPlayersAcrossLineup();
         updateCoachEnabledState();
         await applyAutoCoachFromCurrentSelection();
@@ -1157,6 +1182,7 @@ window.NSK2App = (() => {
       await applyAutoCoachFromCurrentSelection();
       updateCoachEnabledState();
 
+      rememberCurrentGoalie();
       // Do not auto-save when merely opening another match. Save on user changes.
 
     } catch (err) {
@@ -1334,43 +1360,41 @@ window.NSK2App = (() => {
   // This prevents two autosaves in this tab from interleaving their writes.
   let lineupSaveChain = Promise.resolve();
   function saveLaguppstallningMatchConfig(silent = false) {
+    const snapshot = {
+      poolId: sessionStorage.getItem("nsk2_pool_id") || "",
+      lagNo: sessionStorage.getItem("nsk2_lag_nr") || "1",
+      matchNo: byId("lineupMatch")?.value || "1",
+      goalie: cleanUUID(byId("lineupGoalie")?.value),
+      playerCount: safeInt(byId("lineupPlayerCount")?.value || "3", 3),
+      selectedPlayers: Array.from({length: safeInt(byId("lineupPlayerCount")?.value || "3", 3)}, (_, i) => cleanUUID(byId(`lineupPlayer${i+1}`)?.value)).filter(Boolean),
+      startTime: byId("lineupStartTime")?.value || null,
+      opponent: byId("lineupOpponent")?.value?.trim() || "",
+      plan: byId("lineupPlan")?.value || "Plan 1",
+      coachIds: Array.from(byId("lineupCoach")?.selectedOptions || []).map(o => o.value).filter(Boolean)
+    };
     const next = lineupSaveChain.catch(() => {}).then(() =>
-      saveLaguppstallningMatchConfigInternal(silent)
+      saveLaguppstallningMatchConfigInternal(silent, snapshot)
     );
     lineupSaveChain = next.catch(() => {});
     return next;
   }
 
-  async function saveLaguppstallningMatchConfigInternal(silent = false) {
-    const poolId = sessionStorage.getItem("nsk2_pool_id") || "";
-    const lagNo = sessionStorage.getItem("nsk2_lag_nr") || "1";
-    const matchNo = byId("lineupMatch")?.value || "1";
+  async function saveLaguppstallningMatchConfigInternal(silent = false, snapshot) {
+    const { poolId, lagNo, matchNo, goalie, playerCount, selectedPlayers,
+      startTime, opponent, plan, coachIds } = snapshot;
 
     if (!poolId) {
       if (!silent) setText("appError", "Saknar valt poolspel.");
       return;
     }
 
-    const goalie = cleanUUID(byId("lineupGoalie")?.value);
-    const playerCount = safeInt(byId("lineupPlayerCount")?.value || "3", 3);
-    const selectedPlayers = [];
-
-    for (let i = 1; i <= playerCount; i++) {
-      const rawVal = byId(`lineupPlayer${i}`)?.value || "";
-      const val = cleanUUID(rawVal);
-      if (!val) continue;
-
-      if (goalie && val === goalie) {
-        if (!silent) setText("lineupMsg", "Målvakt kan inte vara samma som spelare.");
-        return;
-      }
-
-      if (selectedPlayers.includes(val)) {
-        if (!silent) setText("lineupMsg", "En spelare kan bara väljas en gång.");
-        return;
-      }
-
-      selectedPlayers.push(val);
+    if (selectedPlayers.includes(goalie)) {
+      setText("lineupMsg", "Målvakt kan inte vara samma som spelare.");
+      return;
+    }
+    if (new Set(selectedPlayers).size !== selectedPlayers.length) {
+      setText("lineupMsg", "En spelare kan bara väljas en gång.");
+      return;
     }
 
     if (!goalie) {
@@ -1390,13 +1414,6 @@ window.NSK2App = (() => {
     }
 
     try {
-      await applyAutoCoachFromCurrentSelection();
-
-      const coachSelect = byId("lineupCoach");
-      const coachIds = coachSelect
-        ? Array.from(coachSelect.selectedOptions).map((o) => o.value).filter(Boolean)
-        : [];
-
       if (typeof DB?.savePoolTeamMatchConfig !== "function") {
         throw new Error("DB.savePoolTeamMatchConfig saknas.");
       }
@@ -1405,9 +1422,9 @@ window.NSK2App = (() => {
         pool_id: poolId,
         lag_no: safeInt(lagNo, 1),
         match_no: safeInt(matchNo, 1),
-        start_time: byId("lineupStartTime")?.value || null,
-        opponent: byId("lineupOpponent")?.value?.trim() || "",
-        plan: byId("lineupPlan")?.value || "Plan 1",
+        start_time: startTime,
+        opponent,
+        plan,
         player_count: playerCount,
         goalie_player_id: goalie,
         players_on_field: cleanUUIDList([goalie, ...selectedPlayers])
@@ -1425,9 +1442,10 @@ window.NSK2App = (() => {
         await renderShiftSchema();
       }
 
-      if (!silent) setText("lineupMsg", "Laguppställning sparad.");
+      setText("lineupMsg", "Laguppställning sparad för Match " + matchNo + ".");
     } catch (err) {
       setText("appError", err?.message || String(err));
+      setText("lineupMsg", "Kunde inte spara Match " + matchNo + ": " + (err?.message || String(err)));
     }
   }
 
