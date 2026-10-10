@@ -3,7 +3,7 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width,initial-scale=1">
-  <title>Målvaktsstatistik</title>
+  <title>Laguppställning</title>
   <meta name="theme-color" content="#b11226">
 
   <script src="../version.js?v=667"></script>
@@ -14,34 +14,99 @@
 </head>
 <body>
   <div class="wrap">
+
     <nav class="mainmenu">
       <a href="../startsida/">Startsida</a>
       <a href="../truppen/">Truppen</a>
       <a href="../skapapoolspel/">Skapa poolspel</a>
-      <a href="../malvaktsstatistik/" class="active">Målvaktsstatistik</a>
+      <a href="../malvaktsstatistik/">Målvaktsstatistik</a>
       <a href="../bytesschema/">Bytesschema</a>
       <a href="../matchvy/">Matchvy</a>
       <a href="../lag/">Lag</a>
     </nav>
 
-    <section class="card">
-      <h1>Målvaktsstatistik</h1>
-      <div class="small">Visar bara antal matcher som målvakt.</div>
+    <section class="home-hero">
+      <div class="home-hero-logo-box">
+        <img src="../icon-192.png" alt="NSK" class="home-hero-logo">
+      </div>
+
+      <div class="home-hero-text">
+        <h1 id="laguppstallningTitle">Laguppställning</h1>
+        <div class="home-hero-sub">Välj lag, match, spelare och tränare</div>
+      </div>
     </section>
 
     <section class="card">
-      <h2>Översikt</h2>
-      <div id="goalieStatsList"></div>
+      <h2>Laguppställning</h2>
+
+      <div class="field">
+        <label>Lag</label>
+        <div id="laguppstallningTeamButtons" class="team-buttons"></div>
+      </div>
+
+      <div class="field">
+        <label for="lineupCoach">Tränare</label>
+        <select id="lineupCoach" multiple size="4"></select>
+      </div>
+
+      <div class="field">
+        <label>Matcher</label>
+        <div id="matchButtons" class="team-buttons"></div>
+      </div>
+
+      <div class="field" style="display:none">
+        <label for="lineupMatch">Match</label>
+        <select id="lineupMatch"></select>
+      </div>
     </section>
 
-    <div id="appError" class="small"></div>
-<script>
-  document.write('<script src="../config.js?v=' + window.NSK_VERSION + '"><\/script>');
-  document.write('<script src="../auth.js?v=' + window.NSK_VERSION + '"><\/script>');
-  document.write('<script src="../db.js?v=' + window.NSK_VERSION + '"><\/script>');
-  document.write('<script src="../app.js?v=' + window.NSK_VERSION + '"><\/script>');
-</script>
+    <section class="card">
+      <h2>Matchinfo</h2>
+
+      <div class="field">
+        <label for="lineupStartTime">Starttid</label>
+        <input id="lineupStartTime" type="time">
+      </div>
+
+      <div class="field">
+        <label for="lineupOpponent">Motståndare</label>
+        <input id="lineupOpponent" type="text" placeholder="Motståndare">
+      </div>
+
+      <div class="field">
+        <label for="lineupPlan">Plan</label>
+        <select id="lineupPlan">
+          <option value="Plan 1">Plan 1</option>
+          <option value="Plan 2">Plan 2</option>
+          <option value="Plan 3">Plan 3</option>
+          <option value="Plan 4">Plan 4</option>
+          <option value="Plan 5">Plan 5</option>
+        </select>
+      </div>
+
+      <div class="field">
+        <label for="lineupPlayerCount">Antal spelare</label>
+        <select id="lineupPlayerCount"></select>
+      </div>
+    </section>
+
+    <section class="card">
+      <h2>Spelare</h2>
+      <div id="lineupSelectors"></div>
+    </section>
+
+    <section class="card">
+      <div id="lineupMsg" class="small"></div>
+      <div id="appError" class="small"></div>
+    </section>
+
   </div>
+  <script>
+    document.write('<script src="../config.js?v=' + window.NSK_VERSION + '"><\/script>');
+    document.write('<script src="../auth.js?v=' + window.NSK_VERSION + '"><\/script>');
+    document.write('<script src="../db.js?v=' + window.NSK_VERSION + '"><\/script>');
+    document.write('<script src="../app.js?v=' + window.NSK_VERSION + '"><\/script>');
+  </script>
 <script src="../admin-mode.js?v=1"></script>
 </body>
 </html>
