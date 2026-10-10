@@ -1,0 +1,129 @@
+<!doctype html>
+<html lang="sv">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>Truppen</title>
+  <meta name="theme-color" content="#b11226">
+
+  <script src="../version.js?v=667"></script>
+  <script>
+    document.write('<link rel="manifest" href="../manifest.webmanifest?v=' + window.NSK_VERSION + '">');
+    document.write('<link rel="stylesheet" href="../app.css?v=' + window.NSK_VERSION + '">');
+  </script>
+</head>
+<body>
+
+  <div class="wrap">
+
+    <nav class="mainmenu">
+      <a href="../startsida/">Startsida</a>
+      <a href="../truppen/" class="active">Truppen</a>
+      <a href="../skapapoolspel/">Skapa poolspel</a>
+      <a href="../malvaktsstatistik/">Målvaktsstatistik</a>
+      <a href="../bytesschema/">Bytesschema</a>
+      <a href="../matchvy/">Matchvy</a>
+      <a href="../lag/">Lag</a>
+    </nav>
+
+    <section class="home-hero">
+      <div class="home-hero-logo-box">
+        <img src="../icon-192.png" alt="NSK" class="home-hero-logo">
+      </div>
+
+      <div class="home-hero-text">
+        <h1>Truppen</h1>
+        <div class="home-hero-sub">
+          Spelare, tränare och import av backup
+        </div>
+      </div>
+    </section>
+
+
+    <section class="card">
+
+      <div class="btnrow">
+        <button id="importBackupBtn" type="button" class="row-btn">
+          Importera backup
+        </button>
+
+        <input
+          id="importBackupFile"
+          type="file"
+          accept=".json,application/json"
+          hidden
+        >
+      </div>
+
+      <div id="truppenMsg" class="small"></div>
+
+    </section>
+
+
+
+    <section class="card">
+
+      <h2>Spelare</h2>
+
+      <div class="btnrow">
+        <input
+          id="playerInput"
+          type="text"
+          placeholder="Namn på spelare"
+        >
+
+        <button
+          id="addPlayerBtn"
+          type="button"
+          class="row-btn"
+        >
+          Lägg till spelare
+        </button>
+      </div>
+
+      <div id="playersList"></div>
+
+    </section>
+
+
+
+    <section class="card">
+
+      <h2>Tränare</h2>
+
+      <div class="btnrow">
+
+        <input
+          id="coachInput"
+          type="text"
+          placeholder="Namn på tränare"
+        >
+
+        <button
+          id="addCoachBtn"
+          type="button"
+          class="row-btn"
+        >
+          Lägg till tränare
+        </button>
+
+      </div>
+
+      <div id="coachesList"></div>
+
+    </section>
+
+
+    <div id="appError" class="small"></div>
+
+  </div>
+
+  <script>
+    document.write('<script src="../config.js?v=' + window.NSK_VERSION + '"><\/script>');
+    document.write('<script src="../auth.js?v=' + window.NSK_VERSION + '"><\/script>');
+    document.write('<script src="../db.js?v=' + window.NSK_VERSION + '"><\/script>');
+    document.write('<script src="../app.js?v=' + window.NSK_VERSION + '"><\/script>');
+  </script>
+
+</body>
+</html>

@@ -1,1 +1,58 @@
-<!doctype html><html lang="sv"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>NSK Team 18</title><meta http-equiv="refresh" content="0;url=./startsida/"><script>location.replace('./startsida/')</script></head><body><a href="./startsida/">Öppna NSK Team 18</a></body></html>
+<!doctype html>
+<html lang="sv">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>Matchvy</title>
+  <meta name="theme-color" content="#b11226">
+
+  <script src="../version.js?v=667"></script>
+  <script>
+    document.write('<link rel="manifest" href="../manifest.webmanifest?v=' + window.NSK_VERSION + '">');
+    document.write('<link rel="stylesheet" href="../app.css?v=' + window.NSK_VERSION + '">');
+  </script>
+</head>
+<body>
+  <div class="wrap matchview-wrap">
+    <nav class="mainmenu compact-mainmenu">
+      <a href="../startsida/">Startsida</a>
+      <a href="../truppen/">Truppen</a>
+      <a href="../skapapoolspel/">Skapa poolspel</a>
+      <a href="../malvaktsstatistik/">Målvaktsstatistik</a>
+      <a href="../bytesschema/">Bytesschema</a>
+      <a href="../matchvy/" class="active">Matchvy</a>
+      <a href="../lag/">Lag</a>
+    </nav>
+
+    <section class="card coach-mode-card iphone-match-card v726-coach-card">
+      <div id="shiftLabel" class="coach-big-title">Inget schema</div>
+      <div id="matchInfo" class="coach-match-info"></div>
+
+      <div id="currentShiftMeta" class="coach-byte-meta-box single-meta">Pågående byte: —</div>
+      <div class="coach-panel compact-panel v726-now-panel">
+        <div class="coach-panel-label coach-panel-label-big">NU</div>
+        <div id="currentPlayers" class="coach-panel-main coach-panel-main-big">—</div>
+      </div>
+
+      <div id="nextShiftMeta" class="coach-byte-meta-box single-meta">Nästa byte: —</div>
+      <div class="coach-panel compact-panel v726-next-panel">
+        <div class="coach-panel-label coach-panel-label-big">NÄSTA</div>
+        <div id="nextPlayers" class="coach-panel-next coach-panel-next-big">—</div>
+      </div>
+
+      <div class="btnrow compact-nav-row">
+        <button id="prevShiftBtn" class="row-btn coach-nav-btn ghost" type="button">Föregående byte</button>
+        <button id="nextShiftBtn" class="row-btn coach-nav-btn" type="button">Nästa byte</button>
+      </div>
+    </section>
+
+    <div id="appError" class="small"></div>
+    <script>
+      document.write('<script src="../config.js?v=' + window.NSK_VERSION + '"><\/script>');
+      document.write('<script src="../auth.js?v=' + window.NSK_VERSION + '"><\/script>');
+      document.write('<script src="../db.js?v=' + window.NSK_VERSION + '"><\/script>');
+      document.write('<script src="../app.js?v=' + window.NSK_VERSION + '"><\/script>');
+    </script>
+  </div>
+</body>
+</html>
