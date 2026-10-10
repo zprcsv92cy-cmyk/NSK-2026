@@ -47,10 +47,20 @@ window.DB = (() => {
     if(!response.ok)throw new Error(data.error||'Kunde inte spara antal lag');
     return data.row;
   }
+  async function writePool(method,rowId,payload){
+    const token=localStorage.getItem('nsk_admin_token');
+    if(!token)throw new Error('Aktivera Adminläge först.');
+    const response=await fetch(`${API}/api/poolspel${rowId?'/'+encodeURIComponent(rowId):''}`,{method,headers:{'Content-Type':'application/json',Authorization:'Bearer '+token},body:JSON.stringify(payload)});
+    let data;try{data=await response.json()}catch{throw new Error('Ogiltigt svar från servern');}
+    if(!response.ok)throw new Error(data.error||'Kunde inte spara poolspel');
+    return data.row;
+  }
+  const addPool=payload=>writePool('POST',null,payload);
+  const updatePool=(rowId,payload)=>writePool('PATCH',rowId,payload);
   const addPlayer=name=>writeName('spelare','POST',null,name);
   const updatePlayer=(rowId,name)=>writeName('spelare','PATCH',rowId,name);
   const addCoach=name=>writeName('tranare','POST',null,name);
   const updateCoach=(rowId,name)=>writeName('tranare','PATCH',rowId,name);
   return {listPlayers,listCoaches,listPools,getPool,listPoolTeamMatchConfigs,getPoolTeamMatchConfig,getPlayersOnField,getLineup,listUsedPlayersInPool,listShiftSchema,listGoalieStats,listPlayerCoachMap,
-  addPlayer,updatePlayer,deletePlayer:failWrite,addCoach,updateCoach,deleteCoach:failWrite,updatePoolTeams,addPool:failWrite,updatePool:failWrite,deletePool:failWrite,savePoolTeamMatchConfig:failWrite,saveLineup:failWrite,saveShiftSchema:failWrite,deleteShiftSchema:failWrite,setShiftDone:failWrite,savePlayerCoachMap:failWrite,subscribeTruppen:async()=>({unsubscribe(){}})};
+  addPlayer,updatePlayer,deletePlayer:failWrite,addCoach,updateCoach,deleteCoach:failWrite,updatePoolTeams,addPool,updatePool,deletePool:failWrite,savePoolTeamMatchConfig:failWrite,saveLineup:failWrite,saveShiftSchema:failWrite,deleteShiftSchema:failWrite,setShiftDone:failWrite,savePlayerCoachMap:failWrite,subscribeTruppen:async()=>({unsubscribe(){}})};
 })();
