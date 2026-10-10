@@ -31,16 +31,18 @@ window.DB = (() => {
   async function listShiftSchema(poolId,lagNo,matchNo){return (await rows('bytesschema')).filter(r=>first(r.Poolspel)==id(poolId)&&num(r.Lagnummer)==lagNo&&num(r.Matchnummer)==matchNo).map(r=>({id:r.id,pool_id:id(poolId),lag_no:num(r.Lagnummer),match_no:num(r.Matchnummer),shift_no:num(r.Bytenummer),period_no:num(r.Periodnummer),time_left:r['Tid kvar']||'',players_json:linked(r['Spelare på plan']),done:!!r.Genomfört})).sort((a,b)=>a.shift_no-b.shift_no)}
   async function listGoalieStats(){return (await rows('malvaktsstatistik')).map(r=>({id:r.id,goalie_name:r.Målvaktsnamn||'',match_id:r['Match-ID']||''}))}
   async function listPlayerCoachMap(){const [map,players,coaches]=await Promise.all([rows('spelaretranare'),listPlayers(),listCoaches()]);return map.map(r=>({id:r.id,player_name:players.find(p=>p.id===first(r.Spelare))?.full_name||'',coach_name:coaches.find(c=>c.id===first(r.Tränare))?.full_name||''})).filter(r=>r.player_name)}
-  async function writePlayer(method, rowId, name){
+  async function writeName(table, method, rowId, name){
     const token=localStorage.getItem('nsk_admin_token');
     if(!token)throw new Error('Aktivera Adminläge först.');
-    const response=await fetch(`${API}/api/spelare${rowId?'/'+encodeURIComponent(rowId):''}`,{method,headers:{'Content-Type':'application/json',Authorization:'Bearer '+token},body:JSON.stringify({name:String(name||'').trim()})});
+    const response=await fetch(`${API}/api/${table}${rowId?'/'+encodeURIComponent(rowId):''}`,{method,headers:{'Content-Type':'application/json',Authorization:'Bearer '+token},body:JSON.stringify({name:String(name||'').trim()})});
     const result=await response.json();
-    if(!response.ok)throw new Error(result.error||'Kunde inte spara spelare');
+    if(!response.ok)throw new Error(result.error||'Kunde inte spara namn');
     return result.row;
   }
-  const addPlayer=name=>writePlayer('POST',null,name);
-  const updatePlayer=(rowId,name)=>writePlayer('PATCH',rowId,name);
+  const addPlayer=name=>writeName('spelare','POST',null,name);
+  const updatePlayer=(rowId,name)=>writeName('spelare','PATCH',rowId,name);
+  const addCoach=name=>writeName('tranare','POST',null,name);
+  const updateCoach=(rowId,name)=>writeName('tranare','PATCH',rowId,name);
   return {listPlayers,listCoaches,listPools,getPool,listPoolTeamMatchConfigs,getPoolTeamMatchConfig,getPlayersOnField,getLineup,listUsedPlayersInPool,listShiftSchema,listGoalieStats,listPlayerCoachMap,
-  addPlayer,updatePlayer,deletePlayer:failWrite,addCoach:failWrite,updateCoach:failWrite,deleteCoach:failWrite,addPool:failWrite,updatePool:failWrite,deletePool:failWrite,savePoolTeamMatchConfig:failWrite,saveLineup:failWrite,saveShiftSchema:failWrite,deleteShiftSchema:failWrite,setShiftDone:failWrite,savePlayerCoachMap:failWrite,subscribeTruppen:async()=>({unsubscribe(){}})};
+  addPlayer,updatePlayer,deletePlayer:failWrite,addCoach,updateCoach,deleteCoach:failWrite,addPool:failWrite,updatePool:failWrite,deletePool:failWrite,savePoolTeamMatchConfig:failWrite,saveLineup:failWrite,saveShiftSchema:failWrite,deleteShiftSchema:failWrite,setShiftDone:failWrite,savePlayerCoachMap:failWrite,subscribeTruppen:async()=>({unsubscribe(){}})};
 })();
