@@ -1,11 +1,12 @@
-// NSK2 read-only Baserow adapter. No authentication and no write endpoints.
+// NSK-2026: Baserow adapter with authenticated lineup and shift saving.
 window.DB = (() => {
   const API = window.APP_CONFIG?.API_URL || 'https://nsk-api.peter-hasselberg.workers.dev';
-  const failWrite = async () => { throw new Error('Sparande är tillfälligt avstängt i denna testversion.'); };
+  const failWrite = async () => { throw new Error('Funktionen är ännu inte aktiverad.'); };
   const id = x => x == null ? null : Number(x);
   const linked = x => Array.isArray(x) ? x.map(v => Number(typeof v === 'object' ? v.id : v)).filter(Number.isFinite) : [];
   const first = x => linked(x)[0] ?? null;
   const num = (x,d=0) => Number.isFinite(Number(x)) && x !== '' && x != null ? Number(x) : d;
+  const positive = x => Number.isSafeInteger(Number(x)) && Number(x) > 0;
   async function rows(table) {
     let all=[],page=1;
     while (true) {
@@ -26,41 +27,66 @@ window.DB = (() => {
   async function listPoolTeamMatchConfigs(poolId){return (await rows('matchkonfiguration')).filter(r=>first(r.Poolspel)==id(poolId)).map(r=>({id:r.id,pool_id:id(poolId),lag_no:num(r.Lagnummer,1),match_no:num(r.Matchnummer,1),start_time:r.Starttid||null,opponent:r.Motståndare||'',plan:r.Plan||'',player_count:num(r['Antal spelare']),goalie_player_id:first(r.Målvakt),players_on_field:linked(r['Spelare på plan'])})).sort((a,b)=>a.lag_no-b.lag_no||a.match_no-b.match_no)}
   async function getPoolTeamMatchConfig(poolId,lagNo,matchNo){return (await listPoolTeamMatchConfigs(poolId)).find(r=>r.lag_no==lagNo&&r.match_no==matchNo)||null}
   async function getPlayersOnField(poolId,lagNo,matchNo){const players=await listPlayers();const row=await getPoolTeamMatchConfig(poolId,lagNo,matchNo)||await getPoolTeamMatchConfig(poolId,lagNo,1);return row?.players_on_field?.length?players.filter(p=>row.players_on_field.includes(p.id)):players}
-  async function getLineup(matchConfigId){return (await rows('laguppstallningar')).filter(r=>first(r.Matchkonfiguration)==id(matchConfigId)).map(r=>({id:r.id,pool_id:first(r.Poolspel),match_config_id:id(matchConfigId),person_type:typeof r.Persontyp==='object'?r.Persontyp?.value:r.Persontyp,person_id:num(r['Person-ID']),sort_order:num(r.Sorteringsordning)})).filter(r=>r.person_id).sort((a,b)=>a.sort_order-b.sort_order)}
+  async function getLineup(matchConfigId){return (await rows('laguppstallningar')).filter(r=>first(r.Matchkonfiguration)==id(matchConfigId)).map(r=>({id:r.id,pool_id:first(r.Poolspel),match_config_id:id(matchConfigId),person_type:(typeof r.Persontyp==='object'?r.Persontyp?.value:r.Persontyp)==='Spelare'?'player':(typeof r.Persontyp==='object'?r.Persontyp?.value:r.Persontyp)==='Tränare'?'coach':null,person_id:num(r['Person-ID']),sort_order:num(r.Sorteringsordning)})).filter(r=>r.person_id&&r.person_type).sort((a,b)=>a.sort_order-b.sort_order)}
   async function listUsedPlayersInPool(poolId,currentLagNo){const cfg=(await listPoolTeamMatchConfigs(poolId)).filter(r=>r.lag_no!=currentLagNo);const result=await Promise.all(cfg.map(c=>getLineup(c.id)));return [...new Set(result.flat().filter(r=>r.person_type==='player').map(r=>r.person_id))]}
   async function listShiftSchema(poolId,lagNo,matchNo){return (await rows('bytesschema')).filter(r=>first(r.Poolspel)==id(poolId)&&num(r.Lagnummer)==lagNo&&num(r.Matchnummer)==matchNo).map(r=>({id:r.id,pool_id:id(poolId),lag_no:num(r.Lagnummer),match_no:num(r.Matchnummer),shift_no:num(r.Bytenummer),period_no:num(r.Periodnummer),time_left:r['Tid kvar']||'',players_json:linked(r['Spelare på plan']),done:!!r.Genomfört})).sort((a,b)=>a.shift_no-b.shift_no)}
   async function listGoalieStats(){return (await rows('malvaktsstatistik')).map(r=>({id:r.id,goalie_name:r.Målvaktsnamn||'',match_id:r['Match-ID']||''}))}
   async function listPlayerCoachMap(){const [map,players,coaches]=await Promise.all([rows('spelaretranare'),listPlayers(),listCoaches()]);return map.map(r=>({id:r.id,player_name:players.find(p=>p.id===first(r.Spelare))?.full_name||'',coach_name:coaches.find(c=>c.id===first(r.Tränare))?.full_name||''})).filter(r=>r.player_name)}
-  async function writeName(table, method, rowId, name){
+  async function adminRequest(path,method,payload){
     const token=localStorage.getItem('nsk_admin_token');
     if(!token)throw new Error('Aktivera Adminläge först.');
-    const response=await fetch(`${API}/api/${table}${rowId?'/'+encodeURIComponent(rowId):''}`,{method,headers:{'Content-Type':'application/json',Authorization:'Bearer '+token},body:JSON.stringify({name:String(name||'').trim()})});
-    const result=await response.json();
-    if(!response.ok)throw new Error(result.error||'Kunde inte spara namn');
-    return result.row;
+    const response=await fetch(`${API}${path}`,{method,headers:{'Content-Type':'application/json',Authorization:'Bearer '+token},body:JSON.stringify(payload)});
+    let data;try{data=await response.json()}catch{throw new Error('Ogiltigt svar från servern')}
+    if(!response.ok||!data.ok)throw new Error(data.error||'Kunde inte spara');
+    return data;
   }
-  async function updatePoolTeams(poolId,teams){
-    const token=localStorage.getItem('nsk_admin_token');
-    if(!token)throw new Error('Aktivera Adminläge först.');
-    const response=await fetch(`${API}/api/poolspel/${encodeURIComponent(poolId)}`,{method:'PATCH',headers:{'Content-Type':'application/json',Authorization:'Bearer '+token},body:JSON.stringify({teams})});
-    const data=await response.json();
-    if(!response.ok)throw new Error(data.error||'Kunde inte spara antal lag');
-    return data.row;
-  }
-  async function writePool(method,rowId,payload){
-    const token=localStorage.getItem('nsk_admin_token');
-    if(!token)throw new Error('Aktivera Adminläge först.');
-    const response=await fetch(`${API}/api/poolspel${rowId?'/'+encodeURIComponent(rowId):''}`,{method,headers:{'Content-Type':'application/json',Authorization:'Bearer '+token},body:JSON.stringify(payload)});
-    let data;try{data=await response.json()}catch{throw new Error('Ogiltigt svar från servern');}
-    if(!response.ok)throw new Error(data.error||'Kunde inte spara poolspel');
-    return data.row;
-  }
+  async function writeName(table,method,rowId,name){return (await adminRequest(`/api/${table}${rowId?'/'+encodeURIComponent(rowId):''}`,method,{name:String(name||'').trim()})).row}
+  async function updatePoolTeams(poolId,teams){return (await adminRequest(`/api/poolspel/${encodeURIComponent(poolId)}`,'PATCH',{teams})).row}
+  async function writePool(method,rowId,payload){return (await adminRequest(`/api/poolspel${rowId?'/'+encodeURIComponent(rowId):''}`,method,payload)).row}
   const addPool=payload=>writePool('POST',null,payload);
   const updatePool=(rowId,payload)=>writePool('PATCH',rowId,payload);
   const addPlayer=name=>writeName('spelare','POST',null,name);
   const updatePlayer=(rowId,name)=>writeName('spelare','PATCH',rowId,name);
   const addCoach=name=>writeName('tranare','POST',null,name);
   const updateCoach=(rowId,name)=>writeName('tranare','PATCH',rowId,name);
+  // Serialize all writes in this browser tab to avoid overlapping requests.
+  let pending=Promise.resolve();
+  function serialWrite(fn){const next=pending.catch(()=>{}).then(fn);pending=next.catch(()=>{});return next}
+  async function savePoolTeamMatchConfig(payload){
+    return serialWrite(async()=>{
+      const poolId=id(payload.pool_id),lagNo=id(payload.lag_no),matchNo=id(payload.match_no);
+      const goalie=id(payload.goalie_player_id);
+      const players=(payload.players_on_field||[]).map(Number);
+      if(![poolId,lagNo,matchNo,goalie,...players].every(positive))throw new Error('Ogiltiga ID:n i matchkonfiguration');
+      const old=await getPoolTeamMatchConfig(poolId,lagNo,matchNo);
+      const path=old?`/api/matchkonfiguration/${old.id}`:'/api/matchkonfiguration';
+      const data=await adminRequest(path,old?'PATCH':'POST',{...payload,pool_id:poolId,lag_no:lagNo,match_no:matchNo,goalie_player_id:goalie,players_on_field:players});
+      return {id:data.row.id,...payload};
+    });
+  }
+  async function saveLineup(configId,players,coaches){
+    return serialWrite(async()=>{
+      if(!positive(configId)||![...players,...coaches].every(positive))throw new Error('Ogiltiga ID:n i laguppställningen');
+      return adminRequest(`/api/laguppstallningar/${Number(configId)}`,'POST',{players:players.map(Number),coaches:coaches.map(Number)});
+    });
+  }
+  async function saveShiftSchema(poolId,lagNo,matchNo,shifts){
+    return serialWrite(async()=>adminRequest('/api/bytesschema/save','POST',{pool_id:Number(poolId),lag_no:Number(lagNo),match_no:Number(matchNo),shifts:shifts.map(s=>({period_no:Number(s.period_no),time_left:String(s.time_left),players:s.players.map(Number)}))}));
+  }
+  async function deleteShiftSchema(poolId,lagNo,matchNo){
+    // Empty replacement is handled by the same authenticated endpoint.
+    // Do not deploy before the server-side replacement strategy is verified.
+    return saveShiftSchema(poolId,lagNo,matchNo,[]);
+  }
+  async function setShiftDone(poolId,lagNo,matchNo,shiftNo,done){
+    return serialWrite(async()=>{
+      const shifts=await listShiftSchema(poolId,lagNo,matchNo);
+      const shift=shifts.find(s=>s.shift_no===Number(shiftNo));
+      if(!shift)throw new Error('Bytet hittades inte');
+      return adminRequest(`/api/bytesschema/${shift.id}/done`,'PATCH',{done:!!done});
+    });
+  }
   return {listPlayers,listCoaches,listPools,getPool,listPoolTeamMatchConfigs,getPoolTeamMatchConfig,getPlayersOnField,getLineup,listUsedPlayersInPool,listShiftSchema,listGoalieStats,listPlayerCoachMap,
-  addPlayer,updatePlayer,deletePlayer:failWrite,addCoach,updateCoach,deleteCoach:failWrite,updatePoolTeams,addPool,updatePool,deletePool:failWrite,savePoolTeamMatchConfig:failWrite,saveLineup:failWrite,saveShiftSchema:failWrite,deleteShiftSchema:failWrite,setShiftDone:failWrite,savePlayerCoachMap:failWrite,subscribeTruppen:async()=>({unsubscribe(){}})};
+    addPlayer,updatePlayer,deletePlayer:failWrite,addCoach,updateCoach,deleteCoach:failWrite,updatePoolTeams,addPool,updatePool,deletePool:failWrite,
+    savePoolTeamMatchConfig,saveLineup,saveShiftSchema,deleteShiftSchema,setShiftDone,savePlayerCoachMap:failWrite,subscribeTruppen:async()=>({unsubscribe(){}})};
 })();
