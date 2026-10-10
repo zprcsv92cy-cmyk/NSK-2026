@@ -1,0 +1,493 @@
+:root{
+  --bg:#0f0f10; --card:#17181b; --line:#2b2b31; --text:#f5f5f7; --muted:#a7a7ad;
+  --red:#b11226; --ok:#35d07f;
+}
+*{box-sizing:border-box}
+body{
+  margin:0;padding:16px;background:
+  radial-gradient(1000px 600px at 20% -10%, rgba(177,18,38,.2), transparent 55%),
+  var(--bg);color:var(--text);font-family:-apple-system,system-ui,Segoe UI,Roboto,Arial,sans-serif;
+}
+.topbar{display:flex;justify-content:space-between;gap:16px;align-items:flex-start;margin-bottom:16px}
+h1,h2,h3{margin:0 0 8px}
+.sub,.msg,.small,label{color:var(--muted)}
+.badge{background:#24242a;border:1px solid #34343b;padding:8px 12px;border-radius:999px;font-weight:700}
+.topright{display:flex;gap:8px;flex-wrap:wrap}
+.view{display:none}.view.active{display:block}
+.grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:16px}
+.span2{grid-column:span 2}
+.card{background:var(--card);border:1px solid var(--line);border-radius:18px;padding:16px;box-shadow:0 10px 24px rgba(0,0,0,.25)}
+.narrow{max-width:520px}
+input,textarea,select{
+  width:100%;padding:12px 14px;margin:0 0 10px;border-radius:14px;border:1px solid var(--line);
+  background:#111217;color:var(--text)
+}
+button{
+  padding:12px 14px;border-radius:14px;border:1px solid #6f0d1d;background:linear-gradient(180deg,#d51f35,#7a0c18);
+  color:#fff;font-weight:800;cursor:pointer
+}
+button.ghost{background:#202127;border-color:#34343b}
+.btnrow{display:flex;gap:10px;flex-wrap:wrap}
+.row2{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+.toolbar{display:flex;justify-content:space-between;align-items:center;gap:12px}
+.match{border:1px solid #2e2f36;background:#131419;border-radius:16px;padding:12px;margin-bottom:10px}
+.match-top{display:flex;justify-content:space-between;gap:12px;align-items:flex-start}
+.match-title{font-weight:900;font-size:18px}
+.lineup-row{display:grid;grid-template-columns:54px 1fr 80px;gap:10px;align-items:center;padding:8px 0;border-top:1px solid rgba(255,255,255,.05)}
+.lineup-row.done{opacity:.55;text-decoration:line-through}
+.pill{display:inline-block;padding:4px 8px;border-radius:999px;background:#21242a;color:#d7d7dc;font-size:12px;margin-right:6px;margin-top:6px}
+.coach-grid{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-top:12px}
+.coach-box{background:#111217;border:1px solid #2d2f36;border-radius:18px;padding:16px}
+.coach-label{font-size:12px;letter-spacing:.12em;color:var(--muted);font-weight:900}
+.coach-meta{margin-top:6px;color:var(--muted)}
+.coach-main{margin-top:8px;font-size:38px;font-weight:950;line-height:1.05}
+.coach-next{margin-top:8px;font-size:28px;font-weight:900;line-height:1.08}
+.timerwrap{margin-top:14px;padding:16px;background:#111217;border:1px solid #2d2f36;border-radius:18px}
+.timer{font-size:62px;font-weight:950;line-height:1}
+.fullscreen-mode{padding:8px}
+.fullscreen-mode .topbar, .fullscreen-mode .card:not(.coach-card){display:none}
+.fullscreen-mode .coach-card{grid-column:1/-1;min-height:calc(100vh - 16px);padding:24px}
+.fullscreen-mode .coach-grid{gap:20px}
+.fullscreen-mode .coach-box{padding:24px;border-radius:24px}
+.fullscreen-mode .coach-label{font-size:22px}
+.fullscreen-mode .coach-meta{font-size:24px}
+.fullscreen-mode .coach-main{font-size:92px;line-height:1}
+.fullscreen-mode .coach-next{font-size:64px;line-height:1.02}
+.fullscreen-mode .timer{font-size:110px}
+.fullscreen-mode .btnrow button{font-size:24px;padding:18px 22px}
+@media (max-width:900px){
+  .grid{grid-template-columns:1fr}
+  .span2{grid-column:span 1}
+  .coach-grid{grid-template-columns:1fr}
+  .row2{grid-template-columns:1fr}
+  .coach-main{font-size:28px}
+  .coach-next{font-size:22px}
+  .timer{font-size:46px}
+  .fullscreen-mode .coach-main{font-size:64px}
+  .fullscreen-mode .coach-next{font-size:46px}
+  .fullscreen-mode .coach-meta{font-size:18px}
+  .fullscreen-mode .timer{font-size:78px}
+}
+/* Gemensam wrapper för flersidor */
+.wrap{
+  max-width:1100px;
+  margin:0 auto;
+  padding:0;
+}
+
+/* Huvudmeny för NSK2 */
+.mainmenu{
+  display:flex;
+  gap:10px;
+  flex-wrap:wrap;
+  margin-bottom:16px;
+}
+
+.mainmenu a{
+  text-decoration:none;
+  color:#fff;
+  background:#1c1d22;
+  border:1px solid #2d2f36;
+  padding:10px 14px;
+  border-radius:12px;
+  font-weight:700;
+}
+
+.mainmenu a:hover,
+.mainmenu a.active{
+  background:var(--red);
+  border-color:#8f1020;
+}
+
+/* Enkel lista/rad för infosidor */
+.listrow{
+  padding:10px 0;
+  border-top:1px solid rgba(255,255,255,.06);
+}
+
+/* Kod/etikett-rutor */
+code{
+  background:#111217;
+  border:1px solid #2b2b31;
+  border-radius:8px;
+  padding:2px 6px;
+  color:#f5f5f7;
+}
+
+/* Vanliga länkar inne i kort */
+.card a{
+  color:#fff;
+}
+
+/* Lite snyggare stycken på infosidor */
+p{
+  line-height:1.5;
+}
+
+/* =========================
+   V717 COACH MODE / START POOL
+   ========================= */
+
+.start-pool-btn{
+  width:100%;
+  min-height:64px;
+  padding:18px 20px;
+  border-radius:18px;
+  font-size:22px;
+  font-weight:900;
+  background:linear-gradient(180deg,#e11d3d,#9f0d20);
+  color:#fff;
+  border:1px solid rgba(255,255,255,.14);
+}
+
+.lag-overview-btn{
+  width:100%;
+  text-align:left;
+  padding:18px;
+}
+
+.lag-overview-title{
+  font-size:24px;
+  font-weight:900;
+}
+
+.lag-overview-coaches{
+  margin-top:8px;
+  font-size:15px;
+  color:rgba(255,255,255,.82);
+}
+
+.matchvy-info-row{
+  margin-top:6px;
+  font-size:18px;
+}
+
+.coach-mode-card{
+  padding:24px;
+}
+
+.coach-mode-header{
+  display:grid;
+  grid-template-columns:minmax(0,1fr) 220px;
+  gap:18px;
+  align-items:stretch;
+  margin-bottom:18px;
+}
+
+.coach-big-title{
+  font-size:34px;
+  font-weight:900;
+  line-height:1.05;
+  margin-bottom:10px;
+}
+
+.coach-match-info{
+  color:var(--muted);
+  font-size:18px;
+  line-height:1.5;
+}
+
+.coach-timer-panel{
+  border:1px solid var(--line);
+  border-radius:22px;
+  background:rgba(0,0,0,.22);
+  padding:18px;
+  display:flex;
+  flex-direction:column;
+  justify-content:center;
+  align-items:center;
+}
+
+.coach-byte-meta{
+  display:grid;
+  grid-template-columns:1fr 1fr;
+  gap:14px;
+  margin-bottom:18px;
+}
+
+.coach-byte-meta-box{
+  border:1px solid var(--line);
+  border-radius:18px;
+  background:rgba(255,255,255,.06);
+  padding:14px 16px;
+  font-size:18px;
+  font-weight:800;
+}
+
+.coach-panels-big{
+  display:grid;
+  grid-template-columns:1fr 1fr;
+  gap:18px;
+  margin-bottom:20px;
+}
+
+.coach-panel-current,
+.coach-panel-nextbox{
+  min-height:280px;
+  border:1px solid var(--line);
+  border-radius:24px;
+  padding:22px;
+  background:rgba(255,255,255,.06);
+}
+
+.coach-panel-label-big{
+  font-size:18px;
+  font-weight:900;
+  margin-bottom:14px;
+  letter-spacing:.03em;
+}
+
+.coach-panel-main-big,
+.coach-panel-next-big{
+  font-size:40px;
+  line-height:1.28;
+  font-weight:900;
+}
+
+.coach-nav-row{
+  display:grid;
+  grid-template-columns:1fr 1fr;
+  gap:14px;
+}
+
+.coach-nav-btn{
+  min-height:64px;
+  font-size:20px;
+  font-weight:900;
+  border-radius:18px;
+}
+
+@media (max-width:900px){
+  .coach-mode-header{
+    grid-template-columns:1fr;
+  }
+
+  .coach-byte-meta,
+  .coach-panels-big,
+  .coach-nav-row{
+    grid-template-columns:1fr;
+  }
+
+  .coach-big-title{
+    font-size:28px;
+  }
+
+  .coach-panel-main-big,
+  .coach-panel-next-big{
+    font-size:30px;
+  }
+}
+
+/* =========================
+   V718 START / LAG / MATCHVY / BYTESSCHEMA
+   ========================= */
+
+.start-pool-btn{
+  width:100%;
+  min-height:64px;
+  padding:18px 20px;
+  border-radius:18px;
+  font-size:22px;
+  font-weight:900;
+  background:linear-gradient(180deg,#e11d3d,#9f0d20);
+  color:#fff;
+  border:1px solid rgba(255,255,255,.14);
+}
+
+.lag-overview-btn{
+  width:100%;
+  min-height:88px;
+  text-align:left;
+  padding:18px;
+}
+
+.lag-overview-title{
+  font-size:24px;
+  font-weight:900;
+}
+
+.lag-overview-coaches{
+  margin-top:8px;
+  font-size:15px;
+  color:rgba(255,255,255,.82);
+}
+
+.match-list-stack{
+  display:grid;
+  gap:12px;
+  margin-top:16px;
+}
+
+.match-list-item{
+  width:100%;
+  text-align:left;
+  min-height:78px;
+  padding:16px 18px;
+  border-radius:18px;
+  border:1px solid var(--line);
+  background:var(--btn);
+  color:var(--text);
+}
+
+.match-list-item.active-team-btn{
+  background:linear-gradient(180deg,var(--red1),var(--red2));
+}
+
+.match-list-title{
+  font-size:22px;
+  font-weight:900;
+}
+
+.match-list-sub{
+  margin-top:6px;
+  font-size:14px;
+  color:var(--muted);
+}
+
+.matchview-wrap{
+  max-width:560px;
+}
+
+.iphone-match-card{
+  padding:18px;
+}
+
+.coach-big-title{
+  font-size:28px;
+  font-weight:900;
+  line-height:1.08;
+  margin-bottom:10px;
+}
+
+.coach-match-info{
+  color:var(--muted);
+  font-size:17px;
+  line-height:1.45;
+  margin-bottom:12px;
+}
+
+.single-meta{
+  margin-bottom:10px;
+}
+
+.compact-panel{
+  min-height:0;
+  padding:16px;
+  margin-bottom:12px;
+}
+
+.coach-panel-label-big{
+  font-size:18px;
+  font-weight:900;
+  margin-bottom:10px;
+}
+
+.coach-panel-main-big,
+.coach-panel-next-big{
+  font-size:28px;
+  line-height:1.25;
+  font-weight:900;
+}
+
+.compact-nav-row{
+  display:grid;
+  grid-template-columns:1fr 1fr;
+  gap:12px;
+  margin-top:4px;
+}
+
+.coach-nav-btn{
+  min-height:58px;
+  font-size:18px;
+  font-weight:900;
+  border-radius:18px;
+}
+
+@media (max-width:700px){
+  .matchview-wrap{
+    max-width:100%;
+  }
+
+  .coach-big-title{
+    font-size:24px;
+  }
+
+  .coach-panel-main-big,
+  .coach-panel-next-big{
+    font-size:24px;
+  }
+
+  .compact-mainmenu{
+    gap:8px;
+  }
+
+  .compact-mainmenu a{
+    padding:10px 12px;
+    font-size:15px;
+  }
+}
+
+/* =========================
+   V726 NYTT BYTESSCHEMA
+   ========================= */
+
+.match-schema-block{
+  margin-top:20px;
+  padding-top:20px;
+  border-top:1px solid var(--line);
+}
+
+.match-schema-block:first-child{
+  margin-top:0;
+  padding-top:0;
+  border-top:0;
+}
+
+.match-schema-details{
+  display:grid;
+  gap:6px;
+  margin-bottom:14px;
+}
+
+.shift-table{
+  width:100%;
+  border-collapse:collapse;
+  font-size:15px;
+}
+
+.shift-table th,
+.shift-table td{
+  padding:10px 8px;
+  border-top:1px solid rgba(255,255,255,.08);
+  text-align:left;
+  vertical-align:top;
+}
+
+.shift-table th{
+  color:var(--muted);
+  font-size:13px;
+  font-weight:800;
+}
+
+.check-cell{
+  width:36px;
+}
+
+.shift-check{
+  display:inline-block;
+  width:22px;
+  height:22px;
+  border-radius:999px;
+  border:2px solid var(--line);
+  background:#111217;
+  cursor:pointer;
+}
+
+.shift-check.done{
+  background:linear-gradient(180deg,var(--red1),var(--red2));
+  border-color:#8f1020;
+}
+
+.shift-players{
+  line-height:1.45;
+}
