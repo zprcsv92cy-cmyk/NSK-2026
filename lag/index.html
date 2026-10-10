@@ -27,6 +27,12 @@
     <section class="card">
       <h1>Lag</h1>
       <div class="small">Välj lag för att öppna matchvyn för valt poolspel.</div>
+      <div id="poolTeamEditor" class="listrow" hidden>
+        <label for="poolTeamCount">Antal lag i valt poolspel (1–20)</label>
+        <input id="poolTeamCount" type="number" min="1" max="20" step="1" style="width:90px;margin:0 10px">
+        <button type="button" id="poolTeamSave">Spara antal lag</button>
+        <div id="poolTeamMessage" class="small" role="status"></div>
+      </div>
       <div id="teamButtons" class="team-buttons"></div>
       <div id="activeTeam" class="listrow"></div>
     </section>
@@ -40,5 +46,6 @@
     </script>
   </div>
 <script src="../admin-mode.js?v=1"></script>
+<script src="../pool-team-editor.js?v=1"></script>
 </body>
 </html>
