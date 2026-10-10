@@ -129,18 +129,20 @@
 <script>
 (function(){
  const style=document.createElement('style');
- style.textContent=`body:not(.nsk-roster-admin) #playerInput,body:not(.nsk-roster-admin) #addPlayerBtn,body:not(.nsk-roster-admin) .inline-name-input{pointer-events:none}body:not(.nsk-roster-admin) .inline-name-input{border:0;background:transparent}#coachesList .inline-name-input{pointer-events:none;border:0;background:transparent}#coachesList [data-delete-coach],#playersList [data-delete-player],#coachInput,#addCoachBtn,#importBackupBtn{display:none!important}`;
+ style.textContent=`body:not(.nsk-roster-admin) #playerInput,body:not(.nsk-roster-admin) #addPlayerBtn,body:not(.nsk-roster-admin) .inline-name-input{pointer-events:none}body:not(.nsk-roster-admin) .inline-name-input{border:0;background:transparent}body:not(.nsk-roster-admin) #coachInput,body:not(.nsk-roster-admin) #addCoachBtn,body:not(.nsk-roster-admin) #coachesList .inline-name-input{pointer-events:none}body:not(.nsk-roster-admin) #coachesList .inline-name-input{border:0;background:transparent}#coachesList [data-delete-coach],#playersList [data-delete-player],#importBackupBtn{display:none!important}`;
  document.head.appendChild(style);
  async function sync(){
   const token=localStorage.getItem('nsk_admin_token');let allowed=false;
   if(token)try{const r=await fetch((window.APP_CONFIG?.API_URL||'https://nsk-api.peter-hasselberg.workers.dev')+'/api/admin/status',{headers:{Authorization:'Bearer '+token},cache:'no-store'});allowed=r.ok&&(await r.json()).admin===true}catch{}
   document.body.classList.toggle('nsk-roster-admin',allowed);
   document.querySelectorAll('#playersList .inline-name-input').forEach(e=>e.readOnly=!allowed);
-  document.querySelectorAll('#coachesList .inline-name-input').forEach(e=>e.readOnly=true);
+  document.querySelectorAll('#coachesList .inline-name-input').forEach(e=>e.readOnly=!allowed);
+  const coachInp=document.getElementById('coachInput');if(coachInp)coachInp.disabled=!allowed;
+  const coachBtn=document.getElementById('addCoachBtn');if(coachBtn)coachBtn.disabled=!allowed;
   const inp=document.getElementById('playerInput');if(inp)inp.disabled=!allowed;
   const btn=document.getElementById('addPlayerBtn');if(btn)btn.disabled=!allowed;
  }
- document.addEventListener('DOMContentLoaded',()=>{sync();setInterval(sync,15000);const observer=new MutationObserver(()=>{const allowed=document.body.classList.contains('nsk-roster-admin');document.querySelectorAll('#playersList .inline-name-input').forEach(e=>e.readOnly=!allowed);document.querySelectorAll('#coachesList .inline-name-input').forEach(e=>e.readOnly=true)});observer.observe(document.getElementById('playersList'),{childList:true,subtree:true});observer.observe(document.getElementById('coachesList'),{childList:true,subtree:true});});
+ document.addEventListener('DOMContentLoaded',()=>{sync();setInterval(sync,15000);const observer=new MutationObserver(()=>{const allowed=document.body.classList.contains('nsk-roster-admin');document.querySelectorAll('#playersList .inline-name-input').forEach(e=>e.readOnly=!allowed);document.querySelectorAll('#coachesList .inline-name-input').forEach(e=>e.readOnly=!allowed)});observer.observe(document.getElementById('playersList'),{childList:true,subtree:true});observer.observe(document.getElementById('coachesList'),{childList:true,subtree:true});});
  window.addEventListener('storage',sync);window.addEventListener('focus',sync);
 })();
 </script>
