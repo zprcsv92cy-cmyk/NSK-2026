@@ -1,0 +1,46 @@
+<!doctype html>
+<html lang="sv">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>Målvaktsstatistik</title>
+  <meta name="theme-color" content="#b11226">
+
+  <script src="../version.js?v=667"></script>
+  <script>
+    document.write('<link rel="manifest" href="../manifest.webmanifest?v=' + window.NSK_VERSION + '">');
+    document.write('<link rel="stylesheet" href="../app.css?v=' + window.NSK_VERSION + '">');
+  </script>
+</head>
+<body>
+  <div class="wrap">
+    <nav class="mainmenu">
+      <a href="../startsida/">Startsida</a>
+      <a href="../truppen/">Truppen</a>
+      <a href="../skapapoolspel/">Skapa poolspel</a>
+      <a href="../malvaktsstatistik/" class="active">Målvaktsstatistik</a>
+      <a href="../bytesschema/">Bytesschema</a>
+      <a href="../matchvy/">Matchvy</a>
+      <a href="../lag/">Lag</a>
+    </nav>
+
+    <section class="card">
+      <h1>Målvaktsstatistik</h1>
+      <div class="small">Visar bara antal matcher som målvakt.</div>
+    </section>
+
+    <section class="card">
+      <h2>Översikt</h2>
+      <div id="goalieStatsList"></div>
+    </section>
+
+    <div id="appError" class="small"></div>
+<script>
+  document.write('<script src="../config.js?v=' + window.NSK_VERSION + '"><\/script>');
+  document.write('<script src="../auth.js?v=' + window.NSK_VERSION + '"><\/script>');
+  document.write('<script src="../db.js?v=' + window.NSK_VERSION + '"><\/script>');
+  document.write('<script src="../app.js?v=' + window.NSK_VERSION + '"><\/script>');
+</script>
+  </div>
+</body>
+</html>
