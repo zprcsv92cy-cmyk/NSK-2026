@@ -646,10 +646,9 @@ window.NSK2App = (() => {
         matchRow = await DB.getPoolTeamMatchConfig(poolId, lagNo, 1);
       }
 
-      let lineup = [];
-      if (matchRow?.id && typeof DB?.getLineup === "function") {
-        lineup = await DB.getLineup(matchRow.id);
-      }
+      // Selection data is loaded once in fillLaguppstallningFormFromSelection.
+      // Do not paint a corrupt saved lineup during selector construction.
+      const lineup = [];
 
       const ownSet = new Set();
       const matchGoalieId = cleanUUID(matchRow?.goalie_player_id);
@@ -1095,15 +1094,26 @@ window.NSK2App = (() => {
         lineup = await DB.getLineup(rowCurrent.id);
       }
 
-      // An older faulty save may contain the same player on multiple positions.
-      // Treat that as an invalid initial copy, not as a valid custom lineup.
+      // A saved lineup is valid only if all requested positions have distinct IDs.
+      // Old failed writes can leave 7 identical entries (or only one entry).
+      const expectedCount = safeInt(byId("lineupPlayerCount")?.value || "3", 3);
       const isValidLineup = (entries) => {
-        const ids = (entries || []).filter(x => x.person_type === "player").map(x => String(x.person_id));
-        return ids.length > 0 && new Set(ids).size === ids.length;
+        const ids = (entries || []).filter(x => x.person_type === "player")
+          .sort((a, b) => (a.sort_order || 0) - (b.sort_order || 0))
+          .map(x => String(x.person_id));
+        return ids.length === expectedCount && new Set(ids).size === expectedCount &&
+          ids.every(id => id && id !== "0");
       };
-      if (String(matchNo) !== "1" && !isValidLineup(lineup) && row1?.id && typeof DB?.getLineup === "function") {
-        const baseLineup = await DB.getLineup(row1.id);
-        if (isValidLineup(baseLineup)) lineup = baseLineup;
+      if (String(matchNo) !== "1" && !isValidLineup(lineup)) {
+        const baseLineup = row1?.id && typeof DB?.getLineup === "function"
+          ? await DB.getLineup(row1.id) : [];
+        if (isValidLineup(baseLineup)) {
+          lineup = baseLineup;
+          setText("lineupMsg", "Uppställning hämtad från Match 1. Ändra en spelare för att spara Match " + matchNo + ".");
+        } else {
+          lineup = [];
+          setText("appError", "Kunde inte kopiera en fullständig uppställning från Match 1. Inga ändringar sparades.");
+        }
       }
 
       if (lineup?.length) {
