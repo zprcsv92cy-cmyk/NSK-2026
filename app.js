@@ -632,9 +632,9 @@ window.NSK2App = (() => {
       const lagNo = sessionStorage.getItem("nsk2_lag_nr") || "1";
       const currentMatchNo = byId("lineupMatch")?.value || "1";
 
-      const players = typeof DB?.getPlayersOnField === "function"
-        ? await DB.getPlayersOnField(poolId, lagNo, currentMatchNo)
-        : (typeof DB?.listPlayers === "function" ? await getPlayersCached() : []);
+      // All squad members must remain available in every match. The match-specific
+      // list may be stale/incomplete and otherwise makes a saved ID unselectable.
+      const players = typeof DB?.listPlayers === "function" ? await getPlayersCached() : [];
 
       const usedSameMatchSet = poolId ? await getUsedPlayersInSameMatch(poolId, lagNo, currentMatchNo) : new Set();
 
@@ -824,7 +824,7 @@ window.NSK2App = (() => {
 
         const isOwnValue = String(opt.value) === String(currentValue);
         const isTaken = selectedIds.has(String(opt.value)) && !isOwnValue;
-        opt.hidden = isTaken;
+        opt.hidden = false;
         opt.disabled = isTaken;
       });
     }
@@ -851,7 +851,7 @@ window.NSK2App = (() => {
 
         const isOwnValue = String(opt.value) === String(currentGoalie);
         const isTaken = usedAsPlayer && !isOwnValue;
-        opt.hidden = isTaken;
+        opt.hidden = false;
         opt.disabled = isTaken;
       });
     }
@@ -1095,8 +1095,15 @@ window.NSK2App = (() => {
         lineup = await DB.getLineup(rowCurrent.id);
       }
 
-      if ((!lineup || !lineup.length) && row1?.id && typeof DB?.getLineup === "function") {
-        lineup = await DB.getLineup(row1.id);
+      // An older faulty save may contain the same player on multiple positions.
+      // Treat that as an invalid initial copy, not as a valid custom lineup.
+      const isValidLineup = (entries) => {
+        const ids = (entries || []).filter(x => x.person_type === "player").map(x => String(x.person_id));
+        return ids.length > 0 && new Set(ids).size === ids.length;
+      };
+      if (String(matchNo) !== "1" && !isValidLineup(lineup) && row1?.id && typeof DB?.getLineup === "function") {
+        const baseLineup = await DB.getLineup(row1.id);
+        if (isValidLineup(baseLineup)) lineup = baseLineup;
       }
 
       if (lineup?.length) {
@@ -1140,9 +1147,8 @@ window.NSK2App = (() => {
       await applyAutoCoachFromCurrentSelection();
       updateCoachEnabledState();
 
-      if (!rowCurrent && String(matchNo) !== "1") {
-        queueAutoSaveLineup();
-      }
+      // Do not auto-save when merely opening another match. Save on user changes.
+
     } catch (err) {
       setText("appError", err?.message || String(err));
     }
