@@ -1314,7 +1314,18 @@ window.NSK2App = (() => {
     return shifts;
   }
 
-  async function saveLaguppstallningMatchConfig(silent = false) {
+  // Queue the COMPLETE save flow, not just individual database calls.
+  // This prevents two autosaves in this tab from interleaving their writes.
+  let lineupSaveChain = Promise.resolve();
+  function saveLaguppstallningMatchConfig(silent = false) {
+    const next = lineupSaveChain.catch(() => {}).then(() =>
+      saveLaguppstallningMatchConfigInternal(silent)
+    );
+    lineupSaveChain = next.catch(() => {});
+    return next;
+  }
+
+  async function saveLaguppstallningMatchConfigInternal(silent = false) {
     const poolId = sessionStorage.getItem("nsk2_pool_id") || "";
     const lagNo = sessionStorage.getItem("nsk2_lag_nr") || "1";
     const matchNo = byId("lineupMatch")?.value || "1";
