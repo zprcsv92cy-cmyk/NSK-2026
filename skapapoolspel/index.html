@@ -91,7 +91,7 @@
         <option value="120">120</option>
       </select>
 
-      <button id="savePool" type="button">Spara poolspel</button>
+      <button id="savePool" type="button" hidden disabled>Spara poolspel</button>
       <div id="poolMsg" class="small"></div>
     </section>
 
@@ -110,5 +110,18 @@
 </script>
   </div>
 <script src="../admin-mode.js?v=1"></script>
+<script>
+(function(){
+ const btn=document.getElementById('savePool');
+ async function refresh(){
+  const token=localStorage.getItem('nsk_admin_token');
+  if(!token){btn.hidden=true;btn.disabled=true;return;}
+  try{const r=await fetch('https://nsk-api.peter-hasselberg.workers.dev/api/admin/status',{headers:{Authorization:'Bearer '+token},cache:'no-store'});const data=await r.json();btn.hidden=!data.admin;btn.disabled=!data.admin;}catch{btn.hidden=true;btn.disabled=true;}
+ }
+ window.addEventListener('storage',refresh);
+ document.addEventListener('click',()=>setTimeout(refresh,250));
+ refresh();
+})();
+</script>
 </body>
 </html>
