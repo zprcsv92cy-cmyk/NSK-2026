@@ -238,7 +238,7 @@ window.NSK2App = (() => {
         if (t.dataset.poolId && t.dataset.lagNo) {
           sessionStorage.setItem("nsk2_pool_id", t.dataset.poolId || "");
           sessionStorage.setItem("nsk2_lag_nr", t.dataset.lagNo || "1");
-          window.location.href = "../laguppstallning/";
+          window.location.href = "../laguppstallning/index.html";
           return;
         }
 
@@ -460,7 +460,7 @@ window.NSK2App = (() => {
         sessionStorage.removeItem("nsk2_pool_id");
         sessionStorage.setItem("nsk2_lag_nr", String(i));
         sessionStorage.setItem("nsk2_lineup_from_create", "1");
-        window.location.href = "../laguppstallning/";
+        window.location.href = "../laguppstallning/index.html";
       });
       box.appendChild(btn);
     }
