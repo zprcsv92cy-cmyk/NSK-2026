@@ -64,12 +64,50 @@
     @media(max-width:350px) {
       .lineup-page .lineup-info-grid { grid-template-columns:1fr; }
     }
-    .lineup-page .lineup-section-heading { display:flex; align-items:center; justify-content:space-between; gap:12px; margin-bottom:9px; }
-    .lineup-page .lineup-section-heading h2 { margin:0; }
-    .lineup-page .lineup-section-heading button { flex:0 0 auto; min-height:38px; padding:7px 14px; background:#202127; border:1px solid #41414a; }
-    .lineup-page .lineup-goalie-section { padding-bottom:15px; margin-bottom:14px; border-bottom:1px solid #34343b; }
-    .lineup-page .lineup-outfield-heading { margin:0 0 10px; }
+    /* Målvaktsraden byggs av befintlig app.js. Endast CSS ändras här. */
+    .lineup-page #lineupSelectors .goalie-row {
+      display:grid !important;
+      grid-template-columns:minmax(0,1fr) auto;
+      grid-template-rows:auto auto auto;
+      align-items:center;
+      column-gap:12px;
+      row-gap:9px;
+      padding-bottom:16px;
+      margin-bottom:15px;
+      border-bottom:1px solid #34343b;
+    }
+    .lineup-page #lineupSelectors .goalie-row > .goalie-col { display:contents !important; }
+    .lineup-page #lineupSelectors label[for="lineupGoalie"] {
+      grid-column:1; grid-row:1;
+      display:block; margin:0;
+      font-size:21px; font-weight:700; color:#f5f5f7;
+    }
+    .lineup-page #lineupSelectors .goalie-random-col > label { display:none !important; }
+    .lineup-page #lineupSelectors button[data-random-goalie] {
+      grid-column:2; grid-row:1;
+      justify-self:end;
+      width:auto !important; min-height:38px;
+      padding:7px 14px;
+      background:#202127 !important;
+      border:1px solid #41414a !important;
+      color:#fff !important;
+      box-shadow:none !important;
+    }
+    .lineup-page #lineupSelectors #lineupGoalie {
+      grid-column:1 / -1; grid-row:2; width:100%;
+    }
+    .lineup-page #lineupSelectors .goalie-row::after {
+      content:"Spelare";
+      grid-column:1 / -1; grid-row:3;
+      display:block;
+      margin-top:17px;
+      font-size:21px; font-weight:700; color:#f5f5f7;
+    }
     .lineup-page #lineupStartTime { width:118px; max-width:100%; min-height:40px; padding:6px 8px; }
+    @media(max-width:600px) {
+      .lineup-page #lineupSelectors label[for="lineupGoalie"],
+      .lineup-page #lineupSelectors .goalie-row::after { font-size:19px; }
+    }
   </style>
 </head>
 <body class="lineup-page">
