@@ -1049,6 +1049,7 @@ window.NSK2App = (() => {
   }
 
   async function fillLaguppstallningFormFromSelection() {
+    clearTimeout(window.__nskLineupSaveTimer);
     const lagNo = sessionStorage.getItem("nsk2_lag_nr") || "1";
     const matchNo = byId("lineupMatch")?.value || "1";
     const poolId = sessionStorage.getItem("nsk2_pool_id") || "";
@@ -1114,6 +1115,14 @@ window.NSK2App = (() => {
       let lineup = [];
       if (rowCurrent?.id && typeof DB?.getLineup === "function") {
         lineup = await DB.getLineup(rowCurrent.id);
+        // Older failed saves left duplicate rows. The Worker now updates the
+        // oldest row per position; ignore surplus rows when displaying.
+        const byPosition = new Map();
+        for (const entry of [...lineup].sort((a, b) => Number(a.id) - Number(b.id))) {
+          const key = `${entry.person_type}:${entry.sort_order}`;
+          if (!byPosition.has(key)) byPosition.set(key, entry);
+        }
+        lineup = [...byPosition.values()];
       }
 
       // A saved lineup is valid only if all requested positions have distinct IDs.
@@ -1442,15 +1451,23 @@ window.NSK2App = (() => {
         await DB.saveLineup(matchRow.id, selectedPlayers, coachIds);
       }
 
-      await regenerateShiftSchemaFor(poolId, lagNo, matchNo);
-
-      const onBytesschemaPage = !!byId("shiftTableWrap");
-      const activeShiftMatch = byId("shiftMatch")?.value || "";
-      if (onBytesschemaPage && String(activeShiftMatch) === String(matchNo)) {
-        await renderShiftSchema();
+      // Lineup saving must not be reported as failed if the separate shift
+      // schedule endpoint rejects generated shifts. Save that independently.
+      let shiftWarning = "";
+      try {
+        await regenerateShiftSchemaFor(poolId, lagNo, matchNo);
+        const onBytesschemaPage = !!byId("shiftTableWrap");
+        const activeShiftMatch = byId("shiftMatch")?.value || "";
+        if (onBytesschemaPage && String(activeShiftMatch) === String(matchNo)) {
+          await renderShiftSchema();
+        }
+      } catch (shiftError) {
+        console.warn("Bytesschema kunde inte uppdateras:", shiftError);
+        shiftWarning = " Bytesschemat kunde inte uppdateras: " + (shiftError?.message || String(shiftError));
       }
 
-      setText("lineupMsg", "Laguppställning sparad för Match " + matchNo + ".");
+      setText("appError", "");
+      setText("lineupMsg", "Laguppställning sparad för Match " + matchNo + "." + shiftWarning);
     } catch (err) {
       setText("appError", err?.message || String(err));
     }
