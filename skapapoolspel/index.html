@@ -77,9 +77,18 @@
 
       <label for="periodTime">Periodtid (min)</label>
       <select id="periodTime">
+        <option value="8">8</option>
+        <option value="9">9</option>
         <option value="10">10</option>
+        <option value="11">11</option>
         <option value="12">12</option>
+        <option value="13">13</option>
+        <option value="14">14</option>
         <option value="15" selected>15</option>
+        <option value="16">16</option>
+        <option value="17">17</option>
+        <option value="18">18</option>
+        <option value="19">19</option>
         <option value="20">20</option>
       </select>
 
@@ -91,7 +100,7 @@
         <option value="120">120</option>
       </select>
 
-      <button id="savePool" type="button" hidden disabled>Spara poolspel</button>
+      <button id="savePool" type="button">Spara poolspel</button>
       <div id="poolMsg" class="small"></div>
     </section>
 
@@ -110,18 +119,5 @@
 </script>
   </div>
 <script src="../admin-mode.js?v=1"></script>
-<script>
-(function(){
- const btn=document.getElementById('savePool');
- async function refresh(){
-  const token=localStorage.getItem('nsk_admin_token');
-  if(!token){btn.hidden=true;btn.disabled=true;return;}
-  try{const r=await fetch('https://nsk-api.peter-hasselberg.workers.dev/api/admin/status',{headers:{Authorization:'Bearer '+token},cache:'no-store'});const data=await r.json();btn.hidden=!data.admin;btn.disabled=!data.admin;}catch{btn.hidden=true;btn.disabled=true;}
- }
- window.addEventListener('storage',refresh);
- document.addEventListener('click',()=>setTimeout(refresh,250));
- refresh();
-})();
-</script>
 </body>
 </html>
