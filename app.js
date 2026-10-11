@@ -1561,15 +1561,16 @@ window.NSK2App = (() => {
     const poolId = sessionStorage.getItem("nsk2_pool_id");
     const lagNo = sessionStorage.getItem("nsk2_lag_nr") || "1";
     const matchNo = byId("shiftMatch")?.value || "1";
-
     const el = document.querySelector(`[data-shift-toggle="${shiftNo}"]`);
     if (!el || !poolId) return;
-
     const nextDone = !el.classList.contains("done");
     el.classList.toggle("done", nextDone);
-
     try {
       await DB.setShiftDone(poolId, lagNo, matchNo, shiftNo, nextDone);
+      const rows = await DB.listShiftSchema(poolId, lagNo, matchNo);
+      const firstUndone = rows.findIndex(r => !r.done);
+      const index = firstUndone < 0 ? Math.max(0, rows.length - 1) : firstUndone;
+      sessionStorage.setItem(matchShiftKey(poolId, lagNo, matchNo), String(index));
     } catch (err) {
       el.classList.toggle("done", !nextDone);
       setText("appError", err?.message || String(err));
@@ -1807,6 +1808,11 @@ window.NSK2App = (() => {
     const playerMap = {};
     players.forEach((p) => { playerMap[String(p.id)] = p.full_name; });
     matchvyCache = { rows, playerMap, row, poolId, lagNo, matchNo };
+    if (rows.length) {
+      const firstUndone = rows.findIndex(r => !r.done);
+      matchCurrentShiftIndex = firstUndone < 0 ? rows.length - 1 : firstUndone;
+      rememberMatchShift();
+    }
     paintCoachMatchView();
   }
 
@@ -1830,11 +1836,26 @@ window.NSK2App = (() => {
 
     if (prevBtn && !prevBtn.dataset.boundMatchvy) {
       prevBtn.dataset.boundMatchvy = "1";
-      prevBtn.addEventListener("click", () => {
-        if (matchvySaving || !matchvyCache?.rows.length) return;
-        matchCurrentShiftIndex = Math.max(0, matchCurrentShiftIndex - 1);
-        rememberMatchShift();
-        paintCoachMatchView();
+      prevBtn.addEventListener("click", async () => {
+        if (matchvySaving || !matchvyCache?.rows.length || matchCurrentShiftIndex === 0) return;
+        const targetIndex = matchCurrentShiftIndex - 1;
+        matchvySaving = true;
+        prevBtn.disabled = true;
+        if (nextBtn) nextBtn.disabled = true;
+        try {
+          await DB.setShiftDone(poolId, lagNo, matchNo, targetIndex + 1, false);
+          matchCurrentShiftIndex = targetIndex;
+          matchvyCache.rows[targetIndex].done = false;
+          rememberMatchShift();
+          paintCoachMatchView();
+          setText("appError", "");
+        } catch (err) {
+          setText("appError", `Kunde inte ångra bytet: ${err?.message || String(err)}`);
+        } finally {
+          matchvySaving = false;
+          prevBtn.disabled = false;
+          if (nextBtn) nextBtn.disabled = false;
+        }
       });
     }
 
@@ -1855,6 +1876,7 @@ window.NSK2App = (() => {
         setText("appError", "");
         try {
           await DB.setShiftDone(poolId, lagNo, matchNo, currentShiftNo, true);
+          matchvyCache.rows[previousIndex].done = true;
         } catch (err) {
           matchCurrentShiftIndex = previousIndex; // Återställ om sparningen misslyckas.
           rememberMatchShift();
