@@ -585,3 +585,67 @@ input:focus,select:focus,textarea:focus{border-color:#d62a41;outline:2px solid r
   html{scroll-behavior:auto}
   button{transition:none}
 }
+
+/* ============================================================
+   NSK-2026 – KORRIGERING MATCHKNAPPAR OCH RULLISTA
+   Kompakt matchval på både dator och mobil.
+   ============================================================ */
+.match-list-stack{gap:9px;margin-top:12px}
+.match-list-item{
+  display:block;
+  width:100%;
+  min-height:0;
+  padding:12px 15px;
+  margin:0;
+  border-radius:13px;
+  text-align:left;
+  background:#202127;
+  border:1px solid #393941;
+  box-shadow:none;
+}
+.match-list-item .match-list-title{font-size:17px;line-height:1.25}
+.match-list-item .match-list-sub{font-size:13px;line-height:1.3;margin-top:3px}
+.match-list-item.active-team-btn,
+.match-list-item[aria-pressed="true"]{
+  background:linear-gradient(180deg,#c51b32,#8f1020);
+  border-color:#e34a60;
+}
+select{
+  display:block;
+  width:100%;
+  min-width:0;
+  height:auto;
+  min-height:48px;
+  padding:11px 40px 11px 13px;
+  border:1px solid #41414a;
+  border-radius:12px;
+  background-color:#17181d;
+  color:#f5f5f7;
+  font-size:16px;
+  line-height:1.4;
+  color-scheme:dark;
+}
+select option{background:#17181d;color:#f5f5f7}
+@media (max-width:700px){
+  .match-list-stack{gap:8px}
+  .match-list-item{padding:11px 13px;border-radius:12px}
+  .match-list-item .match-list-title{font-size:16px}
+  .match-list-item .match-list-sub{font-size:12px}
+  select{min-height:50px;font-size:16px}
+}
+
+/* NSK: Matchknappar i Laguppställning – samma princip som Bytesschema */
+#matchButtons{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:9px}
+#matchButtons .match-btn{
+  width:100%;min-width:0;min-height:52px;margin:0;padding:11px 7px;
+  border-radius:13px;background:#202127;border:1px solid #393941;
+  box-shadow:none;color:#f5f5f7;font-size:clamp(14px,3.6vw,17px);
+  font-weight:800;line-height:1.2;text-align:center;
+}
+#matchButtons .match-btn.active-team-btn,
+#matchButtons .match-btn[aria-pressed="true"]{
+  background:linear-gradient(180deg,#c51b32,#8f1020);
+  border-color:#e34a60;color:#fff;
+  box-shadow:0 0 0 1px rgba(255,255,255,.1) inset;
+}
+@media(max-width:360px){#matchButtons{gap:6px}#matchButtons .match-btn{padding:10px 4px;font-size:14px}}
