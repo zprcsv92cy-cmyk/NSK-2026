@@ -97,7 +97,7 @@
       <section class="card">
         <h2>Laguppställning</h2>
         <div class="field"><label>Lag</label><div id="laguppstallningTeamButtons" class="team-buttons"></div></div>
-        <div class="field"><label for="lineupCoach">Tränare</label><select id="lineupCoach" multiple size="4"></select></div>
+        <div class="field"><label for="lineupCoach">Tränare</label><select id="lineupCoach" multiple size="4"></select><div id="lineupCoachNames" class="small" aria-live="polite" style="margin-top:7px"></div></div>
         <div class="field"><label>Matcher</label><div id="matchButtons" class="team-buttons"></div></div>
         <div class="field" style="display:none"><label for="lineupMatch">Match</label><select id="lineupMatch"></select></div>
       </section>
@@ -121,6 +121,27 @@
     document.write('<script src="../app.js?v=' + window.NSK_VERSION + '"><\/script>');
   </script>
   <script src="../admin-mode.js?v=1"></script>
+  <script>
+    // Visa namnen på markerade tränare på både mobil och dator.
+    // Ändrar inte select-värden eller sparningen i app.js.
+    (function () {
+      const select = document.getElementById('lineupCoach');
+      const names = document.getElementById('lineupCoachNames');
+      if (!select || !names) return;
+      function showSelectedCoaches() {
+        const chosen = Array.from(select.selectedOptions)
+          .map(option => option.textContent.trim()).filter(Boolean);
+        names.textContent = chosen.length ? 'Valda tränare: ' + chosen.join(', ') : 'Inga tränare valda';
+      }
+      select.addEventListener('change', showSelectedCoaches);
+      // app.js laddar om alternativen när lag eller match ändras.
+      new MutationObserver(showSelectedCoaches).observe(select, {
+        childList: true, subtree: true, attributes: true, attributeFilter: ['selected']
+      });
+      showSelectedCoaches();
+    })();
+  </script>
+
   <script>
     // app.js skapar spelarväljare dynamiskt. Lägg till en riktig rubrik
     // före Spelare 1 varje gång innehållet uppdateras, utan att ändra app.js.
