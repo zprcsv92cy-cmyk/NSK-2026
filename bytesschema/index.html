@@ -19,6 +19,9 @@
     #shiftMatchList { display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); gap:10px; margin-bottom:0; }
     #shiftMatchList > * { min-width:0; width:100%; margin:0; }
     #shiftMatchList button { width:100%; min-width:0; }
+    /* Klick på texten ska träffa knappen som app.js lyssnar på. */
+    #shiftMatchList button * { pointer-events:none; }
+    #shiftTeamButtons button * { pointer-events:none; }
     /* Rullistan behålls i DOM för app.js men visas inte. */
     .shift-match-select { display:none !important; }
     .shift-match-select label { margin:0; }
