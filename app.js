@@ -1770,13 +1770,6 @@ window.NSK2App = (() => {
       if (!window.confirm("Återskapa enbart Match 3? Alla gamla byten och genomförda markeringar i Match 3 ersätts. Match 1 och 2 påverkas inte. Fortsätta?")) return;
       repairButton.disabled = true;
       try {
-        const latest = await DB.listShiftSchema(poolId, lagNo, 3);
-        // Workern återanvänder genomförd-status per bytenummer vid sparning.
-        // Nollställ därför gamla markeringar innan det nya schemat sparas.
-        // Avbryt om någon markering inte kan nollställas.
-        for (const oldShift of latest.filter(r => r.done)) {
-          await DB.setShiftDone(poolId, lagNo, 3, oldShift.shift_no, false);
-        }
         const config = await DB.getPoolTeamMatchConfig(poolId, lagNo, 3) || await DB.getPoolTeamMatchConfig(poolId, lagNo, 1);
         const lineup = config?.id ? await DB.getLineup(config.id) : [];
         if (!lineup.some(r => r.person_type === "player")) throw new Error("Ingen laguppställning hittades. Inget har ändrats.");
