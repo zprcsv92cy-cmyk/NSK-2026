@@ -11,6 +11,27 @@
     document.write('<link rel="manifest" href="../manifest.webmanifest?v=' + window.NSK_VERSION + '">');
     document.write('<link rel="stylesheet" href="../app.css?v=' + window.NSK_VERSION + '">');
   </script>
+  <style>
+    /* Endast Matchvy: rubrik och logga som på Truppen. */
+    .matchview-wrap .matchview-hero {
+      display: flex;
+      align-items: center;
+      gap: 16px;
+    }
+    .matchview-wrap .matchview-hero-logo {
+      display: block;
+      width: 72px;
+      height: 72px;
+      object-fit: contain;
+      flex: 0 0 72px;
+    }
+    .matchview-wrap .matchview-hero-title {
+      margin: 0;
+    }
+    @media (max-width: 480px) {
+      .matchview-wrap .matchview-hero { gap: 12px; }
+    }
+  </style>
 </head>
 <body>
   <div class="wrap matchview-wrap">
@@ -23,6 +44,13 @@
       <a href="../matchvy/" class="active">Matchvy</a>
       <a href="../lag/">Lag</a>
     </nav>
+
+    <section class="hero-card matchview-hero">
+      <img src="../icon-192.png" alt="NSK" class="matchview-hero-logo">
+      <div>
+        <h1 class="hero-title matchview-hero-title">Matchvy</h1>
+      </div>
+    </section>
 
     <section class="card coach-mode-card iphone-match-card v726-coach-card">
       <div id="shiftLabel" class="coach-big-title">Inget schema</div>
