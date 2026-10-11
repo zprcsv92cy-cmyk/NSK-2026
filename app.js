@@ -96,6 +96,12 @@ window.NSK2App = (() => {
   let truppenRealtime = null;
   let globalClicksBound = false;
   let matchCurrentShiftIndex = 0;
+  const matchShiftKey = (poolId, lagNo, matchNo) =>
+    `nsk2_current_shift_${poolId}_${lagNo}_${matchNo}`;
+  function rememberMatchShift() {
+    if (!matchvyCache) return;
+    sessionStorage.setItem(matchShiftKey(matchvyCache.poolId, matchvyCache.lagNo, matchvyCache.matchNo), String(matchCurrentShiftIndex));
+  }
 
   const rosterCache = {
     players: null,
@@ -267,6 +273,7 @@ window.NSK2App = (() => {
         if (t.dataset.shiftMatchCard) {
           const sel = byId("shiftMatch");
           if (sel) sel.value = String(t.dataset.shiftMatchCard);
+          sessionStorage.setItem("nsk2_match_no", String(t.dataset.shiftMatchCard));
           setActiveShiftMatchButton(String(t.dataset.shiftMatchCard));
           await renderShiftSchema();
           return;
@@ -1588,6 +1595,8 @@ window.NSK2App = (() => {
       renderShiftTeamButtons(teams);
       renderShiftMatchOptions(matches);
       renderShiftMatchList(matches);
+      const savedMatch = sessionStorage.getItem("nsk2_match_no") || "1";
+      if (Number(savedMatch) >= 1 && Number(savedMatch) <= matches) matchSelect.value = savedMatch;
 
       const lagNo = sessionStorage.getItem("nsk2_lag_nr") || "1";
       setActiveShiftTeamButton(lagNo);
@@ -1596,6 +1605,7 @@ window.NSK2App = (() => {
       if (!matchSelect.dataset.bound) {
         matchSelect.dataset.bound = "1";
         matchSelect.addEventListener("change", async () => {
+          sessionStorage.setItem("nsk2_match_no", matchSelect.value || "1");
           setActiveShiftMatchButton(matchSelect.value || "1");
           await renderShiftSchema();
         });
@@ -1611,6 +1621,7 @@ window.NSK2App = (() => {
     const poolId = sessionStorage.getItem("nsk2_pool_id");
     const lagNo = sessionStorage.getItem("nsk2_lag_nr") || "1";
     const matchNo = byId("shiftMatch")?.value || "1";
+    sessionStorage.setItem("nsk2_match_no", matchNo);
     if (!poolId) return;
 
     const pool = await DB.getPool(poolId);
@@ -1812,7 +1823,7 @@ window.NSK2App = (() => {
       return;
     }
 
-    matchCurrentShiftIndex = 0;
+    matchCurrentShiftIndex = Math.max(0, safeInt(sessionStorage.getItem(matchShiftKey(poolId, lagNo, matchNo)), 0));
     await renderCoachMatchView(poolId, lagNo, matchNo);
     const prevBtn = byId("prevShiftBtn");
     const nextBtn = byId("nextShiftBtn");
@@ -1822,6 +1833,7 @@ window.NSK2App = (() => {
       prevBtn.addEventListener("click", () => {
         if (matchvySaving || !matchvyCache?.rows.length) return;
         matchCurrentShiftIndex = Math.max(0, matchCurrentShiftIndex - 1);
+        rememberMatchShift();
         paintCoachMatchView();
       });
     }
@@ -1838,12 +1850,14 @@ window.NSK2App = (() => {
         nextBtn.disabled = true;
         if (prevBtn) prevBtn.disabled = true;
         matchCurrentShiftIndex = previousIndex + 1;
+        rememberMatchShift();
         paintCoachMatchView(); // Visa nästa byte direkt, före nätverksanropet.
         setText("appError", "");
         try {
           await DB.setShiftDone(poolId, lagNo, matchNo, currentShiftNo, true);
         } catch (err) {
           matchCurrentShiftIndex = previousIndex; // Återställ om sparningen misslyckas.
+          rememberMatchShift();
           paintCoachMatchView();
           setText("appError", `Kunde inte spara bytet: ${err?.message || String(err)}`);
         } finally {
