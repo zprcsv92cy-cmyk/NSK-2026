@@ -5,7 +5,6 @@
   <meta name="viewport" content="width=device-width,initial-scale=1">
   <title>Bytesschema</title>
   <meta name="theme-color" content="#b11226">
-
   <script src="../version.js?v=667"></script>
   <script>
     document.write('<link rel="manifest" href="../manifest.webmanifest?v=' + window.NSK_VERSION + '">');
@@ -40,6 +39,25 @@
     </section>
 
     <section class="card">
+      <h2>Matcher</h2>
+      <div id="shiftMatchList" class="team-buttons"></div>
+      <label for="shiftMatch">Välj match</label>
+      <select id="shiftMatch" aria-label="Välj match"></select>
+    </section>
+
+    <section class="card">
+      <h2>Matchinformation</h2>
+      <div>Starttid: <span id="shiftStart">—</span></div>
+      <div>Datum: <span id="shiftDate">—</span></div>
+      <div>Motståndare: <span id="shiftOpponent">—</span></div>
+      <div>Plan: <span id="shiftPlan">—</span></div>
+      <div>Målvakt: <span id="shiftGoalieName">—</span></div>
+      <div>Tränare: <span id="shiftCoachNames">—</span></div>
+    </section>
+
+    <section class="card">
+      <h2>Byten</h2>
+      <div id="shiftTableWrap"></div>
       <div id="shiftAllMatchesWrap"></div>
       <div id="shiftMsg" class="small"></div>
     </section>
@@ -52,6 +70,6 @@
       document.write('<script src="../app.js?v=' + window.NSK_VERSION + '"><\/script>');
     </script>
   </div>
-<script src="../admin-mode.js?v=1"></script>
+  <script src="../admin-mode.js?v=1"></script>
 </body>
 </html>
