@@ -34,7 +34,11 @@
     .lineup-page #laguppstallningTeamButtons button[aria-pressed="true"] { background:linear-gradient(180deg,#c51b32,#8f1020); border-color:#e34a60; color:#fff; }
     .lineup-page .lineup-info-grid { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:10px 12px; }
     .lineup-page .lineup-info-grid .field { margin:0; }
-    .lineup-page .lineup-info-grid input[type=time] { text-align:left; }
+    .lineup-page .lineup-info-grid input[type=time] { text-align:left; width:145px; max-width:100%; padding:8px 10px; min-height:42px; }
+    .lineup-page .lineup-info-grid .field:first-child { justify-self:start; }
+    .lineup-page #lineupSelectors button { width:auto; max-width:100%; }
+    .lineup-page #lineupSelectors .btnrow { justify-content:flex-end; }
+    .lineup-page #lineupSelectors .btnrow button { flex:0 0 auto; }
     .lineup-page #lineupSelectors { min-width:0; }
     .lineup-page #lineupSelectors .field { margin-bottom:9px; }
     .lineup-page #lineupSelectors label { font-size:14px; margin-bottom:4px; }
@@ -60,6 +64,12 @@
     @media(max-width:350px) {
       .lineup-page .lineup-info-grid { grid-template-columns:1fr; }
     }
+    .lineup-page .lineup-section-heading { display:flex; align-items:center; justify-content:space-between; gap:12px; margin-bottom:9px; }
+    .lineup-page .lineup-section-heading h2 { margin:0; }
+    .lineup-page .lineup-section-heading button { flex:0 0 auto; min-height:38px; padding:7px 14px; background:#202127; border:1px solid #41414a; }
+    .lineup-page .lineup-goalie-section { padding-bottom:15px; margin-bottom:14px; border-bottom:1px solid #34343b; }
+    .lineup-page .lineup-outfield-heading { margin:0 0 10px; }
+    .lineup-page #lineupStartTime { width:118px; max-width:100%; min-height:40px; padding:6px 8px; }
   </style>
 </head>
 <body class="lineup-page">
@@ -98,7 +108,7 @@
         </div>
       </section>
     </div>
-    <section class="card lineup-players-card"><h2>Spelare</h2><div id="lineupSelectors"></div></section>
+    <section class="card lineup-players-card"><div id="lineupSelectors"></div></section>
     <section class="card lineup-messages"><div id="lineupMsg" class="small"></div><div id="appError" class="small"></div></section>
   </div>
   <script>
