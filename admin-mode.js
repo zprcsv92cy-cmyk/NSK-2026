@@ -3,10 +3,11 @@ const API='https://nsk-api.peter-hasselberg.workers.dev';
 const KEY='nsk_admin_token';
 const css=document.createElement('style');
 css.textContent=`
-#nsk-admin-bar{position:static!important;inset:auto!important;float:none!important;z-index:auto!important;display:flex;align-items:center;justify-content:flex-end;gap:8px;flex-wrap:wrap;box-sizing:border-box;width:100%;max-width:100%;margin:0 0 10px;padding:0;background:transparent!important;border:0!important;border-radius:0!important;box-shadow:none!important;font:14px system-ui,sans-serif;color:inherit}
-#nsk-admin-bar button{font:inherit;font-weight:600;padding:7px 12px;cursor:pointer;border:1px solid #777;border-radius:8px;background:#fff;color:#14202b;max-width:100%}
-#nsk-admin-bar .nsk-admin-status{font-size:12px;opacity:.8}
-@media(max-width:600px){#nsk-admin-bar{margin-bottom:8px;padding:0 2px}#nsk-admin-bar button{font-size:12px;padding:6px 10px}#nsk-admin-bar .nsk-admin-status{width:100%;text-align:right;font-size:11px}}
+#nsk-admin-bar{position:static!important;inset:auto!important;float:none!important;z-index:auto!important;display:flex;align-items:center;justify-content:flex-end;box-sizing:border-box;width:100%;max-width:100%;margin:3px 0 7px;padding:0;background:transparent!important;border:0!important;box-shadow:none!important;font:11px system-ui,sans-serif;color:inherit}
+#nsk-admin-bar button{appearance:none;font:inherit;font-weight:500;line-height:1.15;padding:4px 8px;min-height:25px;cursor:pointer;border:1px solid #64748b;border-radius:5px;background:#263445;color:#e2e8f0;box-shadow:none;white-space:nowrap;width:auto;min-width:0;max-width:100%}
+#nsk-admin-bar button.nsk-admin-active{border-color:#3b8168;background:#1c3c34;color:#d7fbe8}
+#nsk-admin-bar button:focus-visible{outline:2px solid #93c5fd;outline-offset:2px}
+@media(max-width:600px){#nsk-admin-bar{margin:3px 0 6px;padding:0 2px}#nsk-admin-bar button{font-size:10px;padding:4px 7px;min-height:24px}}
 #nsk-admin-dialog{position:fixed;inset:0;z-index:100000;background:#0008;display:grid;place-items:center;padding:16px;box-sizing:border-box}
 #nsk-admin-dialog>form{background:white;color:#111;padding:22px;border-radius:12px;width:min(90vw,360px);max-width:100%;box-sizing:border-box;font:16px system-ui}
 #nsk-admin-dialog input{width:100%;box-sizing:border-box;margin:12px 0;padding:10px}
@@ -16,10 +17,9 @@ document.head.append(css);
 let admin=false;
 const bar=document.createElement('div');bar.id='nsk-admin-bar';
 function mount(){
-  // Placera adminraden i sidans normala flöde, före huvudmenyn.
-  // Ingen fixed/absolute-positionering som kan täcka sidans knappar.
+  // Placera adminraden i sidans normala flöde, direkt efter huvudmenyn.
   const menu=document.querySelector('.mainmenu');
-  if(menu&&menu.parentNode){menu.parentNode.insertBefore(bar,menu);return}
+  if(menu&&menu.parentNode){menu.insertAdjacentElement('afterend',bar);return}
   const wrap=document.querySelector('.wrap');
   if(wrap){wrap.insertBefore(bar,wrap.firstChild);return}
   document.body.insertBefore(bar,document.body.firstChild);
@@ -28,13 +28,12 @@ function render(){
   bar.replaceChildren();
   const button=document.createElement('button');
   button.type='button';
-  button.textContent=admin?'Avsluta Adminläge':'Adminläge';
+  button.textContent=admin?'Admin: på':'Admin';
+  button.className=admin?'nsk-admin-active':'';
+  button.title=admin?'Avsluta adminläge':'Aktivera adminläge';
+  button.setAttribute('aria-label',button.title);
   button.onclick=admin?logout:login;
   bar.append(button);
-  if(admin){
-    const t=document.createElement('span');t.className='nsk-admin-status';
-    t.textContent='Admin aktiv (sparande ännu avstängt)';bar.append(t);
-  }
 }
 async function check(){
   mount();
