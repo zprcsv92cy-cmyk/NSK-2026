@@ -23,10 +23,10 @@
     .lineup-page select { width:100%; min-width:0; min-height:44px; margin:0; padding:9px 12px; border-radius:11px; font-size:16px; }
     .lineup-page #lineupCoach[multiple] { display:none; }
     .lineup-page .coach-picker { display:grid; gap:4px; margin-top:5px; }
-    .lineup-page .coach-choice { display:flex; align-items:center; gap:9px; min-height:34px; padding:5px 9px; border:1px solid #44464e; border-radius:8px; cursor:pointer; background:#202127; }
-    .lineup-page .coach-choice:has(input:checked) { border-color:#e34a60; background:#432028; }
-    .lineup-page .coach-choice input { width:18px; height:18px; margin:0; accent-color:#c51b32; flex:none; }
-    .lineup-page .coach-choice span { flex:1; }
+    .lineup-page .coach-choice { display:block; width:100%; text-align:left; min-height:38px; padding:7px 10px; border:1px solid #44464e; border-radius:8px; cursor:pointer; background:#202127; color:#fff; font:inherit; touch-action:manipulation; }
+    .lineup-page .coach-choice.selected { border-color:#e34a60; background:#432028; color:#fff; }
+
+
     .lineup-page #laguppstallningTeamButtons { display:flex; flex-wrap:wrap; gap:8px; }
     .lineup-page #laguppstallningTeamButtons button { flex:0 1 auto; min-width:105px; min-height:44px; padding:9px 16px; font-size:15px; border-radius:11px; }
     .lineup-page #matchButtons { display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); gap:8px; }
@@ -127,8 +127,8 @@
   </script>
   <script src="../admin-mode.js?v=1"></script>
   <script>
-    // Tydlig kryssruteväljare på både dator och mobil.
-    // Den befintliga selecten används fortsatt av app.js och databasen.
+    // Tryckbara knappar fungerar likadant för val och bortval på iOS och dator.
+    // Den dolda selecten är fortfarande datakällan för app.js.
     (function () {
       const select = document.getElementById('lineupCoach');
       const box = document.getElementById('lineupCoachChoices');
@@ -145,26 +145,59 @@
           box.dataset.signature = signature;
           box.replaceChildren();
           options.forEach(o => {
-            const label = document.createElement('label');
-            label.className = 'coach-choice';
-            const check = document.createElement('input');
-            check.type = 'checkbox';
-            check.value = o.value;
-            check.checked = o.selected;
-            check.addEventListener('change', () => {
-              o.selected = check.checked;
-              select.dispatchEvent(new Event('change', { bubbles: true }));
+            const button = document.createElement('button');
+            button.type = 'button';
+            button.className = 'coach-choice';
+            button.dataset.coachId = o.value;
+            button.textContent = o.textContent;
+            button.addEventListener('click', () => {
+              const current = Array.from(select.options).find(x => x.value === button.dataset.coachId);
+              if (!current) return;
+              current.selected = !current.selected;
               refresh();
+              // Spara direkt från den synliga knappen. Ingen dubbel sparning via select-change.
+              const poolId = sessionStorage.getItem('nsk2_pool_id');
+              const lagNo = sessionStorage.getItem('nsk2_lag_nr') || '1';
+              const matchNo = document.getElementById('lineupMatch')?.value || '1';
+              const coachIds = Array.from(select.selectedOptions).map(o => Number(o.value)).filter(Number.isSafeInteger);
+              const status = document.getElementById('lineupMsg');
+              const error = document.getElementById('appError');
+              if (!poolId) {
+                if (error) error.textContent = 'Välj poolspel innan tränare sparas.';
+                return;
+              }
+              if (typeof window.DB?.saveCoachSelection !== 'function') {
+                if (error) error.textContent = 'Sparfunktionen saknas. Kontrollera att senaste db.js är publicerad.';
+                return;
+              }
+              if (status) status.textContent = 'Sparar tränarval…';
+              if (error) error.textContent = '';
+              // Ordna samtidiga tryck så att sista valet sparas sist.
+              window.__nskCoachButtonSave = (window.__nskCoachButtonSave || Promise.resolve())
+                .catch(() => {})
+                .then(async () => {
+                  try {
+                    await window.DB.saveCoachSelection(poolId, lagNo, matchNo, coachIds);
+                    if (sessionStorage.getItem('nsk2_pool_id') === poolId &&
+                        (sessionStorage.getItem('nsk2_lag_nr') || '1') === lagNo &&
+                        (document.getElementById('lineupMatch')?.value || '1') === matchNo) {
+                      if (status) status.textContent = 'Tränarval sparat för Match ' + matchNo + '.';
+                      if (error) error.textContent = '';
+                    }
+                  } catch (err) {
+                    if (error) error.textContent = 'Tränarval kunde inte sparas: ' + (err?.message || String(err));
+                    if (status) status.textContent = '';
+                  }
+                });
             });
-            const name = document.createElement('span');
-            name.textContent = o.textContent;
-            label.append(check, name);
-            box.appendChild(label);
+            box.appendChild(button);
           });
         }
-        box.querySelectorAll('input[type="checkbox"]').forEach(check => {
-          const option = options.find(o => o.value === check.value);
-          check.checked = !!option?.selected;
+        box.querySelectorAll('button[data-coach-id]').forEach(button => {
+          const option = options.find(o => o.value === button.dataset.coachId);
+          const checked = !!option?.selected;
+          button.setAttribute('aria-pressed', String(checked));
+          button.classList.toggle('selected', checked);
         });
         if (!options.length) box.textContent = 'Inga tränare tillgängliga';
       }
