@@ -1451,23 +1451,10 @@ window.NSK2App = (() => {
         await DB.saveLineup(matchRow.id, selectedPlayers, coachIds);
       }
 
-      // Lineup saving must not be reported as failed if the separate shift
-      // schedule endpoint rejects generated shifts. Save that independently.
-      let shiftWarning = "";
-      try {
-        await regenerateShiftSchemaFor(poolId, lagNo, matchNo);
-        const onBytesschemaPage = !!byId("shiftTableWrap");
-        const activeShiftMatch = byId("shiftMatch")?.value || "";
-        if (onBytesschemaPage && String(activeShiftMatch) === String(matchNo)) {
-          await renderShiftSchema();
-        }
-      } catch (shiftError) {
-        console.warn("Bytesschema kunde inte uppdateras:", shiftError);
-        shiftWarning = " Bytesschemat kunde inte uppdateras: " + (shiftError?.message || String(shiftError));
-      }
-
+      // Save the lineup independently. Shift generation is handled on the
+      // shift-schedule page and must never block lineup persistence.
       setText("appError", "");
-      setText("lineupMsg", "Laguppställning sparad för Match " + matchNo + "." + shiftWarning);
+      setText("lineupMsg", "Laguppställning sparad för Match " + matchNo + ".");
     } catch (err) {
       setText("appError", err?.message || String(err));
     }
