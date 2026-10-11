@@ -1622,6 +1622,21 @@ window.NSK2App = (() => {
     }
   }
 
+  // Uppdatera markeringar från Baserow när man återvänder till Bytesschema.
+  if (!window.__nskShiftSyncBound) {
+    window.__nskShiftSyncBound = true;
+    let refreshing = false;
+    const refreshShifts = async () => {
+      if (document.hidden || refreshing || !byId("shiftMatch") || !byId("shiftTableWrap")) return;
+      refreshing = true;
+      try { await renderShiftSchema(); }
+      catch (err) { setText("appError", err?.message || String(err)); }
+      finally { refreshing = false; }
+    };
+    window.addEventListener("focus", refreshShifts);
+    document.addEventListener("visibilitychange", refreshShifts);
+  }
+
   async function initBytesschemaPage() {
     const teamBox = byId("shiftTeamButtons");
     const matchSelect = byId("shiftMatch");
@@ -1908,16 +1923,55 @@ window.NSK2App = (() => {
 
     matchCurrentShiftIndex = Math.max(0, safeInt(sessionStorage.getItem(matchShiftKey(poolId, lagNo, matchNo)), 0));
     await renderCoachMatchView(poolId, lagNo, matchNo);
+    // Vid start: välj första ej genomförda bytet från databasen.
+    const firstPending = matchvyCache.rows.findIndex(r => !r.done);
+    matchCurrentShiftIndex = firstPending === -1 ? Math.max(0, matchvyCache.rows.length - 1) : firstPending;
+    rememberMatchShift();
+    paintCoachMatchView();
+    if (!window.__nskMatchSyncBound) {
+      window.__nskMatchSyncBound = true;
+      const refreshMatch = async () => {
+        if (document.hidden || matchvySaving || !matchvyCache) return;
+        try {
+          const fresh = await DB.listShiftSchema(poolId, lagNo, matchNo);
+          if (!matchvyCache || matchvySaving) return;
+          matchvyCache.rows = fresh;
+          const pending = fresh.findIndex(r => !r.done);
+          matchCurrentShiftIndex = pending === -1 ? Math.max(0, fresh.length - 1) : pending;
+          rememberMatchShift();
+          paintCoachMatchView();
+        } catch (err) { setText("appError", err?.message || String(err)); }
+      };
+      window.addEventListener("focus", refreshMatch);
+      document.addEventListener("visibilitychange", refreshMatch);
+    }
     const prevBtn = byId("prevShiftBtn");
     const nextBtn = byId("nextShiftBtn");
 
     if (prevBtn && !prevBtn.dataset.boundMatchvy) {
       prevBtn.dataset.boundMatchvy = "1";
-      prevBtn.addEventListener("click", () => {
-        if (matchvySaving || !matchvyCache?.rows.length) return;
-        matchCurrentShiftIndex = Math.max(0, matchCurrentShiftIndex - 1);
-        rememberMatchShift();
-        paintCoachMatchView();
+      prevBtn.addEventListener("click", async () => {
+        if (matchvySaving || !matchvyCache?.rows.length || matchCurrentShiftIndex === 0) return;
+        const oldIndex = matchCurrentShiftIndex;
+        const previousIndex = oldIndex - 1;
+        matchvySaving = true;
+        prevBtn.disabled = true;
+        if (nextBtn) nextBtn.disabled = true;
+        setText("appError", "");
+        try {
+          // Föregående byte innebär att detta byte inte längre är genomfört.
+          await DB.setShiftDone(poolId, lagNo, matchNo, previousIndex + 1, false);
+          matchvyCache.rows[previousIndex].done = false;
+          matchCurrentShiftIndex = previousIndex;
+          rememberMatchShift();
+          paintCoachMatchView();
+        } catch (err) {
+          setText("appError", `Kunde inte ångra bytet: ${err?.message || String(err)}`);
+        } finally {
+          matchvySaving = false;
+          prevBtn.disabled = false;
+          if (nextBtn) nextBtn.disabled = false;
+        }
       });
     }
 
@@ -1938,6 +1992,7 @@ window.NSK2App = (() => {
         setText("appError", "");
         try {
           await DB.setShiftDone(poolId, lagNo, matchNo, currentShiftNo, true);
+          matchvyCache.rows[previousIndex].done = true;
         } catch (err) {
           matchCurrentShiftIndex = previousIndex; // Återställ om sparningen misslyckas.
           rememberMatchShift();
