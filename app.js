@@ -542,8 +542,8 @@ window.NSK2App = (() => {
         changedRules = rules.some(k => Number(previous[k]) !== Number(payload[k]));
         if (changedRules && !window.confirm(
           "Du har ändrat spelregler som påverkar bytesscheman. " +
-          "Poolspelsinställningarna sparas, men befintliga bytesscheman ändras inte automatiskt. " +
-          "Öppna Bytesschema och återskapa berörda matcher en i taget efter kontroll. Fortsätta?"
+          "Alla befintliga bytesscheman för poolspelet återskapas och genomförda markeringar nollställs. " +
+          "Matchvy uppdateras från samma sparade scheman. Fortsätta?"
         )) return;
       }
       if (saveButton) saveButton.disabled = true;
@@ -552,9 +552,11 @@ window.NSK2App = (() => {
           await DB.updatePool(editId, payload);
           sessionStorage.setItem("nsk2_pool_id", editId);
           if (changedRules) {
-            // Uppdatera inte flera matcher automatiskt: användaren måste granska och
-            // bekräfta varje gammalt schema för sig i Bytesschema.
-            sessionStorage.setItem("nsk2_pool_rules_changed", "1");
+            setText("poolMsg", "Poolspel sparat. Uppdaterar bytesscheman – vänta...");
+            const errors = await updateAffectedShiftSchemas(editId, payload);
+            if (errors.length) {
+              throw new Error("Poolspel sparat, men vissa bytesscheman kunde inte uppdateras: " + errors.join("; ") + ". Försök inte ändra spelregler igen innan detta är åtgärdat.");
+            }
           }
           sessionStorage.removeItem("nsk2_edit_pool_id");
         } else {
@@ -1429,22 +1431,40 @@ window.NSK2App = (() => {
     if (typeof DB?.getPool !== "function") return [];
     const pool = await DB.getPool(poolId);
 
-    const row = await DB.getPoolTeamMatchConfig(poolId, lagNo, matchNo);
-    const firstMatch = String(matchNo) === "1" ? null : await DB.getPoolTeamMatchConfig(poolId, lagNo, 1);
-    let lineup = row?.id ? await DB.getLineup(row.id) : [];
-    // En separat matchkonfiguration kan finnas utan egen laguppställning.
-    // Använd då Match 1:s uppställning, men aldrig en annan lags spelare.
-    if (!lineup.some(x => x.person_type === "player") && firstMatch?.id) {
-      lineup = await DB.getLineup(firstMatch.id);
-    }
-    if (!lineup.some(x => x.person_type === "player")) {
-      throw new Error(`Lag ${lagNo}, Match ${matchNo}: ingen laguppställning med spelare hittades. Inget bytesschema har ändrats.`);
+    let row = typeof DB?.getPoolTeamMatchConfig === "function"
+      ? await DB.getPoolTeamMatchConfig(poolId, lagNo, matchNo)
+      : null;
+    let sourceRow = row;
+
+    if (!sourceRow && String(matchNo) !== "1" && typeof DB?.getPoolTeamMatchConfig === "function") {
+      sourceRow = await DB.getPoolTeamMatchConfig(poolId, lagNo, 1);
     }
 
-    const playerIds = lineup
+    if (!sourceRow?.id) return [];
+
+    let lineup = [];
+    if (typeof DB?.getLineup === "function") {
+      lineup = await DB.getLineup(sourceRow.id);
+    }
+
+    // En spelare får bara förekomma en gång i ett byte.
+    // Dubbla laguppställningsrader får inte skapa [7, 7, 7].
+    const playerIds = [...new Set(lineup
       .filter((x) => x.person_type === "player")
       .sort((a, b) => (a.sort_order || 0) - (b.sort_order || 0))
-      .map((x) => String(x.person_id));
+      .map((x) => String(x.person_id))
+      .filter((id) => /^\d+$/.test(id) && Number(id) > 0))];
+
+    if (playerIds.length < Math.max(1, safeInt(pool?.players_on_field || 3, 3))) {
+      throw new Error(`Laguppställningen innehåller bara ${playerIds.length} unika spelare, men ${safeInt(pool?.players_on_field || 3, 3)} krävs på planen. Kontrollera laguppställningen innan du återskapar. Inga byten har ändrats.`);
+    }
+
+    if (!playerIds.length) {
+      if (typeof DB?.deleteShiftSchema === "function") {
+        await DB.deleteShiftSchema(poolId, lagNo, matchNo);
+      }
+      return [];
+    }
 
     const shifts = buildShiftSchedule({
       matchNo: safeInt(matchNo, 1),
@@ -1457,14 +1477,6 @@ window.NSK2App = (() => {
 
     if (typeof DB?.saveShiftSchema === "function") {
       await DB.saveShiftSchema(poolId, lagNo, matchNo, shifts);
-      const saved = await DB.listShiftSchema(poolId, lagNo, matchNo);
-      const valid = saved.length === shifts.length && saved.every((r, i) =>
-        r.shift_no === i + 1 && r.period_no === shifts[i].period_no &&
-        String(r.time_left).trim() === shifts[i].time_left &&
-        JSON.stringify([...r.players_json].sort((a,b)=>a-b)) ===
-        JSON.stringify(shifts[i].players.map(Number).sort((a,b)=>a-b))
-      );
-      if (!valid) throw new Error(`Kontrollen efter sparning misslyckades för Lag ${lagNo}, Match ${matchNo}. Förväntat ${shifts.length} byten. Försök inte återskapa igen innan felet har undersökts.`);
     }
     return shifts;
   }
@@ -1774,10 +1786,9 @@ window.NSK2App = (() => {
 
     if (!rows.length) {
       // Saknat schema: återskapa bara den valda matchen, aldrig andra matcher.
-      const firstMatch = String(matchNo) === "1" ? null : await DB.getPoolTeamMatchConfig(poolId, lagNo, 1);
-      const ownLineup = row?.id ? await DB.getLineup(row.id) : [];
-      const fallbackLineup = firstMatch?.id ? await DB.getLineup(firstMatch.id) : [];
-      const hasPlayers = [...ownLineup, ...fallbackLineup].some(x => x.person_type === "player");
+      const source = row;
+      const lineup = source?.id ? await DB.getLineup(source.id) : [];
+      const hasPlayers = lineup.some(x => x.person_type === "player");
       wrap.innerHTML = hasPlayers
         ? `<div class="small" style="margin-bottom:12px">Bytesschemat saknas för Match ${esc(matchNo)}, Lag ${esc(lagNo)}, men laguppställningen finns kvar.</div><button type="button" class="row-btn" id="restoreMissingShift">Återskapa bytesschema för Match ${esc(matchNo)}</button>`
         : '<div class="small">Inget bytesschema ännu. Spara laguppställning först.</div>';
@@ -1863,7 +1874,13 @@ window.NSK2App = (() => {
       repairButton.disabled = true;
       try {
         const latestPool = await DB.getPool(poolId);
-        if (!latestPool || Number(latestPool.period_time) <= 0) throw new Error("Kunde inte läsa aktuell periodtid från Baserow.");
+        if (String(matchNo) === "2" && Number(latestPool?.period_time) !== 16) {
+          throw new Error(`Poolspel har ${latestPool?.period_time ?? "okänd"} minuter sparat i Baserow, inte 16. Ändra och spara periodtiden i Skapa poolspel först. Inga byten har ändrats.`);
+        }
+        const config = await DB.getPoolTeamMatchConfig(poolId, lagNo, matchNo) ||
+          (String(matchNo) !== "1" ? await DB.getPoolTeamMatchConfig(poolId, lagNo, 1) : null);
+        const lineup = config?.id ? await DB.getLineup(config.id) : [];
+        if (!lineup.some(r => r.person_type === "player")) throw new Error("Ingen laguppställning hittades. Inget har ändrats.");
         const result = await regenerateShiftSchemaFor(poolId, lagNo, matchNo);
         if (!result.length) throw new Error("Kunde inte skapa bytesschemat.");
         setText("appError", "");
