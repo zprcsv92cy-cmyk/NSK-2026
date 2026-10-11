@@ -1,4 +1,3 @@
-```
 async function checkAppVersion() {
   try {
     const pathParts = location.pathname.split("/").filter(Boolean);
@@ -2082,4 +2081,3 @@ window.addEventListener("DOMContentLoaded", () => {
     console.error(err);
   });
 });
-```
