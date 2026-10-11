@@ -11,8 +11,37 @@
     document.write('<link rel="manifest" href="../manifest.webmanifest?v=' + window.NSK_VERSION + '">');
     document.write('<link rel="stylesheet" href="../app.css?v=' + window.NSK_VERSION + '">');
   </script>
+
+  <style>
+    /* Endast Truppen – ingen ändring av gemensamma filer eller logik. */
+    .roster-page .roster-card { margin-bottom: 16px; }
+    .roster-page .roster-card h2 { margin: 0 0 14px; }
+    .roster-page .roster-add-row { display: flex; align-items: stretch; gap: 10px; flex-wrap: nowrap; margin-bottom: 14px; }
+    .roster-page .roster-add-row input { flex: 1 1 auto; min-width: 0; width: auto; margin: 0; }
+    .roster-page .roster-add-row button { flex: 0 0 auto; width: auto; margin: 0; white-space: nowrap; }
+    .roster-page #playersList, .roster-page #coachesList {
+      display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px 12px;
+    }
+    .roster-page #playersList > *, .roster-page #coachesList > * {
+      box-sizing: border-box; min-width: 0; width: 100%; margin: 0;
+    }
+    .roster-page #playersList .listrow, .roster-page #coachesList .listrow {
+      padding: 9px 12px; min-height: 44px;
+    }
+    .roster-page #playersList .inline-name-input, .roster-page #coachesList .inline-name-input {
+      min-width: 0; max-width: 100%; min-height: 36px; padding: 5px 8px;
+    }
+    .roster-page .roster-backup { padding-top: 14px; padding-bottom: 14px; }
+    .roster-page .roster-backup .btnrow { margin: 0; }
+    @media (max-width: 700px) {
+      .roster-page #playersList, .roster-page #coachesList { grid-template-columns: minmax(0, 1fr); }
+      .roster-page .roster-add-row { flex-wrap: wrap; }
+      .roster-page .roster-add-row input { flex-basis: 100%; }
+      .roster-page .roster-add-row button { width: auto; }
+    }
+  </style>
 </head>
-<body>
+<body class="roster-page">
 
   <div class="wrap">
 
@@ -40,7 +69,7 @@
     </section>
 
 
-    <section class="card">
+    <section class="card roster-card roster-backup">
 
       <div class="btnrow">
         <button id="importBackupBtn" type="button" class="row-btn">
@@ -61,11 +90,11 @@
 
 
 
-    <section class="card">
+    <section class="card roster-card">
 
       <h2>Spelare</h2>
 
-      <div class="btnrow">
+      <div class="btnrow roster-add-row">
         <input
           id="playerInput"
           type="text"
@@ -87,11 +116,11 @@
 
 
 
-    <section class="card">
+    <section class="card roster-card">
 
       <h2>Tränare</h2>
 
-      <div class="btnrow">
+      <div class="btnrow roster-add-row">
 
         <input
           id="coachInput"
