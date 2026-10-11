@@ -668,14 +668,16 @@ window.NSK2App = (() => {
         .join("");
 
       let html = `
-        <div class="lineup-goalie-section">
-          <div class="lineup-section-heading">
-            <h2>Målvakt</h2>
+        <div class="goalie-row">
+          <div class="goalie-col">
+            <label for="lineupGoalie">Målvakt</label>
+            <select id="lineupGoalie">${playerOptions}</select>
+          </div>
+          <div class="goalie-col goalie-random-col">
+            <label>&nbsp;</label>
             <button type="button" class="row-btn" data-random-goalie="1">Slumpa</button>
           </div>
-          <select id="lineupGoalie" aria-label="Välj målvakt">${playerOptions}</select>
         </div>
-        <h2 class="lineup-outfield-heading">Spelare</h2>
       `;
 
       for (let i = 1; i <= 25; i++) {
