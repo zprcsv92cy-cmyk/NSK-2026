@@ -1778,7 +1778,30 @@ window.NSK2App = (() => {
     if (!wrap) return;
 
     if (!rows.length) {
-      wrap.innerHTML = '<div class="small">Inget bytesschema ännu. Spara laguppställning först.</div>';
+      // Saknat schema: återskapa bara den valda matchen, aldrig andra matcher.
+      const source = row;
+      const lineup = source?.id ? await DB.getLineup(source.id) : [];
+      const hasPlayers = lineup.some(x => x.person_type === "player");
+      wrap.innerHTML = hasPlayers
+        ? `<div class="small" style="margin-bottom:12px">Bytesschemat saknas för Match ${esc(matchNo)}, Lag ${esc(lagNo)}, men laguppställningen finns kvar.</div><button type="button" class="row-btn" id="restoreMissingShift">Återskapa bytesschema för Match ${esc(matchNo)}</button>`
+        : '<div class="small">Inget bytesschema ännu. Spara laguppställning först.</div>';
+      const restore = byId("restoreMissingShift");
+      if (restore) restore.addEventListener("click", async () => {
+        if (!window.confirm(`Återskapa endast Match ${matchNo}, Lag ${lagNo} enligt aktuella poolspelsinställningar?`)) return;
+        restore.disabled = true;
+        try {
+          // Kontrollera igen före skrivning för att undvika att ersätta schema som just skapats på annan enhet.
+          const existing = await DB.listShiftSchema(poolId, lagNo, matchNo);
+          if (existing.length) throw new Error("Schemat finns redan. Uppdatera sidan i stället.");
+          const result = await regenerateShiftSchemaFor(poolId, lagNo, matchNo);
+          if (!result.length) throw new Error("Kunde inte skapa schema från laguppställningen.");
+          setText("appError", "");
+          await renderShiftSchema();
+        } catch (err) {
+          setText("appError", err?.message || String(err));
+          restore.disabled = false;
+        }
+      });
       return;
     }
 
