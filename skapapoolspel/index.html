@@ -14,8 +14,6 @@
 
   <style>
     /* Endast Skapa poolspel – påverkar inte övriga sidor. */
-    .pool-create-page .home-hero-logo-box { flex: 0 0 72px; width: 72px; max-width: 72px; }
-    .pool-create-page .home-hero-logo { display: block; width: 72px; max-width: 100%; height: auto; }
     .pool-create-page .pool-settings-grid {
       display: grid;
       grid-template-columns: repeat(2, minmax(0, 1fr));
@@ -68,13 +66,11 @@
       <a href="../lag/">Lag</a>
     </nav>
 
-    <section class="home-hero">
-      <div class="home-hero-logo-box">
-        <img src="../icon-192.png" alt="NSK" class="home-hero-logo">
-      </div>
-      <div class="home-hero-text">
-        <h1>Skapa poolspel</h1>
-        <div class="home-hero-sub">Ställ in ort, datum och förutsättningar</div>
+    <section class="hero-card">
+      <img src="../icon-192.png" alt="NSK" class="hero-logo">
+      <div>
+        <h1 class="hero-title">Skapa poolspel</h1>
+        <div class="hero-sub">Ställ in ort, datum och förutsättningar</div>
       </div>
     </section>
 
@@ -85,6 +81,10 @@
         <div class="pool-setting">
           <label for="poolPlace">Ort</label>
           <input id="poolPlace" type="text" placeholder="t.ex. Gnesta">
+        </div>
+        <div class="pool-setting">
+          <label for="poolHall">Ishallens namn</label>
+          <input id="poolHall" type="text" maxlength="150" placeholder="t.ex. Rosvalla">
         </div>
         <div class="pool-setting">
           <label for="poolDate">Datum</label>
