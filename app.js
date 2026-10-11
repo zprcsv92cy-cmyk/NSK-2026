@@ -771,6 +771,42 @@ window.NSK2App = (() => {
     }, 180);
   }
 
+  // Spara varje tränarändring omedelbart, oberoende av laguppställningens status.
+  let coachSaveChain = Promise.resolve();
+  function saveCoachSelectionImmediately() {
+    const poolId = sessionStorage.getItem('nsk2_pool_id') || '';
+    const lagNo = sessionStorage.getItem('nsk2_lag_nr') || '1';
+    const matchNo = byId('lineupMatch')?.value || '1';
+    const coachIds = Array.from(byId('lineupCoach')?.selectedOptions || []).map(o => Number(o.value)).filter(Number.isSafeInteger);
+    if (!poolId) { setText('appError','Välj poolspel innan tränare sparas.'); return Promise.resolve(); }
+    const stillSelected = () => sessionStorage.getItem('nsk2_pool_id') === poolId &&
+      (sessionStorage.getItem('nsk2_lag_nr') || '1') === lagNo && (byId('lineupMatch')?.value || '1') === matchNo;
+    const next = coachSaveChain.catch(() => {}).then(async () => {
+      try {
+        await DB.saveCoachSelection(poolId,lagNo,matchNo,coachIds);
+        if(stillSelected()) { setText('appError',''); setText('lineupMsg','Tränarval sparat för Match '+matchNo+'.'); }
+      } catch(err) {
+        if(stillSelected()) setText('appError','Tränarval kunde inte sparas: '+(err?.message || String(err)));
+      }
+    });
+    coachSaveChain = next;
+    return next;
+  }
+  async function loadCoachSelectionFromKV(poolId,lagNo,matchNo) {
+    if (!poolId || typeof DB?.getCoachSelection !== 'function') return;
+    const result = await DB.getCoachSelection(poolId,lagNo,matchNo);
+    // Äldre Baserow-val behålls tills något uttryckligen sparats i KV.
+    if (!result.saved) return;
+    if(sessionStorage.getItem('nsk2_pool_id') !== poolId ||
+      (sessionStorage.getItem('nsk2_lag_nr') || '1') !== lagNo ||
+      (byId('lineupMatch')?.value || '1') !== matchNo) return;
+    const selected = new Set(result.coach_ids.map(String));
+    const coachSelect=byId('lineupCoach');
+    if (!coachSelect) return;
+    Array.from(coachSelect.options).forEach(o => { o.selected=selected.has(String(o.value)); });
+    coachSelect.dispatchEvent(new Event('lineup-coaches-refresh'));
+  }
+
   function updateCoachEnabledState() {
     const coachSelect = byId("lineupCoach");
     if (!coachSelect) return;
@@ -903,7 +939,6 @@ window.NSK2App = (() => {
           syncGoalieAgainstPlayers();
           syncSelectedPlayersAcrossLineup();
           updateCoachEnabledState();
-          await applyAutoCoachFromCurrentSelection();
           queueAutoSaveLineup();
         });
       }
@@ -912,7 +947,7 @@ window.NSK2App = (() => {
     const coachSelect = byId("lineupCoach");
     if (coachSelect && !coachSelect.dataset.bound) {
       coachSelect.dataset.bound = "1";
-      coachSelect.addEventListener("change", () => queueAutoSaveLineup());
+      coachSelect.addEventListener("change", () => saveCoachSelectionImmediately());
     }
 
     const startTime = byId("lineupStartTime");
@@ -1193,8 +1228,9 @@ window.NSK2App = (() => {
       if (byId("lineupGoalie")) {
         byId("lineupGoalie").dataset.previousGoalieId = byId("lineupGoalie").value || "";
       }
-      // Bevara tränarvalen som hämtats från databasen.
-      // Automatisk tränartilldelning här skrev tidigare över sparade val.
+      // KV är primär källa för tränarval; Baserow är fallback för äldre matcher.
+      try { await loadCoachSelectionFromKV(poolId,lagNo,matchNo); }
+      catch(err) { setText('appError','Kunde inte hämta tränarval: '+(err?.message || String(err))); }
       updateCoachEnabledState();
 
       // Do not auto-save when merely opening another match. Save on user changes.
