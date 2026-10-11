@@ -69,6 +69,22 @@ window.DB = (() => {
       return adminRequest(`/api/laguppstallningar/${Number(configId)}`,'POST',{players:players.map(Number),coaches:coaches.map(Number)});
     });
   }
+  // Separat tränarval i Cloudflare KV. Kräver Adminläge.
+  async function getCoachSelection(poolId,lagNo,matchNo){
+    const token=localStorage.getItem('nsk_admin_token');
+    if(!token)throw new Error('Aktivera Adminläge för att hämta tränarval.');
+    const params=new URLSearchParams({pool_id:String(poolId),lag_no:String(lagNo),match_no:String(matchNo)});
+    const response=await fetch(`${API}/api/coach-selection?${params}`,{headers:{Authorization:'Bearer '+token},cache:'no-store'});
+    const data=await response.json().catch(()=>({}));
+    if(!response.ok||!data.ok)throw new Error(data.error||'Kunde inte hämta tränarval');
+    return {coach_ids:Array.isArray(data.coach_ids)?data.coach_ids.map(Number):[],saved:!!data.saved};
+  }
+  async function saveCoachSelection(poolId,lagNo,matchNo,coachIds){
+    return adminRequest('/api/coach-selection','POST',{
+      pool_id:Number(poolId),lag_no:Number(lagNo),match_no:Number(matchNo),
+      coach_ids:[...new Set(coachIds.map(Number))]
+    });
+  }
   async function saveShiftSchema(poolId,lagNo,matchNo,shifts){
     return serialWrite(async()=>adminRequest('/api/bytesschema/save','POST',{pool_id:Number(poolId),lag_no:Number(lagNo),match_no:Number(matchNo),shifts:shifts.map(s=>({period_no:Number(s.period_no),time_left:String(s.time_left),players:s.players.map(Number)}))}));
   }
@@ -107,5 +123,5 @@ window.DB = (() => {
   }
   return {listPlayers,listCoaches,listPools,getPool,listPoolTeamMatchConfigs,getPoolTeamMatchConfig,getPlayersOnField,getLineup,listUsedPlayersInPool,listShiftSchema,listGoalieStats,listPlayerCoachMap,
     addPlayer,updatePlayer,deletePlayer:failWrite,addCoach,updateCoach,deleteCoach:failWrite,updatePoolTeams,addPool,updatePool,deletePool:failWrite,
-    savePoolTeamMatchConfig,saveLineup,saveShiftSchema,deleteShiftSchema,setShiftDone,savePlayerCoachMap:failWrite,subscribeTruppen:async()=>({unsubscribe(){}})};
+    savePoolTeamMatchConfig,saveLineup,getCoachSelection,saveCoachSelection,saveShiftSchema,deleteShiftSchema,setShiftDone,savePlayerCoachMap:failWrite,subscribeTruppen:async()=>({unsubscribe(){}})};
 })();
