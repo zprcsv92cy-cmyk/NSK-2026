@@ -1805,23 +1805,30 @@ window.NSK2App = (() => {
       return;
     }
 
-    // Endast Match 3: erbjud en säker, uttrycklig återgenerering när
-    // schemat har fler rader än den inställda bytestiden medger.
+    // Alla matcher: upptäck även scheman med rätt antal rader men fel periodtid.
     let repairHtml = "";
-    if (String(matchNo) === "3" && pool) {
+    if (pool) {
       const seconds = Number(pool.period_time) * 60;
       const interval = Number(pool.sub_time);
       const periods = Number(pool.periods);
       if (seconds > 0 && interval > 0 && periods > 0) {
         const expected = Math.ceil(seconds / interval) * periods;
-        if (rows.length !== expected) {
-          repairHtml = `<div class="small" style="margin-bottom:12px">Match 3 har ${rows.length} byten, men inställningarna ger ${expected} byten. Ingen ändring sker förrän du väljer att återskapa schemat.</div>`;
-          if (rows.some(r => r.done)) {
-            repairHtml += `<div class="small" style="margin-bottom:8px">Återskapning nollställer Match 3:s genomförda markeringar efter din bekräftelse.</div>`;
-          }
-          repairHtml += `<button type="button" class="row-btn" id="repairMatch3Shifts" style="margin-bottom:12px">Återskapa Match 3 med ${interval} sekunders bytestid</button>`;
+        const expectedStart = `${String(Math.floor(seconds / 60)).padStart(2, "0")}:${String(seconds % 60).padStart(2, "0")}`;
+        const actualStart = String(rows[0]?.time_left || "").trim();
+        const outdated = rows.length !== expected || actualStart !== expectedStart;
+        if (outdated) {
+          repairHtml = `<div class="small" style="margin-bottom:12px">Match ${esc(matchNo)} har ett bytesschema som inte stämmer med poolspelsinställningarna. Sparat: ${rows.length} byten, start ${esc(actualStart || "—")}. Aktuellt: ${expected} byten, start ${expectedStart}. Ingen ändring görs utan bekräftelse.</div>`;
+          if (rows.some(r => r.done)) repairHtml += `<div class="small" style="margin-bottom:8px">Genomförda markeringar för den här matchen nollställs vid återskapning.</div>`;
+          repairHtml += `<button type="button" class="row-btn" id="repairOutdatedShifts" style="margin-bottom:12px">Återskapa Match ${esc(matchNo)} enligt aktuella inställningar</button>`;
         }
       }
+    }
+
+    // Match 2: erbjud manuell kontroll även om ett äldre schema ser korrekt ut
+    // enligt radantalet. Kontrollera den faktiskt sparade periodtiden före återskapning.
+    if (String(matchNo) === "2" && !repairHtml) {
+      repairHtml = `<div class="small" style="margin-bottom:8px">Sparad periodtid för poolspelet: ${esc(pool?.period_time ?? "okänd")} minuter. Första bytet: ${esc(rows[0]?.time_left || "—")}.</div>` +
+        `<button type="button" class="row-btn" id="repairOutdatedShifts" style="margin-bottom:12px">Återskapa Match 2 enligt aktuella inställningar</button>`;
     }
 
     wrap.innerHTML = repairHtml + `
@@ -1854,16 +1861,21 @@ window.NSK2App = (() => {
       </table>
     `;
 
-    const repairButton = byId("repairMatch3Shifts");
+    const repairButton = byId("repairOutdatedShifts");
     if (repairButton) repairButton.addEventListener("click", async () => {
-      if (!window.confirm("Återskapa enbart Match 3? Alla gamla byten och genomförda markeringar i Match 3 ersätts. Match 1 och 2 påverkas inte. Fortsätta?")) return;
+      if (!window.confirm(`Återskapa endast Match ${matchNo}, Lag ${lagNo}? Gamla byten och genomförda markeringar för denna match ersätts. Andra matcher påverkas inte.`)) return;
       repairButton.disabled = true;
       try {
-        const config = await DB.getPoolTeamMatchConfig(poolId, lagNo, 3) || await DB.getPoolTeamMatchConfig(poolId, lagNo, 1);
+        const latestPool = await DB.getPool(poolId);
+        if (String(matchNo) === "2" && Number(latestPool?.period_time) !== 16) {
+          throw new Error(`Poolspel har ${latestPool?.period_time ?? "okänd"} minuter sparat i Baserow, inte 16. Ändra och spara periodtiden i Skapa poolspel först. Inga byten har ändrats.`);
+        }
+        const config = await DB.getPoolTeamMatchConfig(poolId, lagNo, matchNo) ||
+          (String(matchNo) !== "1" ? await DB.getPoolTeamMatchConfig(poolId, lagNo, 1) : null);
         const lineup = config?.id ? await DB.getLineup(config.id) : [];
         if (!lineup.some(r => r.person_type === "player")) throw new Error("Ingen laguppställning hittades. Inget har ändrats.");
-        const result = await regenerateShiftSchemaFor(poolId, lagNo, 3);
-        if (!result.length) throw new Error("Ingen laguppställning hittades för Match 3. Schemat kunde inte återskapas.");
+        const result = await regenerateShiftSchemaFor(poolId, lagNo, matchNo);
+        if (!result.length) throw new Error("Kunde inte skapa bytesschemat.");
         setText("appError", "");
         await renderShiftSchema();
       } catch (err) {
