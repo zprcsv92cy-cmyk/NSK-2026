@@ -1749,13 +1749,13 @@ window.NSK2App = (() => {
     }
   }
 
-  async function renderCoachMatchView(poolId, lagNo, matchNo) {
-    const rows = await DB.listShiftSchema(poolId, lagNo, matchNo);
-    const players = await getPlayersCached();
-    const playerMap = {};
-    players.forEach((p) => { playerMap[String(p.id)] = p.full_name; });
+  // Matchvy: hämta data en gång. Knapptryckningar ritar sedan om lokalt.
+  let matchvyCache = null;
+  let matchvySaving = false;
 
-    if (!rows.length) {
+  function paintCoachMatchView() {
+    const data = matchvyCache;
+    if (!data || !data.rows.length) {
       setText("shiftLabel", "Inget schema");
       setText("currentPlayers", "—");
       setText("nextPlayers", "—");
@@ -1765,40 +1765,38 @@ window.NSK2App = (() => {
       return;
     }
 
-    if (matchCurrentShiftIndex < 0) matchCurrentShiftIndex = 0;
-    if (matchCurrentShiftIndex > rows.length - 1) matchCurrentShiftIndex = rows.length - 1;
-
-    const current = rows[matchCurrentShiftIndex] || null;
+    const { rows, playerMap, row, lagNo, matchNo } = data;
+    matchCurrentShiftIndex = Math.max(0, Math.min(matchCurrentShiftIndex, rows.length - 1));
+    const current = rows[matchCurrentShiftIndex];
     const next = rows[matchCurrentShiftIndex + 1] || null;
-
-    const row =
-      await DB.getPoolTeamMatchConfig(poolId, lagNo, matchNo) ||
-      await DB.getPoolTeamMatchConfig(poolId, lagNo, 1);
-
-    const currentClock = current?.time_left || "—";
-    const nextClock = next?.time_left || "—";
     const totalShifts = rows.length;
 
     setText("shiftLabel", `Lag ${lagNo} • Match ${matchNo}`);
-    setText("currentShiftMeta", `Pågående byte: ${matchCurrentShiftIndex + 1} av ${totalShifts} • Klockslag ${currentClock}`);
-    setText("nextShiftMeta", `Nästa byte: ${next ? (matchCurrentShiftIndex + 2) : "—"} av ${totalShifts} • Klockslag ${nextClock}`);
-
+    setText("currentShiftMeta", `Pågående byte: ${matchCurrentShiftIndex + 1} av ${totalShifts} • Klockslag ${current?.time_left || "—"}`);
+    setText("nextShiftMeta", `Nästa byte: ${next ? (matchCurrentShiftIndex + 2) : "—"} av ${totalShifts} • Klockslag ${next?.time_left || "—"}`);
     setHtml("matchInfo", `
       <div class="matchvy-info-row">Motståndare: <strong>${esc(row?.opponent || "—")}</strong></div>
       <div class="matchvy-info-row">Plan: <strong>${esc(row?.plan || "Plan 1")}</strong></div>
       <div class="matchvy-info-row">Start: <strong>${esc(row?.start_time || "—")}</strong></div>
     `);
-
-    const currentNames = (Array.isArray(current?.players_json) ? current.players_json : [])
+    const names = (shift) => (Array.isArray(shift?.players_json) ? shift.players_json : [])
       .map((id) => shortName(playerMap[String(id)] || "—"))
-      .join("<br>");
+      .join("<br>") || "—";
+    setHtml("currentPlayers", names(current));
+    setHtml("nextPlayers", names(next));
+  }
 
-    const nextNames = (Array.isArray(next?.players_json) ? next.players_json : [])
-      .map((id) => shortName(playerMap[String(id)] || "—"))
-      .join("<br>");
-
-    setHtml("currentPlayers", currentNames || "—");
-    setHtml("nextPlayers", nextNames || "—");
+  async function renderCoachMatchView(poolId, lagNo, matchNo) {
+    const [rows, players, rowCurrent] = await Promise.all([
+      DB.listShiftSchema(poolId, lagNo, matchNo),
+      getPlayersCached(),
+      DB.getPoolTeamMatchConfig(poolId, lagNo, matchNo)
+    ]);
+    const row = rowCurrent || await DB.getPoolTeamMatchConfig(poolId, lagNo, 1);
+    const playerMap = {};
+    players.forEach((p) => { playerMap[String(p.id)] = p.full_name; });
+    matchvyCache = { rows, playerMap, row, poolId, lagNo, matchNo };
+    paintCoachMatchView();
   }
 
   async function initMatchvyPage() {
@@ -1809,7 +1807,6 @@ window.NSK2App = (() => {
     const poolId = sessionStorage.getItem("nsk2_pool_id");
     const lagNo = sessionStorage.getItem("nsk2_lag_nr") || "1";
     const matchNo = sessionStorage.getItem("nsk2_match_no") || "1";
-
     if (!poolId) {
       setText("appError", "Välj först ett poolspel.");
       return;
@@ -1817,27 +1814,43 @@ window.NSK2App = (() => {
 
     matchCurrentShiftIndex = 0;
     await renderCoachMatchView(poolId, lagNo, matchNo);
-
     const prevBtn = byId("prevShiftBtn");
     const nextBtn = byId("nextShiftBtn");
 
     if (prevBtn && !prevBtn.dataset.boundMatchvy) {
       prevBtn.dataset.boundMatchvy = "1";
-      prevBtn.addEventListener("click", async () => {
+      prevBtn.addEventListener("click", () => {
+        if (matchvySaving || !matchvyCache?.rows.length) return;
         matchCurrentShiftIndex = Math.max(0, matchCurrentShiftIndex - 1);
-        await renderCoachMatchView(poolId, lagNo, matchNo);
+        paintCoachMatchView();
       });
     }
 
     if (nextBtn && !nextBtn.dataset.boundMatchvy) {
       nextBtn.dataset.boundMatchvy = "1";
       nextBtn.addEventListener("click", async () => {
-        const rows = await DB.listShiftSchema(poolId, lagNo, matchNo);
-        if (!rows.length) return;
-        const currentShiftNo = matchCurrentShiftIndex + 1;
-        await DB.setShiftDone(poolId, lagNo, matchNo, currentShiftNo, true);
-        matchCurrentShiftIndex = Math.min(rows.length - 1, matchCurrentShiftIndex + 1);
-        await renderCoachMatchView(poolId, lagNo, matchNo);
+        if (matchvySaving || !matchvyCache?.rows.length) return;
+        if (matchCurrentShiftIndex >= matchvyCache.rows.length - 1) return;
+
+        const previousIndex = matchCurrentShiftIndex;
+        const currentShiftNo = previousIndex + 1;
+        matchvySaving = true;
+        nextBtn.disabled = true;
+        if (prevBtn) prevBtn.disabled = true;
+        matchCurrentShiftIndex = previousIndex + 1;
+        paintCoachMatchView(); // Visa nästa byte direkt, före nätverksanropet.
+        setText("appError", "");
+        try {
+          await DB.setShiftDone(poolId, lagNo, matchNo, currentShiftNo, true);
+        } catch (err) {
+          matchCurrentShiftIndex = previousIndex; // Återställ om sparningen misslyckas.
+          paintCoachMatchView();
+          setText("appError", `Kunde inte spara bytet: ${err?.message || String(err)}`);
+        } finally {
+          matchvySaving = false;
+          nextBtn.disabled = false;
+          if (prevBtn) prevBtn.disabled = false;
+        }
       });
     }
   }
