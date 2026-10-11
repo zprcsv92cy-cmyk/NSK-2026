@@ -88,7 +88,7 @@ window.DB = (() => {
   async function saveShiftSchema(poolId,lagNo,matchNo,shifts){
     return serialWrite(async()=>{
       const payload={pool_id:Number(poolId),lag_no:Number(lagNo),match_no:Number(matchNo),shifts:shifts.map(s=>({period_no:Number(s.period_no),time_left:String(s.time_left),players:s.players.map(Number)}))};
-      // Fortsätt rensa i separata Worker-körningar; skapa inga nya byten förrän rensningen är klar.
+      // Uppdatera ett byte per Worker-anrop; återuppta säkert efter avbrott.
       for(let attempt=0;attempt<100;attempt++){
         const result=await adminRequest('/api/bytesschema/save','POST',payload);
         if(!result.cleanup_pending){
@@ -96,7 +96,7 @@ window.DB = (() => {
           return result;
         }
       }
-      throw new Error('Rensningen tog för många omgångar. Inga nya byten har skapats.');
+      throw new Error('Uppdateringen tog för många omgångar. Kontrollera sparade byten innan nytt försök.');
     });
   }
   async function deleteShiftSchema(poolId,lagNo,matchNo){
