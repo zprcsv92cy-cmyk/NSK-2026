@@ -16,10 +16,11 @@
     .shift-top-grid > .card { margin:0; min-width:0; height:100%; }
     .shift-top-grid h2 { margin-top:0; }
     #shiftTeamButtons { display:flex; flex-wrap:wrap; gap:10px; }
-    #shiftMatchList { display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); gap:10px; margin-bottom:12px; }
+    #shiftMatchList { display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); gap:10px; margin-bottom:0; }
     #shiftMatchList > * { min-width:0; width:100%; margin:0; }
     #shiftMatchList button { width:100%; min-width:0; }
-    .shift-match-select { display:grid; grid-template-columns:auto minmax(0,1fr); gap:12px; align-items:center; }
+    /* Rullistan behålls i DOM för app.js men visas inte. */
+    .shift-match-select { display:none !important; }
     .shift-match-select label { margin:0; }
     .shift-match-select select { margin:0; width:100%; min-width:0; }
     .shift-info-grid { display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); gap:12px 18px; }
@@ -32,7 +33,6 @@
     }
     @media(max-width:420px) {
       #shiftMatchList { grid-template-columns:repeat(2,minmax(0,1fr)); }
-      .shift-match-select { grid-template-columns:1fr; gap:5px; }
     }
   </style>
 </head>
