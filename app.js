@@ -489,7 +489,36 @@ window.NSK2App = (() => {
     }
   }
 
+  // Vid ändring av spelregler måste lagrade bytesscheman ersättas.
+  // Varje ersättning använder db.js batchrensning (flera Worker-anrop).
+  async function updateAffectedShiftSchemas(poolId, pool) {
+    const configs = await DB.listPoolTeamMatchConfigs(poolId);
+    const targets = new Map();
+    for (const c of configs) {
+      if (Number(c.lag_no) <= Number(pool.teams) && Number(c.match_no) <= Number(pool.matches)) {
+        targets.set(`${c.lag_no}:${c.match_no}`, [c.lag_no, c.match_no]);
+      }
+    }
+    // Befintliga scheman kan även finnas för matcher som använder Match 1:s uppställning.
+    // Regenerera bara sådana matcher där en uppställning faktiskt finns.
+    const errors = [];
+    for (const [lagNo, matchNo] of targets.values()) {
+      try {
+        const config = await DB.getPoolTeamMatchConfig(poolId, lagNo, matchNo);
+        const source = config || (Number(matchNo) !== 1 ? await DB.getPoolTeamMatchConfig(poolId, lagNo, 1) : null);
+        const lineup = source?.id ? await DB.getLineup(source.id) : [];
+        if (!lineup.some(p => p.person_type === "player")) continue;
+        await regenerateShiftSchemaFor(poolId, lagNo, matchNo);
+      } catch (err) {
+        errors.push(`Lag ${lagNo}, Match ${matchNo}: ${err?.message || String(err)}`);
+      }
+    }
+    return errors;
+  }
+
   async function savePool() {
+    const saveButton = byId("savePool");
+    if (saveButton?.disabled) return;
     try {
       const payload = {
         title: "Poolspel",
@@ -504,19 +533,41 @@ window.NSK2App = (() => {
         period_time: safeInt(byId("periodTime")?.value || "15", 15),
         sub_time: safeInt(byId("subTime")?.value || "90", 90)
       };
-
       const editId = sessionStorage.getItem("nsk2_edit_pool_id");
+      let changedRules = false;
       if (editId) {
-        await DB.updatePool(editId, payload);
-        sessionStorage.removeItem("nsk2_edit_pool_id");
-        sessionStorage.setItem("nsk2_pool_id", editId);
-      } else {
-        const pool = await DB.addPool(payload);
-        sessionStorage.setItem("nsk2_pool_id", pool.id);
+        const previous = await DB.getPool(editId);
+        if (!previous) throw new Error("Poolspelet kunde inte hittas. Ladda om sidan.");
+        const rules = ["players_on_field", "periods", "period_time", "sub_time"];
+        changedRules = rules.some(k => Number(previous[k]) !== Number(payload[k]));
+        if (changedRules && !window.confirm(
+          "Du har ändrat spelregler som påverkar bytesscheman. " +
+          "Alla befintliga bytesscheman för poolspelet återskapas och genomförda markeringar nollställs. " +
+          "Matchvy uppdateras från samma sparade scheman. Fortsätta?"
+        )) return;
       }
-
-      setText("poolMsg", "Poolspel sparat");
-      window.location.href = "../startsida/";
+      if (saveButton) saveButton.disabled = true;
+      try {
+        if (editId) {
+          await DB.updatePool(editId, payload);
+          sessionStorage.setItem("nsk2_pool_id", editId);
+          if (changedRules) {
+            setText("poolMsg", "Poolspel sparat. Uppdaterar bytesscheman – vänta...");
+            const errors = await updateAffectedShiftSchemas(editId, payload);
+            if (errors.length) {
+              throw new Error("Poolspel sparat, men vissa bytesscheman kunde inte uppdateras: " + errors.join("; ") + ". Försök inte ändra spelregler igen innan detta är åtgärdat.");
+            }
+          }
+          sessionStorage.removeItem("nsk2_edit_pool_id");
+        } else {
+          const pool = await DB.addPool(payload);
+          sessionStorage.setItem("nsk2_pool_id", pool.id);
+        }
+        setText("poolMsg", "Poolspel och berörda scheman sparade");
+        window.location.href = "../startsida/";
+      } finally {
+        if (saveButton) saveButton.disabled = false;
+      }
     } catch (err) {
       setText("appError", err?.message || String(err));
     }
@@ -1933,9 +1984,13 @@ window.NSK2App = (() => {
       const refreshMatch = async () => {
         if (document.hidden || matchvySaving || !matchvyCache) return;
         try {
-          const fresh = await DB.listShiftSchema(poolId, lagNo, matchNo);
+          const [fresh, currentRow] = await Promise.all([
+            DB.listShiftSchema(poolId, lagNo, matchNo),
+            DB.getPoolTeamMatchConfig(poolId, lagNo, matchNo)
+          ]);
           if (!matchvyCache || matchvySaving) return;
           matchvyCache.rows = fresh;
+          if (currentRow) matchvyCache.row = currentRow;
           const pending = fresh.findIndex(r => !r.done);
           matchCurrentShiftIndex = pending === -1 ? Math.max(0, fresh.length - 1) : pending;
           rememberMatchShift();
