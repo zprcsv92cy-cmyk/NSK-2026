@@ -21,7 +21,12 @@
     .lineup-page .field > label { display:block; margin-bottom:5px; font-size:14px; }
     .lineup-page input:not([type=checkbox]),
     .lineup-page select { width:100%; min-width:0; min-height:44px; margin:0; padding:9px 12px; border-radius:11px; font-size:16px; }
-    .lineup-page #lineupCoach[multiple] { min-height:52px; max-height:120px; padding:8px 12px; }
+    .lineup-page #lineupCoach[multiple] { display:none; }
+    .lineup-page .coach-picker { display:grid; gap:7px; margin-top:7px; }
+    .lineup-page .coach-choice { display:flex; align-items:center; gap:12px; min-height:46px; padding:9px 12px; border:1px solid #44464e; border-radius:10px; cursor:pointer; background:#202127; }
+    .lineup-page .coach-choice:has(input:checked) { border-color:#e34a60; background:#432028; }
+    .lineup-page .coach-choice input { width:20px; height:20px; margin:0; accent-color:#c51b32; flex:none; }
+    .lineup-page .coach-choice span { flex:1; }
     .lineup-page #laguppstallningTeamButtons { display:flex; flex-wrap:wrap; gap:8px; }
     .lineup-page #laguppstallningTeamButtons button { flex:0 1 auto; min-width:105px; min-height:44px; padding:9px 16px; font-size:15px; border-radius:11px; }
     .lineup-page #matchButtons { display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); gap:8px; }
@@ -97,7 +102,7 @@
       <section class="card">
         <h2>Laguppställning</h2>
         <div class="field"><label>Lag</label><div id="laguppstallningTeamButtons" class="team-buttons"></div></div>
-        <div class="field"><label for="lineupCoach">Tränare</label><select id="lineupCoach" multiple size="4"></select><div id="lineupCoachNames" class="small" aria-live="polite" style="margin-top:7px"></div></div>
+        <div class="field"><label for="lineupCoach">Tränare</label><select id="lineupCoach" multiple size="4"></select><div id="lineupCoachChoices" class="coach-picker" role="group" aria-label="Välj tränare"></div><div id="lineupCoachNames" class="small" aria-live="polite" style="margin-top:7px"></div></div>
         <div class="field"><label>Matcher</label><div id="matchButtons" class="team-buttons"></div></div>
         <div class="field" style="display:none"><label for="lineupMatch">Match</label><select id="lineupMatch"></select></div>
       </section>
@@ -122,23 +127,51 @@
   </script>
   <script src="../admin-mode.js?v=1"></script>
   <script>
-    // Visa namnen på markerade tränare på både mobil och dator.
-    // Ändrar inte select-värden eller sparningen i app.js.
+    // Tydlig kryssruteväljare på både dator och mobil.
+    // Den befintliga selecten används fortsatt av app.js och databasen.
     (function () {
       const select = document.getElementById('lineupCoach');
+      const box = document.getElementById('lineupCoachChoices');
       const names = document.getElementById('lineupCoachNames');
-      if (!select || !names) return;
-      function showSelectedCoaches() {
-        const chosen = Array.from(select.selectedOptions)
-          .map(option => option.textContent.trim()).filter(Boolean);
-        names.textContent = chosen.length ? 'Valda tränare: ' + chosen.join(', ') : 'Inga tränare valda';
+      if (!select || !box || !names) return;
+      function refresh() {
+        const options = Array.from(select.options).filter(o => o.value);
+        const selected = options.filter(o => o.selected);
+        names.textContent = selected.length
+          ? 'Valda tränare: ' + selected.map(o => o.textContent.trim()).join(', ')
+          : 'Inga tränare valda';
+        const signature = options.map(o => o.value + ':' + o.textContent).join('|');
+        if (box.dataset.signature !== signature) {
+          box.dataset.signature = signature;
+          box.replaceChildren();
+          options.forEach(o => {
+            const label = document.createElement('label');
+            label.className = 'coach-choice';
+            const check = document.createElement('input');
+            check.type = 'checkbox';
+            check.value = o.value;
+            check.checked = o.selected;
+            check.addEventListener('change', () => {
+              o.selected = check.checked;
+              select.dispatchEvent(new Event('change', { bubbles: true }));
+              refresh();
+            });
+            const name = document.createElement('span');
+            name.textContent = o.textContent;
+            label.append(check, name);
+            box.appendChild(label);
+          });
+        }
+        box.querySelectorAll('input[type="checkbox"]').forEach(check => {
+          const option = options.find(o => o.value === check.value);
+          check.checked = !!option?.selected;
+        });
+        if (!options.length) box.textContent = 'Inga tränare tillgängliga';
       }
-      select.addEventListener('change', showSelectedCoaches);
-      // app.js laddar om alternativen när lag eller match ändras.
-      new MutationObserver(showSelectedCoaches).observe(select, {
-        childList: true, subtree: true, attributes: true, attributeFilter: ['selected']
-      });
-      showSelectedCoaches();
+      select.addEventListener('change', refresh);
+      select.addEventListener('lineup-coaches-refresh', refresh);
+      new MutationObserver(refresh).observe(select, { childList: true, subtree: true });
+      refresh();
     })();
   </script>
 
