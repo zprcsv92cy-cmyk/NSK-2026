@@ -5,16 +5,65 @@
   <meta name="viewport" content="width=device-width,initial-scale=1">
   <title>Laguppställning</title>
   <meta name="theme-color" content="#b11226">
-
   <script src="../version.js?v=667"></script>
   <script>
     document.write('<link rel="manifest" href="../manifest.webmanifest?v=' + window.NSK_VERSION + '">');
     document.write('<link rel="stylesheet" href="../app.css?v=' + window.NSK_VERSION + '">');
   </script>
+  <style>
+    /* Endast Laguppställning – påverkar inga andra sidor. */
+    body.lineup-page { padding-bottom:calc(90px + env(safe-area-inset-bottom, 0px)); }
+    .lineup-page .wrap { max-width:1050px; }
+    .lineup-page .card { margin-bottom:12px; padding:16px; }
+    .lineup-page .card h2 { font-size:21px; margin:0 0 13px; }
+    .lineup-page .field { min-width:0; margin-bottom:12px; }
+    .lineup-page .field:last-child { margin-bottom:0; }
+    .lineup-page .field > label { display:block; margin-bottom:5px; font-size:14px; }
+    .lineup-page input:not([type=checkbox]),
+    .lineup-page select { width:100%; min-width:0; min-height:44px; margin:0; padding:9px 12px; border-radius:11px; font-size:16px; }
+    .lineup-page #lineupCoach[multiple] { min-height:52px; max-height:120px; padding:8px 12px; }
+    .lineup-page #laguppstallningTeamButtons { display:flex; flex-wrap:wrap; gap:8px; }
+    .lineup-page #laguppstallningTeamButtons button { flex:0 1 auto; min-width:105px; min-height:44px; padding:9px 16px; font-size:15px; border-radius:11px; }
+    .lineup-page #matchButtons { display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); gap:8px; }
+    .lineup-page #matchButtons button { width:100%; min-width:0; min-height:44px; margin:0; padding:9px 5px; border-radius:11px; font-size:15px; }
+    .lineup-page #matchButtons button:not(.active-team-btn):not([aria-pressed="true"]),
+    .lineup-page #laguppstallningTeamButtons button:not(.active-team-btn):not([aria-pressed="true"]) { background:#202127; border-color:#393941; box-shadow:none; }
+    .lineup-page #matchButtons button.active-team-btn,
+    .lineup-page #matchButtons button[aria-pressed="true"],
+    .lineup-page #laguppstallningTeamButtons button.active-team-btn,
+    .lineup-page #laguppstallningTeamButtons button[aria-pressed="true"] { background:linear-gradient(180deg,#c51b32,#8f1020); border-color:#e34a60; color:#fff; }
+    .lineup-page .lineup-info-grid { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:10px 12px; }
+    .lineup-page .lineup-info-grid .field { margin:0; }
+    .lineup-page .lineup-info-grid input[type=time] { text-align:left; }
+    .lineup-page #lineupSelectors { min-width:0; }
+    .lineup-page #lineupSelectors .field { margin-bottom:9px; }
+    .lineup-page #lineupSelectors label { font-size:14px; margin-bottom:4px; }
+    .lineup-page #lineupSelectors select { min-height:43px; padding-top:8px; padding-bottom:8px; }
+    .lineup-page #lineupSelectors button { min-height:42px; padding:8px 13px; font-size:15px; border-radius:11px; }
+    .lineup-page .lineup-messages:empty { display:none; }
+    .lineup-page .lineup-messages .small:empty { display:none; }
+    @media(min-width:800px) {
+      .lineup-page .lineup-main { display:grid; grid-template-columns:minmax(0,1fr) minmax(0,1fr); gap:14px; align-items:start; }
+      .lineup-page .lineup-main > .card { margin:0; }
+      .lineup-page .lineup-players-card { margin-top:14px; }
+    }
+    @media(max-width:600px) {
+      body.lineup-page { padding:9px 9px calc(100px + env(safe-area-inset-bottom,0px)); }
+      .lineup-page .card { padding:13px; border-radius:15px; margin-bottom:10px; }
+      .lineup-page .card h2 { font-size:19px; margin-bottom:10px; }
+      .lineup-page .field { margin-bottom:10px; }
+      .lineup-page .lineup-info-grid { gap:9px; }
+      .lineup-page .lineup-info-grid .field > label { font-size:13px; }
+      .lineup-page #laguppstallningTeamButtons button { min-width:95px; }
+      .lineup-page .home-hero { margin-bottom:12px; }
+    }
+    @media(max-width:350px) {
+      .lineup-page .lineup-info-grid { grid-template-columns:1fr; }
+    }
+  </style>
 </head>
-<body>
+<body class="lineup-page">
   <div class="wrap">
-
     <nav class="mainmenu">
       <a href="../startsida/">Startsida</a>
       <a href="../truppen/">Truppen</a>
@@ -24,82 +73,33 @@
       <a href="../matchvy/">Matchvy</a>
       <a href="../lag/">Lag</a>
     </nav>
-
     <section class="home-hero">
-      <div class="home-hero-logo-box">
-        <img src="../icon-192.png" alt="NSK" class="home-hero-logo">
-      </div>
-
+      <div class="home-hero-logo-box"><img src="../icon-192.png" alt="NSK" class="home-hero-logo"></div>
       <div class="home-hero-text">
         <h1 id="laguppstallningTitle">Laguppställning</h1>
         <div class="home-hero-sub">Välj lag, match, spelare och tränare</div>
       </div>
     </section>
-
-    <section class="card">
-      <h2>Laguppställning</h2>
-
-      <div class="field">
-        <label>Lag</label>
-        <div id="laguppstallningTeamButtons" class="team-buttons"></div>
-      </div>
-
-      <div class="field">
-        <label for="lineupCoach">Tränare</label>
-        <select id="lineupCoach" multiple size="4"></select>
-      </div>
-
-      <div class="field">
-        <label>Matcher</label>
-        <div id="matchButtons" class="team-buttons"></div>
-      </div>
-
-      <div class="field" style="display:none">
-        <label for="lineupMatch">Match</label>
-        <select id="lineupMatch"></select>
-      </div>
-    </section>
-
-    <section class="card">
-      <h2>Matchinfo</h2>
-
-      <div class="field">
-        <label for="lineupStartTime">Starttid</label>
-        <input id="lineupStartTime" type="time">
-      </div>
-
-      <div class="field">
-        <label for="lineupOpponent">Motståndare</label>
-        <input id="lineupOpponent" type="text" placeholder="Motståndare">
-      </div>
-
-      <div class="field">
-        <label for="lineupPlan">Plan</label>
-        <select id="lineupPlan">
-          <option value="Plan 1">Plan 1</option>
-          <option value="Plan 2">Plan 2</option>
-          <option value="Plan 3">Plan 3</option>
-          <option value="Plan 4">Plan 4</option>
-          <option value="Plan 5">Plan 5</option>
-        </select>
-      </div>
-
-      <div class="field">
-        <label for="lineupPlayerCount">Antal spelare</label>
-        <select id="lineupPlayerCount"></select>
-      </div>
-    </section>
-
-    <section class="card">
-      <h2>Spelare</h2>
-      <div id="lineupSelectors"></div>
-    </section>
-
-    <section class="card">
-      <div id="lineupMsg" class="small"></div>
-      <div id="appError" class="small"></div>
-    </section>
-
+    <div class="lineup-main">
+      <section class="card">
+        <h2>Laguppställning</h2>
+        <div class="field"><label>Lag</label><div id="laguppstallningTeamButtons" class="team-buttons"></div></div>
+        <div class="field"><label for="lineupCoach">Tränare</label><select id="lineupCoach" multiple size="4"></select></div>
+        <div class="field"><label>Matcher</label><div id="matchButtons" class="team-buttons"></div></div>
+        <div class="field" style="display:none"><label for="lineupMatch">Match</label><select id="lineupMatch"></select></div>
+      </section>
+      <section class="card">
+        <h2>Matchinfo</h2>
+        <div class="lineup-info-grid">
+          <div class="field"><label for="lineupStartTime">Starttid</label><input id="lineupStartTime" type="time"></div>
+          <div class="field"><label for="lineupOpponent">Motståndare</label><input id="lineupOpponent" type="text" placeholder="Motståndare"></div>
+          <div class="field"><label for="lineupPlan">Plan</label><select id="lineupPlan"><option value="Plan 1">Plan 1</option><option value="Plan 2">Plan 2</option><option value="Plan 3">Plan 3</option><option value="Plan 4">Plan 4</option><option value="Plan 5">Plan 5</option></select></div>
+          <div class="field"><label for="lineupPlayerCount">Antal spelare</label><select id="lineupPlayerCount"></select></div>
+        </div>
+      </section>
+    </div>
+    <section class="card lineup-players-card"><h2>Spelare</h2><div id="lineupSelectors"></div></section>
+    <section class="card lineup-messages"><div id="lineupMsg" class="small"></div><div id="appError" class="small"></div></section>
   </div>
   <script>
     document.write('<script src="../config.js?v=' + window.NSK_VERSION + '"><\/script>');
@@ -107,7 +107,6 @@
     document.write('<script src="../db.js?v=' + window.NSK_VERSION + '"><\/script>');
     document.write('<script src="../app.js?v=' + window.NSK_VERSION + '"><\/script>');
   </script>
-<script src="../admin-mode.js?v=1"></script>
+  <script src="../admin-mode.js?v=1"></script>
 </body>
 </html>
-
