@@ -11,8 +11,13 @@
     document.write('<link rel="manifest" href="../manifest.webmanifest?v=' + window.NSK_VERSION + '">');
     document.write('<link rel="stylesheet" href="../app.css?v=' + window.NSK_VERSION + '">');
   </script>
+  <style>
+    /* Samma kompakta NSK-logga som på Truppen, endast på denna sida. */
+    .teams-page .home-hero-logo-box { flex: 0 0 72px; width: 72px; max-width: 72px; }
+    .teams-page .home-hero-logo { display: block; width: 72px; max-width: 100%; height: auto; }
+  </style>
 </head>
-<body>
+<body class="teams-page">
   <div class="wrap">
     <nav class="mainmenu">
       <a href="../startsida/">Startsida</a>
@@ -24,9 +29,17 @@
       <a href="../lag/" class="active">Lag</a>
     </nav>
 
+    <section class="home-hero">
+      <div class="home-hero-logo-box">
+        <img src="../icon-192.png" alt="NSK" class="home-hero-logo">
+      </div>
+      <div class="home-hero-text">
+        <h1>Lag</h1>
+        <div class="home-hero-sub">Välj lag för att öppna matchvyn för valt poolspel.</div>
+      </div>
+    </section>
+
     <section class="card">
-      <h1>Lag</h1>
-      <div class="small">Välj lag för att öppna matchvyn för valt poolspel.</div>
       <div id="poolTeamEditor" class="listrow" hidden>
         <label for="poolTeamCount">Antal lag i valt poolspel (1–20)</label>
         <input id="poolTeamCount" type="number" min="1" max="20" step="1" style="width:90px;margin:0 10px">
