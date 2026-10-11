@@ -11,16 +11,13 @@
     document.write('<link rel="stylesheet" href="../app.css?v=' + window.NSK_VERSION + '">');
   </script>
   <style>
-    /* Behåll rullistan för befintlig JavaScript-kod, men dölj den visuellt. */
-    #shiftMatch, label[for="shiftMatch"] { display:none !important; }
-    #shiftMatchList { display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); gap:10px; margin-top:12px; }
-    #shiftMatchList > * { min-width:0; width:100%; margin:0; }
-    #shiftMatchList button { width:100%; min-height:58px; padding:12px 8px; border-radius:14px; font-size:16px; text-align:center; }
-    #shiftMatchList .nsk-selected-match { background:linear-gradient(180deg,#d51f35,#890d1d) !important; border-color:#ed5267 !important; box-shadow:0 0 0 2px rgba(237,82,103,.22); }
-    @media(max-width:390px){ #shiftMatchList { gap:7px; } #shiftMatchList button { font-size:14px; padding:10px 4px; } }
+    /* Endast denna sida: logga och rubrik som på Truppen. */
+    .shift-page .home-hero-logo-box { flex: 0 0 72px; width: 72px; max-width: 72px; }
+    .shift-page .home-hero-logo { display: block; width: 72px; max-width: 100%; height: auto; }
+    .shift-page .hero-logo { width: 72px; max-width: 72px; height: auto; }
   </style>
 </head>
-<body>
+<body class="shift-page">
   <div class="wrap">
     <nav class="mainmenu">
       <a href="../startsida/">Startsida</a>
@@ -48,7 +45,7 @@
     </section>
 
     <section class="card">
-      <h2>Välj match</h2>
+      <h2>Matcher</h2>
       <div id="shiftMatchList" class="team-buttons"></div>
       <label for="shiftMatch">Välj match</label>
       <select id="shiftMatch" aria-label="Välj match"></select>
@@ -79,45 +76,6 @@
       document.write('<script src="../app.js?v=' + window.NSK_VERSION + '"><\/script>');
     </script>
   </div>
-  <script>
-    /* Matchknapparna väljer samma match som den befintliga rullistan.
-       Befintlig app.js får fortsätta hantera hämtning och visning. */
-    (function(){
-      const list = document.getElementById('shiftMatchList');
-      const select = document.getElementById('shiftMatch');
-      if (!list || !select) return;
-      function buttons(){ return Array.from(list.querySelectorAll('button')); }
-      function mark(){
-        const opts = Array.from(select.options);
-        buttons().forEach((btn, i) => {
-          const number = (btn.textContent || '').match(/Match\s*(\d+)/i);
-          const option = number ? opts.find(o => new RegExp('Match\\s*' + number[1] + '(?!\\d)','i').test(o.textContent)) : opts[i];
-          const selected = option ? option.value === select.value : false;
-          btn.classList.toggle('nsk-selected-match', selected);
-          btn.setAttribute('aria-pressed', String(selected));
-        });
-      }
-      list.addEventListener('click', function(e){
-        const btn = e.target.closest('button');
-        if (!btn || !list.contains(btn)) return;
-        const bs = buttons();
-        const index = bs.indexOf(btn);
-        const opts = Array.from(select.options);
-        const number = (btn.textContent || '').match(/Match\s*(\d+)/i);
-        const option = number ? opts.find(o => new RegExp('Match\\s*' + number[1] + '(?!\\d)','i').test(o.textContent)) : opts[index];
-        if (option && select.value !== option.value) {
-          select.value = option.value;
-          select.dispatchEvent(new Event('change', {bubbles:true}));
-        }
-        mark();
-      });
-      select.addEventListener('change', mark);
-      const observer = new MutationObserver(mark);
-      observer.observe(list, {childList:true, subtree:false});
-      observer.observe(select, {childList:true});
-      mark();
-    })();
-  </script>
   <script src="../admin-mode.js?v=1"></script>
 </body>
 </html>
