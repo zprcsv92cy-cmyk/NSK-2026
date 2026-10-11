@@ -603,6 +603,7 @@ window.NSK2App = (() => {
       opt.textContent = c.full_name;
       coachSelect.appendChild(opt);
     });
+    coachSelect.dispatchEvent(new Event("lineup-coaches-refresh"));
   }
 
   async function getUsedPlayersInSameMatch(poolId, currentLagNo, matchNo) {
@@ -719,6 +720,7 @@ window.NSK2App = (() => {
           Array.from(coachSelect.options).forEach((opt) => {
             opt.selected = coachIds.includes(String(opt.value));
           });
+          coachSelect.dispatchEvent(new Event("lineup-coaches-refresh"));
         }
       }
 
@@ -783,7 +785,7 @@ window.NSK2App = (() => {
     }
 
     const enabled = !!goalie && selectedPlayers === count;
-    coachSelect.disabled = !enabled;
+    coachSelect.disabled = false; // Tränare kan väljas även innan alla spelare är ifyllda.
 
     // Rensa inte tränarvalen vid tillfälligt ofullständig uppställning.
   }
@@ -889,7 +891,6 @@ window.NSK2App = (() => {
         syncGoalieAgainstPlayers();
         syncSelectedPlayersAcrossLineup();
         updateCoachEnabledState();
-        await applyAutoCoachFromCurrentSelection();
         queueAutoSaveLineup();
       });
     }
@@ -1046,7 +1047,6 @@ window.NSK2App = (() => {
     if (goalieSel) goalieSel.value = String(chosen.id);
 
     syncGoalieAgainstPlayers();
-    await applyAutoCoachFromCurrentSelection();
     queueAutoSaveLineup();
     setText("lineupMsg", `Målvakt slumpad: ${chosen.full_name}`);
   }
@@ -1166,6 +1166,7 @@ window.NSK2App = (() => {
           Array.from(coachSelect.options).forEach((opt) => {
             opt.selected = coachIds.includes(String(opt.value));
           });
+          coachSelect.dispatchEvent(new Event("lineup-coaches-refresh"));
         }
 
         for (let i = 1; i <= 25; i++) {
@@ -1178,6 +1179,7 @@ window.NSK2App = (() => {
           Array.from(coachSelect.options).forEach((opt) => {
             opt.selected = false;
           });
+          coachSelect.dispatchEvent(new Event("lineup-coaches-refresh"));
         }
 
         for (let i = 1; i <= 25; i++) {
