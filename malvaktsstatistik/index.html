@@ -11,8 +11,22 @@
     document.write('<link rel="manifest" href="../manifest.webmanifest?v=' + window.NSK_VERSION + '">');
     document.write('<link rel="stylesheet" href="../app.css?v=' + window.NSK_VERSION + '">');
   </script>
+  <style>
+    /* Endast denna sida: samma loggstorlek som Truppen. */
+    .goalie-stats-page .home-hero-logo-box {
+      flex: 0 0 72px;
+      width: 72px;
+      max-width: 72px;
+    }
+    .goalie-stats-page .home-hero-logo {
+      display: block;
+      width: 72px;
+      max-width: 100%;
+      height: auto;
+    }
+  </style>
 </head>
-<body>
+<body class="goalie-stats-page">
   <div class="wrap">
     <nav class="mainmenu">
       <a href="../startsida/">Startsida</a>
@@ -24,9 +38,14 @@
       <a href="../lag/">Lag</a>
     </nav>
 
-    <section class="card">
-      <h1>Målvaktsstatistik</h1>
-      <div class="small">Visar bara antal matcher som målvakt.</div>
+    <section class="home-hero">
+      <div class="home-hero-logo-box">
+        <img src="../icon-192.png" alt="NSK" class="home-hero-logo">
+      </div>
+      <div class="home-hero-text">
+        <h1>Målvaktsstatistik</h1>
+        <div class="home-hero-sub">Visar bara antal matcher som målvakt.</div>
+      </div>
     </section>
 
     <section class="card">
