@@ -1364,99 +1364,72 @@ window.NSK2App = (() => {
     return shifts;
   }
 
-  // Queue the COMPLETE save flow, not just individual database calls.
-  // This prevents two autosaves in this tab from interleaving their writes.
+  // Capture the selected match and fields before entering the write queue.
+  // Never read another match's controls from a delayed queued save.
   let lineupSaveChain = Promise.resolve();
   function saveLaguppstallningMatchConfig(silent = false) {
+    const snapshot = {
+      poolId: sessionStorage.getItem("nsk2_pool_id") || "",
+      lagNo: sessionStorage.getItem("nsk2_lag_nr") || "1",
+      matchNo: byId("lineupMatch")?.value || "1",
+      goalie: cleanUUID(byId("lineupGoalie")?.value),
+      playerCount: safeInt(byId("lineupPlayerCount")?.value || "3", 3),
+      players: [],
+      startTime: byId("lineupStartTime")?.value || null,
+      opponent: byId("lineupOpponent")?.value?.trim() || "",
+      plan: byId("lineupPlan")?.value || "Plan 1"
+    };
+    for (let i = 1; i <= snapshot.playerCount; i++) {
+      snapshot.players.push(cleanUUID(byId(`lineupPlayer${i}`)?.value));
+    }
     const next = lineupSaveChain.catch(() => {}).then(() =>
-      saveLaguppstallningMatchConfigInternal(silent)
+      saveLaguppstallningMatchConfigInternal(silent, snapshot)
     );
     lineupSaveChain = next.catch(() => {});
     return next;
   }
 
-  async function saveLaguppstallningMatchConfigInternal(silent = false) {
-    const poolId = sessionStorage.getItem("nsk2_pool_id") || "";
-    const lagNo = sessionStorage.getItem("nsk2_lag_nr") || "1";
-    const matchNo = byId("lineupMatch")?.value || "1";
-
-    if (!poolId) {
-      if (!silent) setText("appError", "Saknar valt poolspel.");
-      return;
+  async function saveLaguppstallningMatchConfigInternal(silent = false, snapshot) {
+    const {poolId, lagNo, matchNo, goalie, playerCount} = snapshot;
+    const stillSelected = () =>
+      sessionStorage.getItem("nsk2_pool_id") === poolId &&
+      (sessionStorage.getItem("nsk2_lag_nr") || "1") === lagNo &&
+      (byId("lineupMatch")?.value || "1") === matchNo;
+    const message = (id, value) => { if (stillSelected()) setText(id, value); };
+    if (!poolId) { if (!silent) message("appError", "Saknar valt poolspel."); return; }
+    const selectedPlayers = snapshot.players.filter(Boolean);
+    if (!goalie) { if (!silent) message("lineupMsg", "Välj målvakt först."); return; }
+    if (selectedPlayers.includes(goalie)) { message("lineupMsg", "Målvakt kan inte vara samma som spelare."); return; }
+    if (new Set(selectedPlayers).size !== selectedPlayers.length) {
+      message("lineupMsg", "En spelare kan bara väljas en gång."); return;
     }
-
-    const goalie = cleanUUID(byId("lineupGoalie")?.value);
-    const playerCount = safeInt(byId("lineupPlayerCount")?.value || "3", 3);
-    const selectedPlayers = [];
-
-    for (let i = 1; i <= playerCount; i++) {
-      const rawVal = byId(`lineupPlayer${i}`)?.value || "";
-      const val = cleanUUID(rawVal);
-      if (!val) continue;
-
-      if (goalie && val === goalie) {
-        if (!silent) setText("lineupMsg", "Målvakt kan inte vara samma som spelare.");
-        return;
-      }
-
-      if (selectedPlayers.includes(val)) {
-        if (!silent) setText("lineupMsg", "En spelare kan bara väljas en gång.");
-        return;
-      }
-
-      selectedPlayers.push(val);
-    }
-
-    if (!goalie) {
-      if (!silent) setText("lineupMsg", "Välj målvakt först.");
-      return;
-    }
-
     if (selectedPlayers.length !== playerCount) {
-      setText("lineupMsg", "Välj spelare i den tomma positionen. Uppställningen sparas när alla platser är ifyllda.");
-      return;
+      message("lineupMsg", "Välj spelare i den tomma positionen. Uppställningen sparas när alla platser är ifyllda."); return;
     }
-
-    const poolConflict = await validateUniquePlayersPerMatch(poolId, lagNo, matchNo, goalie, selectedPlayers);
-    if (poolConflict) {
-      if (!silent) setText("lineupMsg", poolConflict);
-      return;
-    }
-
     try {
-      await applyAutoCoachFromCurrentSelection();
-
-      const coachSelect = byId("lineupCoach");
-      const coachIds = coachSelect
-        ? Array.from(coachSelect.selectedOptions).map((o) => o.value).filter(Boolean)
-        : [];
-
-      if (typeof DB?.savePoolTeamMatchConfig !== "function") {
-        throw new Error("DB.savePoolTeamMatchConfig saknas.");
-      }
-
+      const poolConflict = await validateUniquePlayersPerMatch(poolId, lagNo, matchNo, goalie, selectedPlayers);
+      if (poolConflict) { message("lineupMsg", poolConflict); return; }
+      // Do not update controls after an asynchronous wait: another match may be open.
+      const coaches = await getCoachesCached();
+      const mappings = await getPlayerCoachMapCached();
+      const players = await getPlayersCached();
+      const names = new Map(players.map(p => [String(p.id), normalizeCoachMapName(p.full_name)]));
+      const coachNames = new Map(coaches.map(c => [normalizeCoachMapName(c.full_name), String(c.id)]));
+      const playerCoach = new Map(mappings.map(m => [normalizeCoachMapName(m.player_name), normalizeCoachMapName(m.coach_name)]));
+      const coachIds = [...new Set([goalie, ...selectedPlayers].map(pid =>
+        coachNames.get(playerCoach.get(names.get(String(pid))))
+      ).filter(Boolean))];
       const matchRow = await DB.savePoolTeamMatchConfig({
-        pool_id: poolId,
-        lag_no: safeInt(lagNo, 1),
-        match_no: safeInt(matchNo, 1),
-        start_time: byId("lineupStartTime")?.value || null,
-        opponent: byId("lineupOpponent")?.value?.trim() || "",
-        plan: byId("lineupPlan")?.value || "Plan 1",
-        player_count: playerCount,
-        goalie_player_id: goalie,
-        players_on_field: cleanUUIDList([goalie, ...selectedPlayers])
+        pool_id: Number(poolId), lag_no: Number(lagNo), match_no: Number(matchNo),
+        start_time: snapshot.startTime, opponent: snapshot.opponent, plan: snapshot.plan,
+        player_count: playerCount, goalie_player_id: Number(goalie),
+        players_on_field: [goalie, ...selectedPlayers].map(Number)
       });
-
-      if (typeof DB?.saveLineup === "function") {
-        await DB.saveLineup(matchRow.id, selectedPlayers, coachIds);
-      }
-
-      // Save the lineup independently. Shift generation is handled on the
-      // shift-schedule page and must never block lineup persistence.
-      setText("appError", "");
-      setText("lineupMsg", "Laguppställning sparad för Match " + matchNo + ".");
+      await DB.saveLineup(matchRow.id, selectedPlayers.map(Number), coachIds.map(Number));
+      message("appError", "");
+      message("lineupMsg", "Laguppställning sparad för Match " + matchNo + ".");
     } catch (err) {
-      setText("appError", err?.message || String(err));
+      message("appError", err?.message || String(err));
     }
   }
 
