@@ -91,7 +91,10 @@ window.DB = (() => {
       // Fortsätt rensa i separata Worker-körningar; skapa inga nya byten förrän rensningen är klar.
       for(let attempt=0;attempt<100;attempt++){
         const result=await adminRequest('/api/bytesschema/save','POST',payload);
-        if(!result.cleanup_pending)return result;
+        if(!result.cleanup_pending){
+          if(Number(result.count) !== shifts.length) throw new Error(`Workern rapporterade ${result.count} sparade byten, men ${shifts.length} förväntades. Kontrollera Baserow innan nytt försök.`);
+          return result;
+        }
       }
       throw new Error('Rensningen tog för många omgångar. Inga nya byten har skapats.');
     });
