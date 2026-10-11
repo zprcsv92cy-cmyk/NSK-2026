@@ -1728,10 +1728,9 @@ window.NSK2App = (() => {
         if (rows.length !== expected) {
           repairHtml = `<div class="small" style="margin-bottom:12px">Match 3 har ${rows.length} byten, men inställningarna ger ${expected} byten. Ingen ändring sker förrän du väljer att återskapa schemat.</div>`;
           if (rows.some(r => r.done)) {
-            repairHtml += `<div class="small">Vissa byten är markerade som genomförda. Schemat kan inte återskapas automatiskt utan risk för att markeringarna hamnar på fel byten.</div>`;
-          } else {
-            repairHtml += `<button type="button" class="row-btn" id="repairMatch3Shifts" style="margin-bottom:12px">Återskapa Match 3 med ${interval} sekunders bytestid</button>`;
+            repairHtml += `<div class="small" style="margin-bottom:8px">Återskapning nollställer Match 3:s genomförda markeringar efter din bekräftelse.</div>`;
           }
+          repairHtml += `<button type="button" class="row-btn" id="repairMatch3Shifts" style="margin-bottom:12px">Återskapa Match 3 med ${interval} sekunders bytestid</button>`;
         }
       }
     }
@@ -1768,11 +1767,16 @@ window.NSK2App = (() => {
 
     const repairButton = byId("repairMatch3Shifts");
     if (repairButton) repairButton.addEventListener("click", async () => {
-      if (!window.confirm("Återskapa enbart Match 3 med poolspelens aktuella bytestid? Nuvarande ej genomförda byten för Match 3 ersätts. Match 1 och 2 påverkas inte.")) return;
+      if (!window.confirm("Återskapa enbart Match 3? Alla gamla byten och genomförda markeringar i Match 3 ersätts. Match 1 och 2 påverkas inte. Fortsätta?")) return;
       repairButton.disabled = true;
       try {
         const latest = await DB.listShiftSchema(poolId, lagNo, 3);
-        if (latest.some(r => r.done)) throw new Error("Match 3 har genomförda byten. Ingen ändring har gjorts.");
+        // Workern återanvänder genomförd-status per bytenummer vid sparning.
+        // Nollställ därför gamla markeringar innan det nya schemat sparas.
+        // Avbryt om någon markering inte kan nollställas.
+        for (const oldShift of latest.filter(r => r.done)) {
+          await DB.setShiftDone(poolId, lagNo, 3, oldShift.shift_no, false);
+        }
         const config = await DB.getPoolTeamMatchConfig(poolId, lagNo, 3) || await DB.getPoolTeamMatchConfig(poolId, lagNo, 1);
         const lineup = config?.id ? await DB.getLineup(config.id) : [];
         if (!lineup.some(r => r.person_type === "player")) throw new Error("Ingen laguppställning hittades. Inget har ändrats.");
