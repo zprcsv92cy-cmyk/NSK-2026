@@ -359,7 +359,12 @@ window.NSK2App = (() => {
         return;
       }
 
-      box.innerHTML = pools.map((p) => {
+      const today = new Date();
+      const localToday = `${today.getFullYear()}-${String(today.getMonth()+1).padStart(2,'0')}-${String(today.getDate()).padStart(2,'0')}`;
+      const isArchived = (p) => String(p.status || '').toLowerCase().includes('avslut') || (p.pool_date && p.pool_date < localToday);
+      const upcoming = pools.filter(p => !isArchived(p)).sort((a,b) => String(a.pool_date || '').localeCompare(String(b.pool_date || '')));
+      const archived = pools.filter(isArchived).sort((a,b) => String(b.pool_date || '').localeCompare(String(a.pool_date || '')));
+      const renderPools = (items) => items.map((p) => {
         const teams = safeInt(p.teams || "2", 2);
 
         const lagButtons = Array.from({ length: teams }, (_, i) => {
@@ -384,7 +389,7 @@ window.NSK2App = (() => {
           <article class="pool-item">
             <div class="pool-top">
               <div>
-                <div class="pool-title">${esc(p.place || "Ort")} • ${esc(p.pool_date || "Datum")}</div>
+                <div class="pool-title">${esc(p.place || "Ort")} • ${esc(p.pool_date || "Datum")}${p.hall ? ` • ${esc(p.hall)}` : ""}</div>
                 <div class="pool-meta">${esc(p.title || "Poolspel")}</div>
               </div>
               <div class="status-badge">${esc(p.status || "Aktiv")}</div>
@@ -414,6 +419,15 @@ window.NSK2App = (() => {
           </article>
         `;
       }).join("");
+      box.innerHTML = `
+        <section class="pool-overview-section">
+          <h2>Kommande poolspel (${upcoming.length})</h2>
+          ${upcoming.length ? renderPools(upcoming) : '<div class="listrow">Inga kommande poolspel.</div>'}
+        </section>
+        <section class="pool-overview-section" style="margin-top:24px">
+          <h2>Arkiv – avslutade poolspel (${archived.length})</h2>
+          ${archived.length ? renderPools(archived) : '<div class="listrow">Inga avslutade poolspel ännu.</div>'}
+        </section>`;
     } catch (err) {
       setText("appError", err?.message || String(err));
     }
@@ -428,6 +442,7 @@ window.NSK2App = (() => {
 
     if (!editId) {
       if (byId("poolPlace")) byId("poolPlace").value = "";
+      if (byId("poolHall")) byId("poolHall").value = "";
       if (byId("poolDate")) byId("poolDate").value = "";
     }
 
@@ -435,6 +450,7 @@ window.NSK2App = (() => {
       try {
         const pool = await DB.getPool(editId);
         if (byId("poolPlace")) byId("poolPlace").value = pool.place || "";
+        if (byId("poolHall")) byId("poolHall").value = pool.hall || "";
         if (byId("poolDate")) byId("poolDate").value = pool.pool_date || "";
         if (byId("teams")) byId("teams").value = String(pool.teams || 2);
         if (byId("matches")) byId("matches").value = String(pool.matches || 4);
@@ -478,6 +494,7 @@ window.NSK2App = (() => {
       const payload = {
         title: "Poolspel",
         place: byId("poolPlace")?.value?.trim() || "",
+        hall: byId("poolHall")?.value?.trim() || "",
         pool_date: byId("poolDate")?.value || null,
         status: "Aktiv",
         teams: safeInt(byId("teams")?.value || "2", 2),
