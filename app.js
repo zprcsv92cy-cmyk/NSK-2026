@@ -240,6 +240,33 @@ window.NSK2App = (() => {
           return;
         }
 
+        const teamChoice = t.closest("[data-pool-team-choice]");
+        if (teamChoice) {
+          const panel = teamChoice.closest(".nsk-pool-content");
+          if (!panel) return;
+          const selected = teamChoice.dataset.poolTeamChoice || "1";
+          panel.dataset.selectedLag = selected;
+          panel.querySelectorAll("[data-pool-team-choice]").forEach((btn) => {
+            const active = btn.dataset.poolTeamChoice === selected;
+            btn.classList.toggle("is-selected", active);
+            btn.setAttribute("aria-pressed", String(active));
+          });
+          return;
+        }
+
+        const poolAction = t.closest("[data-pool-team-action]");
+        if (poolAction) {
+          const panel = poolAction.closest(".nsk-pool-content");
+          const lagNo = panel?.dataset.selectedLag || "1";
+          const poolId = poolAction.dataset.poolActionId || "";
+          if (!poolId) return;
+          sessionStorage.setItem("nsk2_pool_id", poolId);
+          sessionStorage.setItem("nsk2_lag_nr", lagNo);
+          window.location.href = poolAction.dataset.poolTeamAction === "shift"
+            ? "../bytesschema/" : "../laguppstallning/index.html";
+          return;
+        }
+
         if (t.dataset.poolId && t.dataset.lagNo) {
           sessionStorage.setItem("nsk2_pool_id", t.dataset.poolId || "");
           sessionStorage.setItem("nsk2_lag_nr", t.dataset.lagNo || "1");
@@ -366,15 +393,14 @@ window.NSK2App = (() => {
       const renderPools = (items) => items.map((p) => {
         const teams = safeInt(p.teams || "2", 2);
         const poolId = Number(p.id);
-        const lagButtons = Array.from({ length: teams }, (_, i) => {
-          const lagNo = i + 1;
-          return `<button class="team-btn" type="button" data-pool-id="${poolId}" data-lag-no="${lagNo}">Lag ${lagNo}</button>`;
-        }).join("");
-
-        const shiftButtons = Array.from({ length: teams }, (_, i) => {
-          const lagNo = i + 1;
-          return `<button class="team-btn" type="button" data-pool-shifts="${poolId}" data-lag-no="${lagNo}">Lag ${lagNo}</button>`;
-        }).join("");
+        const teamChoices = teams > 1 ? `
+          <div class="nsk-pool-team-selector">
+            <div class="nsk-pool-team-label">Välj lag</div>
+            <div class="nsk-pool-team-options">${Array.from({ length: teams }, (_, i) => {
+              const lagNo = i + 1;
+              return `<button type="button" class="nsk-pool-team-choice${i === 0 ? " is-selected" : ""}" data-pool-team-choice="${lagNo}" aria-pressed="${i === 0 ? "true" : "false"}">Lag ${lagNo}</button>`;
+            }).join("")}</div>
+          </div>` : "";
 
         return `
           <details class="nsk-pool-row">
@@ -383,19 +409,24 @@ window.NSK2App = (() => {
               <span class="nsk-pool-hall">${esc(p.hall || "")}</span>
               <span class="nsk-pool-chevron" aria-hidden="true">⌄</span>
             </summary>
-            <div class="nsk-pool-content">
-              <div class="nsk-pool-group">
-                <div class="pool-lineup-title">Laguppställning</div>
-                <div class="team-buttons">${lagButtons}</div>
-              </div>
-              <div class="nsk-pool-group">
-                <div class="pool-lineup-title">Bytesschema</div>
-                <div class="team-buttons">${shiftButtons}</div>
+            <div class="nsk-pool-content" data-selected-lag="1">
+              ${teamChoices}
+              <div class="nsk-pool-grid">
+                <button class="nsk-pool-function" type="button" data-pool-team-action="lineup" data-pool-action-id="${poolId}">
+                  <span class="nsk-pool-function-icon" aria-hidden="true">♙</span>
+                  <span>Laguppställning</span>
+                </button>
+                <button class="nsk-pool-function" type="button" data-pool-team-action="shift" data-pool-action-id="${poolId}">
+                  <span class="nsk-pool-function-icon" aria-hidden="true">↻</span>
+                  <span>Bytesschema</span>
+                </button>
               </div>
               <div class="nsk-pool-actions">
-                <button class="row-btn" type="button" data-edit-pool="${poolId}">Redigera</button>
                 <button class="start-pool-btn" type="button" data-start-pool-id="${poolId}">Påbörja poolspel</button>
-                <button class="row-btn danger" type="button" data-delete-pool="${poolId}">Ta bort</button>
+                <div class="nsk-pool-secondary-actions">
+                  <button class="row-btn" type="button" data-edit-pool="${poolId}">Redigera</button>
+                  <button class="row-btn danger" type="button" data-delete-pool="${poolId}">Ta bort</button>
+                </div>
               </div>
             </div>
           </details>
