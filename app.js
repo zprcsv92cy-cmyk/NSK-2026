@@ -1,39 +1,38 @@
+// Versionskontroll: hämtar alltid publicerad version utan cache.
 async function checkAppVersion() {
   try {
-    const pathParts = location.pathname.split("/").filter(Boolean);
-    const isSubPage = pathParts.length > 1;
-    const base = isSubPage ? "../" : "./";
-
-    const res = await fetch(base + "deploy.json?ts=" + Date.now(), {
-      cache: "no-store"
-    });
-
+    const root = new URL("./", document.currentScript?.src || document.querySelector('script[src*="app.js"]')?.src || new URL("../", location.href));
+    const res = await fetch(new URL("deploy.json?ts=" + Date.now(), root), { cache: "no-store" });
     if (!res.ok) return;
-
     const data = await res.json();
+    const published = String(data?.version || "");
+    const loaded = String(window.NSK_VERSION || "");
+    if (!published || !loaded || published === loaded) return;
 
-    if (!data?.version || !window.NSK_VERSION) return;
-
-    if (String(data.version) !== String(window.NSK_VERSION)) {
-      console.warn("Ny version upptäckt:", data.version, "lokal:", window.NSK_VERSION);
-
-      if ("serviceWorker" in navigator) {
-        const regs = await navigator.serviceWorker.getRegistrations();
-        for (const reg of regs) {
-          await reg.unregister();
-        }
-      }
-
-      if (window.caches) {
-        const keys = await caches.keys();
-        await Promise.all(keys.map((k) => caches.delete(k)));
-      }
-
-      location.reload();
+    // Behåll sidans adress och session, men tvinga fram ny HTML vid versionsbyte.
+    // En skyddsspärr hindrar upprepade omladdningar under en ofullständig deploy.
+    const key = "nsk-version-reload-" + published;
+    const previous = Number(sessionStorage.getItem(key) || 0);
+    if (Date.now() - previous < 30000) {
+      console.warn("Versionerna skiljer sig fortfarande; inväntar färdig publicering.");
+      return;
     }
+    sessionStorage.setItem(key, String(Date.now()));
+    const next = new URL(location.href);
+    next.searchParams.set("nsk_v", published);
+    location.replace(next.href);
   } catch (err) {
     console.warn("Version check failed", err);
   }
+}
+
+// Installerad app: samma nätverksprioriterade service worker på dator och mobil.
+function registerNskServiceWorker() {
+  if (!("serviceWorker" in navigator)) return;
+  const script = new URL("sw.js", document.querySelector('script[src*="app.js"]')?.src || new URL("../", location.href));
+  navigator.serviceWorker.register(script.href, { updateViaCache: "none" })
+    .then((reg) => reg.update().catch(() => {}))
+    .catch((err) => console.warn("Service worker kunde inte registreras", err));
 }
 
 window.NSK2App = (() => {
@@ -2374,6 +2373,7 @@ window.NSK2App = (() => {
 })();
 
 window.addEventListener("DOMContentLoaded", () => {
+  registerNskServiceWorker();
   window.NSK2App.init().catch((err) => {
     const el = document.getElementById("appError");
     if (el) el.textContent = err?.message || String(err);
