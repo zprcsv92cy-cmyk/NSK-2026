@@ -2350,20 +2350,22 @@ window.NSK2App = (() => {
       const grouped = {};
 
       stats.forEach((row) => {
-        const name = row.goalie_name || "Okänd";
+        const name = String(row.goalie_name || "").trim();
+        const matchId = String(row.match_id || "").trim();
+        if (!name || !matchId) return;
         if (!grouped[name]) grouped[name] = new Set();
-        grouped[name].add(row.match_id);
+        grouped[name].add(matchId);
       });
 
       const rows = Object.entries(grouped)
         .map(([name, set]) => ({ name, count: set.size }))
         .sort((a, b) => b.count - a.count);
 
-      list.innerHTML = rows.map((r) => `
+      list.innerHTML = rows.length ? rows.map((r) => `
         <div class="listrow">
           <strong>${esc(r.name)}</strong> — ${r.count} matcher
         </div>
-      `).join("");
+      `).join("") : '<div class="listrow">Inga matcher med vald målvakt ännu.</div>';
     } catch (err) {
       setText("appError", err?.message || String(err));
     }
