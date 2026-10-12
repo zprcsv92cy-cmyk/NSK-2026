@@ -997,3 +997,30 @@ button.ghost, .row-btn:not(.danger), .team-btn:not(.active-team-btn),
   .home-page #savedPoolsList .nsk-pool-actions .start-pool-btn { min-height:52px; font-size:17px; }
 }
 /* Fullskärms-coachläge påverkas inte av de gemensamma kortstilarna. */
+
+/* v673: Lagval ovanför de två stora funktionsknapparna på startsidan. */
+.home-page #savedPoolsList .nsk-pool-team-selector { margin-bottom:14px; }
+.home-page #savedPoolsList .nsk-pool-team-label { color:#bfc0c8; font-size:.91rem; margin-bottom:8px; }
+.home-page #savedPoolsList .nsk-pool-team-options { display:flex; flex-wrap:wrap; gap:8px; }
+.home-page #savedPoolsList .nsk-pool-team-choice {
+  flex:1 1 78px; min-height:44px; padding:10px 12px;
+  background:#292c35; color:#fff; border:1px solid #454852; border-radius:11px;
+}
+.home-page #savedPoolsList .nsk-pool-team-choice.is-selected,
+.home-page #savedPoolsList .nsk-pool-team-choice[aria-pressed="true"] {
+  background:#b11226; border-color:#b11226; color:#fff;
+}
+.home-page #savedPoolsList .nsk-pool-grid { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:12px; }
+.home-page #savedPoolsList .nsk-pool-grid .nsk-pool-function {
+  min-width:0; min-height:106px; padding:15px 7px; display:flex; flex-direction:column;
+  justify-content:center; align-items:center; gap:10px;
+  background:#292c35; color:#fff; border:1px solid #343741;
+  border-radius:12px; font-size:1rem; font-weight:600; text-align:center;
+}
+.home-page #savedPoolsList .nsk-pool-function-icon {
+  display:block; font-size:28px; line-height:1; font-weight:400;
+}
+@media(max-width:700px) {
+  .home-page #savedPoolsList .nsk-pool-grid { gap:8px; }
+  .home-page #savedPoolsList .nsk-pool-grid .nsk-pool-function { min-height:98px; font-size:.9rem; }
+}
