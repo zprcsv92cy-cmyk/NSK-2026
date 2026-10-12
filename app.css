@@ -796,3 +796,204 @@ img[src*="logga" i] {
       .home-page .home-shortcuts .row-btn { font-size: .95rem; }
       .home-page #savedPoolsList .pool-lineup-block { padding: 12px; }
     }
+
+/* v671 – kompakt layout A för expanderade poolspel. Endast presentation. */
+.home-page #savedPoolsList .nsk-pool-content {
+  padding: 16px;
+}
+.home-page #savedPoolsList .nsk-pool-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+}
+.home-page #savedPoolsList .nsk-pool-grid .nsk-pool-group {
+  min-width: 0;
+  margin: 0;
+  padding: 14px;
+  background: #202127;
+  border: 1px solid #353640;
+  border-radius: 12px;
+}
+.home-page #savedPoolsList .nsk-pool-grid .team-buttons {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+.home-page #savedPoolsList .nsk-pool-grid .team-btn {
+  min-width: 84px;
+  width: auto;
+  min-height: 40px;
+  background: #292d35;
+  border: 1px solid #454650;
+  border-radius: 10px;
+}
+.home-page #savedPoolsList .nsk-pool-actions {
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  gap: 10px;
+  margin-top: 12px;
+}
+.home-page #savedPoolsList .nsk-pool-actions .start-pool-btn {
+  display: block;
+  width: 100%;
+  min-height: 48px;
+  margin: 0;
+  padding: 11px 14px;
+  background: #b11226;
+  color: #fff;
+  border-radius: 11px;
+}
+.home-page #savedPoolsList .nsk-pool-secondary-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+.home-page #savedPoolsList .nsk-pool-secondary-actions .row-btn {
+  width: auto;
+  min-height: 36px;
+  padding: 7px 12px;
+  background: #282a31;
+  border: 1px solid #454650;
+  border-radius: 9px;
+  font-size: .9rem;
+}
+.home-page #savedPoolsList .nsk-pool-secondary-actions .row-btn.danger {
+  background: #352128;
+  border-color: #69333e;
+}
+@media (max-width: 700px) {
+  .home-page #savedPoolsList .nsk-pool-content { padding: 12px; }
+  .home-page #savedPoolsList .nsk-pool-grid { gap: 8px; }
+  .home-page #savedPoolsList .nsk-pool-grid .nsk-pool-group { padding: 10px; }
+  .home-page #savedPoolsList .nsk-pool-grid .team-buttons {
+    display: flex;
+    flex-wrap: wrap;
+  }
+  .home-page #savedPoolsList .nsk-pool-grid .team-btn {
+    min-width: 0;
+    width: 100%;
+  }
+}
+
+/* ============================================================
+   NSK-2026 v672 – Layout A på samtliga sidor
+   Visuella ändringar. Befintliga ID, event och datalager orörda.
+   ============================================================ */
+:root {
+  --card:#17191f;
+  --line:#32343d;
+  --muted:#b9bbc4;
+  --red:#b11226;
+}
+.wrap { max-width:1180px; }
+.card {
+  background:#17191f;
+  border:1px solid #32343d;
+  border-radius:16px;
+  box-shadow:0 5px 18px rgba(0,0,0,.12);
+}
+.mainmenu a { background:#24262e; border-color:#353842; border-radius:12px; }
+.mainmenu a.active,.mainmenu a:hover { background:#b11226; border-color:#b11226; }
+input,textarea,select { background:#24262e; border-color:#41444e; border-radius:11px; }
+button { border-radius:11px; }
+button:focus-visible,a:focus-visible,summary:focus-visible {
+  outline:3px solid #f4b0b9; outline-offset:3px;
+}
+button.ghost, .row-btn:not(.danger), .team-btn:not(.active-team-btn),
+.match-btn:not(.active-team-btn), .lag-team-btn:not(.active-team-btn) {
+  background:#292c35;
+  border:1px solid #41444e;
+  color:#fff;
+  box-shadow:none;
+}
+.team-btn.active-team-btn,.match-btn.active-team-btn,
+.lag-team-btn.active-team-btn,
+.team-btn[aria-pressed="true"],.match-btn[aria-pressed="true"] {
+  background:#b11226;
+  border-color:#d83c51;
+  color:#fff;
+}
+.home-hero { margin-bottom:18px; }
+.home-hero-sub { color:#b9bbc4; }
+.roster-card, .lineup-main .card, .lineup-players-card,
+.shift-top-grid .card, .goalie-stats-page .card, .teams-page .card,
+.pool-save-area { border-radius:16px; }
+.truppen-page .listrow, .roster-card .listrow,
+.goalie-stats-page .listrow, .teams-page .listrow {
+  border-top:1px solid #333640;
+  padding:12px 8px;
+}
+.roster-card .btnrow button, .lineup-page .btnrow button,
+.shift-page .btnrow button { min-height:44px; }
+.lineup-page #matchButtons .match-btn,
+.shift-page .team-buttons .team-btn { border-radius:11px; }
+.shift-table { border-radius:12px; overflow:hidden; }
+.shift-table th { background:#292c35; }
+.shift-table td { border-color:#343740; }
+.goalie-stats-page #goalieStatsList .listrow { font-size:1rem; }
+.teams-page #teamButtons { gap:12px; }
+.teams-page #teamButtons button { border-radius:12px; }
+/* Matchvy: bibehåll stora, lättåtkomliga knappar och coachläge. */
+.matchview-wrap .coach-mode-card { border-radius:18px; }
+.matchview-wrap .coach-nav-btn { min-height:58px; }
+.matchview-wrap .coach-panel { border-radius:15px; }
+/* Startsidans öppna poolspel – exakt samma struktur som layout A. */
+.home-page #savedPoolsList .nsk-pool-row {
+  border-radius:16px;
+  background:#17191f;
+  border-color:#343640;
+}
+.home-page #savedPoolsList .nsk-pool-row[open] .nsk-pool-summary {
+  background:#17191f;
+}
+.home-page #savedPoolsList .nsk-pool-content { padding:16px; }
+.home-page #savedPoolsList .nsk-pool-grid { gap:12px; }
+.home-page #savedPoolsList .nsk-pool-grid .nsk-pool-group {
+  background:#292c35;
+  border:0;
+  border-radius:12px;
+  text-align:center;
+  padding:14px 10px;
+}
+.home-page #savedPoolsList .nsk-pool-grid .team-buttons {
+  display:flex;
+  justify-content:center;
+  flex-wrap:wrap;
+  gap:8px;
+}
+.home-page #savedPoolsList .nsk-pool-grid .team-btn {
+  background:#343741;
+  border-color:#454852;
+  min-height:42px;
+}
+.home-page #savedPoolsList .nsk-pool-actions .start-pool-btn {
+  background:#b11226;
+  border:1px solid #b11226;
+  border-radius:12px;
+  min-height:56px;
+  font-size:19px;
+}
+.home-page #savedPoolsList .nsk-pool-secondary-actions .row-btn {
+  background:transparent;
+  border:1px solid transparent;
+  color:#c5c6ce;
+}
+.home-page #savedPoolsList .nsk-pool-secondary-actions .row-btn.danger {
+  background:transparent;
+  border-color:transparent;
+  color:#d4b8bd;
+}
+@media(max-width:700px) {
+  body { padding:12px; }
+  .card { padding:13px; }
+  .mainmenu { gap:7px; }
+  .mainmenu a { padding:9px 11px; }
+  .home-page #savedPoolsList .nsk-pool-content { padding:12px; }
+  .home-page #savedPoolsList .nsk-pool-grid { gap:8px; }
+  .home-page #savedPoolsList .nsk-pool-grid .nsk-pool-group { padding:12px 7px; }
+  .home-page #savedPoolsList .nsk-pool-grid .pool-lineup-title { font-size:.91rem; }
+  .home-page #savedPoolsList .nsk-pool-actions .start-pool-btn { min-height:52px; font-size:17px; }
+}
+/* Fullskärms-coachläge påverkas inte av de gemensamma kortstilarna. */
