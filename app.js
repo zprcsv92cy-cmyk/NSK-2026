@@ -272,7 +272,7 @@ window.NSK2App = (() => {
         }
 
         if (t.dataset.deletePool) {
-          const ok = window.confirm("Ta bort poolspelet?");
+          const ok = window.confirm("Ta bort poolspelet permanent? Detta kan inte ångras.");
           if (!ok) return;
           await DB.deletePool(t.dataset.deletePool);
           window.location.reload();
@@ -2369,12 +2369,14 @@ window.NSK2App = (() => {
   }
 
   async function deletePlayer(id) {
+    if (!window.confirm("Ta bort spelaren från truppen? Detta kan inte ångras.")) return;
     await DB.deletePlayer(id);
     clearRosterCache();
     await renderPlayers();
   }
 
   async function deleteCoach(id) {
+    if (!window.confirm("Ta bort tränaren från truppen? Detta kan inte ångras.")) return;
     await DB.deleteCoach(id);
     clearRosterCache();
     await renderCoaches();
