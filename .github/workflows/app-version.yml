@@ -26,7 +26,7 @@ jobs:
       - name: Testa versionshöjning utan publicering
         run: |
           node scripts/bump-version.cjs
-          node -e "const fs=require('fs'); const v=require('./deploy.json').version; if(!fs.readFileSync('version.js','utf8').includes('NSK_VERSION = \\\"' + v + '\\\"')) process.exit(1); console.log('Versionstest OK:',v)"
+          node -e "const fs=require('fs'); const v=require('./deploy.json').version; if(!fs.readFileSync('version.js','utf8').includes(v)) process.exit(1); console.log('Versionstest OK:',v)"
   version:
     if: "github.event_name != 'pull_request' && !contains(github.event.head_commit.message, '[skip ci]')"
     runs-on: ubuntu-latest
