@@ -463,8 +463,8 @@ window.NSK2App = (() => {
               <div class="nsk-pool-actions">
                 <button class="start-pool-btn" type="button" data-start-pool-id="${poolId}">Påbörja poolspel</button>
                 <div class="nsk-pool-secondary-actions">
-                  <button class="row-btn" type="button" data-edit-pool="${poolId}">Redigera</button>
-                  <button class="row-btn danger" type="button" data-delete-pool="${poolId}">Ta bort</button>
+                  <button class="row-btn nsk-action nsk-action--edit" type="button" data-edit-pool="${poolId}">Redigera</button>
+                  <button class="row-btn danger nsk-action nsk-action--delete" type="button" data-delete-pool="${poolId}">Ta bort</button>
                 </div>
               </div>
             </div>
@@ -2296,7 +2296,7 @@ window.NSK2App = (() => {
           <input class="inline-name-input" value="${esc(item.full_name)}" data-inline-${type}="${item.id}">
         </div>
         <div class="row-actions">
-          <button class="row-btn danger" type="button" data-delete-${type}="${item.id}">Ta bort</button>
+          <button class="row-btn danger nsk-action nsk-action--delete" type="button" data-delete-${type}="${item.id}">Ta bort</button>
         </div>
       </div>
     `;
