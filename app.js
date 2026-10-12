@@ -366,65 +366,69 @@ window.NSK2App = (() => {
       const archived = pools.filter(isArchived).sort((a,b) => String(b.pool_date || '').localeCompare(String(a.pool_date || '')));
       const renderPools = (items) => items.map((p) => {
         const teams = safeInt(p.teams || "2", 2);
-
+        const poolId = Number(p.id);
         const lagButtons = Array.from({ length: teams }, (_, i) => {
           const lagNo = i + 1;
-          return `
-            <button class="team-btn" type="button" data-pool-id="${p.id}" data-lag-no="${lagNo}">
-              Lag ${lagNo}
-            </button>
-          `;
+          return `<button class="team-btn" type="button" data-pool-id="${poolId}" data-lag-no="${lagNo}">Lag ${lagNo}</button>`;
         }).join("");
 
         const shiftButtons = Array.from({ length: teams }, (_, i) => {
           const lagNo = i + 1;
-          return `
-            <button class="team-btn" type="button" data-pool-shifts="${p.id}" data-lag-no="${lagNo}">
-              Lag ${lagNo}
-            </button>
-          `;
+          return `<button class="team-btn" type="button" data-pool-shifts="${poolId}" data-lag-no="${lagNo}">Lag ${lagNo}</button>`;
         }).join("");
 
         return `
-          <article class="pool-item">
-            <div class="pool-top">
-              <div>
-                <div class="pool-title">${esc(p.place || "Ort")} • ${esc(p.pool_date || "Datum")}${p.hall ? ` • ${esc(p.hall)}` : ""}</div>
-                <div class="pool-meta">${esc(p.title || "Poolspel")}</div>
+          <details class="nsk-pool-row">
+            <summary class="nsk-pool-summary">
+              <span class="nsk-pool-name">${esc(p.place || "Ort")} • ${esc(p.pool_date || "Datum")}</span>
+              <span class="nsk-pool-hall">${esc(p.hall || "")}</span>
+              <span class="nsk-pool-chevron" aria-hidden="true">⌄</span>
+            </summary>
+            <div class="nsk-pool-content">
+              <div class="nsk-pool-group">
+                <div class="pool-lineup-title">Laguppställning</div>
+                <div class="team-buttons">${lagButtons}</div>
               </div>
-              <div class="status-badge">${esc(p.status || "Aktiv")}</div>
+              <div class="nsk-pool-group">
+                <div class="pool-lineup-title">Bytesschema</div>
+                <div class="team-buttons">${shiftButtons}</div>
+              </div>
+              <div class="nsk-pool-actions">
+                <button class="row-btn" type="button" data-edit-pool="${poolId}">Redigera</button>
+                <button class="start-pool-btn" type="button" data-start-pool-id="${poolId}">Påbörja poolspel</button>
+                <button class="row-btn danger" type="button" data-delete-pool="${poolId}">Ta bort</button>
+              </div>
             </div>
-
-            <div class="row-actions pool-actions">
-              <button class="row-btn" type="button" data-edit-pool="${p.id}">Redigera</button>
-              <button class="row-btn danger" type="button" data-delete-pool="${p.id}">Ta bort</button>
-            </div>
-
-            <div class="pool-lineup-block">
-              <div class="pool-lineup-title">Laguppställning</div>
-              <div class="team-buttons">${lagButtons}</div>
-            </div>
-
-            <div class="pool-lineup-block">
-              <div class="pool-lineup-title">Bytesschema</div>
-              <div class="team-buttons">${shiftButtons}</div>
-            </div>
-
-            <div class="pool-lineup-block">
-              <div class="pool-lineup-title">Matchstart för detta poolspel</div>
-              <button class="start-pool-btn" type="button" data-start-pool-id="${p.id}">
-                Påbörja poolspel • ${esc(p.place || "Ort")} ${esc(p.pool_date || "")}
-              </button>
-            </div>
-          </article>
+          </details>
         `;
       }).join("");
       box.innerHTML = `
+        <style>
+          #savedPoolsList .nsk-pool-row { border: 1px solid #d5d9df; border-radius: 10px; margin: 7px 0; overflow: hidden; background: var(--card-bg, #fff); }
+          #savedPoolsList .nsk-pool-summary { display: flex; align-items: center; gap: 10px; padding: 11px 13px; cursor: pointer; list-style: none; min-height: 24px; }
+          #savedPoolsList .nsk-pool-summary::-webkit-details-marker { display: none; }
+          #savedPoolsList .nsk-pool-name { font-weight: 700; min-width: 0; }
+          #savedPoolsList .nsk-pool-hall { color: #667085; font-size: .9em; margin-left: auto; text-align: right; }
+          #savedPoolsList .nsk-pool-chevron { color: #667085; font-size: 1.3em; transition: transform .15s; }
+          #savedPoolsList .nsk-pool-row[open] .nsk-pool-chevron { transform: rotate(180deg); }
+          #savedPoolsList .nsk-pool-content { padding: 11px 13px 13px; border-top: 1px solid #e6e8ec; }
+          #savedPoolsList .nsk-pool-group + .nsk-pool-group { margin-top: 12px; }
+          #savedPoolsList .nsk-pool-group .pool-lineup-title { margin-bottom: 6px; font-weight: 700; }
+          #savedPoolsList .nsk-pool-group .team-buttons { display: flex; flex-wrap: wrap; gap: 7px; }
+          #savedPoolsList .nsk-pool-actions { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 14px; align-items: center; }
+          #savedPoolsList .nsk-pool-actions .start-pool-btn { width: auto; max-width: 100%; margin: 0; }
+          #savedPoolsList .pool-overview-section + .pool-overview-section { margin-top: 19px !important; }
+          @media(max-width: 600px) {
+            #savedPoolsList .nsk-pool-summary { flex-wrap: wrap; gap: 4px 8px; }
+            #savedPoolsList .nsk-pool-name { flex: 1 1 auto; }
+            #savedPoolsList .nsk-pool-hall { font-size: .82em; }
+          }
+        </style>
         <section class="pool-overview-section">
           <h2>Kommande poolspel (${upcoming.length})</h2>
           ${upcoming.length ? renderPools(upcoming) : '<div class="listrow">Inga kommande poolspel.</div>'}
         </section>
-        <section class="pool-overview-section" style="margin-top:24px">
+        <section class="pool-overview-section">
           <h2>Arkiv – avslutade poolspel (${archived.length})</h2>
           ${archived.length ? renderPools(archived) : '<div class="listrow">Inga avslutade poolspel ännu.</div>'}
         </section>`;
