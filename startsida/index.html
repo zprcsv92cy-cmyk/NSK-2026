@@ -6,73 +6,12 @@
   <title>Startsida</title>
   <meta name="theme-color" content="#b11226">
 
-  <script src="../version.js?v=668"></script>
+  <script src="../version.js?v=669"></script>
   <script>
     document.write('<link rel="manifest" href="../manifest.webmanifest?v=' + window.NSK_VERSION + '">');
     document.write('<link rel="stylesheet" href="../app.css?v=' + window.NSK_VERSION + '">');
   </script>
 
-  <style>
-    /* Endast Startsidan – inga ändringar i gemensamma filer. */
-    .home-page .home-hero { margin-bottom: 14px; }
-    .home-page .home-hero-logo-box { flex: 0 0 72px; width: 72px; max-width: 72px; }
-    .home-page .home-hero-logo { display: block; width: 72px; max-width: 100%; height: auto; }
-    .home-page .home-shortcuts { margin-bottom: 16px; padding: 16px 18px; }
-    .home-page .home-shortcuts .btnrow { display: flex; flex-wrap: wrap; gap: 10px; }
-    .home-page .home-shortcuts .row-btn { width: auto; min-height: 43px; padding: 9px 15px; flex: 0 0 auto; }
-    .home-page .home-saved { padding: 18px 20px; }
-    .home-page .home-saved > h2 { margin: 0 0 16px; }
-    .home-page #savedPoolsList { display: grid; gap: 16px; }
-    .home-page #savedPoolsList .pool-item {
-      display: grid; grid-template-columns: repeat(2, minmax(0, 1fr));
-      gap: 13px 18px; padding: 18px; border: 1px solid #35353d;
-      border-radius: 16px; background: #1a1b20; min-width: 0;
-    }
-    .home-page #savedPoolsList .pool-top {
-      grid-column: 1 / -1; display: flex; justify-content: space-between;
-      align-items: flex-start; flex-wrap: wrap; gap: 10px;
-      padding-bottom: 12px; border-bottom: 1px solid #36363e;
-    }
-    .home-page #savedPoolsList .pool-title { font-size: 1.15rem; font-weight: 750; line-height: 1.35; }
-    .home-page #savedPoolsList .pool-meta { margin-top: 4px; color: #b6b7c0; }
-    .home-page #savedPoolsList .status-badge { display: inline-flex; padding: 5px 10px; border: 1px solid #484852; border-radius: 99px; font-size: .88rem; }
-    .home-page #savedPoolsList .pool-actions {
-      grid-column: 1 / -1; display: flex; flex-wrap: wrap; gap: 9px;
-      margin: 0; justify-content: flex-start;
-    }
-    .home-page #savedPoolsList .pool-actions .row-btn {
-      width: auto; flex: 0 0 auto; min-height: 39px; padding: 7px 13px;
-      background: #26272e; border: 1px solid #454650; border-radius: 10px;
-    }
-    .home-page #savedPoolsList .pool-actions .row-btn.danger { background: #531a25; border-color: #80303f; }
-    .home-page #savedPoolsList .pool-lineup-block {
-      min-width: 0; margin: 0; padding: 14px;
-      background: #202127; border: 1px solid #353640; border-radius: 12px;
-    }
-    .home-page #savedPoolsList .pool-lineup-title { font-size: 1rem; font-weight: 700; margin-bottom: 10px; }
-    .home-page #savedPoolsList .team-buttons { display: flex; flex-wrap: wrap; gap: 8px; }
-    .home-page #savedPoolsList .team-btn {
-      width: auto; min-width: 84px; flex: 0 0 auto; min-height: 40px;
-      padding: 8px 14px; border-radius: 10px;
-    }
-    .home-page #savedPoolsList .pool-lineup-block:last-child {
-      grid-column: 1 / -1; padding: 0; border: 0; background: transparent;
-    }
-    .home-page #savedPoolsList .pool-lineup-block:last-child .pool-lineup-title { margin-bottom: 9px; }
-    .home-page #savedPoolsList .start-pool-btn {
-      display: block; width: 100%; min-height: 58px; padding: 12px 16px;
-      border-radius: 13px; font-weight: 750; white-space: normal; line-height: 1.35;
-    }
-    @media (max-width: 700px) {
-      .home-page .home-shortcuts, .home-page .home-saved { padding: 14px; }
-      .home-page #savedPoolsList .pool-item { grid-template-columns: minmax(0, 1fr); padding: 13px; gap: 11px; }
-      .home-page #savedPoolsList .pool-top,
-      .home-page #savedPoolsList .pool-actions,
-      .home-page #savedPoolsList .pool-lineup-block:last-child { grid-column: 1; }
-      .home-page .home-shortcuts .row-btn { font-size: .95rem; }
-      .home-page #savedPoolsList .pool-lineup-block { padding: 12px; }
-    }
-  </style>
 </head>
 <body class="home-page">
   <div class="wrap">
