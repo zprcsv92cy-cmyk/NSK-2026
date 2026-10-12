@@ -590,6 +590,8 @@ window.NSK2App = (() => {
       if (editId) {
         const previous = await DB.getPool(editId);
         if (!previous) throw new Error("Poolspelet kunde inte hittas. Ladda om sidan.");
+        // Redigering av plats, datum eller spelregler får inte återaktivera ett avslutat poolspel.
+        payload.status = previous.status || "Aktiv";
         const rules = ["players_on_field", "periods", "period_time", "sub_time"];
         changedRules = rules.some(k => Number(previous[k]) !== Number(payload[k]));
         // Kontrollera samtliga tidigare matcher innan några pooluppgifter sparas.
