@@ -1661,13 +1661,18 @@ window.NSK2App = (() => {
     });
   }
 
+  let shiftToggleSaving = false;
+  let shiftRefreshBusy = false;
+  let shiftViewGeneration = 0;
+
   async function toggleShiftDone(shiftNo) {
     const poolId = sessionStorage.getItem("nsk2_pool_id");
     const lagNo = sessionStorage.getItem("nsk2_lag_nr") || "1";
     const matchNo = byId("shiftMatch")?.value || "1";
 
     const el = document.querySelector(`[data-shift-toggle="${shiftNo}"]`);
-    if (!el || !poolId) return;
+    if (!el || !poolId || shiftToggleSaving) return;
+    shiftToggleSaving = true;
 
     const nextDone = !el.classList.contains("done");
     el.classList.toggle("done", nextDone);
@@ -1677,22 +1682,45 @@ window.NSK2App = (() => {
     } catch (err) {
       el.classList.toggle("done", !nextDone);
       setText("appError", err?.message || String(err));
+    } finally {
+      shiftToggleSaving = false;
     }
   }
 
-  // Uppdatera markeringar från Baserow när man återvänder till Bytesschema.
+  // Synkronisera enbart avbockningarna. Bygg inte om tabellen under match.
+  async function refreshShiftDoneMarks() {
+    if (document.hidden || shiftRefreshBusy || shiftToggleSaving || !byId("shiftTableWrap")) return;
+    const poolId = sessionStorage.getItem("nsk2_pool_id");
+    const lagNo = sessionStorage.getItem("nsk2_lag_nr") || "1";
+    const matchNo = byId("shiftMatch")?.value || "1";
+    if (!poolId) return;
+    const generation = shiftViewGeneration;
+    shiftRefreshBusy = true;
+    try {
+      const rows = await DB.listShiftSchema(poolId, lagNo, matchNo);
+      if (shiftToggleSaving || generation !== shiftViewGeneration ||
+          sessionStorage.getItem("nsk2_pool_id") !== poolId ||
+          (sessionStorage.getItem("nsk2_lag_nr") || "1") !== lagNo ||
+          (byId("shiftMatch")?.value || "1") !== matchNo) return;
+      const checks = [...document.querySelectorAll("#shiftTableWrap [data-shift-toggle]")];
+      if (checks.length !== rows.length) return; // Schemat ändrades; rör inte tabellen.
+      for (const check of checks) {
+        const n = Number(check.dataset.shiftToggle);
+        if (Number.isSafeInteger(n) && n >= 1 && n <= rows.length)
+          check.classList.toggle("done", !!rows[n - 1].done);
+      }
+    } catch (err) {
+      console.warn("Kunde inte synkronisera bytesschema", err);
+    } finally {
+      shiftRefreshBusy = false;
+    }
+  }
+
   if (!window.__nskShiftSyncBound) {
     window.__nskShiftSyncBound = true;
-    let refreshing = false;
-    const refreshShifts = async () => {
-      if (document.hidden || refreshing || !byId("shiftMatch") || !byId("shiftTableWrap")) return;
-      refreshing = true;
-      try { await renderShiftSchema(); }
-      catch (err) { setText("appError", err?.message || String(err)); }
-      finally { refreshing = false; }
-    };
-    window.addEventListener("focus", refreshShifts);
-    document.addEventListener("visibilitychange", refreshShifts);
+    window.addEventListener("focus", refreshShiftDoneMarks);
+    document.addEventListener("visibilitychange", refreshShiftDoneMarks);
+    window.setInterval(refreshShiftDoneMarks, 5000);
   }
 
   async function initBytesschemaPage() {
@@ -1737,6 +1765,7 @@ window.NSK2App = (() => {
   }
 
   async function renderShiftSchema() {
+    ++shiftViewGeneration;
     const poolId = sessionStorage.getItem("nsk2_pool_id");
     const lagNo = sessionStorage.getItem("nsk2_lag_nr") || "1";
     const matchNo = byId("shiftMatch")?.value || "1";
@@ -1954,6 +1983,7 @@ window.NSK2App = (() => {
   // Matchvy: hämta data en gång. Knapptryckningar ritar sedan om lokalt.
   let matchvyCache = null;
   let matchvySaving = false;
+  let matchvyRefreshing = false;
 
   function paintCoachMatchView() {
     const data = matchvyCache;
@@ -2024,21 +2054,25 @@ window.NSK2App = (() => {
     if (!window.__nskMatchSyncBound) {
       window.__nskMatchSyncBound = true;
       const refreshMatch = async () => {
-        if (document.hidden || matchvySaving || !matchvyCache) return;
+        if (document.hidden || matchvySaving || matchvyRefreshing || !matchvyCache) return;
+        matchvyRefreshing = true;
         try {
           const [fresh, currentRow] = await Promise.all([
             DB.listShiftSchema(poolId, lagNo, matchNo),
             DB.getPoolTeamMatchConfig(poolId, lagNo, matchNo)
           ]);
-          if (!matchvyCache || matchvySaving) return;
+          if (!matchvyCache || matchvySaving || matchvyCache.poolId !== poolId ||
+              matchvyCache.lagNo !== lagNo || matchvyCache.matchNo !== matchNo) return;
           matchvyCache.rows = fresh;
           if (currentRow) matchvyCache.row = currentRow;
           const pending = fresh.findIndex(r => !r.done);
           matchCurrentShiftIndex = pending === -1 ? Math.max(0, fresh.length - 1) : pending;
           rememberMatchShift();
           paintCoachMatchView();
-        } catch (err) { setText("appError", err?.message || String(err)); }
+        } catch (err) { console.warn("Kunde inte synkronisera Matchvy", err); }
+        finally { matchvyRefreshing = false; }
       };
+      window.setInterval(refreshMatch, 5000);
       window.addEventListener("focus", refreshMatch);
       document.addEventListener("visibilitychange", refreshMatch);
     }
