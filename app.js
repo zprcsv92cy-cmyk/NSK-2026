@@ -477,7 +477,7 @@ window.NSK2App = (() => {
           ${upcoming.length ? renderPools(upcoming) : '<div class="listrow">Inga kommande poolspel.</div>'}
         </section>
         <section class="pool-overview-section">
-          <h2>Arkiv – avslutade poolspel (${archived.length})</h2>
+          <h2>Avslutade poolspel (${archived.length})</h2>
           ${archived.length ? renderPools(archived) : '<div class="listrow">Inga avslutade poolspel ännu.</div>'}
         </section>`;
     } catch (err) {
