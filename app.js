@@ -461,7 +461,7 @@ window.NSK2App = (() => {
                 </button>
               </div>
               <div class="nsk-pool-actions">
-                <button class="start-pool-btn" type="button" data-start-pool-id="${poolId}">Påbörja poolspel</button>
+                <button class="start-pool-btn nsk-action nsk-action--primary nsk-action--wide" type="button" data-start-pool-id="${poolId}">Påbörja poolspel</button>
                 <div class="nsk-pool-secondary-actions">
                   <button class="row-btn nsk-action nsk-action--edit" type="button" data-edit-pool="${poolId}">Redigera</button>
                   <button class="row-btn danger nsk-action nsk-action--delete" type="button" data-delete-pool="${poolId}">Ta bort</button>
@@ -822,7 +822,7 @@ window.NSK2App = (() => {
           </div>
           <div class="goalie-col goalie-random-col">
             <label>&nbsp;</label>
-            <button type="button" class="row-btn" data-random-goalie="1">Slumpa</button>
+            <button type="button" class="row-btn nsk-action nsk-action--neutral" data-random-goalie="1">Slumpa</button>
           </div>
         </div>
       `;
@@ -1891,7 +1891,7 @@ window.NSK2App = (() => {
       const lineup = source?.id ? await DB.getLineup(source.id) : [];
       const hasPlayers = lineup.some(x => x.person_type === "player");
       wrap.innerHTML = hasPlayers
-        ? `<div class="small" style="margin-bottom:12px">Bytesschemat saknas för Match ${esc(matchNo)}, Lag ${esc(lagNo)}, men laguppställningen finns kvar.</div><button type="button" class="row-btn" id="restoreMissingShift">Återskapa bytesschema för Match ${esc(matchNo)}</button>`
+        ? `<div class="small" style="margin-bottom:12px">Bytesschemat saknas för Match ${esc(matchNo)}, Lag ${esc(lagNo)}, men laguppställningen finns kvar.</div><button type="button" class="row-btn nsk-action nsk-action--neutral" id="restoreMissingShift">Återskapa bytesschema för Match ${esc(matchNo)}</button>`
         : '<div class="small">Inget bytesschema ännu. Spara laguppställning först.</div>';
       const restore = byId("restoreMissingShift");
       if (restore) restore.addEventListener("click", async () => {
@@ -1927,7 +1927,7 @@ window.NSK2App = (() => {
         if (outdated) {
           repairHtml = `<div class="small" style="margin-bottom:12px">Match ${esc(matchNo)} har ett bytesschema som inte stämmer med poolspelsinställningarna. Sparat: ${rows.length} byten, start ${esc(actualStart || "—")}. Aktuellt: ${expected} byten, start ${expectedStart}. Ingen ändring görs utan bekräftelse.</div>`;
           if (rows.some(r => r.done)) repairHtml += `<div class="small" style="margin-bottom:8px">Genomförda markeringar för den här matchen nollställs vid återskapning.</div>`;
-          repairHtml += `<button type="button" class="row-btn" id="repairOutdatedShifts" style="margin-bottom:12px">Återskapa Match ${esc(matchNo)} enligt aktuella inställningar</button>`;
+          repairHtml += `<button type="button" class="row-btn nsk-action nsk-action--neutral" id="repairOutdatedShifts" style="margin-bottom:12px">Återskapa Match ${esc(matchNo)} enligt aktuella inställningar</button>`;
         }
       }
     }
@@ -1936,7 +1936,7 @@ window.NSK2App = (() => {
     // enligt radantalet. Kontrollera den faktiskt sparade periodtiden före återskapning.
     if (String(matchNo) === "2" && !repairHtml) {
       repairHtml = `<div class="small" style="margin-bottom:8px">Sparad periodtid för poolspelet: ${esc(pool?.period_time ?? "okänd")} minuter. Första bytet: ${esc(rows[0]?.time_left || "—")}.</div>` +
-        `<button type="button" class="row-btn" id="repairOutdatedShifts" style="margin-bottom:12px">Återskapa Match 2 enligt aktuella inställningar</button>`;
+        `<button type="button" class="row-btn nsk-action nsk-action--neutral" id="repairOutdatedShifts" style="margin-bottom:12px">Återskapa Match 2 enligt aktuella inställningar</button>`;
     }
 
     wrap.innerHTML = repairHtml + `
