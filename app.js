@@ -403,27 +403,6 @@ window.NSK2App = (() => {
         `;
       }).join("");
       box.innerHTML = `
-        <style>
-          #savedPoolsList .nsk-pool-row { border: 1px solid #d5d9df; border-radius: 10px; margin: 7px 0; overflow: hidden; background: var(--card-bg, #fff); }
-          #savedPoolsList .nsk-pool-summary { display: flex; align-items: center; gap: 10px; padding: 11px 13px; cursor: pointer; list-style: none; min-height: 24px; }
-          #savedPoolsList .nsk-pool-summary::-webkit-details-marker { display: none; }
-          #savedPoolsList .nsk-pool-name { font-weight: 700; min-width: 0; }
-          #savedPoolsList .nsk-pool-hall { color: #667085; font-size: .9em; margin-left: auto; text-align: right; }
-          #savedPoolsList .nsk-pool-chevron { color: #667085; font-size: 1.3em; transition: transform .15s; }
-          #savedPoolsList .nsk-pool-row[open] .nsk-pool-chevron { transform: rotate(180deg); }
-          #savedPoolsList .nsk-pool-content { padding: 11px 13px 13px; border-top: 1px solid #e6e8ec; }
-          #savedPoolsList .nsk-pool-group + .nsk-pool-group { margin-top: 12px; }
-          #savedPoolsList .nsk-pool-group .pool-lineup-title { margin-bottom: 6px; font-weight: 700; }
-          #savedPoolsList .nsk-pool-group .team-buttons { display: flex; flex-wrap: wrap; gap: 7px; }
-          #savedPoolsList .nsk-pool-actions { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 14px; align-items: center; }
-          #savedPoolsList .nsk-pool-actions .start-pool-btn { width: auto; max-width: 100%; margin: 0; }
-          #savedPoolsList .pool-overview-section + .pool-overview-section { margin-top: 19px !important; }
-          @media(max-width: 600px) {
-            #savedPoolsList .nsk-pool-summary { flex-wrap: wrap; gap: 4px 8px; }
-            #savedPoolsList .nsk-pool-name { flex: 1 1 auto; }
-            #savedPoolsList .nsk-pool-hall { font-size: .82em; }
-          }
-        </style>
         <section class="pool-overview-section">
           <h2>Kommande poolspel (${upcoming.length})</h2>
           ${upcoming.length ? renderPools(upcoming) : '<div class="listrow">Inga kommande poolspel.</div>'}
