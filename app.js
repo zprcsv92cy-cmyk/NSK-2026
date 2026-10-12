@@ -1,28 +1,63 @@
-// Versionskontroll: hämtar alltid publicerad version utan cache.
+// Uppdateringar visas för användaren och installeras bara efter godkännande.
+const NSK_UPDATE_INTERVAL_MS = 5 * 60 * 1000;
+let nskPendingVersion = "";
+
+function nskVersionRoot() {
+  const src = document.querySelector('script[src*="app.js"]')?.src;
+  return new URL("./", src || new URL("../", location.href));
+}
+
+function showNskVersion() {
+  if (!document.body.classList.contains("home-page") || document.getElementById("nsk-current-version")) return;
+  const label = document.createElement("div");
+  label.id = "nsk-current-version";
+  label.className = "nsk-current-version";
+  label.textContent = "NSK-2026 · version " + String(window.NSK_VERSION || "okänd");
+  document.querySelector(".home-hero")?.appendChild(label);
+}
+
+function showNskUpdate(version) {
+  if (nskPendingVersion === version && document.getElementById("nsk-update-notice")) return;
+  nskPendingVersion = version;
+  let notice = document.getElementById("nsk-update-notice");
+  if (!notice) {
+    notice = document.createElement("aside");
+    notice.id = "nsk-update-notice";
+    notice.className = "nsk-update-notice";
+    notice.setAttribute("role", "status");
+    notice.innerHTML = '<span id="nsk-update-message"></span><button type="button" id="nsk-update-now">Uppdatera nu</button><button type="button" id="nsk-update-later">Senare</button>';
+    document.body.appendChild(notice);
+    notice.querySelector("#nsk-update-now").addEventListener("click", () => {
+      const next = new URL(location.href);
+      next.searchParams.set("nsk_v", nskPendingVersion);
+      // Bara ett uttryckligt knapptryck får ladda om sidan.
+      location.replace(next.href);
+    });
+    notice.querySelector("#nsk-update-later").addEventListener("click", () => {
+      notice.hidden = true;
+    });
+  }
+  notice.querySelector("#nsk-update-message").textContent = "Ny version " + version + " finns tillgänglig.";
+  notice.hidden = false;
+}
+
 async function checkAppVersion() {
   try {
-    const root = new URL("./", document.currentScript?.src || document.querySelector('script[src*="app.js"]')?.src || new URL("../", location.href));
-    const res = await fetch(new URL("deploy.json?ts=" + Date.now(), root), { cache: "no-store" });
+    const res = await fetch(new URL("deploy.json?ts=" + Date.now(), nskVersionRoot()), { cache: "no-store" });
     if (!res.ok) return;
     const data = await res.json();
     const published = String(data?.version || "");
     const loaded = String(window.NSK_VERSION || "");
-    if (!published || !loaded || published === loaded) return;
-
-    // Behåll sidans adress och session, men tvinga fram ny HTML vid versionsbyte.
-    // En skyddsspärr hindrar upprepade omladdningar under en ofullständig deploy.
-    const key = "nsk-version-reload-" + published;
-    const previous = Number(sessionStorage.getItem(key) || 0);
-    if (Date.now() - previous < 30000) {
-      console.warn("Versionerna skiljer sig fortfarande; inväntar färdig publicering.");
+    if (!published || !loaded || published === loaded) {
+      if (published === loaded) {
+        nskPendingVersion = "";
+        document.getElementById("nsk-update-notice")?.remove();
+      }
       return;
     }
-    sessionStorage.setItem(key, String(Date.now()));
-    const next = new URL(location.href);
-    next.searchParams.set("nsk_v", published);
-    location.replace(next.href);
+    showNskUpdate(published);
   } catch (err) {
-    console.warn("Version check failed", err);
+    console.warn("Versionskontroll misslyckades", err);
   }
 }
 
@@ -2407,6 +2442,11 @@ window.NSK2App = (() => {
 
 window.addEventListener("DOMContentLoaded", () => {
   registerNskServiceWorker();
+  showNskVersion();
+  setInterval(checkAppVersion, NSK_UPDATE_INTERVAL_MS);
+  document.addEventListener("visibilitychange", () => {
+    if (!document.hidden) checkAppVersion();
+  });
   window.NSK2App.init().catch((err) => {
     const el = document.getElementById("appError");
     if (el) el.textContent = err?.message || String(err);
