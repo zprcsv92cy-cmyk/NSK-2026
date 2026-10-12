@@ -1,0 +1,33 @@
+name: Automatisk appversion
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+permissions:
+  contents: write
+concurrency:
+  group: nsk-version-main
+  cancel-in-progress: false
+jobs:
+  version:
+    if: "!contains(github.event.head_commit.message, '[skip ci]')"
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: true
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Uppdatera versionsnummer
+        run: node scripts/bump-version.cjs
+      - name: Publicera versionsfiler
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add version.js manifest.webmanifest deploy.json sw.js
+          git add -u -- '*.html'
+          if ! git diff --cached --quiet; then
+            git commit -m "chore: bump app version [skip ci]"
+            git push
+          fi
