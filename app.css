@@ -1024,3 +1024,11 @@ button.ghost, .row-btn:not(.danger), .team-btn:not(.active-team-btn),
   .home-page #savedPoolsList .nsk-pool-grid { gap:8px; }
   .home-page #savedPoolsList .nsk-pool-grid .nsk-pool-function { min-height:98px; font-size:.9rem; }
 }
+
+/* Versionsinformation och uppdateringsfråga – isolerat från övrig layout. */
+.nsk-current-version { margin-top: 8px; color: #aeb0ba; font-size: 12px; }
+.nsk-update-notice { position: fixed; z-index: 9999; left: 12px; right: 12px; bottom: 12px; max-width: 540px; margin: 0 auto; background: #20222a; color: #fff; border: 1px solid #51545e; border-radius: 12px; box-shadow: 0 8px 30px #0008; padding: 14px; display: flex; flex-wrap: wrap; align-items: center; gap: 10px; font: 15px/1.4 system-ui, sans-serif; }
+.nsk-update-notice[hidden] { display: none; }
+.nsk-update-notice span { flex: 1 1 100%; }
+.nsk-update-notice button { min-height: 42px; border: 0; border-radius: 8px; padding: 10px 14px; background: #b11226; color: #fff; font: inherit; cursor: pointer; }
+.nsk-update-notice #nsk-update-later { background: #383b45; }

@@ -1,0 +1,51 @@
+name: Automatisk appversion
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+  pull_request:
+    branches: [main]
+permissions:
+  contents: write
+concurrency:
+  group: nsk-version-main
+  cancel-in-progress: false
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Kontrollera JavaScript
+        run: |
+          node --check app.js
+          node --check sw.js
+          node --check scripts/bump-version.cjs
+      - name: Testa versionshöjning utan publicering
+        run: |
+          node scripts/bump-version.cjs
+          node -e "const fs=require('fs'); const v=require('./deploy.json').version; if(!fs.readFileSync('version.js','utf8').includes(v)) process.exit(1); console.log('Versionstest OK:',v)"
+  version:
+    if: "github.event_name != 'pull_request' && !contains(github.event.head_commit.message, '[skip ci]')"
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: true
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Uppdatera versionsnummer
+        run: node scripts/bump-version.cjs
+      - name: Publicera versionsfiler
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add version.js manifest.webmanifest deploy.json sw.js
+          git add -u -- '*.html'
+          if ! git diff --cached --quiet; then
+            git commit -m "chore: bump app version [skip ci]"
+            git push
+          fi
