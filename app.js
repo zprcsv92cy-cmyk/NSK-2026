@@ -288,7 +288,19 @@ window.NSK2App = (() => {
           if (!window.confirm(question)) return;
           t.disabled = true;
           try {
-            await DB.updatePool(poolId, { status: nextStatus });
+            await DB.updatePool(poolId, {
+              title: current.title || "Poolspel",
+              place: current.place || "",
+              hall: current.hall || "",
+              pool_date: current.pool_date,
+              status: nextStatus,
+              teams: Number(current.teams),
+              matches: Number(current.matches),
+              players_on_field: Number(current.players_on_field),
+              periods: Number(current.periods),
+              period_time: Number(current.period_time),
+              sub_time: Number(current.sub_time)
+            });
             window.location.reload();
           } finally {
             t.disabled = false;
