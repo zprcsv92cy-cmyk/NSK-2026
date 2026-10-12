@@ -676,3 +676,65 @@ img[src*="logga" i] {
   img[src*="logo" i],
   img[src*="logga" i] { width: 64px; max-height: 76px; }
 }
+`
+
+/* NSK-2026: gemensam kompakt poolspelslista – dator och mobil */
+#savedPoolsList .nsk-pool-row {
+  background: var(--card);
+  color: var(--text);
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  margin: 8px 0;
+  overflow: hidden;
+}
+#savedPoolsList .nsk-pool-summary {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-height: 52px;
+  padding: 12px 14px;
+  cursor: pointer;
+  list-style: none;
+  background: #202127;
+  color: var(--text);
+}
+#savedPoolsList .nsk-pool-summary::-webkit-details-marker { display: none; }
+#savedPoolsList .nsk-pool-summary:hover { background: #292a30; }
+#savedPoolsList .nsk-pool-name { font-weight: 800; min-width: 0; }
+#savedPoolsList .nsk-pool-hall {
+  margin-left: auto;
+  text-align: right;
+  font-size: .9em;
+  color: var(--muted);
+}
+#savedPoolsList .nsk-pool-chevron {
+  color: var(--text);
+  font-size: 1.3em;
+  transition: transform .15s ease;
+}
+#savedPoolsList .nsk-pool-row[open] .nsk-pool-chevron { transform: rotate(180deg); }
+#savedPoolsList .nsk-pool-row[open] .nsk-pool-summary {
+  border-bottom: 1px solid var(--line);
+}
+#savedPoolsList .nsk-pool-content { padding: 12px 14px 14px; background: var(--card); }
+#savedPoolsList .nsk-pool-group + .nsk-pool-group { margin-top: 12px; }
+#savedPoolsList .nsk-pool-group .pool-lineup-title { margin-bottom: 7px; font-weight: 800; }
+#savedPoolsList .nsk-pool-group .team-buttons { display: flex; flex-wrap: wrap; gap: 8px; }
+#savedPoolsList .nsk-pool-actions { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 14px; align-items: center; }
+#savedPoolsList .nsk-pool-actions .start-pool-btn {
+  width: auto;
+  max-width: 100%;
+  min-height: 46px;
+  padding: 12px 15px;
+  margin: 0;
+  font-size: 16px;
+  border-radius: 13px;
+}
+#savedPoolsList .pool-overview-section + .pool-overview-section { margin-top: 20px; }
+@media (max-width: 700px) {
+  #savedPoolsList .nsk-pool-summary { flex-wrap: wrap; gap: 4px 8px; }
+  #savedPoolsList .nsk-pool-name { flex: 1 1 auto; }
+  #savedPoolsList .nsk-pool-hall { font-size: .82em; }
+  #savedPoolsList .nsk-pool-group .team-buttons { display: grid; grid-template-columns: repeat(2,minmax(0,1fr)); }
+  #savedPoolsList .nsk-pool-actions .start-pool-btn { flex: 1 1 auto; }
+}
