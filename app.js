@@ -1,6 +1,7 @@
 // Uppdateringar visas för användaren och installeras bara efter godkännande.
 const NSK_UPDATE_INTERVAL_MS = 5 * 60 * 1000;
 let nskPendingVersion = "";
+let nskDismissedVersion = "";
 
 function nskVersionRoot() {
   const src = document.querySelector('script[src*="app.js"]')?.src;
@@ -18,6 +19,7 @@ function showNskVersion() {
 
 function showNskUpdate(version) {
   if (nskPendingVersion === version && document.getElementById("nsk-update-notice")) return;
+  if (nskDismissedVersion === version) return;
   nskPendingVersion = version;
   let notice = document.getElementById("nsk-update-notice");
   if (!notice) {
@@ -34,6 +36,7 @@ function showNskUpdate(version) {
       location.replace(next.href);
     });
     notice.querySelector("#nsk-update-later").addEventListener("click", () => {
+      nskDismissedVersion = nskPendingVersion;
       notice.hidden = true;
     });
   }
@@ -51,6 +54,7 @@ async function checkAppVersion() {
     if (!published || !loaded || published === loaded) {
       if (published === loaded) {
         nskPendingVersion = "";
+        nskDismissedVersion = "";
         document.getElementById("nsk-update-notice")?.remove();
       }
       return;
