@@ -1032,3 +1032,26 @@ button.ghost, .row-btn:not(.danger), .team-btn:not(.active-team-btn),
 .nsk-update-notice span { flex: 1 1 100%; }
 .nsk-update-notice button { min-height: 42px; border: 0; border-radius: 8px; padding: 10px 14px; background: #b11226; color: #fff; font: inherit; cursor: pointer; }
 .nsk-update-notice #nsk-update-later { background: #383b45; }
+
+
+/* Nya poolspelskort: lika layout på dator och mobil */
+.home-page #savedPoolsList .nsk-pool-row{background:#1b1c22;border:1px solid #383a43;border-radius:16px;overflow:hidden;margin:10px 0}
+.home-page #savedPoolsList .nsk-pool-summary{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:4px 12px;padding:16px;background:#202127}
+.home-page #savedPoolsList .nsk-pool-name{grid-column:1;font-size:clamp(16px,2.5vw,19px);font-weight:800;line-height:1.35}
+.home-page #savedPoolsList .nsk-pool-hall{grid-column:1;margin:0;text-align:left;color:#b4b5c0;font-size:14px}
+.home-page #savedPoolsList .nsk-pool-chevron{grid-column:2;grid-row:1/span 2;align-self:center}
+.home-page #savedPoolsList .nsk-pool-content{padding:16px;background:#1b1c22}
+.home-page #savedPoolsList .nsk-pool-team-selector{margin-bottom:15px}
+.home-page #savedPoolsList .nsk-pool-team-label{margin-bottom:8px;font-weight:750;color:#d7d8df}
+.home-page #savedPoolsList .nsk-pool-team-options{display:grid;grid-template-columns:repeat(auto-fit,minmax(78px,1fr));gap:8px}
+.home-page #savedPoolsList .nsk-pool-team-choice{width:100%;min-width:0;min-height:46px;margin:0;background:#292b33;color:#fff;border:1px solid #454650;border-radius:11px}
+.home-page #savedPoolsList .nsk-pool-team-choice.is-selected,.home-page #savedPoolsList .nsk-pool-team-choice[aria-pressed="true"]{background:linear-gradient(180deg,#c51b32,#8f1020);border-color:#e34a60}
+.home-page #savedPoolsList .nsk-pool-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px}
+.home-page #savedPoolsList .nsk-pool-grid .nsk-pool-function{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:8px;width:100%;min-width:0;min-height:104px;margin:0;padding:14px 7px;border-radius:13px;background:#292b33;border:1px solid #444650;color:#fff;font-size:clamp(13px,2.6vw,16px);font-weight:750;text-align:center;line-height:1.25}
+.home-page #savedPoolsList .nsk-pool-function-icon{font-size:27px;line-height:1}
+.home-page #savedPoolsList .nsk-pool-actions{display:flex;flex-direction:column;gap:12px;margin-top:14px}
+.home-page #savedPoolsList .nsk-pool-actions .start-pool-btn{width:100%;min-height:54px;margin:0;padding:12px;background:linear-gradient(180deg,#c91c34,#951023);border:1px solid #d43b50;border-radius:12px;color:#fff;font-size:16px;font-weight:800}
+.home-page #savedPoolsList .nsk-pool-secondary-actions{display:flex;justify-content:center;gap:12px;flex-wrap:wrap}
+.home-page #savedPoolsList .nsk-pool-secondary-actions .row-btn{width:auto;min-height:40px;margin:0;padding:8px 14px;background:#292b33;border:1px solid #42444e;border-radius:10px;color:#e5e6ec;font-size:14px}
+.home-page #savedPoolsList .nsk-pool-secondary-actions .row-btn.danger{background:#34242a;border-color:#65404a;color:#f0b4c0}
+@media(max-width:400px){.home-page #savedPoolsList .nsk-pool-content{padding:12px}.home-page #savedPoolsList .nsk-pool-summary{padding:14px}}
