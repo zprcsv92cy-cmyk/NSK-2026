@@ -1066,3 +1066,19 @@ button.ghost, .row-btn:not(.danger), .team-btn:not(.active-team-btn),
 .home-page .home-create-button{display:flex;align-items:center;justify-content:center;min-height:54px;padding:12px 16px;width:100%;border-radius:12px;border:1px solid #d43b50;background:linear-gradient(180deg,#c91c34,#951023);color:#fff;text-decoration:none;font-size:17px;font-weight:800;text-align:center}
 .home-page .home-create-button:hover{filter:brightness(1.08)}
 @media(max-width:700px){.home-page .home-create-pool{padding:15px}.home-page .home-create-intro h2{font-size:18px}}
+
+
+/* Gemensam åtgärdsstandard – används av samtliga NSK-vyer. */
+.nsk-actions{display:flex;align-items:center;gap:10px;flex-wrap:wrap}
+.nsk-actions--end{justify-content:flex-end}
+.nsk-actions--center{justify-content:center}
+.nsk-action{box-sizing:border-box;display:inline-flex;align-items:center;justify-content:center;gap:8px;min-height:44px;padding:10px 16px;border:1px solid #494c56;border-radius:11px;background:#292b33;color:#f5f5f7;font:inherit;font-size:15px;font-weight:750;line-height:1.25;text-decoration:none;text-align:center;cursor:pointer;transition:filter .15s ease,border-color .15s ease}
+.nsk-action:hover:not(:disabled){filter:brightness(1.12)}
+.nsk-action:focus-visible{outline:3px solid #f6bd60;outline-offset:2px}
+.nsk-action:disabled{opacity:.5;cursor:not-allowed}
+.nsk-action--save{background:#166534;border-color:#299452;color:#fff}
+.nsk-action--primary{background:linear-gradient(180deg,#c91c34,#951023);border-color:#d43b50;color:#fff}
+.nsk-action--edit,.nsk-action--cancel,.nsk-action--neutral{background:#292b33;border-color:#494c56;color:#f5f5f7}
+.nsk-action--delete,.nsk-action--finish{background:#42242d;border-color:#985062;color:#ffe0e6}
+.nsk-action--wide{width:100%}
+@media(max-width:480px){.nsk-actions>.nsk-action{flex:1 1 auto;min-width:0}.nsk-action{min-height:46px}}
