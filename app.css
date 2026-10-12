@@ -1055,3 +1055,14 @@ button.ghost, .row-btn:not(.danger), .team-btn:not(.active-team-btn),
 .home-page #savedPoolsList .nsk-pool-secondary-actions .row-btn{width:auto;min-height:40px;margin:0;padding:8px 14px;background:#292b33;border:1px solid #42444e;border-radius:10px;color:#e5e6ec;font-size:14px}
 .home-page #savedPoolsList .nsk-pool-secondary-actions .row-btn.danger{background:#34242a;border-color:#65404a;color:#f0b4c0}
 @media(max-width:400px){.home-page #savedPoolsList .nsk-pool-content{padding:12px}.home-page #savedPoolsList .nsk-pool-summary{padding:14px}}
+
+
+/* Startsida: en tydlig åtgärd för nytt poolspel */
+.home-page .home-create-pool{display:grid;gap:16px;padding:18px 20px}
+.home-page .home-create-intro{display:flex;align-items:center;gap:14px}
+.home-page .home-create-icon{display:grid;place-items:center;flex:0 0 52px;width:52px;height:52px;border-radius:13px;background:#292b33;border:1px solid #464750;color:#fff;font-size:32px;font-weight:600}
+.home-page .home-create-intro h2{margin:0 0 4px;font-size:20px;font-weight:800}
+.home-page .home-create-intro p{margin:0;color:#bfc0ca;font-size:14px;line-height:1.4}
+.home-page .home-create-button{display:flex;align-items:center;justify-content:center;min-height:54px;padding:12px 16px;width:100%;border-radius:12px;border:1px solid #d43b50;background:linear-gradient(180deg,#c91c34,#951023);color:#fff;text-decoration:none;font-size:17px;font-weight:800;text-align:center}
+.home-page .home-create-button:hover{filter:brightness(1.08)}
+@media(max-width:700px){.home-page .home-create-pool{padding:15px}.home-page .home-create-intro h2{font-size:18px}}
