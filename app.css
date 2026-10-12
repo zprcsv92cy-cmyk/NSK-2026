@@ -1082,3 +1082,11 @@ button.ghost, .row-btn:not(.danger), .team-btn:not(.active-team-btn),
 .nsk-action--delete,.nsk-action--finish{background:#42242d;border-color:#985062;color:#ffe0e6}
 .nsk-action--wide{width:100%}
 @media(max-width:480px){.nsk-actions>.nsk-action{flex:1 1 auto;min-width:0}.nsk-action{min-height:46px}}
+
+
+/* Steg 3: gemensamma kontroller för skapande och matcharbete */
+.nsk-action--restore{background:#292b33;border-color:#586272;color:#f5f5f7}
+.nsk-action--finish{background:#42242d;border-color:#985062;color:#ffe0e6}
+.nsk-action--delete{background:#42242d;border-color:#985062;color:#ffe0e6}
+.nsk-action--save{background:#166534;border-color:#299452;color:#fff}
+.nsk-action--primary{background:linear-gradient(180deg,#c91c34,#951023);border-color:#d43b50;color:#fff}
