@@ -30,7 +30,23 @@ window.DB = (() => {
   async function getLineup(matchConfigId){return (await rows('laguppstallningar')).filter(r=>first(r.Matchkonfiguration)==id(matchConfigId)).map(r=>({id:r.id,pool_id:first(r.Poolspel),match_config_id:id(matchConfigId),person_type:(typeof r.Persontyp==='object'?r.Persontyp?.value:r.Persontyp)==='Spelare'?'player':(typeof r.Persontyp==='object'?r.Persontyp?.value:r.Persontyp)==='Tränare'?'coach':null,person_id:num(r['Person-ID']),sort_order:num(r.Sorteringsordning)})).filter(r=>r.person_id&&r.person_type).sort((a,b)=>a.sort_order-b.sort_order)}
   async function listUsedPlayersInPool(poolId,currentLagNo){const cfg=(await listPoolTeamMatchConfigs(poolId)).filter(r=>r.lag_no!=currentLagNo);const result=await Promise.all(cfg.map(c=>getLineup(c.id)));return [...new Set(result.flat().filter(r=>r.person_type==='player').map(r=>r.person_id))]}
   async function listShiftSchema(poolId,lagNo,matchNo){return (await rows('bytesschema')).filter(r=>first(r.Poolspel)==id(poolId)&&num(r.Lagnummer)==lagNo&&num(r.Matchnummer)==matchNo).map(r=>({id:r.id,pool_id:id(poolId),lag_no:num(r.Lagnummer),match_no:num(r.Matchnummer),shift_no:num(r.Bytenummer),period_no:num(r.Periodnummer),time_left:r['Tid kvar']||'',players_json:linked(r['Spelare på plan']),done:!!r.Genomfört})).sort((a,b)=>a.shift_no-b.shift_no)}
-  async function listGoalieStats(){return (await rows('malvaktsstatistik')).map(r=>({id:r.id,goalie_name:r.Målvaktsnamn||'',match_id:r['Match-ID']||''}))}
+  // Målvaktsstatistik härleds från sparade matchkonfigurationer.
+  // Endast matcher med en vald målvakt räknas; tomma statistikposter ignoreras.
+  async function listGoalieStats(){
+    const [pools, players] = await Promise.all([listPools(), listPlayers()]);
+    const names = new Map(players.map(p => [Number(p.id), String(p.full_name || '').trim()]));
+    const configsByPool = await Promise.all(pools.map(p => listPoolTeamMatchConfigs(p.id)));
+    const matches = new Map();
+    for (let i = 0; i < pools.length; i++) {
+      for (const config of configsByPool[i]) {
+        const name = names.get(Number(config.goalie_player_id));
+        if (!name) continue;
+        const matchId = `${pools[i].id}:${config.lag_no}:${config.match_no}`;
+        matches.set(matchId, {goalie_name:name, match_id:matchId});
+      }
+    }
+    return [...matches.values()];
+  }
   async function listPlayerCoachMap(){const [map,players,coaches]=await Promise.all([rows('spelaretranare'),listPlayers(),listCoaches()]);return map.map(r=>({id:r.id,player_name:players.find(p=>p.id===first(r.Spelare))?.full_name||'',coach_name:coaches.find(c=>c.id===first(r.Tränare))?.full_name||''})).filter(r=>r.player_name)}
   async function adminRequest(path,method,payload){
     const token=localStorage.getItem('nsk_admin_token');
