@@ -540,10 +540,30 @@ window.NSK2App = (() => {
         if (!previous) throw new Error("Poolspelet kunde inte hittas. Ladda om sidan.");
         const rules = ["players_on_field", "periods", "period_time", "sub_time"];
         changedRules = rules.some(k => Number(previous[k]) !== Number(payload[k]));
+        // Kontrollera samtliga tidigare matcher innan några pooluppgifter sparas.
+        // Även minskat antal lag/matcher får inte dölja redan genomförda byten.
+        const changedStructure = ["teams", "matches"].some(k => Number(previous[k]) !== Number(payload[k]));
+        if (changedRules || changedStructure) {
+          if (typeof DB?.listShiftSchema !== "function") {
+            throw new Error("Kan inte kontrollera genomförda byten. Inga ändringar sparades.");
+          }
+          for (let lagNo = 1; lagNo <= Number(previous.teams); lagNo++) {
+            for (let matchNo = 1; matchNo <= Number(previous.matches); matchNo++) {
+              const shifts = await DB.listShiftSchema(editId, lagNo, matchNo);
+              if (shifts.some(shift => shift.done === true)) {
+                throw new Error(
+                  `Lag ${lagNo}, match ${matchNo} har genomförda byten. ` +
+                  "Spelregler och antal lag/matcher kan därför inte ändras. " +
+                  "Plats, ishall och datum kan fortfarande ändras. Inga ändringar sparades."
+                );
+              }
+            }
+          }
+        }
         if (changedRules && !window.confirm(
           "Du har ändrat spelregler som påverkar bytesscheman. " +
-          "Alla befintliga bytesscheman för poolspelet återskapas och genomförda markeringar nollställs. " +
-          "Matchvy uppdateras från samma sparade scheman. Fortsätta?"
+          "Befintliga bytesscheman behöver uppdateras. " +
+          "Scheman med genomförda byten får inte ändras. Fortsätta?"
         )) return;
       }
       if (saveButton) saveButton.disabled = true;
