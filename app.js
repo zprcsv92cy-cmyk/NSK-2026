@@ -271,6 +271,31 @@ window.NSK2App = (() => {
           return;
         }
 
+        if (t.dataset.poolStatusId && t.dataset.poolStatusNext) {
+          const poolId = t.dataset.poolStatusId;
+          const nextStatus = t.dataset.poolStatusNext;
+          if (!["Aktiv", "Avslutad"].includes(nextStatus)) return;
+          const current = await DB.getPool(poolId);
+          if (!current) throw new Error("Poolspelet hittades inte. Ladda om sidan.");
+          const currentlyClosed = String(current.status || "").toLowerCase().includes("avslut");
+          if (currentlyClosed === (nextStatus === "Avslutad")) {
+            window.location.reload();
+            return;
+          }
+          const question = nextStatus === "Avslutad"
+            ? "Avsluta poolspelet? Matcher, laguppställningar och bytesscheman sparas."
+            : "Återöppna poolspelet? All sparad matchhistorik behålls.";
+          if (!window.confirm(question)) return;
+          t.disabled = true;
+          try {
+            await DB.updatePool(poolId, { status: nextStatus });
+            window.location.reload();
+          } finally {
+            t.disabled = false;
+          }
+          return;
+        }
+
         if (t.dataset.deletePool) {
           const ok = window.confirm("Ta bort poolspelet permanent? Detta kan inte ångras.");
           if (!ok) return;
@@ -426,7 +451,7 @@ window.NSK2App = (() => {
 
       const today = new Date();
       const localToday = `${today.getFullYear()}-${String(today.getMonth()+1).padStart(2,'0')}-${String(today.getDate()).padStart(2,'0')}`;
-      const isArchived = (p) => String(p.status || '').toLowerCase().includes('avslut') || (p.pool_date && p.pool_date < localToday);
+      const isArchived = (p) => String(p.status || '').toLowerCase().includes('avslut') || (!String(p.status || '').trim() && p.pool_date && p.pool_date < localToday);
       const upcoming = pools.filter(p => !isArchived(p)).sort((a,b) => String(a.pool_date || '').localeCompare(String(b.pool_date || '')));
       const archived = pools.filter(isArchived).sort((a,b) => String(b.pool_date || '').localeCompare(String(a.pool_date || '')));
       const renderPools = (items) => items.map((p) => {
@@ -464,6 +489,7 @@ window.NSK2App = (() => {
                 <button class="start-pool-btn nsk-action nsk-action--primary nsk-action--wide" type="button" data-start-pool-id="${poolId}">Påbörja poolspel</button>
                 <div class="nsk-pool-secondary-actions">
                   <button class="row-btn nsk-action nsk-action--edit" type="button" data-edit-pool="${poolId}">Redigera</button>
+                  <button class="row-btn nsk-action ${isArchived(p) ? "nsk-action--neutral" : "nsk-action--finish"}" type="button" data-pool-status-id="${poolId}" data-pool-status-next="${isArchived(p) ? "Aktiv" : "Avslutad"}">${isArchived(p) ? "Återöppna" : "Avsluta"}</button>
                   <button class="row-btn danger nsk-action nsk-action--delete" type="button" data-delete-pool="${poolId}">Ta bort</button>
                 </div>
               </div>
