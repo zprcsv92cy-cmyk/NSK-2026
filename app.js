@@ -277,7 +277,7 @@ window.NSK2App = (() => {
           if (!["Aktiv", "Avslutad"].includes(nextStatus)) return;
           const current = await DB.getPool(poolId);
           if (!current) throw new Error("Poolspelet hittades inte. Ladda om sidan.");
-          const currentlyClosed = String(current.status || "").toLowerCase().includes("avslut");
+          const currentlyClosed = current.active === false;
           if (currentlyClosed === (nextStatus === "Avslutad")) {
             window.location.reload();
             return;
@@ -288,19 +288,7 @@ window.NSK2App = (() => {
           if (!window.confirm(question)) return;
           t.disabled = true;
           try {
-            await DB.updatePool(poolId, {
-              title: current.title || "Poolspel",
-              place: current.place || "",
-              hall: current.hall || "",
-              pool_date: current.pool_date,
-              status: nextStatus,
-              teams: Number(current.teams),
-              matches: Number(current.matches),
-              players_on_field: Number(current.players_on_field),
-              periods: Number(current.periods),
-              period_time: Number(current.period_time),
-              sub_time: Number(current.sub_time)
-            });
+            await DB.updatePoolActive(poolId, nextStatus === "Aktiv");
             window.location.reload();
           } finally {
             t.disabled = false;
@@ -463,7 +451,7 @@ window.NSK2App = (() => {
 
       const today = new Date();
       const localToday = `${today.getFullYear()}-${String(today.getMonth()+1).padStart(2,'0')}-${String(today.getDate()).padStart(2,'0')}`;
-      const isArchived = (p) => String(p.status || '').toLowerCase().includes('avslut') || (!String(p.status || '').trim() && p.pool_date && p.pool_date < localToday);
+      const isArchived = (p) => p.active === false;
       const upcoming = pools.filter(p => !isArchived(p)).sort((a,b) => String(a.pool_date || '').localeCompare(String(b.pool_date || '')));
       const archived = pools.filter(isArchived).sort((a,b) => String(b.pool_date || '').localeCompare(String(a.pool_date || '')));
       const renderPools = (items) => items.map((p) => {
