@@ -1,3 +1,4 @@
+import { issueActivationToken } from './account-activation.js';
 // Cloudflare Worker module. Mount under /api/auth/* after configuring AUTH_DB D1.
 // Existing nsk-api routes must continue to use their current handler until migrated.
 const json = (body, status = 200) => new Response(JSON.stringify(body), {
@@ -66,6 +67,13 @@ export async function handleTeamAuth(request, env) {
     const token = bearer(request);
     if (token) await db.prepare("UPDATE auth_sessions SET revoked_at=datetime('now') WHERE token_hash=? AND revoked_at IS NULL").bind(await sha256(token)).run();
     return json({ ok: true });
+  }
+  const activationIssue = /^\\/api\\/auth\\/users\\/([a-f0-9-]{36})\\/setup-token$/.exec(path);
+  if (activationIssue && request.method === 'POST') {
+    const actor = await requirePersonPermission(request, env, 'users:manage');
+    if (!actor) return json({ error: 'Åtkomst nekad' }, 403);
+    const result = await issueActivationToken(db, activationIssue[1]);
+    return json(result, result.status || 200);
   }
   // Personal permission administration: only users with users:manage can edit grants.
   if (path === '/api/auth/users' && request.method === 'GET') {
