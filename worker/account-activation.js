@@ -3,7 +3,7 @@ const encode = text => new TextEncoder().encode(text);
 const hex = bytes => [...new Uint8Array(bytes)].map(b => b.toString(16).padStart(2,'0')).join('');
 const json = (value, status=200) => new Response(JSON.stringify(value), {status,headers:{'content-type':'application/json; charset=utf-8','cache-control':'no-store'}});
 async function digest(value) { return hex(await crypto.subtle.digest('SHA-256',encode(value))); }
-function makeToken() { const b=crypto.getRandomValues(new Uint8Array(32)); return btoa(String.fromCharCode(...b)).replace(/\\+/g,'-').replace(/\\//g,'_').replace(/=+$/,''); }
+function makeToken() { const b=crypto.getRandomValues(new Uint8Array(32)); return btoa(String.fromCharCode(...b)).split('+').join('-').split('/').join('_').replace(/=+$/,''); }
 async function hashPassword(value) {
   const salt=crypto.getRandomValues(new Uint8Array(16));
   const key=await crypto.subtle.importKey('raw',encode(value),'PBKDF2',false,['deriveBits']);
