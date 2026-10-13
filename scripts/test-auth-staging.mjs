@@ -19,7 +19,7 @@ const cases = [
   { path: '/api/auth/roster-staging?team_id=NSK%20Testlag%202', method: 'GET', expected: 401 },
   { path: '/api/auth/team-members', method: 'GET', expected: 403 },
   { path: '/api/auth/team-members', method: 'PUT', body: {user_id:'00000000-0000-4000-8000-000000000000',team_id:'NSK Testlag 2',role:'team_admin'}, expected: 403 },
-  { path: '/api/auth/staging/add-second-team', method: 'POST', expected: 403 },
+  { path: '/api/auth/staging/add-second-team', method: 'POST', expected: 404 },
   { path: '/api/auth/roster-staging', method: 'POST', body: {kind:'player',name:'Test'}, expected: 401 },
   { path: '/api/auth/logout', method: 'POST', expected: 200 },
   { path: '/api/auth/login', method: 'POST', body: { email: 'nonexistent@example.invalid', password: 'not-a-valid-password' }, expected: 401 },
