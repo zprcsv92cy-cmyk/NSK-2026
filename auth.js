@@ -3,24 +3,15 @@
 (() => {
   const API = window.APP_CONFIG?.API_URL || 'https://nsk-api.peter-hasselberg.workers.dev';
   const KEY = 'nsk_user_token';
-  const ROLES = Object.freeze(['owner', 'team_admin', 'coach', 'team_manager', 'fitness', 'equipment', 'viewer']);
-  const PERMISSIONS = Object.freeze({
-    owner: ['team:read', 'team:write', 'members:manage', 'users:manage'],
-    team_admin: ['team:read', 'team:write', 'members:manage'],
-    coach: ['team:read', 'team:write'],
-    team_manager: ['team:read', 'team:write'],
-    fitness: ['team:read'],
-    equipment: ['team:read'],
-    viewer: ['team:read']
-  });
+  const PERMISSIONS = Object.freeze(['read','pool:create','lineup:edit','shifts:check','match:manage','pool:finish','pool:reopen','roster:manage','users:manage']);
   let session = null;
   function token() { return sessionStorage.getItem(KEY); }
   function normalize(data) {
-    if (!data || !data.user || !Array.isArray(data.memberships)) return null;
+    if (!data || !data.user || !Array.isArray(data.permissions)) return null;
     return {
       user: { id: String(data.user.id), name: String(data.user.name || '') },
-      memberships: data.memberships.filter(m => m && ROLES.includes(m.role) && m.team_id != null)
-        .map(m => ({ team_id: String(m.team_id), role: m.role }))
+      memberships: Array.isArray(data.memberships) ? data.memberships : [],
+      permissions: data.permissions.filter(p => PERMISSIONS.includes(p))
     };
   }
   async function init() {
@@ -36,11 +27,8 @@
       return session;
     } catch { session = null; return null; }
   }
-  function can(permission, teamId) {
-    if (!session || teamId == null) return false;
-    return session.memberships.some(m =>
-      m.team_id === String(teamId) && (PERMISSIONS[m.role] || []).includes(permission)
-    );
+  function can(permission) {
+    return !!session && session.permissions.includes(permission);
   }
   async function login(email, password) {
     const response = await fetch(API + '/api/auth/login', {
@@ -65,6 +53,6 @@
   }
   window.Auth = Object.freeze({
     init, login, logout, can, getSession: () => session,
-    getClient: () => null, getToken: token, roles: ROLES, permissions: PERMISSIONS
+    getClient: () => null, getToken: token, permissions: PERMISSIONS
   });
 })();
