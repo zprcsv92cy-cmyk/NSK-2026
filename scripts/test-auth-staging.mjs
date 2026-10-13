@@ -33,3 +33,9 @@ for (const item of cases) {
   console.log('PASS', item.method, item.path, response.status);
 }
 console.log('All unauthenticated staging smoke tests passed.');
+
+const page = await fetch(base + '/aktivera/');
+assert.equal(page.status, 200, 'Activation page status');
+assert.match(page.headers.get('content-type') || '', /text\/html/);
+assert.match(await page.text(), /Aktivera konto/);
+console.log('PASS GET /aktivera/ 200');
