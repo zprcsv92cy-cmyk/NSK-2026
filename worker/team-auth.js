@@ -96,6 +96,57 @@ export async function handleTeamAuth(request, env) {
     await db.batch(statements);
     return json({ ok: true, permissions: data.permissions });
   }
+  // Account records are independent of roster entries.
+  if (path === '/api/auth/users' && request.method === 'POST') {
+    const actor = await requirePersonPermission(request, env, 'users:manage');
+    if (!actor) return json({ error: 'Åtkomst nekad' }, 403);
+    let data;
+    try { data = await request.json(); } catch { return json({ error: 'Ogiltig JSON' }, 400); }
+    const email = String(data?.email || '').trim().toLowerCase();
+    const name = String(data?.name || '').trim();
+    if (!/^[^\\s@]+@[^\\s@]+\\.[^\\s@]+$/.test(email) || email.length > 254 || !name || name.length > 150)
+      return json({ error: 'Ange giltigt namn och e-postadress' }, 400);
+    const existing = await db.prepare('SELECT id FROM auth_users WHERE email=?').bind(email).first();
+    if (existing) return json({ error: 'E-postadressen används redan' }, 409);
+    const id = crypto.randomUUID();
+    // Account is disabled until a secure password setup flow is implemented.
+    await db.prepare('INSERT INTO auth_users(id,email,display_name,password_hash,disabled) VALUES(?,?,?,?,1)')
+      .bind(id,email,name,'pending-setup').run();
+    return json({ id, email, name, disabled: true, permissions: [], setup_required: true }, 201);
+  }
+  const userPath = /^\\/api\\/auth\\/users\\/([a-f0-9-]{36})$/.exec(path);
+  if (userPath && (request.method === 'PATCH' || request.method === 'DELETE')) {
+    const actor = await requirePersonPermission(request, env, 'users:manage');
+    if (!actor) return json({ error: 'Åtkomst nekad' }, 403);
+    const id = userPath[1];
+    const target = await db.prepare('SELECT id,email,display_name,disabled FROM auth_users WHERE id=?').bind(id).first();
+    if (!target) return json({ error: 'Användaren finns inte' }, 404);
+    if (request.method === 'DELETE') {
+      if (id === actor.user.id) return json({ error: 'Du kan inte ta bort ditt eget konto' }, 400);
+      const admin = await db.prepare("SELECT 1 AS allowed FROM auth_user_permissions WHERE user_id=? AND permission='users:manage'").bind(id).first();
+      if (admin) {
+        const count = await db.prepare("SELECT count(*) AS n FROM auth_user_permissions p JOIN auth_users u ON u.id=p.user_id WHERE p.permission='users:manage' AND u.disabled=0").first();
+        if (!target.disabled && count.n <= 1) return json({ error: 'Sista aktiva administratören kan inte tas bort' }, 400);
+      }
+      await db.batch([
+        db.prepare('DELETE FROM auth_sessions WHERE user_id=?').bind(id),
+        db.prepare('DELETE FROM auth_user_permissions WHERE user_id=?').bind(id),
+        db.prepare('DELETE FROM auth_team_memberships WHERE user_id=?').bind(id),
+        db.prepare('DELETE FROM auth_users WHERE id=?').bind(id)
+      ]);
+      return json({ ok: true });
+    }
+    let data;
+    try { data = await request.json(); } catch { return json({ error: 'Ogiltig JSON' }, 400); }
+    const email = String(data?.email || '').trim().toLowerCase();
+    const name = String(data?.name || '').trim();
+    if (!/^[^\\s@]+@[^\\s@]+\\.[^\\s@]+$/.test(email) || email.length > 254 || !name || name.length > 150)
+      return json({ error: 'Ange giltigt namn och e-postadress' }, 400);
+    const conflict = await db.prepare('SELECT id FROM auth_users WHERE email=? AND id<>?').bind(email,id).first();
+    if (conflict) return json({ error: 'E-postadressen används redan' }, 409);
+    await db.prepare('UPDATE auth_users SET email=?,display_name=? WHERE id=?').bind(email,name,id).run();
+    return json({ ok: true, id, email, name });
+  }
   return json({ error: 'Okänd autentiseringsadress' }, 404);
 }
 // Authorization is assigned to a person, never derived from a team or roster role.
