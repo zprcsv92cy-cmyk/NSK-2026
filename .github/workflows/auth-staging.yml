@@ -26,6 +26,11 @@ jobs:
       - name: Install Wrangler with native dependencies
         run: npm install --no-save --include=optional --ignore-scripts wrangler@4
         timeout-minutes: 3
+      - name: Initialize isolated lineup test table
+        run: ./node_modules/.bin/wrangler d1 execute nsk-auth-staging --remote --file worker/lineups-staging.sql --config wrangler.auth.staging.toml
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
       - name: Deploy isolated staging Worker
         run: ./node_modules/.bin/wrangler deploy --config wrangler.auth.staging.toml
         timeout-minutes: 3
