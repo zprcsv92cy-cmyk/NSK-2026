@@ -18,16 +18,27 @@ export async function handleActivation(request, env) {
     let body;
     try {body=await request.json();} catch {return json({error:'Ogiltig JSON'},400);}
     if (!validActivationToken(body?.token) || !validActivationPassword(body?.password)) return json({error:'Ogiltig kod eller lösenord (minst 12 tecken)'},400);
+    let stage='hash-token';
+    try {
     const hash=await digest(body.token);
+    stage='find-token';
     const row=await db.prepare("SELECT t.user_id FROM auth_setup_tokens t JOIN auth_users u ON u.id=t.user_id WHERE t.token_hash=? AND t.used_at IS NULL AND t.expires_at>datetime('now') AND u.disabled=1").bind(hash).first();
     if (!row) return json({error:'Koden är ogiltig eller har gått ut'},400);
+    stage='hash-password';
     const passwordHash=await hashPassword(body.password);
+    stage='claim-token';
     const claimResult=await db.prepare("UPDATE auth_setup_tokens SET used_at=datetime('now') WHERE token_hash=? AND used_at IS NULL AND expires_at>datetime('now') RETURNING user_id").bind(hash).all();
     const claim=claimResult.results?.[0];
     if (!claim) return json({error:'Koden har redan använts'},400);
+    stage='update-user';
     await db.prepare('UPDATE auth_users SET password_hash=?,disabled=0 WHERE id=? AND disabled=1').bind(passwordHash,claim.user_id).run();
+    stage='cleanup-token';
     await db.prepare('DELETE FROM auth_setup_tokens WHERE user_id=?').bind(claim.user_id).run();
     return json({ok:true});
+    } catch (err) {
+      console.error('Activation stage',stage,err);
+      return json({error:'Aktivering misslyckades',step:stage},500);
+    }
   }
   return json({error:'Okänd adress'},404);
 }
