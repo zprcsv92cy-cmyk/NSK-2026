@@ -160,7 +160,20 @@ export async function handleTeamAuth(request, env) {
     const target=await db.prepare('SELECT id,disabled,password_hash FROM auth_users WHERE id=?').bind(id).first();
     if (!target) return json({error:'Användaren finns inte'},404);
     if (id===actor.user.id && body.disabled) return json({error:'Du kan inte inaktivera dig själv'},400);
-    if (!body.disabled && !String(target.password_hash).startsWith('pbkdf2-sha256
+    if (!body.disabled && !String(target.password_hash).startsWith('pbkdf2-sha256$'))
+      return json({error:'Kontot måste aktiveras med en aktiveringskod först'},409);
+    if (body.disabled && !target.disabled) {
+      const admin=await db.prepare("SELECT 1 AS allowed FROM auth_user_permissions WHERE user_id=? AND permission='users:manage'").bind(id).first();
+      if (admin) {
+        const count=await db.prepare("SELECT count(*) AS n FROM auth_user_permissions p JOIN auth_users u ON u.id=p.user_id WHERE p.permission='users:manage' AND u.disabled=0").first();
+        if (count.n<=1) return json({error:'Sista aktiva administratören kan inte inaktiveras'},409);
+      }
+    }
+    await db.prepare('UPDATE auth_users SET disabled=? WHERE id=?').bind(body.disabled?1:0,id).run();
+    if (body.disabled) await db.prepare("UPDATE auth_sessions SET revoked_at=datetime('now') WHERE user_id=? AND revoked_at IS NULL").bind(id).run();
+    return json({ok:true,disabled:body.disabled});
+  }
+  const userPath = /^\\/api\\/auth\\/users\\/([a-f0-9-]{36})$/.exec(path);
   if (userPath && (request.method === 'PATCH' || request.method === 'DELETE')) {
     const actor = await requirePersonPermission(request, env, 'users:manage');
     if (!actor) return json({ error: 'Åtkomst nekad' }, 403);
