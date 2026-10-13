@@ -1,0 +1,26 @@
+<!doctype html>
+<html lang="sv"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Aktivera konto – NSK</title><link rel="stylesheet" href="../app.css"></head>
+<body><main class="card" style="max-width:460px;margin:3rem auto;padding:1.5rem">
+<h1>Aktivera konto</h1><p>Aktiveringskoden gäller i två timmar. Välj ett lösenord med minst 12 tecken.</p>
+<form id="form"><label>Aktiveringskod <input id="code" required autocomplete="off"></label>
+<label>Nytt lösenord <input id="password" type="password" required minlength="12" autocomplete="new-password"></label>
+<label>Bekräfta lösenord <input id="confirm" type="password" required minlength="12" autocomplete="new-password"></label>
+<button type="submit">Aktivera konto</button></form><p id="status" role="status"></p>
+<a href="../login/">Till inloggningen</a></main>
+<script>
+const api='https://nsk-auth-staging.peter-hasselberg.workers.dev';
+document.getElementById('form').addEventListener('submit',async e=>{
+ e.preventDefault();
+ const status=document.getElementById('status');
+ const password=document.getElementById('password').value;
+ if(password!==document.getElementById('confirm').value){status.textContent='Lösenorden matchar inte.';return;}
+ const button=e.target.querySelector('button');button.disabled=true;
+ try{
+  const response=await fetch(api+'/api/auth/activate',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({token:document.getElementById('code').value.trim(),password})});
+  const result=await response.json();
+  status.textContent=response.ok?'Kontot är aktiverat.':result.error||'Aktiveringen misslyckades.';
+  if(response.ok)e.target.reset();
+ }catch{status.textContent='Kunde inte kontakta testservern.';}
+ finally{document.getElementById('password').value='';document.getElementById('confirm').value='';button.disabled=false;}
+});
+</script></body></html>
