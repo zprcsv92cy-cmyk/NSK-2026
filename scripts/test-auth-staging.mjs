@@ -49,3 +49,12 @@ assert.equal(page.status, 200, 'Activation page status');
 assert.match(page.headers.get('content-type') || '', /text\/html/);
 assert.match(await page.text(), /Aktivera konto/);
 console.log('PASS GET /aktivera/ 200');
+
+const lineupPage = await fetch(base + '/laguppstallning/');
+assert.equal(lineupPage.status, 200, 'Lineup staging page status');
+assert.match(lineupPage.headers.get('content-type') || '', /text\/html/);
+const lineupHtml = await lineupPage.text();
+assert.match(lineupHtml, /TESTMILJÖ/);
+assert.match(lineupHtml, /api\/auth\/integration\/roster/);
+assert.match(lineupHtml, /lineup:edit/);
+console.log('PASS GET /laguppstallning/ 200');
