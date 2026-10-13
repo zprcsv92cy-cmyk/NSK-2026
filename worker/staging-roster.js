@@ -7,6 +7,7 @@ export async function stagingRoster(request,db,actor,json) {
   const rows=await db.prepare('SELECT id,kind,name FROM auth_roster_staging WHERE team_id=? ORDER BY kind,name').bind('NSK Team 18').all();
   return json({rows:rows.results||[],canManage});
  }
+ if(!['POST','PATCH','DELETE'].includes(request.method))return json({error:'Metoden stöds inte'},405);
  if(!canManage)return json({error:'Saknar behörighet att ändra Truppen'},403);
  if(path==='/api/auth/roster-staging'&&request.method==='POST'){
   let data;try{data=await request.json()}catch{return json({error:'Ogiltig JSON'},400)}
