@@ -68,7 +68,7 @@ export async function handleTeamAuth(request, env) {
     if (token) await db.prepare("UPDATE auth_sessions SET revoked_at=datetime('now') WHERE token_hash=? AND revoked_at IS NULL").bind(await sha256(token)).run();
     return json({ ok: true });
   }
-  const activationIssue = /^\\/api\\/auth\\/users\\/([a-f0-9-]{36})\\/setup-token$/.exec(path);
+  const activationIssue = new RegExp('^/api/auth/users/([a-f0-9-]{36})/setup-token$').exec(path);
   if (activationIssue && request.method === 'POST') {
     const actor = await requirePersonPermission(request, env, 'users:manage');
     if (!actor) return json({ error: 'Åtkomst nekad' }, 403);
