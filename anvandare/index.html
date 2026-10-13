@@ -1,0 +1,64 @@
+<!doctype html>
+<html lang="sv"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Användarbehörigheter – NSK</title><link rel="stylesheet" href="../app.css">
+<style>main{max-width:720px;margin:2rem auto;padding:1rem}fieldset{border:0;padding:0}label.permission{display:flex;align-items:center;gap:12px;padding:10px 0}label.permission input{width:22px;height:22px}select{max-width:100%;padding:10px}#message{min-height:2em}</style></head>
+<body><main><h1>Användarbehörigheter</h1><p>Behörigheter tilldelas varje person och gäller oberoende av lag.</p>
+<p><a href="../startsida/">Till startsidan</a></p>
+<section id="editor" hidden><label for="person">Välj person</label> <select id="person"></select>
+<form id="permissionsForm"><fieldset id="grants"><legend>Funktioner personen får använda</legend></fieldset>
+<button type="submit">Spara behörigheter</button></form></section>
+<p id="message" role="status" aria-live="polite">Kontrollerar behörighet…</p></main>
+<script src="../config.js"></script><script src="../auth.js"></script><script>
+const choices=[
+ ['read','Läsbehörighet'],['pool:create','Skapa poolspel'],
+ ['lineup:edit','Ändra laguppställning'],['shifts:check','Checka byten'],
+ ['match:manage','Hantera matchvy'],['pool:finish','Avsluta poolspel'],
+ ['pool:reopen','Återöppna poolspel'],['roster:manage','Hantera truppen'],
+ ['users:manage','Hantera användare']
+];
+const api=window.APP_CONFIG?.API_URL||'https://nsk-api.peter-hasselberg.workers.dev';
+const message=document.getElementById('message');
+const select=document.getElementById('person');
+const grants=document.getElementById('grants');
+let users=[];
+function draw(){
+ const user=users.find(u=>u.id===select.value);
+ grants.replaceChildren();
+ if(!user)return;
+ for(const [key,title] of choices){
+  const label=document.createElement('label');label.className='permission';
+  const input=document.createElement('input');input.type='checkbox';input.value=key;
+  input.checked=user.permissions.includes(key);
+  label.append(input,document.createTextNode(title));grants.append(label);
+ }
+}
+async function request(path,options={}){
+ const response=await fetch(api+path,{...options,headers:{...options.headers,Authorization:'Bearer '+Auth.getToken()},cache:'no-store'});
+ const data=await response.json().catch(()=>({}));
+ if(!response.ok)throw new Error(data.error||'Begäran misslyckades');
+ return data;
+}
+(async()=>{
+ try{
+  const session=await Auth.init();
+  if(!session){location.replace('../login/');return;}
+  if(!Auth.can('users:manage')){message.textContent='Du saknar behörighet att hantera användare.';return;}
+  const data=await request('/api/auth/users');users=data.users;
+  for(const user of users){const option=document.createElement('option');option.value=user.id;option.textContent=user.name+' ('+user.email+')';select.append(option);}
+  select.addEventListener('change',draw);draw();
+  document.getElementById('editor').hidden=false;message.textContent='';
+ }catch(error){message.textContent=error.message;}
+})();
+document.getElementById('permissionsForm').addEventListener('submit',async event=>{
+ event.preventDefault();const id=select.value;if(!id)return;
+ const permissions=[...grants.querySelectorAll('input:checked')].map(x=>x.value);
+ message.textContent='Sparar…';
+ try{
+  const result=await request('/api/auth/users/'+encodeURIComponent(id)+'/permissions',{
+   method:'PUT',headers:{'content-type':'application/json'},body:JSON.stringify({permissions})
+  });
+  const user=users.find(u=>u.id===id);user.permissions=result.permissions;
+  message.textContent='Behörigheterna är sparade.';
+ }catch(error){message.textContent=error.message;}
+});
+</script></body></html>
