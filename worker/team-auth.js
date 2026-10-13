@@ -67,6 +67,35 @@ export async function handleTeamAuth(request, env) {
     if (token) await db.prepare("UPDATE auth_sessions SET revoked_at=datetime('now') WHERE token_hash=? AND revoked_at IS NULL").bind(await sha256(token)).run();
     return json({ ok: true });
   }
+  // Personal permission administration: only users with users:manage can edit grants.
+  if (path === '/api/auth/users' && request.method === 'GET') {
+    const actor = await requirePersonPermission(request, env, 'users:manage');
+    if (!actor) return json({ error: 'Åtkomst nekad' }, 403);
+    const users = await db.prepare('SELECT id,email,display_name,disabled FROM auth_users ORDER BY display_name').all();
+    const grants = await db.prepare('SELECT user_id,permission FROM auth_user_permissions').all();
+    return json({ users: (users.results || []).map(u => ({
+      id: u.id, email: u.email, name: u.display_name, disabled: !!u.disabled,
+      permissions: (grants.results || []).filter(p => p.user_id === u.id).map(p => p.permission)
+    })) });
+  }
+  const permissionPath = /^\\/api\\/auth\\/users\\/([a-f0-9-]{36})\\/permissions$/.exec(path);
+  if (permissionPath && request.method === 'PUT') {
+    const actor = await requirePersonPermission(request, env, 'users:manage');
+    if (!actor) return json({ error: 'Åtkomst nekad' }, 403);
+    let data;
+    try { data = await request.json(); } catch { return json({ error: 'Ogiltig JSON' }, 400); }
+    const allowed = ['read','pool:create','lineup:edit','shifts:check','match:manage','pool:finish','pool:reopen','roster:manage','users:manage'];
+    if (!Array.isArray(data?.permissions) || data.permissions.some(p => !allowed.includes(p)) ||
+        new Set(data.permissions).size !== data.permissions.length) return json({ error: 'Ogiltiga behörigheter' }, 400);
+    const target = await db.prepare('SELECT id FROM auth_users WHERE id=?').bind(permissionPath[1]).first();
+    if (!target) return json({ error: 'Användaren finns inte' }, 404);
+    if (target.id === actor.user.id && !data.permissions.includes('users:manage'))
+      return json({ error: 'Du kan inte ta bort din egen användaradministration' }, 400);
+    const statements = [db.prepare('DELETE FROM auth_user_permissions WHERE user_id=?').bind(target.id),
+      ...data.permissions.map(p => db.prepare('INSERT INTO auth_user_permissions(user_id,permission) VALUES(?,?)').bind(target.id,p))];
+    await db.batch(statements);
+    return json({ ok: true, permissions: data.permissions });
+  }
   return json({ error: 'Okänd autentiseringsadress' }, 404);
 }
 // Authorization is assigned to a person, never derived from a team or roster role.
