@@ -173,7 +173,7 @@ export async function handleTeamAuth(request, env) {
     if (body.disabled) await db.prepare("UPDATE auth_sessions SET revoked_at=datetime('now') WHERE user_id=? AND revoked_at IS NULL").bind(id).run();
     return json({ok:true,disabled:body.disabled});
   }
-  const userPath = /^\\/api\\/auth\\/users\\/([a-f0-9-]{36})$/.exec(path);
+  const userPath = /^\/api\/auth\/users\/([a-f0-9-]{36})$/.exec(path);
   if (userPath && (request.method === 'PATCH' || request.method === 'DELETE')) {
     const actor = await requirePersonPermission(request, env, 'users:manage');
     if (!actor) return json({ error: 'Åtkomst nekad' }, 403);
