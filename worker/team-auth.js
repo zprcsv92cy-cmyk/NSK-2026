@@ -1,3 +1,4 @@
+import { legacyRosterAdapter } from './staging-legacy-roster-adapter.js';
 import { issueActivationToken } from './account-activation.js';
 import { stagingRoster } from './staging-roster.js';
 // Cloudflare Worker module. Mount under /api/auth/* after configuring AUTH_DB D1.
@@ -84,6 +85,7 @@ export async function handleTeamAuth(request, env) {
     const allowed = actor.permissions.includes(permissions[feature]);
     return json({ feature, allowed, permission: permissions[feature] });
   }
+  if (path === '/api/auth/integration/roster') return legacyRosterAdapter(request, db, await identity(db,request), json);
   if (path === '/api/auth/roster-staging' || path.startsWith('/api/auth/roster-staging/')) return stagingRoster(request, db, await identity(db,request), json);
   // Staging-only write gate. No roster records are changed by this probe.
   if (path === '/api/auth/roster-write-check' && request.method === 'POST') {
