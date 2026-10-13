@@ -105,6 +105,17 @@ export async function handleTeamAuth(request, env) {
     const result = await issueActivationToken(db, activationIssue[1]);
     return json(result, result.status || 200);
   }
+  // Staging-only, idempotent second-team fixture for the existing test administrator.
+  if (path === '/api/auth/staging/add-second-team' && request.method === 'POST') {
+    const actor = await identity(db, request);
+    if (!actor || actor.user.id !== 'f7c1c5b1-0dbb-45db-9f5b-88281bcac13e' ||
+        !actor.permissions.includes('users:manage') ||
+        !actor.memberships.some(m => m.team_id === 'NSK Team 18' && m.role === 'team_admin'))
+      return json({ error: 'Åtkomst nekad' }, 403);
+    await db.prepare("INSERT INTO auth_team_memberships(user_id,team_id,role) VALUES(?,?,?) ON CONFLICT(user_id,team_id) DO NOTHING")
+      .bind(actor.user.id, 'NSK Testlag 2', 'viewer').run();
+    return json({ ok: true, team_id: 'NSK Testlag 2', role: 'viewer' });
+  }
   // Team membership administration is separate from personal permissions.
   if (path === '/api/auth/team-members' && request.method === 'GET') {
     const actor = await requirePersonPermission(request, env, 'users:manage');
