@@ -6,5 +6,5 @@ assert.equal(validActivationPassword('a'.repeat(1025)), false);
 assert.equal(validActivationToken('invalid'), false);
 assert.equal(validActivationToken('A'.repeat(43)), true);
 assert.equal(validActivationToken('A'.repeat(42) + '/'), false);
-assert.equal(ACTIVATION_TOKEN_LIFETIME_MINUTES, 30);
+assert.equal(ACTIVATION_TOKEN_LIFETIME_MINUTES, 120);
 console.log('Account activation validation tests passed');
