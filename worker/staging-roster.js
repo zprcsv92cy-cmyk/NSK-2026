@@ -18,7 +18,7 @@ export async function stagingRoster(request,db,actor,json) {
   const kind=String(data.kind||''),name=String(data.name||'').trim();
   if(!['player','coach','team_manager','fitness','equipment'].includes(kind)||!name||name.length>120)return json({error:'Ogiltig roll eller namn'},400);
   const id=crypto.randomUUID();
-  await db.prepare('INSERT INTO auth_roster_staging(id,team_id,kind,name) VALUES(?,?,?,?)').bind(id,'NSK Team 18',kind,name).run();
+  await db.prepare('INSERT INTO auth_roster_staging(id,team_id,kind,name) VALUES(?,?,?,?)').bind(id,teamId,kind,name).run();
   return json({ok:true,id},201);
  }
  const match=/^\/api\/auth\/roster-staging\/([0-9a-f-]{36})$/.exec(path);
@@ -26,11 +26,11 @@ export async function stagingRoster(request,db,actor,json) {
   let data;try{data=await request.json()}catch{return json({error:'Ogiltig JSON'},400)}
   const name=String(data.name||'').trim();
   if(!name||name.length>120)return json({error:'Ogiltigt namn'},400);
-  const result=await db.prepare('UPDATE auth_roster_staging SET name=? WHERE id=? AND team_id=?').bind(name,match[1],'NSK Team 18').run();
+  const result=await db.prepare('UPDATE auth_roster_staging SET name=? WHERE id=? AND team_id=?').bind(name,match[1],teamId).run();
   return result.meta.changes?json({ok:true}):json({error:'Hittades inte'},404);
  }
  if(match&&request.method==='DELETE'){
-  const result=await db.prepare('DELETE FROM auth_roster_staging WHERE id=? AND team_id=?').bind(match[1],'NSK Team 18').run();
+  const result=await db.prepare('DELETE FROM auth_roster_staging WHERE id=? AND team_id=?').bind(match[1],teamId).run();
   return result.meta.changes?json({ok:true}):json({error:'Hittades inte'},404);
  }
  return json({error:'Okänd begäran'},404);
