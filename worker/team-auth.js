@@ -20,7 +20,7 @@ async function verifyPassword(password, stored) {
   const parts = String(stored || '').split('$');
   if (parts.length !== 4 || parts[0] !== 'pbkdf2-sha256') return false;
   const iterations = Number(parts[1]);
-  if (!Number.isSafeInteger(iterations) || iterations < 600000 || iterations > 2000000) return false;
+  if (!Number.isSafeInteger(iterations) || iterations < 100000 || iterations > 2000000) return false;
   const salt = parts[2], expected = parts[3];
   if (!/^[a-f0-9]{32,128}$/.test(salt) || !/^[a-f0-9]{64}$/.test(expected)) return false;
   const key = await crypto.subtle.importKey('raw', encode(password), 'PBKDF2', false, ['deriveBits']);
