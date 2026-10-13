@@ -128,7 +128,7 @@ export async function handleTeamAuth(request, env) {
     if (!actor) return json({error:'Åtkomst nekad'},403);
     let data; try {data=await request.json();} catch {return json({error:'Ogiltig JSON'},400);}
     const roles=['team_admin','coach','team_manager','fitness','equipment','player','viewer'];
-    if (!/^[a-f0-9-]{36}$/.test(data?.user_id||'') || data?.team_id!=='NSK Team 18' || !roles.includes(data?.role))
+    if (!/^[a-f0-9-]{36}$/.test(data?.user_id||'') || (!['NSK Team 18','NSK Testlag 2'].includes(data?.team_id)) || !roles.includes(data?.role))
       return json({error:'Ogiltigt lag, användare eller roll'},400);
     const user=await db.prepare('SELECT id FROM auth_users WHERE id=?').bind(data.user_id).first();
     if (!user) return json({error:'Användaren finns inte'},404);
