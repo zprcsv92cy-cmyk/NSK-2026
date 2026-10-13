@@ -40,7 +40,8 @@ async function identity(db, request) {
     .bind(hash).first();
   if (!user) return null;
   const memberships = await db.prepare('SELECT team_id, role FROM auth_team_memberships WHERE user_id=?').bind(user.id).all();
-  return { user: { id: user.id, name: user.display_name }, memberships: memberships.results || [] };
+  const grants = await db.prepare('SELECT permission FROM auth_user_permissions WHERE user_id=?').bind(user.id).all();
+  return { user: { id: user.id, name: user.display_name }, memberships: memberships.results || [], permissions: (grants.results || []).map(row => row.permission) };
 }
 export async function handleTeamAuth(request, env) {
   if (!env.AUTH_DB) return json({ error: 'Autentisering är inte konfigurerad' }, 503);
@@ -68,15 +69,14 @@ export async function handleTeamAuth(request, env) {
   }
   return json({ error: 'Okänd autentiseringsadress' }, 404);
 }
+// Authorization is assigned to a person, never derived from a team or roster role.
+export async function requirePersonPermission(request, env, permission) {
+  if (!env.AUTH_DB) return null;
+  const person = await identity(env.AUTH_DB, request);
+  return person?.permissions.includes(permission) ? person : null;
+}
+
+// Legacy signature retained for callers; teamId does not grant rights.
 export async function requireTeamPermission(request, env, teamId, permission) {
-  const user = await identity(env.AUTH_DB, request);
-  if (!user) return null;
-  const matrix = {
-    owner: ['team:read','team:write','members:manage','users:manage'],
-    team_admin: ['team:read','team:write','members:manage'],
-    coach: ['team:read','team:write'],
-    team_manager: ['team:read','team:write'],
-    fitness: ['team:read'], equipment: ['team:read'], viewer: ['team:read']
-  };
-  return user.memberships.some(m => String(m.team_id) === String(teamId) && matrix[m.role]?.includes(permission)) ? user : null;
+  return requirePersonPermission(request, env, permission);
 }
