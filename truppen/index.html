@@ -63,7 +63,7 @@
       <div class="home-hero-text">
         <h1>Truppen</h1>
         <div class="home-hero-sub">
-          Spelare, tränare och import av backup
+          Spelare, tränare, lagledare, fysansvarig och materialförvaltare
         </div>
       </div>
     </section>
@@ -143,6 +143,9 @@
     </section>
 
 
+    <section class="card roster-card"><h2>Lagledare</h2><div class="btnrow roster-add-row"><input id="leaderInput" type="text" placeholder="Namn på lagledare"><button id="leaderAdd" type="button" class="row-btn nsk-action nsk-action--primary">Lägg till</button></div><div id="leaderList"></div></section>
+    <section class="card roster-card"><h2>Fysansvarig</h2><div class="btnrow roster-add-row"><input id="fitnessInput" type="text" placeholder="Namn på fysansvarig"><button id="fitnessAdd" type="button" class="row-btn nsk-action nsk-action--primary">Lägg till</button></div><div id="fitnessList"></div></section>
+    <section class="card roster-card"><h2>Materialförvaltare</h2><div class="btnrow roster-add-row"><input id="equipmentInput" type="text" placeholder="Namn på materialförvaltare"><button id="equipmentAdd" type="button" class="row-btn nsk-action nsk-action--primary">Lägg till</button></div><div id="equipmentList"></div></section>
     <div id="appError" class="small"></div>
 
   </div>
@@ -173,6 +176,17 @@
  }
  document.addEventListener('DOMContentLoaded',()=>{sync();setInterval(sync,15000);const observer=new MutationObserver(()=>{const allowed=document.body.classList.contains('nsk-roster-admin');document.querySelectorAll('#playersList .inline-name-input').forEach(e=>e.readOnly=!allowed);document.querySelectorAll('#coachesList .inline-name-input').forEach(e=>e.readOnly=!allowed)});observer.observe(document.getElementById('playersList'),{childList:true,subtree:true});observer.observe(document.getElementById('coachesList'),{childList:true,subtree:true});});
  window.addEventListener('storage',sync);window.addEventListener('focus',sync);
+})();
+</script>
+<script>
+(function(){
+ const roles=[["Lagledare","leader"],["Fysansvarig","fitness"],["Materialförvaltare","equipment"]];
+ const css=document.createElement('style');css.textContent=roles.map(([r,id])=>`.roster-page #${id}List{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px}@media(max-width:700px){.roster-page #${id}List{grid-template-columns:minmax(0,1fr)}}`).join('');document.head.appendChild(css);
+ const esc=s=>String(s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+ let allowed=false;
+ async function render(role,id){const list=document.getElementById(id+'List');try{const rows=await DB.listStaff(role);list.innerHTML=rows.length?rows.map(r=>`<div class="person-row"><div class="person-main"><input class="inline-name-input" data-staff-id="${esc(r.id)}" value="${esc(r.full_name)}" ${allowed?'':'readonly'}></div></div>`).join(''):'<div class="muted-note">Inga registrerade ännu.</div>';list.querySelectorAll('[data-staff-id]').forEach(inp=>inp.addEventListener('change',async()=>{try{await DB.updateStaff(role,inp.dataset.staffId,inp.value.trim());await render(role,id)}catch(e){alert(e.message)}}))}catch(e){list.textContent=e.message}}
+ async function sync(){const token=localStorage.getItem('nsk_admin_token');allowed=false;if(token)try{const r=await fetch((window.APP_CONFIG?.API_URL||'https://nsk-api.peter-hasselberg.workers.dev')+'/api/admin/status',{headers:{Authorization:'Bearer '+token},cache:'no-store'});allowed=r.ok&&(await r.json()).admin===true}catch{}for(const [role,id] of roles){document.getElementById(id+'Input').disabled=!allowed;document.getElementById(id+'Add').disabled=!allowed;document.querySelectorAll('#'+id+'List input').forEach(el=>el.readOnly=!allowed)}}
+ document.addEventListener('DOMContentLoaded',async()=>{for(const [role,id] of roles){document.getElementById(id+'Add').addEventListener('click',async()=>{const inp=document.getElementById(id+'Input');if(!inp.value.trim())return;try{await DB.addStaff(role,inp.value.trim());inp.value='';await render(role,id)}catch(e){alert(e.message)}});await render(role,id)}await sync();window.addEventListener('focus',sync);window.addEventListener('storage',sync);setInterval(sync,15000)})
 })();
 </script>
 </body>
