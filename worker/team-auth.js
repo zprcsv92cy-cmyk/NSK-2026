@@ -75,6 +75,25 @@ export async function handleTeamAuth(request, env) {
     const result = await issueActivationToken(db, activationIssue[1]);
     return json(result, result.status || 200);
   }
+  // Team membership administration is separate from personal permissions.
+  if (path === '/api/auth/team-members' && request.method === 'GET') {
+    const actor = await requirePersonPermission(request, env, 'users:manage');
+    if (!actor) return json({error:'Åtkomst nekad'},403);
+    const rows = await db.prepare('SELECT user_id,team_id,role FROM auth_team_memberships ORDER BY team_id,role').all();
+    return json({memberships:rows.results||[]});
+  }
+  if (path === '/api/auth/team-members' && request.method === 'PUT') {
+    const actor = await requirePersonPermission(request, env, 'users:manage');
+    if (!actor) return json({error:'Åtkomst nekad'},403);
+    let data; try {data=await request.json();} catch {return json({error:'Ogiltig JSON'},400);}
+    const roles=['team_admin','coach','team_manager','fitness','equipment','viewer'];
+    if (!/^[a-f0-9-]{36}$/.test(data?.user_id||'') || data?.team_id!=='NSK Team 18' || !roles.includes(data?.role))
+      return json({error:'Ogiltigt lag, användare eller roll'},400);
+    const user=await db.prepare('SELECT id FROM auth_users WHERE id=?').bind(data.user_id).first();
+    if (!user) return json({error:'Användaren finns inte'},404);
+    await db.prepare('INSERT INTO auth_team_memberships(user_id,team_id,role) VALUES(?,?,?) ON CONFLICT(user_id,team_id) DO UPDATE SET role=excluded.role').bind(data.user_id,data.team_id,data.role).run();
+    return json({ok:true});
+  }
   // Personal permission administration: only users with users:manage can edit grants.
   if (path === '/api/auth/users' && request.method === 'GET') {
     const actor = await requirePersonPermission(request, env, 'users:manage');
