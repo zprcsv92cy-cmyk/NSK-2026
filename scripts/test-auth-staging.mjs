@@ -8,6 +8,8 @@ if (!base || !/^https:\/\//.test(base)) {
 }
 const cases = [
   { path: '/api/auth/me', method: 'GET', expected: 401 },
+  { path: '/api/auth/lineups-staging?team_id=NSK%20Team%2018', method: 'GET', expected: 401 },
+  { path: '/api/auth/lineups-staging?team_id=NSK%20Team%2018', method: 'POST', body: {match_name:'Test',player_ids:[],coach_ids:[]}, expected: 401 },
   { path: '/api/auth/integration/roster?team_id=NSK%20Team%2018', method: 'GET', expected: 401 },
   { path: '/api/auth/integration/roster?team_id=NSK%20Testlag%202', method: 'GET', expected: 401 },
   { path: '/api/auth/integration/roster?team_id=NSK%20Team%2018', method: 'POST', expected: 401 },
