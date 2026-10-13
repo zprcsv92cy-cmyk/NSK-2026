@@ -18,7 +18,14 @@ export default {
         headers: { 'content-type': 'application/json; charset=utf-8', 'cache-control': 'no-store' }
       });
     }
-    if (url.pathname === '/api/auth/activate') return handleActivation(request, env);
+    if (url.pathname === '/api/auth/activate') {
+      try {
+        return await handleActivation(request, env);
+      } catch (error) {
+        console.error('Activation failure:', error);
+        return new Response(JSON.stringify({ error: 'Internt serverfel vid aktivering' }), { status: 500, headers: { 'content-type': 'application/json', 'cache-control': 'no-store' } });
+      }
+    }
     return handleTeamAuth(request, env);
   }
 };
