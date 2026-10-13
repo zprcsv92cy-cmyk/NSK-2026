@@ -1,3 +1,4 @@
+import { loginPage } from './login-page.js';
 import { bootstrapTestAccount } from './staging-bootstrap.js';
 import { bootstrapPage } from './bootstrap-page.js';
 import { activationPage } from './activation-page.js';
@@ -11,6 +12,9 @@ export default {
     if (url.pathname === '/api/auth/staging/bootstrap-test') return bootstrapTestAccount(request, env);
     if (url.pathname === '/aktivera/' || url.pathname === '/aktivera') {
       return new Response(activationPage, { headers: { 'content-type': 'text/html; charset=utf-8', 'cache-control': 'no-store', 'x-content-type-options': 'nosniff', 'referrer-policy': 'no-referrer', 'content-security-policy': "default-src 'none'; script-src 'unsafe-inline'; style-src 'unsafe-inline'; connect-src 'self'; form-action 'self'; base-uri 'none'; frame-ancestors 'none'" } });
+    }
+    if (url.pathname === '/logga-in/' || url.pathname === '/logga-in') {
+      return new Response(loginPage, { headers: { 'content-type': 'text/html; charset=utf-8', 'cache-control': 'no-store', 'x-content-type-options': 'nosniff', 'referrer-policy': 'no-referrer', 'content-security-policy': "default-src 'none'; script-src 'unsafe-inline'; style-src 'unsafe-inline'; connect-src 'self'; form-action 'self'; base-uri 'none'; frame-ancestors 'none'" } });
     }
     if (!url.pathname.startsWith('/api/auth/')) {
       return new Response(JSON.stringify({ error: 'Okänd adress' }), {
