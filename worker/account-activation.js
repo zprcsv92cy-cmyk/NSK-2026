@@ -7,7 +7,7 @@ function makeToken() { const b=crypto.getRandomValues(new Uint8Array(32)); retur
 async function hashPassword(value) {
   const salt=crypto.getRandomValues(new Uint8Array(16));
   const key=await crypto.subtle.importKey('raw',encode(value),'PBKDF2',false,['deriveBits']);
-  const rounds=600000;
+  const rounds=100000;
   const derived=await crypto.subtle.deriveBits({name:'PBKDF2',salt,iterations:rounds,hash:'SHA-256'},key,256);
   return 'pbkdf2-sha256$'+rounds+'$'+hex(salt)+'$'+hex(derived);
 }
