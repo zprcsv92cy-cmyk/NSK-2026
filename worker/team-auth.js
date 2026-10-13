@@ -78,7 +78,7 @@ export async function handleTeamAuth(request, env) {
       permissions: (grants.results || []).filter(p => p.user_id === u.id).map(p => p.permission)
     })) });
   }
-  const permissionPath = /^\\/api\\/auth\\/users\\/([a-f0-9-]{36})\\/permissions$/.exec(path);
+  const permissionPath = /^\/api\/auth\/users\/([a-f0-9-]{36})\/permissions$/.exec(path);
   if (permissionPath && request.method === 'PUT') {
     const actor = await requirePersonPermission(request, env, 'users:manage');
     if (!actor) return json({ error: 'Åtkomst nekad' }, 403);
@@ -104,7 +104,7 @@ export async function handleTeamAuth(request, env) {
     try { data = await request.json(); } catch { return json({ error: 'Ogiltig JSON' }, 400); }
     const email = String(data?.email || '').trim().toLowerCase();
     const name = String(data?.name || '').trim();
-    if (!/^[^\\s@]+@[^\\s@]+\\.[^\\s@]+$/.test(email) || email.length > 254 || !name || name.length > 150)
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email) || email.length > 254 || !name || name.length > 150)
       return json({ error: 'Ange giltigt namn och e-postadress' }, 400);
     const existing = await db.prepare('SELECT id FROM auth_users WHERE email=?').bind(email).first();
     if (existing) return json({ error: 'E-postadressen används redan' }, 409);
@@ -114,7 +114,7 @@ export async function handleTeamAuth(request, env) {
       .bind(id,email,name,'pending-setup').run();
     return json({ id, email, name, disabled: true, permissions: [], setup_required: true }, 201);
   }
-  const userPath = /^\\/api\\/auth\\/users\\/([a-f0-9-]{36})$/.exec(path);
+  const userPath = /^\/api\/auth\/users\/([a-f0-9-]{36})$/.exec(path);
   if (userPath && (request.method === 'PATCH' || request.method === 'DELETE')) {
     const actor = await requirePersonPermission(request, env, 'users:manage');
     if (!actor) return json({ error: 'Åtkomst nekad' }, 403);
@@ -140,7 +140,7 @@ export async function handleTeamAuth(request, env) {
     try { data = await request.json(); } catch { return json({ error: 'Ogiltig JSON' }, 400); }
     const email = String(data?.email || '').trim().toLowerCase();
     const name = String(data?.name || '').trim();
-    if (!/^[^\\s@]+@[^\\s@]+\\.[^\\s@]+$/.test(email) || email.length > 254 || !name || name.length > 150)
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email) || email.length > 254 || !name || name.length > 150)
       return json({ error: 'Ange giltigt namn och e-postadress' }, 400);
     const conflict = await db.prepare('SELECT id FROM auth_users WHERE email=? AND id<>?').bind(email,id).first();
     if (conflict) return json({ error: 'E-postadressen används redan' }, 409);
