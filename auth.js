@@ -30,8 +30,9 @@
       const response = await fetch(API + '/api/auth/me', {
         headers: { Authorization: 'Bearer ' + value }, cache: 'no-store'
       });
-      if (!response.ok) { session = null; return null; }
+      if (!response.ok) { session = null; if (response.status === 401 || response.status === 403) sessionStorage.removeItem(KEY); return null; }
       session = normalize(await response.json());
+      if (!session) sessionStorage.removeItem(KEY);
       return session;
     } catch { session = null; return null; }
   }
