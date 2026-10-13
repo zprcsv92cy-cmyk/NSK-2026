@@ -8,6 +8,9 @@ if (!base || !/^https:\/\//.test(base)) {
 }
 const cases = [
   { path: '/api/auth/me', method: 'GET', expected: 401 },
+  { path: '/api/auth/integration/roster?team_id=NSK%20Team%2018', method: 'GET', expected: 401 },
+  { path: '/api/auth/integration/roster?team_id=NSK%20Testlag%202', method: 'GET', expected: 401 },
+  { path: '/api/auth/integration/roster?team_id=NSK%20Team%2018', method: 'POST', expected: 401 },
   { path: '/api/auth/users', method: 'GET', expected: 403 },
   { path: '/api/auth/users', method: 'POST', body: {name:'Test',email:'test@example.invalid'}, expected: 403 },
   { path: '/api/auth/users/00000000-0000-4000-8000-000000000000', method: 'PATCH', body: {name:'Test',email:'test@example.invalid'}, expected: 403 },
