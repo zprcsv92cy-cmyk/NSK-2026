@@ -4,7 +4,9 @@ export async function stagingRoster(request,db,actor,json) {
  const teamId=url.searchParams.get('team_id');
  if(!teamId || teamId.length>100) return json({error:'Välj ett giltigt lag'},400);
  if(!actor.memberships.some(m=>m.team_id===teamId)) return json({error:'Saknar lagmedlemskap'},403);
- const canManage=actor.permissions.includes('roster:manage');
+ const teamRole=actor.memberships.find(m=>m.team_id===teamId)?.role;
+ // A personal grant alone never authorizes edits in another team.
+ const canManage=teamRole==='team_admin' && actor.permissions.includes('roster:manage');
  if(path==='/api/auth/roster-staging'&&request.method==='GET'){
   const rows=await db.prepare('SELECT id,kind,name FROM auth_roster_staging WHERE team_id=? ORDER BY kind,name').bind(teamId).all();
   return json({rows:rows.results||[],canManage});
