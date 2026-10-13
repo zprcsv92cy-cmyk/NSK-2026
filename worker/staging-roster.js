@@ -1,6 +1,8 @@
 export async function stagingRoster(request,db,actor,json) {
  const url=new URL(request.url), path=url.pathname;
  if(!actor) return json({error:'Inte inloggad'},401);
+ const teamId=url.searchParams.get('team_id');
+ if(teamId!=='NSK Team 18') return json({error:'Okänt eller ej valt lag'},403);
  if(!actor.memberships.some(m=>m.team_id==='NSK Team 18')) return json({error:'Saknar lagmedlemskap'},403);
  const canManage=actor.permissions.includes('roster:manage');
  if(path==='/api/auth/roster-staging'&&request.method==='GET'){
