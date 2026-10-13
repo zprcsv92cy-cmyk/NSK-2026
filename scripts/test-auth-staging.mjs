@@ -15,6 +15,8 @@ const cases = [
   { path: '/api/auth/users/00000000-0000-4000-8000-000000000000/permissions', method: 'PUT', body: {permissions:['read']}, expected: 403 },
   { path: '/api/auth/users/00000000-0000-4000-8000-000000000000/setup-token', method: 'POST', expected: 403 },
   { path: '/api/auth/activate', method: 'POST', body: {token:'invalid',password:'invalid'}, expected: 400 },
+  { path: '/api/auth/roster-staging', method: 'GET', expected: 401 },
+  { path: '/api/auth/roster-staging', method: 'POST', body: {kind:'player',name:'Test'}, expected: 401 },
   { path: '/api/auth/logout', method: 'POST', expected: 200 },
   { path: '/api/auth/login', method: 'POST', body: { email: 'nonexistent@example.invalid', password: 'not-a-valid-password' }, expected: 401 },
   { path: '/api/auth/login', method: 'POST', body: '{', raw: true, expected: 400 },
