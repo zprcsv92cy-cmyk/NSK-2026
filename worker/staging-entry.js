@@ -1,4 +1,5 @@
 import { handleTeamAuth } from './team-auth.js';
+import { handleActivation } from './account-activation.js';
 
 export default {
   async fetch(request, env) {
@@ -9,6 +10,7 @@ export default {
         headers: { 'content-type': 'application/json; charset=utf-8', 'cache-control': 'no-store' }
       });
     }
+    if (url.pathname === '/api/auth/activate') return handleActivation(request, env);
     return handleTeamAuth(request, env);
   }
 };
