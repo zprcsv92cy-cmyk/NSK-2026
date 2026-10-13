@@ -91,6 +91,15 @@ export async function handleTeamAuth(request, env) {
     if (!target) return json({ error: 'Användaren finns inte' }, 404);
     if (target.id === actor.user.id && !data.permissions.includes('users:manage'))
       return json({ error: 'Du kan inte ta bort din egen användaradministration' }, 400);
+    if (!data.permissions.includes('users:manage')) {
+      const oldAdmin = await db.prepare("SELECT 1 AS allowed FROM auth_user_permissions WHERE user_id=? AND permission='users:manage'").bind(target.id).first();
+      if (oldAdmin) {
+        const active = await db.prepare("SELECT count(*) AS n FROM auth_user_permissions p JOIN auth_users u ON u.id=p.user_id WHERE p.permission='users:manage' AND u.disabled=0").first();
+        const targetUser = await db.prepare('SELECT disabled FROM auth_users WHERE id=?').bind(target.id).first();
+        if (!targetUser.disabled && active.n <= 1)
+          return json({ error: 'Sista aktiva administratörens behörighet kan inte tas bort' }, 400);
+      }
+    }
     const statements = [db.prepare('DELETE FROM auth_user_permissions WHERE user_id=?').bind(target.id),
       ...data.permissions.map(p => db.prepare('INSERT INTO auth_user_permissions(user_id,permission) VALUES(?,?)').bind(target.id,p))];
     await db.batch(statements);
