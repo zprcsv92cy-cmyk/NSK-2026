@@ -1,0 +1,10 @@
+import assert from 'node:assert/strict';
+import { validActivationPassword, validActivationToken, ACTIVATION_TOKEN_LIFETIME_MINUTES } from '../worker/account-activation-validation.js';
+assert.equal(validActivationPassword('short'), false);
+assert.equal(validActivationPassword('twelvechars!'), true);
+assert.equal(validActivationPassword('a'.repeat(1025)), false);
+assert.equal(validActivationToken('invalid'), false);
+assert.equal(validActivationToken('A'.repeat(43)), true);
+assert.equal(validActivationToken('A'.repeat(42) + '/'), false);
+assert.equal(ACTIVATION_TOKEN_LIFETIME_MINUTES, 30);
+console.log('Account activation validation tests passed');
