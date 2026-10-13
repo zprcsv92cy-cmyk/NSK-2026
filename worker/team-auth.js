@@ -132,6 +132,12 @@ export async function handleTeamAuth(request, env) {
       return json({error:'Ogiltigt lag, användare eller roll'},400);
     const user=await db.prepare('SELECT id FROM auth_users WHERE id=?').bind(data.user_id).first();
     if (!user) return json({error:'Användaren finns inte'},404);
+    const previous = await db.prepare('SELECT role FROM auth_team_memberships WHERE user_id=? AND team_id=?').bind(data.user_id,data.team_id).first();
+    if (previous?.role === 'team_admin' && data.role !== 'team_admin') {
+      if (data.user_id === actor.user.id) return json({error:'Du kan inte ta bort din egen lagadministratörsroll'},400);
+      const count = await db.prepare("SELECT count(*) AS n FROM auth_team_memberships m JOIN auth_users u ON u.id=m.user_id WHERE m.team_id=? AND m.role='team_admin' AND u.disabled=0").bind(data.team_id).first();
+      if (count.n <= 1) return json({error:'Den sista aktiva lagadministratören kan inte tas bort'},400);
+    }
     await db.prepare('INSERT INTO auth_team_memberships(user_id,team_id,role) VALUES(?,?,?) ON CONFLICT(user_id,team_id) DO UPDATE SET role=excluded.role').bind(data.user_id,data.team_id,data.role).run();
     return json({ok:true});
   }
