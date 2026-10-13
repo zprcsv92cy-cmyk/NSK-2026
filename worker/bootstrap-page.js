@@ -1,1 +1,1 @@
-export const bootstrapPage = `<!doctype html><html lang="sv"><meta charset="utf-8"><title>NSK testkonto</title><h1>Skapa testkod</h1><p>För att skapa engångskoden, använd det skyddade API-anropet från en behörig administratör.</p></html>`;
+export const bootstrapPage = `<!doctype html><html lang="sv"><meta charset="utf-8"><title>NSK testkonto</title><h1>Skapa testkod</h1><form id="setup"><label>Nyckel <input type="password" id="key"></label><button>Skapa kod</button></form><p id="status"></p></html>`;
