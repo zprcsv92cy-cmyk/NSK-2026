@@ -8,6 +8,11 @@ if (!base || !/^https:\/\//.test(base)) {
 }
 const cases = [
   { path: '/api/auth/me', method: 'GET', expected: 401 },
+  { path: '/api/auth/users', method: 'GET', expected: 403 },
+  { path: '/api/auth/users', method: 'POST', body: {name:'Test',email:'test@example.invalid'}, expected: 403 },
+  { path: '/api/auth/users/00000000-0000-4000-8000-000000000000', method: 'PATCH', body: {name:'Test',email:'test@example.invalid'}, expected: 403 },
+  { path: '/api/auth/users/00000000-0000-4000-8000-000000000000', method: 'DELETE', expected: 403 },
+  { path: '/api/auth/users/00000000-0000-4000-8000-000000000000/permissions', method: 'PUT', body: {permissions:['read']}, expected: 403 },
   { path: '/api/auth/logout', method: 'POST', expected: 200 },
   { path: '/api/auth/login', method: 'POST', body: { email: 'nonexistent@example.invalid', password: 'not-a-valid-password' }, expected: 401 },
   { path: '/api/auth/login', method: 'POST', body: '{', raw: true, expected: 400 },
