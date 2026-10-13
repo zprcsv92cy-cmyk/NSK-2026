@@ -63,6 +63,26 @@ export async function handleTeamAuth(request, env) {
     const user = await identity(db, request);
     return user ? json(user) : json({ error: 'Inte inloggad' }, 401);
   }
+  // Staging access check for NSK features. Deny by default; personal grants are authoritative.
+  if (path === '/api/auth/feature-access' && request.method === 'GET') {
+    const actor = await identity(db, request);
+    if (!actor) return json({ error: 'Inte inloggad' }, 401);
+    const feature = url.searchParams.get('feature');
+    const permissions = {
+      roster: 'roster:manage',
+      pool: 'pool:create',
+      lineup: 'lineup:edit',
+      shifts: 'shifts:check',
+      matches: 'match:manage',
+      pool_finish: 'pool:finish',
+      pool_reopen: 'pool:reopen',
+      users: 'users:manage'
+    };
+    if (!Object.prototype.hasOwnProperty.call(permissions, feature))
+      return json({ error: 'Okänd funktion' }, 400);
+    const allowed = actor.permissions.includes(permissions[feature]);
+    return json({ feature, allowed, permission: permissions[feature] });
+  }
   if (path === '/api/auth/logout' && request.method === 'POST') {
     const token = bearer(request);
     if (token) await db.prepare("UPDATE auth_sessions SET revoked_at=datetime('now') WHERE token_hash=? AND revoked_at IS NULL").bind(await sha256(token)).run();
