@@ -83,6 +83,14 @@ export async function handleTeamAuth(request, env) {
     const allowed = actor.permissions.includes(permissions[feature]);
     return json({ feature, allowed, permission: permissions[feature] });
   }
+  // Staging-only write gate. No roster records are changed by this probe.
+  if (path === '/api/auth/roster-write-check' && request.method === 'POST') {
+    const actor = await identity(db, request);
+    if (!actor) return json({ error: 'Inte inloggad' }, 401);
+    if (!actor.permissions.includes('roster:manage'))
+      return json({ error: 'Saknar behörighet att ändra Truppen' }, 403);
+    return json({ ok: true, allowed: true, simulated: true });
+  }
   if (path === '/api/auth/logout' && request.method === 'POST') {
     const token = bearer(request);
     if (token) await db.prepare("UPDATE auth_sessions SET revoked_at=datetime('now') WHERE token_hash=? AND revoked_at IS NULL").bind(await sha256(token)).run();
