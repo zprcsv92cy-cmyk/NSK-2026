@@ -1,4 +1,5 @@
 import { browserModuleText } from './legacy-db-guard-source.js';
+import { integrationStatusPage } from './integration-status-page.js';
 import { legacyDbGuardTestPage } from './legacy-db-guard-test-page.js';
 import { existingTruppenLayoutPage } from './existing-truppen-layout-page.js';
 import { legacyTruppenTestPage } from './legacy-truppen-test-page.js';
@@ -15,6 +16,7 @@ import { handleActivation } from './account-activation.js';
 export default {
   async fetch(request, env) {
     const url = new URL(request.url);
+    if (url.pathname === '/integrationsstatus/' || url.pathname === '/integrationsstatus') return new Response(integrationStatusPage,{headers:{'content-type':'text/html; charset=utf-8','cache-control':'no-store','x-content-type-options':'nosniff','content-security-policy':"default-src 'none'; style-src 'unsafe-inline'; base-uri 'none'; frame-ancestors 'none'"}});
     if (url.pathname === '/staging/legacy-db-auth-guard.js') return new Response(browserModuleText,{headers:{'content-type':'text/javascript; charset=utf-8','cache-control':'no-store','x-content-type-options':'nosniff'}});
     if (url.pathname === '/datalager-behorighet/' || url.pathname === '/datalager-behorighet') return new Response(legacyDbGuardTestPage,{headers:{'content-type':'text/html; charset=utf-8','cache-control':'no-store','x-content-type-options':'nosniff','content-security-policy':"default-src 'none'; script-src 'self' 'unsafe-inline'; style-src 'unsafe-inline'; connect-src 'self'; form-action 'self'; base-uri 'none'; frame-ancestors 'none'"}});
     if (url.pathname === '/skapa-testkod/' || url.pathname === '/skapa-testkod') return new Response(bootstrapPage,{headers:{'content-type':'text/html; charset=utf-8','cache-control':'no-store','referrer-policy':'no-referrer','content-security-policy':"default-src 'none'; script-src 'unsafe-inline'; connect-src 'self'; form-action 'self'; base-uri 'none'; frame-ancestors 'none'"}});
