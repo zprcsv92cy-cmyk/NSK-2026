@@ -17,6 +17,8 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: '22'
+      - name: Inventory legacy API access (read-only)
+        run: node scripts/audit-legacy-api.mjs
       - name: Shared auth client login and logout
         run: node scripts/test-auth-client.mjs
       - name: Denied roster and lineup writes
