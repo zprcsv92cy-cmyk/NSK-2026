@@ -1,3 +1,4 @@
+import { legacyDbGuardTestPage } from './legacy-db-guard-test-page.js';
 import { existingTruppenLayoutPage } from './existing-truppen-layout-page.js';
 import { legacyTruppenTestPage } from './legacy-truppen-test-page.js';
 import { usersPage } from './users-page.js';
@@ -13,6 +14,8 @@ import { handleActivation } from './account-activation.js';
 export default {
   async fetch(request, env) {
     const url = new URL(request.url);
+    if (url.pathname === '/staging/legacy-db-auth-guard.js') return new Response((await import('./legacy-db-auth-guard.js')).createAuthorizedLegacyDb.toString().replace(/^function createAuthorizedLegacyDb/, 'export function createAuthorizedLegacyDb'),{headers:{'content-type':'text/javascript; charset=utf-8','cache-control':'no-store','x-content-type-options':'nosniff'}});
+    if (url.pathname === '/datalager-behorighet/' || url.pathname === '/datalager-behorighet') return new Response(legacyDbGuardTestPage,{headers:{'content-type':'text/html; charset=utf-8','cache-control':'no-store','x-content-type-options':'nosniff','content-security-policy':"default-src 'none'; script-src 'self'; style-src 'unsafe-inline'; connect-src 'self'; form-action 'self'; base-uri 'none'; frame-ancestors 'none'"}});
     if (url.pathname === '/skapa-testkod/' || url.pathname === '/skapa-testkod') return new Response(bootstrapPage,{headers:{'content-type':'text/html; charset=utf-8','cache-control':'no-store','referrer-policy':'no-referrer','content-security-policy':"default-src 'none'; script-src 'unsafe-inline'; connect-src 'self'; form-action 'self'; base-uri 'none'; frame-ancestors 'none'"}});
     if (url.pathname === '/api/auth/staging/bootstrap-test') return bootstrapTestAccount(request, env);
     if (url.pathname === '/aktivera/' || url.pathname === '/aktivera') {
