@@ -1,0 +1,10 @@
+import assert from 'node:assert/strict';
+import {readFile} from 'node:fs/promises';
+const source=await readFile(new URL('../worker/legacy-relationship-check.js',import.meta.url),'utf8');
+const {checkLegacyRelationships}=await import('data:text/javascript;base64,'+Buffer.from(source).toString('base64'));
+const data={players:[{id:473},{id:474}],coaches:[{id:12}],configs:[{id:673,goalie_player_id:473,players_on_field:[473,474]}],lineups:[{id:1,match_config_id:673,person_type:'player',person_id:473},{id:2,match_config_id:673,person_type:'coach',person_id:12}],shifts:[{id:3,players_json:[473,474]}]};
+assert.equal(checkLegacyRelationships(data).ok,true);
+assert.equal(checkLegacyRelationships({...data,shifts:[{id:3,players_json:[999]}]}).ok,false);
+assert.equal(checkLegacyRelationships({...data,lineups:[{id:4,match_config_id:673,person_type:'player',person_id:'test-uuid'}]}).ok,false);
+assert.equal(checkLegacyRelationships({...data,configs:[{id:673,goalie_player_id:999,players_on_field:[473]}]}).ok,false);
+console.log('PASS: numeric IDs preserved across match configs, lineup and shift references (mocked data)');
