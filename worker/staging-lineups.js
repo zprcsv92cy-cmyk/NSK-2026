@@ -10,7 +10,15 @@ export async function stagingLineups(request,db,actor,json){
   const result=await db.prepare('SELECT id,match_name,goalie_id,player_ids,coach_ids,created_at FROM auth_lineups_staging WHERE team_id=? ORDER BY created_at DESC LIMIT 50').bind(teamId).all();
   return json({team_id:teamId,canEdit,lineups:(result.results||[]).map(x=>({id:x.id,match_name:x.match_name,goalie_id:x.goalie_id,player_ids:JSON.parse(x.player_ids),coach_ids:JSON.parse(x.coach_ids),created_at:x.created_at}))});
  }
- if(request.method!=='POST')return json({error:'Metoden stöds inte'},405);
+ const lineupId=url.searchParams.get('id');
+ if(request.method==='DELETE'){
+  if(!canEdit)return json({error:'Saknar behörighet'},403);
+  if(!lineupId||!/^[-a-f0-9]{36}$/.test(lineupId))return json({error:'Ogiltigt id'},400);
+  const result=await db.prepare('DELETE FROM auth_lineups_staging WHERE id=? AND team_id=?').bind(lineupId,teamId).run();
+  return result.meta?.changes?json({ok:true}):json({error:'Uppställningen hittades inte i laget'},404);
+ }
+ if(request.method!=='POST'&&request.method!=='PATCH')return json({error:'Metoden stöds inte'},405);
+ if(request.method==='PATCH'&&(!lineupId||!/^[-a-f0-9]{36}$/.test(lineupId)))return json({error:'Ogiltigt id'},400);
  if(!canEdit)return json({error:'Saknar behörighet att spara laguppställning'},403);
  let data;try{data=await request.json()}catch{return json({error:'Ogiltig JSON'},400)}
  const matchName=String(data.match_name||'').trim();
@@ -24,6 +32,10 @@ export async function stagingLineups(request,db,actor,json){
   const found=await db.prepare('SELECT id,kind FROM auth_roster_staging WHERE team_id=? AND id IN ('+placeholders+')').bind(teamId,...ids).all();
   const kinds=new Map((found.results||[]).map(x=>[x.id,x.kind]));
   if(players.some(id=>kinds.get(id)!=='player')||coaches.some(id=>kinds.get(id)!=='coach')||(goalie&&kinds.get(goalie)!=='player'))return json({error:'Spelare eller tränare tillhör inte laget'},400);
+ }
+ if(request.method==='PATCH'){
+  const result=await db.prepare('UPDATE auth_lineups_staging SET match_name=?,goalie_id=?,player_ids=?,coach_ids=? WHERE id=? AND team_id=?').bind(matchName,goalie,JSON.stringify(players),JSON.stringify(coaches),lineupId,teamId).run();
+  return result.meta?.changes?json({ok:true,id:lineupId}):json({error:'Uppställningen hittades inte i laget'},404);
  }
  const id=crypto.randomUUID();
  await db.prepare('INSERT INTO auth_lineups_staging(id,team_id,match_name,goalie_id,player_ids,coach_ids,created_by) VALUES(?,?,?,?,?,?,?)').bind(id,teamId,matchName,goalie,JSON.stringify(players),JSON.stringify(coaches),actor.user.id).run();
