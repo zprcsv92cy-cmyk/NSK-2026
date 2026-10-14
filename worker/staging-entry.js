@@ -1,3 +1,4 @@
+import { legacyTruppenTestPage } from './legacy-truppen-test-page.js';
 import { usersPage } from './users-page.js';
 import { rosterAccessPage } from './roster-access-page.js';
 import { lineupAccessPage } from './lineup-access-page.js';
@@ -20,6 +21,7 @@ export default {
       return new Response(loginPage, { headers: { 'content-type': 'text/html; charset=utf-8', 'cache-control': 'no-store', 'x-content-type-options': 'nosniff', 'referrer-policy': 'no-referrer', 'content-security-policy': "default-src 'none'; script-src 'unsafe-inline'; style-src 'unsafe-inline'; connect-src 'self'; form-action 'self'; base-uri 'none'; frame-ancestors 'none'" } });
     }
     if (['/truppen-test/','/truppen-test','/truppen/','/truppen'].includes(url.pathname)) return new Response(rosterAccessPage,{headers:{'content-type':'text/html; charset=utf-8','cache-control':'no-store','x-content-type-options':'nosniff','referrer-policy':'no-referrer','content-security-policy':"default-src 'none'; script-src 'unsafe-inline'; style-src 'unsafe-inline'; connect-src 'self'; form-action 'self'; base-uri 'none'; frame-ancestors 'none'"}});
+    if (['/truppen-integration/','/truppen-integration'].includes(url.pathname)) return new Response(legacyTruppenTestPage,{headers:{'content-type':'text/html; charset=utf-8','cache-control':'no-store','x-content-type-options':'nosniff','content-security-policy':"default-src 'none'; script-src 'unsafe-inline'; style-src 'unsafe-inline'; connect-src 'self'; form-action 'self'; base-uri 'none'; frame-ancestors 'none'"}});
     if (url.pathname === '/laguppstallning/' || url.pathname === '/laguppstallning') return new Response(lineupAccessPage,{headers:{'content-type':'text/html; charset=utf-8','cache-control':'no-store','x-content-type-options':'nosniff','referrer-policy':'no-referrer','content-security-policy':"default-src 'none'; script-src 'unsafe-inline'; style-src 'unsafe-inline'; connect-src 'self'; form-action 'self'; base-uri 'none'; frame-ancestors 'none'"}});
     if (url.pathname === '/anvandare/' || url.pathname === '/anvandare') return new Response(usersPage,{headers:{'content-type':'text/html; charset=utf-8','cache-control':'no-store','x-content-type-options':'nosniff','referrer-policy':'no-referrer','content-security-policy':"default-src 'none'; script-src 'unsafe-inline'; style-src 'unsafe-inline'; connect-src 'self'; form-action 'self'; base-uri 'none'; frame-ancestors 'none'"}});
     if (!url.pathname.startsWith('/api/auth/')) {
