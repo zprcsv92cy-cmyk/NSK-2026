@@ -63,7 +63,7 @@ export async function handleTeamAuth(request, env) {
     await db.prepare("INSERT INTO auth_sessions(token_hash,user_id,expires_at) VALUES(?,?,datetime('now','+12 hours'))").bind(hash, user.id).run();
     return json({ token });
   }
-  if (path === '/api/auth/existing-roster-read-check') return existingRosterReadCheck(request, await identity(db,request), json);
+  if (path === '/api/auth/existing-roster-read-check') return existingRosterReadCheck(request, await identity(db,request), json, env.LEGACY_API);
   if (path === '/api/auth/me' && request.method === 'GET') {
     const user = await identity(db, request);
     return user ? json(user) : json({ error: 'Inte inloggad' }, 401);
