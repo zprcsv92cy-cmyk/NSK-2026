@@ -10,7 +10,7 @@ export async function existingRosterReadCheck(request, actor, json) {
   const result=[];let page=1;
   do{
    const response=await fetch(base+'/api/'+table+'?page='+page+'&size=200',{method:'GET',cache:'no-store'});
-   if(!response.ok)throw Object.assign(Error('API svarade med felstatus'),{stage:table,upstream_status:response.status});
+   if(!response.ok)throw Object.assign(Error('API svarade med felstatus'),{stage:table,upstream_status:response.status,upstream_path:'/api/'+table});
    const data=await response.json();
    if(!data.ok||!Array.isArray(data.results))throw Object.assign(Error('Ogiltigt API-svar'),{stage:table});
    result.push(...data.results);
@@ -29,5 +29,5 @@ export async function existingRosterReadCheck(request, actor, json) {
   const c=coaches.filter(x=>ids(x.Lag).includes(teamRow.id));
   const valid=rows=>rows.every(x=>Number.isSafeInteger(Number(x.id))&&Number(x.id)>0);
   return json({ok:valid(p)&&valid(c),team_id:team,season:'2026',read_only:true,source:'existing_nsk_api',player_count:p.length,coach_count:c.length,numeric_ids_valid:valid(p)&&valid(c),names_returned:false});
- }catch(error){console.error('Staging existing roster read check failed',error);return json({error:'Kunde inte läsa befintlig datakälla',stage:error.stage||'network',upstream_status:error.upstream_status||null,reason:error.stage?(error.upstream_status?'http_status':'invalid_response'):'connection_or_worker_error'},502)}
+ }catch(error){console.error('Staging existing roster read check failed',error);return json({error:'Kunde inte läsa befintlig datakälla',stage:error.stage||'network',upstream_status:error.upstream_status||null,upstream_path:error.upstream_path||null,reason:error.stage?(error.upstream_status?'http_status':'invalid_response'):'connection_or_worker_error'},502)}
 }
