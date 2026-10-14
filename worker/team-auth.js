@@ -111,6 +111,7 @@ export async function handleTeamAuth(request, env) {
       return json({ error: 'Saknar behörighet att ändra Truppen' }, 403);
     return json({ ok: true, allowed: true, simulated: true });
   }
+  // Never let intermediaries cache authentication responses.
   if (path === '/api/auth/logout' && request.method === 'POST') {
     const token = bearer(request);
     if (token) await db.prepare("UPDATE auth_sessions SET revoked_at=datetime('now') WHERE token_hash=? AND revoked_at IS NULL").bind(await sha256(token)).run();
