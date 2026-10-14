@@ -23,6 +23,8 @@ jobs:
           node-version: '22'
       - name: Validate activation inputs
         run: node scripts/test-account-activation.mjs
+      - name: Test legacy roster ID and access compatibility (mock data)
+        run: node scripts/test-legacy-db-auth-guard.mjs
       - name: Install Wrangler with native dependencies
         run: npm install --no-save --include=optional --ignore-scripts wrangler@4
         timeout-minutes: 3
