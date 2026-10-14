@@ -149,6 +149,17 @@ export async function handleTeamAuth(request, env) {
     await db.prepare('INSERT INTO auth_team_memberships(user_id,team_id,role) VALUES(?,?,?) ON CONFLICT(user_id,team_id) DO UPDATE SET role=excluded.role').bind(data.user_id,data.team_id,data.role).run();
     return json({ok:true});
   }
+  // Read-only staging diagnostic: explain a duplicate email without returning account details.
+  if (path === '/api/auth/users/email-check' && request.method === 'POST') {
+    const actor = await requirePersonPermission(request, env, 'users:manage');
+    if (!actor) return json({error:'Åtkomst nekad'},403);
+    let data; try {data=await request.json();} catch {return json({error:'Ogiltig JSON'},400);}
+    const email=String(data?.email||'').trim().toLowerCase();
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) return json({error:'Ogiltig e-postadress'},400);
+    const found=await db.prepare('SELECT id FROM auth_users WHERE email=?').bind(email).first();
+    const count=await db.prepare('SELECT count(*) AS n FROM auth_users').first();
+    return json({registered:!!found,total_users:count?.n||0,read_only:true});
+  }
   // Personal permission administration: only users with users:manage can edit grants.
   if (path === '/api/auth/users' && request.method === 'GET') {
     const actor = await requirePersonPermission(request, env, 'users:manage');
