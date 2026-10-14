@@ -1,15 +1,16 @@
 // Staging-only, authenticated, read-only check of existing NSK Team 18 roster IDs.
 // No legacy admin token, writes, names or personal data returned to the browser.
-export async function existingRosterReadCheck(request, actor, json) {
+export async function existingRosterReadCheck(request, actor, json, legacyApi) {
  if(request.method!=='GET')return json({error:'Endast läsning'},405);
  if(!actor)return json({error:'Inte inloggad'},401);
  const team='NSK Team 18';
  if(!actor.memberships.some(m=>m.team_id===team))return json({error:'Saknar åtkomst till NSK Team 18'},403);
+ if(!legacyApi)return json({error:'Staging saknar API-bindning'},503);
  const base='https://nsk-api.peter-hasselberg.workers.dev';
  async function read(table){
   const result=[];let page=1;
   do{
-   const response=await fetch(base+'/api/'+table+'?page='+page+'&size=200',{method:'GET',cache:'no-store'});
+   const response=await legacyApi.fetch(base+'/api/'+table+'?page='+page+'&size=200',{method:'GET',cache:'no-store'});
    if(!response.ok)throw Object.assign(Error('API svarade med felstatus'),{stage:table,upstream_status:response.status,upstream_path:'/api/'+table});
    const data=await response.json();
    if(!data.ok||!Array.isArray(data.results))throw Object.assign(Error('Ogiltigt API-svar'),{stage:table});
