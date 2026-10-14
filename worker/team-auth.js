@@ -86,6 +86,18 @@ export async function handleTeamAuth(request, env) {
     const allowed = actor.permissions.includes(permissions[feature]);
     return json({ feature, allowed, permission: permissions[feature] });
   }
+  // Read-only access check for integration with existing NSK pages.
+  if (path === '/api/auth/integration/access' && request.method === 'GET') {
+    const actor = await identity(db, request);
+    if (!actor) return json({ error: 'Inte inloggad' }, 401);
+    const teamId = url.searchParams.get('team_id');
+    const feature = url.searchParams.get('feature');
+    const required = { roster: 'roster:manage', pool: 'pool:create', lineup: 'lineup:edit', shifts: 'shifts:check', matches: 'match:manage', pool_finish: 'pool:finish', pool_reopen: 'pool:reopen', users: 'users:manage' };
+    if (!teamId || !Object.prototype.hasOwnProperty.call(required, feature)) return json({ error: 'Ogiltigt lag eller funktion' }, 400);
+    const membership = actor.memberships.find(m => m.team_id === teamId);
+    if (!membership) return json({ error: 'Ingen åtkomst till laget' }, 403);
+    return json({ team_id: teamId, feature, allowed: actor.permissions.includes(required[feature]), role: membership.role });
+  }
   if (path === '/api/auth/lineups-staging') return stagingLineups(request, db, await identity(db,request), json);
   if (path === '/api/auth/integration/roster') return legacyRosterAdapter(request, db, await identity(db,request), json);
   if (path === '/api/auth/roster-staging' || path.startsWith('/api/auth/roster-staging/')) return stagingRoster(request, db, await identity(db,request), json);
