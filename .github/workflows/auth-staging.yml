@@ -31,6 +31,8 @@ jobs:
         run: node scripts/test-existing-db-integration.mjs
       - name: Test existing db.js against simulated legacy API
         run: node scripts/test-existing-db-integration.mjs
+      - name: Verify shared authentication client
+        run: node scripts/test-auth-client.mjs
       - name: Verify roster and lineup write denials (no data writes)
         run: node scripts/test-staging-write-denials.mjs
       - name: Install Wrangler with native dependencies
