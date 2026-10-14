@@ -1,3 +1,4 @@
+import { existingRosterReadCheck } from './existing-roster-read-check.js';
 import { legacyRosterAdapter } from './staging-legacy-roster-adapter.js';
 import { issueActivationToken } from './account-activation.js';
 import { stagingRoster } from './staging-roster.js';
@@ -62,6 +63,7 @@ export async function handleTeamAuth(request, env) {
     await db.prepare("INSERT INTO auth_sessions(token_hash,user_id,expires_at) VALUES(?,?,datetime('now','+12 hours'))").bind(hash, user.id).run();
     return json({ token });
   }
+  if (path === '/api/auth/existing-roster-read-check') return existingRosterReadCheck(request, await identity(db,request), json);
   if (path === '/api/auth/me' && request.method === 'GET') {
     const user = await identity(db, request);
     return user ? json(user) : json({ error: 'Inte inloggad' }, 401);
