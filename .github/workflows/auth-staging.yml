@@ -29,6 +29,8 @@ jobs:
         run: node scripts/test-legacy-relationships.mjs
       - name: Exercise existing db.js reads against simulated API
         run: node scripts/test-existing-db-integration.mjs
+      - name: Test existing db.js against simulated legacy API
+        run: node scripts/test-existing-db-integration.mjs
       - name: Install Wrangler with native dependencies
         run: npm install --no-save --include=optional --ignore-scripts wrangler@4
         timeout-minutes: 3
