@@ -25,6 +25,7 @@ export function legacyWriteOperation(method,pathname,operation){
   if(/^\/api\/laguppstallningar\/\d+$/.test(pathname))return verb==='POST'?feature:null;
   if(/^\/api\/coach-selection$/.test(pathname))return verb==='POST'?feature:null;
   if(verb==='POST'&&!/\/\d+$/.test(pathname))return feature;
+  if(verb==='PATCH'&&/^\/api\/poolspel\/\d+$/.test(pathname))return 'matches';
   if(verb==='PATCH'&&/\/\d+$/.test(pathname))return feature;
   if(pathname==='/api/lagpersonal'&&verb==='PATCH')return feature;
   return null;
