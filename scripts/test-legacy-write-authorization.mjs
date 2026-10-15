@@ -1,5 +1,5 @@
 import assert from 'node:assert/strict';
-import {legacyWriteFeature,authorizeLegacyWrite} from '../worker/legacy-write-authorization.js';
+import {legacyWriteFeature,authorizeLegacyWrite,legacyWriteOperation,authorizeLegacyOperation} from '../worker/legacy-write-authorization.js';
 const cases=[
  ['/api/spelare','roster'],['/api/spelare/42','roster'],['/api/tranare/12','roster'],
  ['/api/lagpersonal','roster'],['/api/poolspel','pool'],['/api/poolspel/2','pool'],
@@ -31,3 +31,22 @@ for(const path of ['/api/unknown','/api/spelare/1/other','/api/poolspel/2/aktiv/
  assert.equal(authorizeLegacyWrite(admin,'team-a',path).status,404,path);
 }
 console.log('PASS legacy write migration mapping and per-team denial checks');
+
+const methods=[
+ ['POST','/api/spelare','roster'],['PATCH','/api/spelare/42','roster'],
+ ['POST','/api/poolspel','pool'],['PATCH','/api/poolspel/2','pool'],
+ ['PATCH','/api/poolspel/2/aktiv','pool_finish'],
+ ['POST','/api/laguppstallningar/2','lineup'],
+ ['POST','/api/bytesschema/save','shifts'],['PATCH','/api/bytesschema/2/done','shifts']
+];
+for(const [method,path,feature] of methods){
+ assert.equal(legacyWriteOperation(method,path),feature,method+' '+path);
+ assert.equal(authorizeLegacyOperation(admin,'team-a',method,path).allowed,true,method+' '+path);
+ assert.equal(authorizeLegacyOperation(admin,'team-b',method,path).status,403,method+' '+path);
+}
+for(const method of ['GET','HEAD','OPTIONS','DELETE']){
+ for(const [,path] of methods)assert.equal(authorizeLegacyOperation(admin,'team-a',method,path).status,405,method+' '+path);
+}
+assert.equal(authorizeLegacyOperation(admin,'team-a','POST','/api/spelare/42').status,405);
+assert.equal(authorizeLegacyOperation(admin,'team-a','PATCH','/api/bytesschema/save').status,405);
+console.log('PASS method-aware legacy write authorization');
