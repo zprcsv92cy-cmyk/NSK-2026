@@ -9,11 +9,11 @@ export function authorizeTeamFeature(actor,teamId,feature){
  if(!actor)return {allowed:false,status:401,reason:'Inte inloggad'};
  if(typeof teamId!=='string'||!teamId||teamId.length>100||!Object.hasOwn(FEATURE_PERMISSIONS,feature))
   return {allowed:false,status:400,reason:'Ogiltigt lag eller funktion'};
- const membership=actor.memberships?.find(x=>x.team_id===teamId);
+ const membership=Array.isArray(actor.memberships) ? actor.memberships.find(x=>x && x.team_id===teamId) : null;
  if(!membership)return {allowed:false,status:403,reason:'Ingen åtkomst till laget'};
  const permission=FEATURE_PERMISSIONS[feature];
  // Only a team administrator may write; personal grants cannot elevate other roles.
  const writableRole=membership.role==='team_admin';
- const allowed=writableRole&&actor.permissions?.includes(permission)===true;
+ const allowed=writableRole&&Array.isArray(actor.permissions)&&actor.permissions.includes(permission);
  return {allowed,status:allowed?200:403,reason:allowed?'Tillåtet':'Saknar behörighet',role:membership.role,permission};
 }
