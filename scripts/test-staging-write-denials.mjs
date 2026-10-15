@@ -42,3 +42,17 @@ for(const [name,handler,method,path] of cases){
 }
 assert.equal(databaseCalls,0,'No denied writes may access the database');
 console.log('PASS role escalation and unauthenticated write denials');
+
+// Read access must also reject unauthenticated and cross-team requests before SQL.
+for(const [name,handler,path] of [
+ ['trupp',stagingRoster,'/api/auth/roster-staging'],
+ ['laguppställning',stagingLineups,'/api/auth/lineups-staging']
+]){
+ const ownUrl='https://staging.invalid'+path+'?team_id='+encodeURIComponent(team);
+ const otherUrl='https://staging.invalid'+path+'?team_id='+encodeURIComponent('Annat lag');
+ assert.equal((await handler(new Request(ownUrl),db,null,json)).status,401,name+' read requires login');
+ assert.equal((await handler(new Request(otherUrl),db,actor,json)).status,403,name+' read must reject another team');
+ assert.equal((await handler(new Request('https://staging.invalid'+path),db,actor,json)).status,400,name+' read requires team');
+}
+assert.equal(databaseCalls,0,'Denied reads must not touch the database');
+console.log('PASS unauthenticated and cross-team read denials before SQL');
