@@ -65,3 +65,12 @@ for(const memberships of [null,{},[null],[]]){
 }
 assert.equal(databaseCalls,0,'Malformed lineup requests must not reach the database');
 console.log('PASS malformed lineup memberships rejected without database access');
+
+
+for(const memberships of [null,{},[null],[]]){
+ const malformed={memberships,permissions:['roster:manage']};
+ const response=await stagingRoster(new Request('https://staging.invalid/api/auth/roster-staging?team_id='+encodeURIComponent(team),{method:'POST'}),db,malformed,json);
+ assert.equal(response.status,403,'Malformed roster memberships must be rejected');
+}
+assert.equal(databaseCalls,0,'Malformed roster requests must not reach the database');
+console.log('PASS malformed roster memberships rejected without database access');
