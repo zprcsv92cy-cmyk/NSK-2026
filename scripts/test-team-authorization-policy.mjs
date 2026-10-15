@@ -23,4 +23,5 @@ const rosterPage=readFileSync(new URL('../worker/roster-access-page.js',import.m
 for(const endpoint of ['feature-access?feature=roster&team_id=','roster-write-check?team_id=']){
  assert.ok(rosterPage.includes(endpoint+"'+encodeURIComponent($('team').value)"),'Roster UI must send selected team to '+endpoint);
 }
+assert.ok(!rosterPage.includes("fetch('/api/auth/roster-write-check',{method:"),'Roster UI must not use unscoped write checks');
 console.log('PASS roster UI sends selected team to both authorization checks');
