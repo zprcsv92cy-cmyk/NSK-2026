@@ -1,4 +1,4 @@
-import { authorizeTeamFeature } from './team-authorization-policy.js';
+import { authorizeTeamFeature, FEATURE_PERMISSIONS } from './team-authorization-policy.js';
 import { existingRosterReadCheck } from './existing-roster-read-check.js';
 import { legacyRosterAdapter } from './staging-legacy-roster-adapter.js';
 import { issueActivationToken } from './account-activation.js';
@@ -275,7 +275,12 @@ export async function requirePersonPermission(request, env, permission) {
   return person?.permissions.includes(permission) ? person : null;
 }
 
-// Legacy signature retained for callers; teamId does not grant rights.
+// Team-scoped authorization must check membership, role and exact grant together.
 export async function requireTeamPermission(request, env, teamId, permission) {
-  return requirePersonPermission(request, env, permission);
+  if (!env.AUTH_DB) return null;
+  const actor = await identity(env.AUTH_DB, request);
+  if (!actor) return null;
+  const feature = Object.entries(FEATURE_PERMISSIONS).find(([,grant]) => grant === permission)?.[0];
+  if (!feature) return null;
+  return authorizeTeamFeature(actor, teamId, feature).allowed ? actor : null;
 }
