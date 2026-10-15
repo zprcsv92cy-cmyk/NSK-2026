@@ -10,6 +10,8 @@ for(const feature of Object.keys(FEATURE_PERMISSIONS)){
  assert.equal(authorizeTeamFeature(actor('player',[permission]),team,feature).status,403);
  assert.equal(authorizeTeamFeature(actor('coach',[permission]),team,feature).status,403);
  assert.equal(authorizeTeamFeature(actor('team_manager',[permission]),team,feature).status,403);
+ assert.equal(authorizeTeamFeature(actor('fitness',[permission]),team,feature).status,403);
+ assert.equal(authorizeTeamFeature(actor('equipment',[permission]),team,feature).status,403);
  assert.equal(authorizeTeamFeature(actor('team_admin',[]),team,feature).status,403);
  assert.equal(authorizeTeamFeature(actor('team_admin',[permission]),team,feature).allowed,true);
 }
