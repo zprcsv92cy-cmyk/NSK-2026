@@ -108,8 +108,10 @@ export async function handleTeamAuth(request, env) {
   if (path === '/api/auth/roster-write-check' && request.method === 'POST') {
     const actor = await identity(db, request);
     if (!actor) return json({ error: 'Inte inloggad' }, 401);
-    if (!actor.permissions.includes('roster:manage'))
-      return json({ error: 'Saknar behörighet att ändra Truppen' }, 403);
+    const teamId = url.searchParams.get('team_id');
+    const decision = authorizeTeamFeature(actor, teamId, 'roster');
+    if (!decision.allowed)
+      return json({ error: decision.status === 400 ? decision.reason : 'Saknar behörighet att ändra Truppen' }, decision.status);
     return json({ ok: true, allowed: true, simulated: true });
   }
   // Never let intermediaries cache authentication responses.
