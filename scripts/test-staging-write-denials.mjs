@@ -29,7 +29,7 @@ for(const [name,handler,method,path] of cases){
 }
 console.log('PASS cross-team denials, no database operations');
 
-for(const role of ['viewer','player','coach','team_manager']){
+for(const role of ['viewer','player','coach','team_manager','fitness','equipment']){
  const elevated={memberships:[{team_id:team,role}],permissions:['roster:manage','lineup:edit']};
  for(const [name,handler,method,path] of cases){
   const response=await handler(new Request('https://staging.invalid'+path+'?team_id='+encodeURIComponent(team)+'&id='+uuid,{method}),db,elevated,json);
