@@ -43,3 +43,16 @@ export function authorizeLegacyWrite(actor,serverResolvedTeamId,pathname){
   if(!feature)return {allowed:false,status:404,reason:'Okänd skrivfunktion'};
   return authorizeTeamFeature(actor,serverResolvedTeamId,feature);
 }
+
+// Migration boundary: team identity must come from a trusted server resolver.
+// Never authorize from request query parameters or JSON body.
+export async function authorizeResolvedLegacyOperation(actor,method,pathname,resolveTeamId){
+ const feature=legacyWriteOperation(method,pathname);
+ if(!feature)return {allowed:false,status:405,reason:'Skrivmetoden stöds inte'};
+ if(typeof resolveTeamId!=='function')return {allowed:false,status:503,reason:'Lagkoppling saknas på servern'};
+ let teamId;
+ try{teamId=await resolveTeamId();}
+ catch{return {allowed:false,status:503,reason:'Kunde inte fastställa lag på servern'};}
+ if(typeof teamId!=='string'||!teamId.trim())return {allowed:false,status:503,reason:'Lag kunde inte fastställas'};
+ return authorizeTeamFeature(actor,teamId,feature);
+}
