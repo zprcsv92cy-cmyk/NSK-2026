@@ -1,3 +1,4 @@
+import { authorizeTeamFeature } from './team-authorization-policy.js';
 // Isolated test database only. All reads and writes are scoped to the selected team.
 export async function stagingLineups(request,db,actor,json){
  if(!actor)return json({error:'Inte inloggad'},401);
@@ -5,7 +6,7 @@ export async function stagingLineups(request,db,actor,json){
  if(!teamId||teamId.length>100)return json({error:'Välj ett giltigt lag'},400);
  const membership=actor.memberships.find(x=>x.team_id===teamId);
  if(!membership)return json({error:'Saknar lagmedlemskap'},403);
- const canEdit=membership.role==='team_admin'&&actor.permissions.includes('lineup:edit');
+ const canEdit=authorizeTeamFeature(actor,teamId,'lineup').allowed;
  if(request.method==='GET'){
   const result=await db.prepare('SELECT l.id,l.match_name,l.goalie_id,l.player_ids,l.coach_ids,l.created_at,d.match_date,d.opponent,d.start_time,d.gathering_time,p.positions_json,u.units_json FROM auth_lineups_staging l LEFT JOIN auth_lineup_match_details_staging d ON d.lineup_id=l.id AND d.team_id=l.team_id LEFT JOIN auth_lineup_positions_staging p ON p.lineup_id=l.id AND p.team_id=l.team_id LEFT JOIN auth_lineup_units_staging u ON u.lineup_id=l.id AND u.team_id=l.team_id WHERE l.team_id=? ORDER BY l.created_at DESC LIMIT 50').bind(teamId).all();
   return json({team_id:teamId,canEdit,lineups:(result.results||[]).map(x=>({id:x.id,match_name:x.match_name,goalie_id:x.goalie_id,player_ids:JSON.parse(x.player_ids),coach_ids:JSON.parse(x.coach_ids),created_at:x.created_at,match_date:x.match_date||'',opponent:x.opponent||'',start_time:x.start_time||'',gathering_time:x.gathering_time||'',positions:x.positions_json?JSON.parse(x.positions_json):{},units:x.units_json?JSON.parse(x.units_json):{}}))});
