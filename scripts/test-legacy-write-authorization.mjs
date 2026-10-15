@@ -34,7 +34,7 @@ console.log('PASS legacy write migration mapping and per-team denial checks');
 
 const methods=[
  ['POST','/api/spelare','roster'],['PATCH','/api/spelare/42','roster'],
- ['POST','/api/poolspel','pool'],['PATCH','/api/poolspel/2','pool'],
+ ['POST','/api/poolspel','pool'],['PATCH','/api/poolspel/2','matches'],
  ['PATCH','/api/poolspel/2/aktiv','pool_finish','finish'],
  ['POST','/api/laguppstallningar/2','lineup'],
  ['POST','/api/bytesschema/save','shifts'],['PATCH','/api/bytesschema/2/done','shifts']
@@ -49,6 +49,10 @@ for(const method of ['GET','HEAD','OPTIONS','DELETE']){
 }
 assert.equal(authorizeLegacyOperation(admin,'team-a','POST','/api/spelare/42').status,405);
 assert.equal(authorizeLegacyOperation(admin,'team-a','PATCH','/api/bytesschema/save').status,405);
+const poolCreator={...admin,permissions:['pool:create']};
+assert.equal(authorizeLegacyOperation(poolCreator,'team-a','PATCH','/api/poolspel/2').status,403,'Pool creation alone must not permit match updates');
+const matchManager={...admin,permissions:['match:manage']};
+assert.equal(authorizeLegacyOperation(matchManager,'team-a','PATCH','/api/poolspel/2').allowed,true,'Match manager may update pool matches');
 console.log('PASS method-aware legacy write authorization');
 
 let resolverCalls=0;
