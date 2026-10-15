@@ -13,7 +13,7 @@ const fetch=async(url,options)=>{
 vm.runInNewContext(code,{window,fetch,Headers,Error,JSON});
 const auth=window.NSK_AUTH;
 assert.equal(auth.me(),null);
-await assert.rejects(()=>auth.authRequest('/api/auth/me'),/Inte inloggad/);
+assert.throws(()=>auth.authRequest('/api/auth/me'),/Inte inloggad/);
 await auth.login('test@example.test','test-password');
 assert.equal(auth.teamAccess('NSK Team 18','roster:manage'),true);
 assert.equal(auth.teamAccess('Annat lag','roster:manage'),false);
@@ -22,5 +22,5 @@ assert(requests.every(r=>r.url.startsWith('https://auth.example.test/api/auth/')
 assert(requests.some(r=>r.url.endsWith('/me')&&r.options.headers.get('Authorization')==='Bearer test-session-token'));
 await auth.logout();
 assert.equal(auth.me(),null);
-await assert.rejects(()=>auth.authRequest('/api/auth/me'),/Inte inloggad/);
+assert.throws(()=>auth.authRequest('/api/auth/me'),/Inte inloggad/);
 console.log('PASS login, membership, endpoint isolation and logout');
