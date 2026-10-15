@@ -14,12 +14,12 @@ const ROUTES=[
   [/^\/api\/bytesschema\/\d+\/done$/, 'shifts']
 ];
 // Match the method too: unknown combinations must fail closed.
-export function legacyWriteOperation(method,pathname){
+export function legacyWriteOperation(method,pathname,operation){
   const verb=String(method||'').toUpperCase();
   const feature=legacyWriteFeature(pathname);
   if(!feature)return null;
   if(verb==='GET'||verb==='HEAD'||verb==='OPTIONS')return null;
-  if(/^\/api\/poolspel\/\d+\/aktiv$/.test(pathname))return verb==='PATCH'?feature:null;
+  if(/^\/api\/poolspel\/\d+\/aktiv$/.test(pathname))return verb==='PATCH' && (operation==='finish'||operation==='reopen') ? (operation==='reopen'?'pool_reopen':'pool_finish') : null;
   if(/^\/api\/bytesschema\/\d+\/done$/.test(pathname))return verb==='PATCH'?feature:null;
   if(/^\/api\/bytesschema\/save$/.test(pathname))return verb==='POST'?feature:null;
   if(/^\/api\/laguppstallningar\/\d+$/.test(pathname))return verb==='POST'?feature:null;
@@ -29,8 +29,8 @@ export function legacyWriteOperation(method,pathname){
   if(pathname==='/api/lagpersonal'&&verb==='PATCH')return feature;
   return null;
 }
-export function authorizeLegacyOperation(actor,serverResolvedTeamId,method,pathname){
- const feature=legacyWriteOperation(method,pathname);
+export function authorizeLegacyOperation(actor,serverResolvedTeamId,method,pathname,operation){
+ const feature=legacyWriteOperation(method,pathname,operation);
  if(!feature)return {allowed:false,status:405,reason:'Skrivmetoden stöds inte'};
  return authorizeTeamFeature(actor,serverResolvedTeamId,feature);
 }
@@ -46,8 +46,8 @@ export function authorizeLegacyWrite(actor,serverResolvedTeamId,pathname){
 
 // Migration boundary: team identity must come from a trusted server resolver.
 // Never authorize from request query parameters or JSON body.
-export async function authorizeResolvedLegacyOperation(actor,method,pathname,resolveTeamId){
- const feature=legacyWriteOperation(method,pathname);
+export async function authorizeResolvedLegacyOperation(actor,method,pathname,resolveTeamId,operation){
+ const feature=legacyWriteOperation(method,pathname,operation);
  if(!feature)return {allowed:false,status:405,reason:'Skrivmetoden stöds inte'};
  if(typeof resolveTeamId!=='function')return {allowed:false,status:503,reason:'Lagkoppling saknas på servern'};
  let teamId;
