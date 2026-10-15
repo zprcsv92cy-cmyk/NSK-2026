@@ -16,3 +16,11 @@ for(const feature of Object.keys(FEATURE_PERMISSIONS)){
 assert.equal(authorizeTeamFeature(actor('team_admin',[]),team,'unknown').status,400);
 assert.equal(authorizeTeamFeature(actor('team_admin',[]),'','roster').status,400);
 console.log('PASS server authorization policy for all feature permissions and cross-team denials');
+
+// Regression: both staging roster controls must include the selected team.
+import {readFileSync} from 'node:fs';
+const rosterPage=readFileSync(new URL('../worker/roster-access-page.js',import.meta.url),'utf8');
+for(const endpoint of ['feature-access?feature=roster&team_id=','roster-write-check?team_id=']){
+ assert.ok(rosterPage.includes(endpoint+"'+encodeURIComponent($('team').value)"),'Roster UI must send selected team to '+endpoint);
+}
+console.log('PASS roster UI sends selected team to both authorization checks');
