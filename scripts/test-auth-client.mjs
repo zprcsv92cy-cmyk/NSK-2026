@@ -7,6 +7,7 @@ const window={APP_CONFIG:{AUTH_URL:'https://auth.example.test'}};
 const fetch=async(url,options)=>{
  requests.push({url,options});
  if(url.endsWith('/login'))return options.body.includes('bad@example.test') ? new Response(JSON.stringify({error:'Fel e-postadress eller lösenord'}),{status:401}) : new Response(JSON.stringify({token:'test-session-token'}));
+ if(url.endsWith('/session-expired'))return new Response(JSON.stringify({error:'Sessionen har gått ut'}),{status:401});
  if(url.endsWith('/me'))return new Response(JSON.stringify({memberships:[{team_id:'NSK Team 18',role:'team_admin'}],permissions:['roster:manage']}));
  return new Response(JSON.stringify({ok:true}));
 };
@@ -33,4 +34,9 @@ await assert.rejects(()=>auth.login('bad@example.test','wrong-password'),/Fel e-
 assert.equal(auth.me(),null,'Failed login must clear prior identity');
 assert.equal(requests.length,previousCount+1,'Failed login must not fetch identity');
 assert.throws(()=>auth.authRequest('/api/auth/me'),/Inte inloggad/);
-console.log('PASS login, membership, endpoint isolation, logout and failed login');
+await auth.login('test@example.test','test-password');
+await assert.rejects(()=>auth.authRequest('/api/auth/session-expired'),/Sessionen har gått ut/);
+assert.equal(auth.me(),null,'401 must invalidate cached identity');
+assert.equal(auth.teamAccess('NSK Team 18','roster:manage'),false);
+assert.throws(()=>auth.authRequest('/api/auth/me'),/Inte inloggad/);
+console.log('PASS login, membership, endpoint isolation, logout, failed login and expired session');
