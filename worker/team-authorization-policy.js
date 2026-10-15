@@ -12,8 +12,8 @@ export function authorizeTeamFeature(actor,teamId,feature){
  const membership=actor.memberships?.find(x=>x.team_id===teamId);
  if(!membership)return {allowed:false,status:403,reason:'Ingen åtkomst till laget'};
  const permission=FEATURE_PERMISSIONS[feature];
- // A global personal grant never overrides a read-only team role.
- const writableRole=membership.role!=='viewer'&&membership.role!=='player';
+ // Only a team administrator may write; personal grants cannot elevate other roles.
+ const writableRole=membership.role==='team_admin';
  const allowed=writableRole&&actor.permissions?.includes(permission)===true;
  return {allowed,status:allowed?200:403,reason:allowed?'Tillåtet':'Saknar behörighet',role:membership.role,permission};
 }
