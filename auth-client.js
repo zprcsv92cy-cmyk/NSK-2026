@@ -26,7 +26,7 @@
     finally{state.token=null;state.identity=null;}
   }
   function teamAccess(teamId,permission){
-    return !!state.identity?.memberships?.some(m=>m.team_id===teamId)&&
+    return !!state.identity?.memberships?.some(m=>m.team_id===teamId&&m.role==='team_admin')&&
       !!state.identity?.permissions?.includes(permission);
   }
   global.NSK_AUTH={login,logout,me:()=>state.identity,teamAccess,
