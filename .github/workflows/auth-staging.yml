@@ -29,6 +29,8 @@ jobs:
         run: node scripts/test-legacy-relationships.mjs
       - name: Exercise existing db.js reads against simulated API
         run: node scripts/test-existing-db-integration.mjs
+      - name: Verify legacy roster adapter team isolation
+        run: node scripts/test-staging-legacy-roster-adapter.mjs
       - name: Verify server-side team authorization policy
         run: node scripts/test-team-authorization-policy.mjs
       - name: Audit legacy API integration (read-only)
