@@ -33,6 +33,8 @@ jobs:
         run: node scripts/test-staging-legacy-roster-adapter.mjs
       - name: Verify server-side team authorization policy
         run: node scripts/test-team-authorization-policy.mjs
+      - name: Verify legacy write migration authorization map
+        run: node scripts/test-legacy-write-authorization.mjs
       - name: Audit legacy API integration (read-only)
         run: node scripts/audit-legacy-api.mjs
       - name: Verify shared authentication client
