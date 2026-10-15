@@ -16,6 +16,21 @@ for(const feature of Object.keys(FEATURE_PERMISSIONS)){
 assert.equal(authorizeTeamFeature(actor('team_admin',[]),team,'unknown').status,400);
 assert.equal(authorizeTeamFeature(actor('team_admin',[]),'','roster').status,400);
 console.log('PASS server authorization policy for all feature permissions and cross-team denials');
+// Multi-team regression: a grant cannot borrow administrator status from another team.
+const multiTeam={
+ memberships:[{team_id:'NSK Team 18',role:'team_admin'},{team_id:'NSK Testlag 2',role:'viewer'}],
+ permissions:['roster:manage','match:manage']
+};
+for(const feature of ['roster','matches']){
+ assert.equal(authorizeTeamFeature(multiTeam,'NSK Team 18',feature).allowed,true);
+ assert.equal(authorizeTeamFeature(multiTeam,'NSK Testlag 2',feature).status,403);
+ assert.equal(authorizeTeamFeature(multiTeam,'Unknown Team',feature).status,403);
+}
+const promoted={...multiTeam,memberships:[{team_id:'NSK Team 18',role:'viewer'},{team_id:'NSK Testlag 2',role:'team_admin'}]};
+assert.equal(authorizeTeamFeature(promoted,'NSK Team 18','matches').status,403);
+assert.equal(authorizeTeamFeature(promoted,'NSK Testlag 2','matches').allowed,true);
+console.log('PASS multi-team role isolation with shared personal grants');
+
 
 // Regression: both staging roster controls must include the selected team.
 import {readFileSync} from 'node:fs';
