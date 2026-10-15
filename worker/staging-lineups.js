@@ -4,7 +4,7 @@ export async function stagingLineups(request,db,actor,json){
  if(!actor)return json({error:'Inte inloggad'},401);
  const url=new URL(request.url),teamId=url.searchParams.get('team_id');
  if(!teamId||teamId.length>100)return json({error:'Välj ett giltigt lag'},400);
- const membership=actor.memberships.find(x=>x.team_id===teamId);
+ const membership=Array.isArray(actor.memberships) ? actor.memberships.find(x=>x && x.team_id===teamId) : null;
  if(!membership)return json({error:'Saknar lagmedlemskap'},403);
  const canEdit=authorizeTeamFeature(actor,teamId,'lineup').allowed;
  if(request.method==='GET'){
