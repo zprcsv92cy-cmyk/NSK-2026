@@ -23,6 +23,8 @@ jobs:
         run: node scripts/test-team-authorization-policy.mjs
       - name: Verify legacy write migration authorization map
         run: node scripts/test-legacy-write-authorization.mjs
+      - name: Verify isolated protected write gateway
+        run: node scripts/test-protected-legacy-write.mjs
       - name: Inventory legacy API access (read-only)
         run: node scripts/audit-legacy-api.mjs
       - name: Shared auth client login and logout
