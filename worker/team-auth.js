@@ -1,3 +1,4 @@
+import { authorizeTeamFeature } from './team-authorization-policy.js';
 import { existingRosterReadCheck } from './existing-roster-read-check.js';
 import { legacyRosterAdapter } from './staging-legacy-roster-adapter.js';
 import { issueActivationToken } from './account-activation.js';
@@ -94,11 +95,11 @@ export async function handleTeamAuth(request, env) {
     if (!actor) return json({ error: 'Inte inloggad' }, 401);
     const teamId = url.searchParams.get('team_id');
     const feature = url.searchParams.get('feature');
-    const required = { roster: 'roster:manage', pool: 'pool:create', lineup: 'lineup:edit', shifts: 'shifts:check', matches: 'match:manage', pool_finish: 'pool:finish', pool_reopen: 'pool:reopen', users: 'users:manage' };
-    if (!teamId || !Object.prototype.hasOwnProperty.call(required, feature)) return json({ error: 'Ogiltigt lag eller funktion' }, 400);
-    const membership = actor.memberships.find(m => m.team_id === teamId);
-    if (!membership) return json({ error: 'Ingen åtkomst till laget' }, 403);
-    return json({ team_id: teamId, feature, allowed: actor.permissions.includes(required[feature]), role: membership.role });
+    const decision = authorizeTeamFeature(actor, teamId, feature);
+    if (decision.status === 400 || (decision.status === 403 && !decision.role))
+      return json({ error: decision.reason }, decision.status);
+    // Keep 200 + allowed:false for authenticated read-only users (existing UI contract).
+    return json({ team_id: teamId, feature, allowed: decision.allowed, role: decision.role });
   }
   if (path === '/api/auth/lineups-staging') return stagingLineups(request, db, await identity(db,request), json);
   if (path === '/api/auth/integration/roster') return legacyRosterAdapter(request, db, await identity(db,request), json);
