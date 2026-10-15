@@ -1,3 +1,4 @@
+import { authorizeTeamFeature } from './team-authorization-policy.js';
 // Isolated staging adapter: legacy Truppen-shaped rows, backed ONLY by AUTH_DB test data.
 // No production API, legacy admin token or production database is used.
 export async function legacyRosterAdapter(request, db, actor, json) {
@@ -13,7 +14,7 @@ export async function legacyRosterAdapter(request, db, actor, json) {
   const map=(kind)=>rows.filter(row=>row.kind===kind).map(row=>({id:row.id,full_name:row.name,team_id:teamId}));
   return json({
     team_id:teamId,
-    canManage:membership.role==='team_admin'&&actor.permissions.includes('roster:manage'),
+    canManage:authorizeTeamFeature(actor,teamId,'roster').allowed,
     players:map('player'),
     coaches:map('coach'),
     team_managers:map('team_manager'),
