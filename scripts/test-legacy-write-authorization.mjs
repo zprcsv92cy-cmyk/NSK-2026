@@ -35,14 +35,14 @@ console.log('PASS legacy write migration mapping and per-team denial checks');
 const methods=[
  ['POST','/api/spelare','roster'],['PATCH','/api/spelare/42','roster'],
  ['POST','/api/poolspel','pool'],['PATCH','/api/poolspel/2','pool'],
- ['PATCH','/api/poolspel/2/aktiv','pool_finish'],
+ ['PATCH','/api/poolspel/2/aktiv','pool_finish','finish'],
  ['POST','/api/laguppstallningar/2','lineup'],
  ['POST','/api/bytesschema/save','shifts'],['PATCH','/api/bytesschema/2/done','shifts']
 ];
-for(const [method,path,feature] of methods){
- assert.equal(legacyWriteOperation(method,path),feature,method+' '+path);
- assert.equal(authorizeLegacyOperation(admin,'team-a',method,path).allowed,true,method+' '+path);
- assert.equal(authorizeLegacyOperation(admin,'team-b',method,path).status,403,method+' '+path);
+for(const [method,path,feature,operation] of methods){
+ assert.equal(legacyWriteOperation(method,path,operation),feature,method+' '+path);
+ assert.equal(authorizeLegacyOperation(admin,'team-a',method,path,operation).allowed,true,method+' '+path);
+ assert.equal(authorizeLegacyOperation(admin,'team-b',method,path,operation).status,403,method+' '+path);
 }
 for(const method of ['GET','HEAD','OPTIONS','DELETE']){
  for(const [,path] of methods)assert.equal(authorizeLegacyOperation(admin,'team-a',method,path).status,405,method+' '+path);
@@ -72,15 +72,23 @@ const requiredRoutes=[
  ['POST','/api/tranare'],['PATCH','/api/tranare/1'],
  ['POST','/api/lagpersonal'],['PATCH','/api/lagpersonal'],
  ['POST','/api/poolspel'],['PATCH','/api/poolspel/1'],
- ['PATCH','/api/poolspel/1/aktiv'],
+ ['PATCH','/api/poolspel/1/aktiv','finish'],
  ['POST','/api/matchkonfiguration'],['PATCH','/api/matchkonfiguration/1'],
  ['POST','/api/laguppstallningar/1'],['POST','/api/coach-selection'],
  ['POST','/api/bytesschema/save'],['PATCH','/api/bytesschema/1/done']
 ];
-for(const [method,path] of requiredRoutes){
- assert.ok(legacyWriteOperation(method,path),method+' '+path+' must have a migration permission');
+for(const [method,path,operation] of requiredRoutes){
+ assert.ok(legacyWriteOperation(method,path,operation),method+' '+path+' must have a migration permission');
 }
 for(const family of ['spelare','tranare','lagpersonal','poolspel','matchkonfiguration','laguppstallningar','coach-selection','bytesschema']){
  assert.ok(dbSource.includes(family),'Legacy API family unexpectedly missing from db.js: '+family);
 }
 console.log('PASS existing db.js write families are covered by migration policy');
+
+assert.equal(legacyWriteOperation('PATCH','/api/poolspel/2/aktiv'),null,'Ambiguous pool transition must be denied');
+assert.equal(legacyWriteOperation('PATCH','/api/poolspel/2/aktiv','reopen'),'pool_reopen');
+assert.equal(legacyWriteOperation('PATCH','/api/poolspel/2/aktiv','finish'),'pool_finish');
+const finishOnly={...admin,permissions:['pool:finish']};
+assert.equal(authorizeLegacyOperation(finishOnly,'team-a','PATCH','/api/poolspel/2/aktiv','finish').allowed,true);
+assert.equal(authorizeLegacyOperation(finishOnly,'team-a','PATCH','/api/poolspel/2/aktiv','reopen').status,403);
+console.log('PASS pool reopen requires independent permission');
