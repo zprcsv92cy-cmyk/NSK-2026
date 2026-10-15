@@ -30,6 +30,21 @@ const promoted={...multiTeam,memberships:[{team_id:'NSK Team 18',role:'viewer'},
 assert.equal(authorizeTeamFeature(promoted,'NSK Team 18','matches').status,403);
 assert.equal(authorizeTeamFeature(promoted,'NSK Testlag 2','matches').allowed,true);
 console.log('PASS multi-team role isolation with shared personal grants');
+for(const invalid of [null,undefined,'',42,{},'x'.repeat(101)]){
+ assert.equal(authorizeTeamFeature(actor('team_admin',['roster:manage']),invalid,'roster').status,400,'Invalid team ID must fail closed');
+}
+for(const feature of [null,undefined,'',{},'unknown']){
+ assert.equal(authorizeTeamFeature(actor('team_admin',['roster:manage']),team,feature).status,400,'Invalid feature must fail closed');
+}
+for(const malformed of [
+ {memberships:[],permissions:['roster:manage']},
+ {memberships:[{team_id:team,role:'viewer'}],permissions:['roster:manage']},
+ {memberships:[{team_id:team,role:'team_admin'}],permissions:[]}
+]){
+ assert.equal(authorizeTeamFeature(malformed,team,'roster').allowed,false,'Incomplete actor must not gain write access');
+}
+console.log('PASS invalid team and feature inputs are denied');
+
 
 
 // Regression: both staging roster controls must include the selected team.
