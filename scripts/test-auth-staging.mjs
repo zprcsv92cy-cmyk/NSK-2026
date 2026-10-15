@@ -36,6 +36,8 @@ const cases = [
   { path: '/api/auth/logout', method: 'POST', expected: 200 },
   { path: '/api/auth/login', method: 'POST', body: { email: 'nonexistent@example.invalid', password: 'not-a-valid-password' }, expected: 401 },
   { path: '/api/auth/login', method: 'POST', body: '{', raw: true, expected: 400 },
+  { path: '/api/auth/login', method: 'POST', body: 'null', raw: true, expected: 400 },
+  { path: '/api/auth/login', method: 'POST', body: '[]', raw: true, expected: 400 },
   { path: '/api/unknown', method: 'GET', expected: 404 }
 ];
 for (const item of cases) {
