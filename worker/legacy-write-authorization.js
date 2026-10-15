@@ -13,6 +13,27 @@ const ROUTES=[
   [/^\/api\/bytesschema\/save$/, 'shifts'],
   [/^\/api\/bytesschema\/\d+\/done$/, 'shifts']
 ];
+// Match the method too: unknown combinations must fail closed.
+export function legacyWriteOperation(method,pathname){
+  const verb=String(method||'').toUpperCase();
+  const feature=legacyWriteFeature(pathname);
+  if(!feature)return null;
+  if(verb==='GET'||verb==='HEAD'||verb==='OPTIONS')return null;
+  if(/^\/api\/poolspel\/\d+\/aktiv$/.test(pathname))return verb==='PATCH'?feature:null;
+  if(/^\/api\/bytesschema\/\d+\/done$/.test(pathname))return verb==='PATCH'?feature:null;
+  if(/^\/api\/bytesschema\/save$/.test(pathname))return verb==='POST'?feature:null;
+  if(/^\/api\/laguppstallningar\/\d+$/.test(pathname))return verb==='POST'?feature:null;
+  if(/^\/api\/coach-selection$/.test(pathname))return verb==='POST'?feature:null;
+  if(verb==='POST'&&!/\/\d+$/.test(pathname))return feature;
+  if(verb==='PATCH'&&/\/\d+$/.test(pathname))return feature;
+  if(pathname==='/api/lagpersonal'&&verb==='PATCH')return feature;
+  return null;
+}
+export function authorizeLegacyOperation(actor,serverResolvedTeamId,method,pathname){
+ const feature=legacyWriteOperation(method,pathname);
+ if(!feature)return {allowed:false,status:405,reason:'Skrivmetoden stöds inte'};
+ return authorizeTeamFeature(actor,serverResolvedTeamId,feature);
+}
 export function legacyWriteFeature(pathname){
   if(typeof pathname!=='string')return null;
   return ROUTES.find(([pattern])=>pattern.test(pathname))?.[1]??null;
