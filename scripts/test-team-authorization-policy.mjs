@@ -59,6 +59,22 @@ for(const malformed of [
 }
 console.log('PASS malformed actor collections fail closed');
 
+const allRoles=['team_admin','coach','team_manager','fitness','equipment','player','viewer'];
+for(const role of allRoles){
+ const subject={memberships:[{team_id:'NSK Team 18',role},{team_id:'NSK Testlag 2',role:'viewer'}],permissions:Object.values(FEATURE_PERMISSIONS)};
+ for(const feature of Object.keys(FEATURE_PERMISSIONS)){
+  assert.equal(authorizeTeamFeature(subject,'NSK Team 18',feature).allowed,role==='team_admin');
+  assert.equal(authorizeTeamFeature(subject,'NSK Testlag 2',feature).allowed,false);
+ }
+}
+const switchedTeams={memberships:[{team_id:'NSK Team 18',role:'viewer'},{team_id:'NSK Testlag 2',role:'team_admin'}],permissions:Object.values(FEATURE_PERMISSIONS)};
+for(const feature of Object.keys(FEATURE_PERMISSIONS)){
+ assert.equal(authorizeTeamFeature(switchedTeams,'NSK Team 18',feature).allowed,false);
+ assert.equal(authorizeTeamFeature(switchedTeams,'NSK Testlag 2',feature).allowed,true);
+}
+console.log('PASS role matrix and team switching for every protected feature');
+
+
 
 
 
