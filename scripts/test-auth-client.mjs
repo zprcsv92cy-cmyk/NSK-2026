@@ -6,7 +6,7 @@ const requests=[];
 const window={APP_CONFIG:{AUTH_URL:'https://auth.example.test'}};
 const fetch=async(url,options)=>{
  requests.push({url,options});
- if(url.endsWith('/login'))return new Response(JSON.stringify({token:'test-session-token'}));
+ if(url.endsWith('/login'))return options.body.includes('bad@example.test') ? new Response(JSON.stringify({error:'Fel e-postadress eller lösenord'}),{status:401}) : new Response(JSON.stringify({token:'test-session-token'}));
  if(url.endsWith('/me'))return new Response(JSON.stringify({memberships:[{team_id:'NSK Team 18'}],permissions:['roster:manage']}));
  return new Response(JSON.stringify({ok:true}));
 };
@@ -23,4 +23,10 @@ assert(requests.some(r=>r.url.endsWith('/me')&&r.options.headers.get('Authorizat
 await auth.logout();
 assert.equal(auth.me(),null);
 assert.throws(()=>auth.authRequest('/api/auth/me'),/Inte inloggad/);
-console.log('PASS login, membership, endpoint isolation and logout');
+
+const previousCount=requests.length;
+await assert.rejects(()=>auth.login('bad@example.test','wrong-password'),/Fel e-postadress eller lösenord/);
+assert.equal(auth.me(),null,'Failed login must clear prior identity');
+assert.equal(requests.length,previousCount+1,'Failed login must not fetch identity');
+assert.throws(()=>auth.authRequest('/api/auth/me'),/Inte inloggad/);
+console.log('PASS login, membership, endpoint isolation, logout and failed login');
