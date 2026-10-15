@@ -56,3 +56,12 @@ for(const [name,handler,path] of [
 }
 assert.equal(databaseCalls,0,'Denied reads must not touch the database');
 console.log('PASS unauthenticated and cross-team read denials before SQL');
+
+
+for(const memberships of [null,{},[null],[]]){
+ const malformed={memberships,permissions:['lineup:edit']};
+ const response=await stagingLineups(new Request('https://staging.invalid/api/auth/lineups-staging?team_id='+encodeURIComponent(team),{method:'POST'}),db,malformed,json);
+ assert.equal(response.status,403,'Malformed lineup memberships must be rejected');
+}
+assert.equal(databaseCalls,0,'Malformed lineup requests must not reach the database');
+console.log('PASS malformed lineup memberships rejected without database access');
