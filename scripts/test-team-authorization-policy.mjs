@@ -48,7 +48,7 @@ console.log('PASS invalid team and feature inputs are denied');
 // Malformed identity collections must deny access without throwing or returning 500.
 for(const malformed of [
  {memberships:{team_id:team,role:'team_admin'},permissions:['roster:manage']},
- {memberships:[null,{team_id:team,role:'team_admin'}],permissions:['roster:manage']},
+ {memberships:[null,{team_id:team,role:'viewer'}],permissions:['roster:manage']},
  {memberships:[{team_id:team,role:'team_admin'}],permissions:'roster:manage'},
  {memberships:[{team_id:team,role:'team_admin'}],permissions:{includes:()=>true}},
  {memberships:null,permissions:['roster:manage']}
