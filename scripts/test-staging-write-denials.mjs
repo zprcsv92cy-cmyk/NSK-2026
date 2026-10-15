@@ -92,3 +92,24 @@ for(const [name,payload] of [
 }
 assert.equal(databaseCalls,0,'Invalid lineup payloads must not reach the database');
 console.log('PASS invalid lineup payloads rejected before SQL');
+
+
+let lineupLookupCalls=0;
+const wrongTeamDb={prepare(sql){
+ lineupLookupCalls++;
+ assert.ok(sql.includes('FROM auth_roster_staging WHERE team_id=?'),'Lineup validation must query roster by team');
+ return {bind(...args){
+  assert.equal(args[0],team,'Roster lookup must use selected team');
+  return {all:async()=>({results:[]})};
+ }};
+}};
+for(const [name,payload] of [
+ ['player from another team',{match_name:'Cross-team player',player_ids:[uuid],coach_ids:[]}],
+ ['coach from another team',{match_name:'Cross-team coach',player_ids:[],coach_ids:[uuid]}],
+ ['goalie from another team',{match_name:'Cross-team goalie',player_ids:[],coach_ids:[],goalie_id:uuid}]
+]){
+ const response=await stagingLineups(new Request(lineupUrl,{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify(payload)}),wrongTeamDb,lineupAdmin,json);
+ assert.equal(response.status,400,name+' must be rejected');
+}
+assert.equal(lineupLookupCalls,3,'Each foreign member must be validated in selected team');
+console.log('PASS lineup rejects cross-team players, coaches and goalies');
