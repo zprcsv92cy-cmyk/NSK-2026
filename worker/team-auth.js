@@ -74,20 +74,11 @@ export async function handleTeamAuth(request, env) {
     const actor = await identity(db, request);
     if (!actor) return json({ error: 'Inte inloggad' }, 401);
     const feature = url.searchParams.get('feature');
-    const permissions = {
-      roster: 'roster:manage',
-      pool: 'pool:create',
-      lineup: 'lineup:edit',
-      shifts: 'shifts:check',
-      matches: 'match:manage',
-      pool_finish: 'pool:finish',
-      pool_reopen: 'pool:reopen',
-      users: 'users:manage'
-    };
-    if (!Object.prototype.hasOwnProperty.call(permissions, feature))
-      return json({ error: 'Okänd funktion' }, 400);
-    const allowed = actor.permissions.includes(permissions[feature]);
-    return json({ feature, allowed, permission: permissions[feature] });
+    const teamId = url.searchParams.get('team_id');
+    const decision = authorizeTeamFeature(actor, teamId, feature);
+    if (decision.status === 400 || (decision.status === 403 && !decision.role))
+      return json({ error: decision.reason }, decision.status);
+    return json({ team_id: teamId, feature, allowed: decision.allowed, permission: decision.permission, role: decision.role });
   }
   // Read-only access check for integration with existing NSK pages.
   if (path === '/api/auth/integration/access' && request.method === 'GET') {
