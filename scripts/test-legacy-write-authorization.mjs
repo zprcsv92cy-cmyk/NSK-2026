@@ -1,5 +1,5 @@
 import assert from 'node:assert/strict';
-import {legacyWriteFeature,authorizeLegacyWrite,legacyWriteOperation,authorizeLegacyOperation} from '../worker/legacy-write-authorization.js';
+import {legacyWriteFeature,authorizeLegacyWrite,legacyWriteOperation,authorizeLegacyOperation,authorizeResolvedLegacyOperation} from '../worker/legacy-write-authorization.js';
 const cases=[
  ['/api/spelare','roster'],['/api/spelare/42','roster'],['/api/tranare/12','roster'],
  ['/api/lagpersonal','roster'],['/api/poolspel','pool'],['/api/poolspel/2','pool'],
@@ -50,3 +50,16 @@ for(const method of ['GET','HEAD','OPTIONS','DELETE']){
 assert.equal(authorizeLegacyOperation(admin,'team-a','POST','/api/spelare/42').status,405);
 assert.equal(authorizeLegacyOperation(admin,'team-a','PATCH','/api/bytesschema/save').status,405);
 console.log('PASS method-aware legacy write authorization');
+
+let resolverCalls=0;
+const trusted=async()=>{resolverCalls++;return 'team-a';};
+assert.equal((await authorizeResolvedLegacyOperation(admin,'POST','/api/spelare',trusted)).allowed,true);
+assert.equal((await authorizeResolvedLegacyOperation(admin,'POST','/api/spelare',async()=> 'team-b')).status,403);
+assert.equal((await authorizeResolvedLegacyOperation(admin,'POST','/api/spelare',null)).status,503);
+assert.equal((await authorizeResolvedLegacyOperation(admin,'POST','/api/spelare',async()=>{throw Error('database offline')})).status,503);
+assert.equal((await authorizeResolvedLegacyOperation(admin,'POST','/api/spelare',async()=>null)).status,503);
+assert.equal((await authorizeResolvedLegacyOperation(admin,'POST','/api/spelare',async()=>'' )).status,503);
+const before=resolverCalls;
+assert.equal((await authorizeResolvedLegacyOperation(admin,'GET','/api/spelare',trusted)).status,405);
+assert.equal(resolverCalls,before,'Unsupported method must not access resolver');
+console.log('PASS trusted server-side team resolution fails closed');
