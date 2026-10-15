@@ -43,11 +43,11 @@ const cases = [
 for (const item of cases) {
   const response = await fetch(base + item.path, {
     method: item.method,
-    headers: item.body ? { 'content-type': 'application/json' } : {},
-    body: item.body ? (item.raw ? item.body : JSON.stringify(item.body)) : undefined
+    headers: item.body !== undefined ? { 'content-type': 'application/json' } : {},
+    body: item.body !== undefined ? (item.raw ? item.body : JSON.stringify(item.body)) : undefined
   });
   const text = await response.text();
-  assert.equal(response.status, item.expected, item.path + ': ' + text);
+  assert.equal(response.status, item.expected, `${item.method} ${item.path} payload=${JSON.stringify(item.body ?? null)}: ${text}`);
   assert.match(response.headers.get('content-type') || '', /application\/json/);
   assert.equal(response.headers.get('cache-control'), 'no-store');
   console.log('PASS', item.method, item.path, response.status);
