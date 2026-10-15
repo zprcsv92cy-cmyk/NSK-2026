@@ -74,3 +74,21 @@ for(const memberships of [null,{},[null],[]]){
 }
 assert.equal(databaseCalls,0,'Malformed roster requests must not reach the database');
 console.log('PASS malformed roster memberships rejected without database access');
+
+
+const lineupAdmin={user:{id:uuid},memberships:[{team_id:team,role:'team_admin'}],permissions:['lineup:edit']};
+const lineupUrl='https://staging.invalid/api/auth/lineups-staging?team_id='+encodeURIComponent(team);
+for(const [name,payload] of [
+ ['empty match name',{match_name:'',player_ids:[],coach_ids:[]}],
+ ['invalid date',{match_name:'Test',match_date:'2026-99-99-xx',player_ids:[],coach_ids:[]}],
+ ['duplicate players',{match_name:'Test',player_ids:[uuid,uuid],coach_ids:[]}],
+ ['goalie also outfield',{match_name:'Test',player_ids:[uuid],coach_ids:[],goalie_id:uuid}],
+ ['invalid position',{match_name:'Test',player_ids:[],coach_ids:[],positions:{[uuid]:'forward'}}],
+ ['invalid unit',{match_name:'Test',player_ids:[],coach_ids:[],units:{[uuid]:'line1'}}],
+ ['too many players',{match_name:'Test',player_ids:Array.from({length:101},(_,i)=>'00000000-0000-4000-8000-'+String(i).padStart(12,'0')),coach_ids:[]}]
+]){
+ const response=await stagingLineups(new Request(lineupUrl,{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify(payload)}),db,lineupAdmin,json);
+ assert.equal(response.status,400,name+' must be rejected before SQL');
+}
+assert.equal(databaseCalls,0,'Invalid lineup payloads must not reach the database');
+console.log('PASS invalid lineup payloads rejected before SQL');
