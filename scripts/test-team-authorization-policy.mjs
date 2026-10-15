@@ -25,3 +25,8 @@ for(const endpoint of ['feature-access?feature=roster&team_id=','roster-write-ch
 }
 assert.ok(!rosterPage.includes("fetch('/api/auth/roster-write-check',{method:"),'Roster UI must not use unscoped write checks');
 console.log('PASS roster UI sends selected team to both authorization checks');
+
+const authModule=readFileSync(new URL('../worker/team-auth.js',import.meta.url),'utf8');
+assert.ok(authModule.includes('authorizeTeamFeature(actor, teamId, feature).allowed ? actor : null'),'Team helper must enforce team-scoped policy');
+assert.ok(!authModule.includes('return requirePersonPermission(request, env, permission);'),'Team helper must not use global grant alone');
+console.log('PASS team permission helper cannot bypass team membership');
