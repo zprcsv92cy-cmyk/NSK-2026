@@ -28,3 +28,17 @@ for(const [name,handler,method,path] of cases){
  assert.equal(response.status,403,name+' must deny another team');
 }
 console.log('PASS cross-team denials, no database operations');
+
+for(const role of ['viewer','player','coach','team_manager']){
+ const elevated={memberships:[{team_id:team,role}],permissions:['roster:manage','lineup:edit']};
+ for(const [name,handler,method,path] of cases){
+  const response=await handler(new Request('https://staging.invalid'+path+'?team_id='+encodeURIComponent(team)+'&id='+uuid,{method}),db,elevated,json);
+  assert.equal(response.status,403,role+' with global grant must not write: '+name);
+ }
+}
+for(const [name,handler,method,path] of cases){
+ const response=await handler(new Request('https://staging.invalid'+path+'?team_id='+encodeURIComponent(team)+'&id='+uuid,{method}),db,null,json);
+ assert.equal(response.status,401,'Unauthenticated: '+name);
+}
+assert.equal(databaseCalls,0,'No denied writes may access the database');
+console.log('PASS role escalation and unauthenticated write denials');
