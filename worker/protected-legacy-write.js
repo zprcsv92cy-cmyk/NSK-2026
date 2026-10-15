@@ -14,8 +14,15 @@ export async function protectedLegacyWrite(request,{authenticate,resolveTeamId,h
  let actor;
  try{actor=await authenticate(request);}catch{return deny(503,'Autentisering kunde inte kontrolleras');}
  if(!actor)return deny(401,'Inte inloggad');
+ let operation;
+ if(/^\/api\/poolspel\/\d+\/aktiv$/.test(path)){
+  let body;
+  try{body=await request.clone().json();}catch{return deny(400,'Ogiltig JSON');}
+  if(typeof body?.active!=='boolean')return deny(400,'Ogiltig poolstatus');
+  operation=body.active?'reopen':'finish';
+ }
  const decision=await authorizeResolvedLegacyOperation(actor,request.method,path,
-  ()=>resolveTeamId(request,actor));
+  ()=>resolveTeamId(request,actor),operation);
  if(!decision.allowed)return deny(decision.status,decision.reason);
  return handleWrite(request,actor);
 }
