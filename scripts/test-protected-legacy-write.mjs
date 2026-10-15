@@ -27,3 +27,15 @@ const unsupported=new Request(url,{method:'DELETE'});
 assert.equal((await protectedLegacyWrite(unsupported,args)).status,405);
 assert.equal(writes,1);
 console.log('PASS protected migration gateway prevents unauthorized legacy writes');
+
+const poolUrl='https://example.invalid/api/poolspel/2/aktiv';
+const poolRequest=active=>new Request(poolUrl,{method:'PATCH',headers:{'content-type':'application/json'},body:JSON.stringify({active})});
+const finishOnly={...admin,permissions:['pool:finish']};
+const finishArgs={...args,authenticate:async()=>finishOnly};
+assert.equal((await protectedLegacyWrite(poolRequest(false),finishArgs)).status,201);
+const afterFinish=writes;
+assert.equal((await protectedLegacyWrite(poolRequest(true),finishArgs)).status,403);
+assert.equal(writes,afterFinish,'Reopening cannot use finish permission');
+assert.equal((await protectedLegacyWrite(poolRequest('false'),finishArgs)).status,400);
+assert.equal(writes,afterFinish,'Invalid pool status must not write');
+console.log('PASS pool finish/reopen gateway permissions');
