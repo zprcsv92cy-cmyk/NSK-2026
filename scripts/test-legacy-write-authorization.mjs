@@ -63,3 +63,24 @@ const before=resolverCalls;
 assert.equal((await authorizeResolvedLegacyOperation(admin,'GET','/api/spelare',trusted)).status,405);
 assert.equal(resolverCalls,before,'Unsupported method must not access resolver');
 console.log('PASS trusted server-side team resolution fails closed');
+
+import {readFileSync} from 'node:fs';
+const dbSource=readFileSync(new URL('../db.js',import.meta.url),'utf8');
+// Each legacy write family used by db.js must be represented in the migration policy.
+const requiredRoutes=[
+ ['POST','/api/spelare'],['PATCH','/api/spelare/1'],
+ ['POST','/api/tranare'],['PATCH','/api/tranare/1'],
+ ['POST','/api/lagpersonal'],['PATCH','/api/lagpersonal'],
+ ['POST','/api/poolspel'],['PATCH','/api/poolspel/1'],
+ ['PATCH','/api/poolspel/1/aktiv'],
+ ['POST','/api/matchkonfiguration'],['PATCH','/api/matchkonfiguration/1'],
+ ['POST','/api/laguppstallningar/1'],['POST','/api/coach-selection'],
+ ['POST','/api/bytesschema/save'],['PATCH','/api/bytesschema/1/done']
+];
+for(const [method,path] of requiredRoutes){
+ assert.ok(legacyWriteOperation(method,path),method+' '+path+' must have a migration permission');
+}
+for(const family of ['spelare','tranare','lagpersonal','poolspel','matchkonfiguration','laguppstallningar','coach-selection','bytesschema']){
+ assert.ok(dbSource.includes(family),'Legacy API family unexpectedly missing from db.js: '+family);
+}
+console.log('PASS existing db.js write families are covered by migration policy');
