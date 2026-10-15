@@ -39,3 +39,15 @@ assert.equal(writes,afterFinish,'Reopening cannot use finish permission');
 assert.equal((await protectedLegacyWrite(poolRequest('false'),finishArgs)).status,400);
 assert.equal(writes,afterFinish,'Invalid pool status must not write');
 console.log('PASS pool finish/reopen gateway permissions');
+
+const poolEditRequest=new Request('https://example.invalid/api/poolspel/2',{method:'PATCH'});
+const poolCreateOnly={...admin,permissions:['pool:create']};
+const beforePoolEdit=writes;
+assert.equal((await protectedLegacyWrite(poolEditRequest,{...args,authenticate:async()=>poolCreateOnly})).status,403);
+assert.equal(writes,beforePoolEdit,'Pool creator cannot update existing match data');
+const matchEditor={...admin,permissions:['match:manage']};
+assert.equal((await protectedLegacyWrite(poolEditRequest,{...args,authenticate:async()=>matchEditor})).status,201);
+const afterPoolEdit=writes;
+assert.equal((await protectedLegacyWrite(poolEditRequest,{...args,authenticate:async()=>matchEditor,resolveTeamId:async()=> 'team-b'})).status,403);
+assert.equal(writes,afterPoolEdit,'Cross-team pool updates must never reach write handler');
+console.log('PASS pool updates require match permission and matching team');
