@@ -55,6 +55,7 @@ export async function handleTeamAuth(request, env) {
   if (path === '/api/auth/login' && request.method === 'POST') {
     let data;
     try { data = await request.json(); } catch { return json({ error: 'Ogiltig JSON' }, 400); }
+    if (!data || typeof data !== 'object' || Array.isArray(data)) return json({ error: 'Ogiltiga inloggningsuppgifter' }, 400);
     const email = String(data.email || '').trim().toLowerCase();
     const password = String(data.password || '');
     if (!email || email.length > 254 || !password || password.length > 1024) return json({ error: 'Fel e-postadress eller lösenord' }, 401);
