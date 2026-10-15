@@ -11,7 +11,13 @@
     if(state.token)headers.set('Authorization','Bearer '+state.token);
     const response=await fetch(origin()+path,{...options,headers,cache:'no-store',credentials:'omit'});
     const data=await response.json().catch(()=>({}));
-    if(!response.ok)throw Object.assign(Error(data.error||'Begäran misslyckades'),{status:response.status});
+    if(!response.ok){
+      if(response.status===401 && path!=='/api/auth/login'){
+        state.token=null;
+        state.identity=null;
+      }
+      throw Object.assign(Error(data.error||'Begäran misslyckades'),{status:response.status});
+    }
     return data;
   }
   async function login(email,password){
