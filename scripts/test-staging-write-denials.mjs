@@ -113,3 +113,32 @@ for(const [name,payload] of [
 }
 assert.equal(lineupLookupCalls,3,'Each foreign member must be validated in selected team');
 console.log('PASS lineup rejects cross-team players, coaches and goalies');
+
+
+const createdLineups=new Map();
+const crudDb={prepare(sql){return {bind(...args){return {
+ async run(){
+  if(sql.startsWith('INSERT INTO auth_lineups_staging(')){createdLineups.set(args[0],{id:args[0],team_id:args[1],match_name:args[2],goalie_id:args[3],player_ids:args[4],coach_ids:args[5],created_at:'2026-10-15'});return {meta:{changes:1}};}
+  if(sql.startsWith('UPDATE auth_lineups_staging SET')){const row=createdLineups.get(args[4]);if(!row||row.team_id!==args[5])return {meta:{changes:0}};Object.assign(row,{match_name:args[0],goalie_id:args[1],player_ids:args[2],coach_ids:args[3]});return {meta:{changes:1}};}
+  if(sql.startsWith('DELETE FROM auth_lineups_staging WHERE')){const row=createdLineups.get(args[0]);if(!row||row.team_id!==args[1])return {meta:{changes:0}};createdLineups.delete(args[0]);return {meta:{changes:1}};}
+  return {meta:{changes:1}};
+ },
+ async all(){if(sql.startsWith('SELECT l.id,'))return {results:[...createdLineups.values()].filter(row=>row.team_id===args[0]).map(row=>({...row,match_date:null,opponent:null,start_time:null,gathering_time:null,positions_json:null,units_json:null}))};throw Error('Unexpected SELECT: '+sql);}
+};}};}};
+const crudPayload=(match_name)=>({match_name,player_ids:[],coach_ids:[]});
+const sendLineup=(method,url,payload)=>stagingLineups(new Request(url,{method,headers:{'content-type':'application/json'},...(payload?{body:JSON.stringify(payload)}:{})}),crudDb,lineupAdmin,json);
+const createResponse=await sendLineup('POST',lineupUrl,crudPayload('NSK CRUD TEST'));
+assert.equal(createResponse.status,201,'Create lineup');
+const created=await createResponse.json();
+assert.ok(createdLineups.has(created.id));
+let listResponse=await sendLineup('GET',lineupUrl);
+assert.equal(listResponse.status,200,'List lineups');
+assert.equal((await listResponse.json()).lineups.find(x=>x.id===created.id)?.match_name,'NSK CRUD TEST');
+const idUrl=lineupUrl+'&id='+created.id;
+assert.equal((await sendLineup('PATCH',idUrl,crudPayload('NSK CRUD UPDATED'))).status,200,'Update lineup');
+listResponse=await sendLineup('GET',lineupUrl);
+assert.equal((await listResponse.json()).lineups.find(x=>x.id===created.id)?.match_name,'NSK CRUD UPDATED');
+assert.equal((await sendLineup('DELETE',idUrl)).status,200,'Delete lineup');
+listResponse=await sendLineup('GET',lineupUrl);
+assert.equal((await listResponse.json()).lineups.some(x=>x.id===created.id),false,'Deleted lineup must disappear');
+console.log('PASS lineup create/list/update/delete using isolated in-memory SQL stub');
