@@ -54,3 +54,17 @@ test('failed identity verification never queries staging database', async () => 
   assert.equal(response.status, 401);
   assert.equal(queries, 0);
 });
+
+test('default identity verifier rejects unknown session before roster query', async () => {
+  const queries = [];
+  const db = { prepare(sql) {
+    queries.push(sql);
+    return { bind() { return { first: async () => null }; } };
+  } };
+  const req = new Request(url, { headers: { Authorization: 'Bearer ' + token } });
+  const response = await handleStagingRosterRoute(req, { AUTH_DB: db });
+  assert.equal(response.status, 401);
+  assert.equal(queries.length, 1);
+  assert.match(queries[0], /auth_sessions/);
+  assert.doesNotMatch(queries[0], /auth_roster_staging/);
+});
