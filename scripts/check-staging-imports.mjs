@@ -9,7 +9,7 @@ function scan(file) {
   visited.add(file);
   if (!existsSync(file)) { missing.add(file); return; }
   const code = readFileSync(file, 'utf8');
-  for (const match of code.matchAll(/(?:import|export)\\s+(?:[^'"]*?\\s+from\\s+)?['"]([^'"]+)['"]/g)) {
+  for (const match of code.matchAll(/(?:import|export)\s+(?:[^'"]*?\s+from\s+)?['"]([^'"]+)['"]/g)) {
     if (!match[1].startsWith('.')) continue;
     scan(resolve(dirname(file), match[1]));
   }
