@@ -1,8 +1,8 @@
-// NSK-2026 v760 – nätverket först, cache endast som offline-reserv.
-const CACHE_NAME = "nsk-team18-v760";
+// NSK-2026 v761 – nätverket först, cache endast som offline-reserv.
+const CACHE_NAME = "nsk-team18-v761";
 const OFFLINE_ASSETS = [
-  "./startsida/", "./app.css?v=760", "./app.js?v=760",
-  "./version.js?v=760", "./icon-192.png", "./icon-512.png"
+  "./startsida/", "./app.css?v=761", "./app.js?v=761",
+  "./version.js?v=761", "./icon-192.png", "./icon-512.png"
 ];
 
 self.addEventListener("install", (event) => {
