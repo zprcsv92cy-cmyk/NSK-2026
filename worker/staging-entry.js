@@ -72,6 +72,6 @@ export default {
         return new Response(JSON.stringify({ error: 'Internt serverfel vid aktivering' }), { status: 500, headers: { 'content-type': 'application/json', 'cache-control': 'no-store' } });
       }
     }
-    return handleTeamAuth(request, env);
+    return handleAuthRequest(request, env);
   }
 };
