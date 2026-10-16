@@ -46,3 +46,22 @@ test('authorized POST writes to own team', async () => {
   assert.equal(result.status, 201);
   assert.equal(db.calls[0].args[1], 'team-18');
 });
+
+test('PATCH is scoped to authenticated team', async () => {
+  const db = store();
+  const id = '123e4567-e89b-42d3-a456-426614174000';
+  const req = new Request('https://example.test/api/auth/roster-staging/' + id + '?team_id=team-18', {
+    method: 'PATCH', body: JSON.stringify({ name: 'Updated' })
+  });
+  const result = await stagingRoster(req, db, admin, json);
+  assert.equal(result.status, 200);
+  assert.deepEqual(db.calls[0].args, ['Updated', id, 'team-18']);
+});
+test('DELETE is scoped to authenticated team', async () => {
+  const db = store();
+  const id = '123e4567-e89b-42d3-a456-426614174000';
+  const req = new Request('https://example.test/api/auth/roster-staging/' + id + '?team_id=team-18', { method: 'DELETE' });
+  const result = await stagingRoster(req, db, admin, json);
+  assert.equal(result.status, 200);
+  assert.deepEqual(db.calls[0].args, [id, 'team-18']);
+});
