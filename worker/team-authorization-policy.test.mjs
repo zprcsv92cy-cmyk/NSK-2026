@@ -48,3 +48,16 @@ test('rejects missing team context before writing', async () => {
   assert.equal(result.status, 400);
   assert.equal(writes, 0);
 });
+
+test('rejects malformed bearer header before identity verification', async () => {
+  let verified = 0;
+  let writes = 0;
+  const headers = ['Bearer', 'Basic abc', 'Bearer token with spaces', 'Bearer  token'];
+  for (const authorization of headers) {
+    const request = new Request('https://example.test', { headers: { Authorization: authorization } });
+    const result = await authorizeRosterMutation(request, 'team-18', async () => { verified++; return actor; }, async () => { writes++; });
+    assert.equal(result.status, 401, authorization);
+  }
+  assert.equal(verified, 0);
+  assert.equal(writes, 0);
+});
