@@ -179,3 +179,28 @@ test('verified Testlag 2 viewer is denied all roster mutations despite global gr
     assert.equal(storageCalls, 0, method);
   }
 });
+
+test('multi-team admin may edit Team 18 but not viewer-only Testlag 2', async () => {
+  const writes = [];
+  const db = { prepare(sql) { return { bind(...args) { return {
+    run: async () => { writes.push({ sql, args }); return { meta: { changes: 1 } }; }
+  }; } }; } };
+  const multiTeamActor = {
+    memberships: [
+      { team_id: 'NSK Team 18', role: 'team_admin' },
+      { team_id: 'NSK Testlag 2', role: 'viewer' }
+    ],
+    permissions: ['roster:manage']
+  };
+  for (const [team, expected] of [['NSK Team 18', 201], ['NSK Testlag 2', 403]]) {
+    const request = new Request(
+      'https://example.test/api/auth/roster-staging?team_id=' + encodeURIComponent(team),
+      { method: 'POST', headers: { Authorization: 'Bearer ' + token },
+        body: JSON.stringify({ kind: 'player', name: 'ROLE TEST' }) }
+    );
+    const response = await handleStagingRosterRoute(request, { AUTH_DB: db }, async () => multiTeamActor);
+    assert.equal(response.status, expected, team);
+  }
+  assert.equal(writes.length, 1);
+  assert.equal(writes[0].args[1], 'NSK Team 18');
+});
