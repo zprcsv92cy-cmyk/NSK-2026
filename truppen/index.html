@@ -69,6 +69,23 @@
     </section>
 
 
+    <section class="card roster-card" aria-labelledby="nsk-test-roster-title">
+      <h2 id="nsk-test-roster-title">Truppen – behörighetsstyrd testmiljö</h2>
+      <p id="nsk-test-roster-status" role="status">Logga in på startsidan för att använda testtruppen.</p>
+      <div id="nsk-test-roster-controls" hidden>
+        <label for="nsk-test-roster-kind">Roll</label>
+        <select id="nsk-test-roster-kind">
+          <option value="player">Spelare</option><option value="coach">Tränare</option>
+          <option value="team_manager">Lagledare</option><option value="fitness">Fysansvarig</option>
+          <option value="equipment">Materialförvaltare</option>
+        </select>
+        <label for="nsk-test-roster-name">Namn</label>
+        <input id="nsk-test-roster-name" type="text" maxlength="120">
+        <button id="nsk-test-roster-add" type="button">Lägg till i testtruppen</button>
+      </div>
+      <div id="nsk-test-roster-list"></div>
+    </section>
+
     <section class="card roster-card roster-backup">
 
       <div class="btnrow">
@@ -157,6 +174,64 @@
     document.write('<script src="../app.js?v=' + window.NSK_VERSION + '"><\/script>');
   </script>
 
+<script>
+(function(){
+  const status=document.getElementById('nsk-test-roster-status');
+  const controls=document.getElementById('nsk-test-roster-controls');
+  const list=document.getElementById('nsk-test-roster-list');
+  const add=document.getElementById('nsk-test-roster-add');
+  const names={player:'Spelare',coach:'Tränare',team_manager:'Lagledare',fitness:'Fysansvarig',equipment:'Materialförvaltare'};
+  async function refresh(){
+    if(!window.Auth){status.textContent='Inloggningen är inte tillgänglig.';return;}
+    if(!Auth.getSession()) await Auth.init();
+    const teamId=Auth.activeTeam();
+    if(!teamId){status.textContent='Logga in på startsidan och välj ett lag.';controls.hidden=true;list.replaceChildren();return;}
+    try{
+      const data=await Auth.stagingRosterList();
+      controls.hidden=!data.canManage;
+      status.textContent='Testtrupp för '+teamId+(data.canManage?' – redigering tillåten':' – endast läsning');
+      list.replaceChildren();
+      for(const row of data.rows||[]){
+        const item=document.createElement('div');
+        item.className='listrow';
+        const label=document.createElement('span');
+        label.textContent=(names[row.kind]||row.kind)+': ';
+        const input=document.createElement('input');
+        input.value=row.name;input.maxLength=120;input.readOnly=!data.canManage;
+        item.append(label,input);
+        if(data.canManage){
+          input.addEventListener('change',async()=>{
+            try{await Auth.stagingRosterWrite('PATCH',row.id,{name:input.value.trim()});await refresh();}
+            catch(error){status.textContent=error.message;}
+          });
+          const remove=document.createElement('button');
+          remove.type='button';remove.textContent='Ta bort';
+          remove.addEventListener('click',async()=>{
+            if(!confirm('Ta bort personen ur testtruppen?'))return;
+            try{await Auth.stagingRosterWrite('DELETE',row.id);await refresh();}
+            catch(error){status.textContent=error.message;}
+          });
+          item.append(remove);
+        }
+        list.append(item);
+      }
+    }catch(error){status.textContent=error.message;controls.hidden=true;list.replaceChildren();}
+  }
+  add.addEventListener('click',async()=>{
+    const input=document.getElementById('nsk-test-roster-name');
+    const name=input.value.trim();
+    if(!name)return;
+    add.disabled=true;
+    try{
+      await Auth.stagingRosterWrite('POST',null,{kind:document.getElementById('nsk-test-roster-kind').value,name});
+      input.value='';await refresh();
+    }catch(error){status.textContent=error.message;}
+    finally{add.disabled=false;}
+  });
+  window.addEventListener('focus',refresh);
+  refresh();
+})();
+</script>
 <script src="../admin-mode.js?v=1"></script>
 <script>
 (function(){
