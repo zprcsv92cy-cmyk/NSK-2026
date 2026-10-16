@@ -22,5 +22,21 @@ export async function resolveLegacyRosterTeam(request, { listTeams, readRow, tea
     const ids = links.map(x => Number(typeof x === 'object' ? x?.id : x));
     if (!ids.includes(Number(team.id))) throw new Error('Roster row belongs to another team');
   }
+  // Reject client-supplied team overrides before the mutation handler runs.
+  // Read a clone so the real handler can still consume the request body.
+  if (request.body) {
+    let body;
+    try { body = await request.clone().json(); } catch { throw new Error('Invalid roster JSON'); }
+    if (!body || typeof body !== 'object' || Array.isArray(body)) throw new Error('Invalid roster payload');
+    const requestedTeam = body.team_id ?? body.teamId;
+    if (requestedTeam != null && String(requestedTeam) !== String(team.id))
+      throw new Error('Conflicting team override');
+    if (Object.prototype.hasOwnProperty.call(body, 'Lag')) {
+      const links = body.Lag;
+      if (!Array.isArray(links) || links.length !== 1 ||
+          String(typeof links[0] === 'object' ? links[0]?.id : links[0]) !== String(team.id))
+        throw new Error('Conflicting roster team links');
+    }
+  }
   return String(team.id);
 }
