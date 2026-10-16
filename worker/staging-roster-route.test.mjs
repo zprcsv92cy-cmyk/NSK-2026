@@ -153,3 +153,29 @@ test('legacy API binding is never called when staging D1 is missing', async () =
   assert.equal(response.status, 503);
   assert.equal(legacyCalls, 0);
 });
+
+test('verified Testlag 2 viewer is denied all roster mutations despite global grant', async () => {
+  let storageCalls = 0;
+  const db = { prepare() { storageCalls++; throw Error('viewer must not access storage for writes'); } };
+  const viewer = {
+    memberships: [{ team_id: 'NSK Testlag 2', role: 'viewer' }],
+    permissions: ['roster:manage']
+  };
+  const id = '123e4567-e89b-42d3-a456-426614174000';
+  for (const [method, path, body] of [
+    ['POST', '/api/auth/roster-staging', { kind: 'player', name: 'DENIED' }],
+    ['PATCH', '/api/auth/roster-staging/' + id, { name: 'DENIED' }],
+    ['DELETE', '/api/auth/roster-staging/' + id, null]
+  ]) {
+    const req = new Request('https://example.test' + path + '?team_id=NSK%20Testlag%202', {
+      method, headers: { Authorization: 'Bearer ' + token },
+      ...(body ? { body: JSON.stringify(body) } : {})
+    });
+    const response = await handleStagingRosterRoute(req, { AUTH_DB: db }, async supplied => {
+      assert.equal(supplied, token);
+      return viewer;
+    });
+    assert.equal(response.status, 403, method);
+    assert.equal(storageCalls, 0, method);
+  }
+});
