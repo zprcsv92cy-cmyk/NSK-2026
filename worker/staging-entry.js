@@ -13,9 +13,45 @@ import { activationPage } from './activation-page.js';
 import { handleTeamAuth } from './team-auth.js';
 import { handleActivation } from './account-activation.js';
 
+// Isolated API dispatcher used by cross-origin requests from NSK GitHub Pages.
+async function handleAuthRequest(request, env, url) {
+  if (url.pathname === '/api/auth/staging/bootstrap-test') return bootstrapTestAccount(request, env);
+  if (url.pathname === '/api/auth/activate') {
+    try { return await handleActivation(request, env); }
+    catch (error) {
+      console.error('Activation failure:', error);
+      return new Response(JSON.stringify({ error: 'Internt serverfel vid aktivering' }), { status: 500, headers: { 'content-type': 'application/json' } });
+    }
+  }
+  return handleTeamAuth(request, env);
+}
+
 export default {
   async fetch(request, env) {
     const url = new URL(request.url);
+    // Browser login on the existing GitHub Pages app requires CORS preflight.
+    // Allow only the NSK site; never reflect arbitrary Origin values.
+    const origin = request.headers.get('Origin');
+    const allowedOrigin = origin === 'https://zprcsv92cy-cmyk.github.io' ? origin : null;
+    if (url.pathname.startsWith('/api/auth/') && request.method === 'OPTIONS') {
+      if (!allowedOrigin) return new Response(null, { status: 403 });
+      return new Response(null, { status: 204, headers: {
+        'Access-Control-Allow-Origin': allowedOrigin,
+        'Access-Control-Allow-Methods': 'GET, POST, PATCH, PUT, DELETE, OPTIONS',
+        'Access-Control-Allow-Headers': 'Authorization, Content-Type',
+        'Access-Control-Max-Age': '600',
+        'Vary': 'Origin'
+      } });
+    }
+    // All authenticated API responses must carry the same restricted CORS policy.
+    if (url.pathname.startsWith('/api/auth/') && allowedOrigin) {
+      const response = await handleAuthRequest(request, env, url);
+      const headers = new Headers(response.headers);
+      headers.set('Access-Control-Allow-Origin', allowedOrigin);
+      headers.set('Vary', 'Origin');
+      headers.set('Cache-Control', 'no-store');
+      return new Response(response.body, { status: response.status, headers });
+    }
     if (url.pathname === '/integrationsstatus/' || url.pathname === '/integrationsstatus') return new Response(integrationStatusPage,{headers:{'content-type':'text/html; charset=utf-8','cache-control':'no-store','x-content-type-options':'nosniff','content-security-policy':"default-src 'none'; style-src 'unsafe-inline'; base-uri 'none'; frame-ancestors 'none'"}});
     if (url.pathname === '/staging/legacy-db-auth-guard.js') return new Response(browserModuleText,{headers:{'content-type':'text/javascript; charset=utf-8','cache-control':'no-store','x-content-type-options':'nosniff'}});
     if (url.pathname === '/datalager-behorighet/' || url.pathname === '/datalager-behorighet') return new Response(legacyDbGuardTestPage,{headers:{'content-type':'text/html; charset=utf-8','cache-control':'no-store','x-content-type-options':'nosniff','content-security-policy':"default-src 'none'; script-src 'self' 'unsafe-inline'; style-src 'unsafe-inline'; connect-src 'self'; form-action 'self'; base-uri 'none'; frame-ancestors 'none'"}});
