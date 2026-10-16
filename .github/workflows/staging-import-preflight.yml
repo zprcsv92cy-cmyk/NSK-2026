@@ -1,0 +1,21 @@
+name: Staging import preflight
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'worker/**'
+      - 'scripts/check-staging-imports.mjs'
+      - '.github/workflows/staging-import-preflight.yml'
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  preflight:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Check staging entrypoint dependencies
+        run: node scripts/check-staging-imports.mjs
