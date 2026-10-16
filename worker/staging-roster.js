@@ -57,7 +57,7 @@ export async function stagingRoster(request,db,actor,json) {
  }
  const match=rowMatch;
  if(match&&request.method==='PATCH'){
-  let data;try{data=await request.json()}catch{return json({error:'Ogiltig JSON'},400)}
+  const data=parsedWrite;
   const name=typeof data.name==='string'?data.name.trim():'';
   if(!name||name.length>120)return json({error:'Ogiltigt namn'},400);
   const result=await db.prepare('UPDATE auth_roster_staging SET name=? WHERE id=? AND team_id=?').bind(name,match[1],teamId).run();
