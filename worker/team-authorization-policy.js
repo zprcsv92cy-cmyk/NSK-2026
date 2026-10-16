@@ -26,3 +26,19 @@ export function authorizeTeamFeature(actor, teamId, feature) {
   return { allowed, status: allowed ? 200 : 403,
     reason: allowed ? 'Tillåtet' : 'Saknar behörighet', permission };
 }
+
+/**
+ * Resolve authorization before executing a production write.
+ * The caller must supply a server-verified identity, never browser-provided roles.
+ * No write handler is invoked when access is denied.
+ */
+export async function requireTeamWrite(actor, teamId, feature, handler) {
+  const decision = authorizeTeamFeature(actor, teamId, feature);
+  if (!decision.allowed) {
+    return { ok: false, status: decision.status, error: decision.reason };
+  }
+  if (typeof handler !== 'function') {
+    return { ok: false, status: 500, error: 'Skrivfunktion saknas' };
+  }
+  return handler();
+}
