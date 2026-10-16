@@ -204,3 +204,29 @@ test('multi-team admin may edit Team 18 but not viewer-only Testlag 2', async ()
   assert.equal(writes.length, 1);
   assert.equal(writes[0].args[1], 'NSK Team 18');
 });
+
+test('server rejects all unauthenticated roster mutations before any database operation', async () => {
+  let verified = 0;
+  let storageCalls = 0;
+  const db = { prepare() { storageCalls++; throw Error('unauthorized database access'); } };
+  const id = '123e4567-e89b-42d3-a456-426614174000';
+  const verify = async () => { verified++; return actor; };
+  for (const [method, suffix, body] of [
+    ['POST', '', { kind: 'player', name: 'BLOCKED' }],
+    ['PATCH', '/' + id, { name: 'BLOCKED' }],
+    ['DELETE', '/' + id, null]
+  ]) {
+    for (const headers of [{}, { Authorization: 'Bearer shared-admin-token' }]) {
+      const request = new Request('https://example.test/api/auth/roster-staging' + suffix + '?team_id=NSK%20Testlag%202', {
+        method,
+        headers,
+        ...(body ? { body: JSON.stringify(body) } : {})
+      });
+      const response = await handleStagingRosterRoute(request, { AUTH_DB: db }, verify);
+      assert.equal(response.status, 401, method);
+      assert.equal(response.headers.get('cache-control'), 'no-store');
+    }
+  }
+  assert.equal(verified, 0);
+  assert.equal(storageCalls, 0);
+});
