@@ -68,3 +68,68 @@ test('missing credentials do not trigger trusted team lookup', async () => {
   assert.equal(lookups, 0);
   assert.equal(writes, 0);
 });
+
+test('rejects unsupported methods without team lookup or writes', async () => {
+  let lookups = 0, writes = 0;
+  const result = await guardRosterRoute(new Request('https://example.test/api/spelare', {
+    method: 'GET', headers: { Authorization: 'Bearer valid-token' }
+  }), {
+    resolveTeamId: async () => { lookups++; return 'team-18'; },
+    verifyIdentity: async () => actor,
+    mutate: async () => { writes++; }
+  });
+  assert.equal(result.status, 405);
+  assert.equal(lookups, 0);
+  assert.equal(writes, 0);
+});
+
+test('fails closed when trusted team resolution returns an empty id', async () => {
+  let verified = 0, writes = 0;
+  const result = await guardRosterRoute(request, {
+    resolveTeamId: async () => '',
+    verifyIdentity: async () => { verified++; return actor; },
+    mutate: async () => { writes++; }
+  });
+  assert.equal(result.status, 502);
+  assert.equal(verified, 0);
+  assert.equal(writes, 0);
+});
+
+test('denies a read-only member even for a trusted team', async () => {
+  let writes = 0;
+  const result = await guardRosterRoute(request, {
+    resolveTeamId: async () => 'team-18',
+    verifyIdentity: async () => ({
+      memberships: [{ team_id: 'team-18', role: 'viewer' }],
+      permissions: ['roster:manage']
+    }),
+    mutate: async () => { writes++; }
+  });
+  assert.equal(result.status, 403);
+  assert.equal(writes, 0);
+});
+
+test('denies invalid personal token without writing', async () => {
+  let writes = 0;
+  const result = await guardRosterRoute(request, {
+    resolveTeamId: async () => 'team-18',
+    verifyIdentity: async () => null,
+    mutate: async () => { writes++; }
+  });
+  assert.equal(result.status, 401);
+  assert.equal(writes, 0);
+});
+
+test('permits DELETE only for an authorized team', async () => {
+  let writes = 0;
+  const deleteRequest = new Request('https://example.test/api/spelare/7', {
+    method: 'DELETE', headers: { Authorization: 'Bearer valid-token' }
+  });
+  const result = await guardRosterRoute(deleteRequest, {
+    resolveTeamId: async () => 'team-18',
+    verifyIdentity: async () => actor,
+    mutate: async () => { writes++; return { ok: true }; }
+  });
+  assert.equal(result.ok, true);
+  assert.equal(writes, 1);
+});
