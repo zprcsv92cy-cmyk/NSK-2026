@@ -16,7 +16,7 @@ function scan(file) {
 }
 scan(entry);
 if (missing.size) {
-  console.error('Missing staging modules:');
+  console.error('Missing staging modules (' + missing.size + '):');
   for (const file of [...missing].sort()) console.error(' - ' + file.replace(process.cwd() + '/', ''));
   process.exitCode = 1;
 } else console.log('Staging imports resolved (' + visited.size + ' files).');
