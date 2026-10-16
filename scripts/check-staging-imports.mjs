@@ -3,6 +3,13 @@ import { readFileSync, existsSync } from 'node:fs';
 import { dirname, resolve } from 'node:path';
 import { spawnSync } from 'node:child_process';
 const entry = resolve('worker/staging-entry.js');
+const entrySource = readFileSync(entry, 'utf8');
+const dispatcherImported = entrySource.includes("from './staging-auth-dispatch.js'");
+const dispatcherWired = entrySource.includes('createStagingAuthHandler(');
+if (!dispatcherImported || !dispatcherWired) {
+  console.error('Staging entrypoint must import and wire the isolated authorization dispatcher.');
+  process.exitCode = 1;
+}
 const visited = new Set();
 const missing = new Set();
 function scan(file) {
