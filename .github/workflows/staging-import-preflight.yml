@@ -38,4 +38,4 @@ jobs:
         with:
           node-version: '22'
       - name: Run authorization regression tests independently of missing staging imports
-        run: node --experimental-default-type=module --test worker/team-authorization-policy.test.mjs worker/production-roster-route-guard.test.mjs worker/staging-roster.test.mjs worker/staging-roster-route.test.mjs worker/staging-session-identity.test.mjs worker/staging-auth-dispatch.test.mjs
+        run: node --experimental-default-type=module --test worker/team-authorization-policy.test.mjs worker/production-roster-route-guard.test.mjs worker/staging-roster.test.mjs worker/staging-roster-route.test.mjs worker/staging-session-identity.test.mjs worker/staging-auth-dispatch.test.mjs worker/staging-entry-routing.test.mjs
