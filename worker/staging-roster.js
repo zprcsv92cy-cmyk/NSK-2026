@@ -21,7 +21,21 @@ export async function stagingRoster(request,db,actor,json) {
  if(!canManage)return json({error:'Saknar behörighet att ändra Truppen'},403);
  if(['POST','PATCH'].includes(request.method)){
   const length=request.headers.get('Content-Length');
-  if(length!==null&&(!/^\\d+$/.test(length)||Number(length)>2048))return json({error:'Begäran är för stor'},413);
+  if(length!==null&&(!/^[0-9]+$/.test(length)||Number(length)>2048))return json({error:'Begäran är för stor'},413);
+  // Enforce the limit on actual bytes too: Content-Length can be absent or forged.
+  if(request.body){
+   const copy=request.clone();
+   const reader=copy.body.getReader();
+   let bytes=0;
+   try{
+    while(true){
+     const {done,value}=await reader.read();
+     if(done)break;
+     bytes+=value.byteLength;
+     if(bytes>2048){await reader.cancel();return json({error:'Begäran är för stor'},413);}
+    }
+   }finally{reader.releaseLock();}
+  }
  }
  if(path==='/api/auth/roster-staging'&&request.method==='POST'){
   let data;try{data=await request.json()}catch{return json({error:'Ogiltig JSON'},400)}
