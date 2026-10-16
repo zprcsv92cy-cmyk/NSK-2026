@@ -250,3 +250,21 @@ test('staging roster rejects unknown role without writing', async () => {
   assert.equal(result.status, 400);
   assert.equal(db.calls.length, 0);
 });
+
+
+test('PATCH and DELETE cannot modify a row belonging to another team', async () => {
+  const id = '123e4567-e89b-42d3-a456-426614174000';
+  for (const method of ['PATCH', 'DELETE']) {
+    const db = store();
+    const req = new Request(
+      'https://example.test/api/auth/roster-staging/' + id + '?team_id=team-18',
+      { method, ...(method === 'PATCH'
+        ? { body: JSON.stringify({ name: 'CHANGED' }) } : {}) }
+    );
+    const result = await stagingRoster(req, db, admin, json);
+    assert.equal(result.status, 200);
+    assert.equal(db.calls.length, 1);
+    assert.match(db.calls[0].sql, /WHERE id=\? AND team_id=\?/);
+    assert.equal(db.calls[0].args.at(-1), 'team-18');
+  }
+});
