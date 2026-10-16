@@ -125,3 +125,31 @@ test('verified Team 18 session can write own roster but not Testlag 2', async ()
   assert.equal(other.status, 403);
   assert.equal(writes.length, 1);
 });
+
+test('PATCH only targets rows belonging to the authorized team', async () => {
+  const id = '123e4567-e89b-12d3-a456-426614174000';
+  const writes = [];
+  const db = { prepare(sql) { return { bind(...args) { return {
+    run: async () => { writes.push({ sql, args }); return { meta: { changes: 0 } }; }
+  }; } }; } };
+  const request = new Request('https://example.test/api/auth/roster-staging/' + id + '?team_id=team-18', {
+    method: 'PATCH', headers: { Authorization: 'Bearer ' + token, 'Content-Type': 'application/json' },
+    body: JSON.stringify({ name: 'TEST' })
+  });
+  const response = await handleStagingRosterRoute(request, { AUTH_DB: db }, async () => actor);
+  assert.equal(response.status, 404);
+  assert.equal(writes.length, 1);
+  assert.ok(writes[0].sql.includes('WHERE id=? AND team_id=?'));
+  assert.deepEqual(writes[0].args.slice(-2), [id, 'team-18']);
+});
+
+test('legacy API binding is never called when staging D1 is missing', async () => {
+  let legacyCalls = 0;
+  const request = new Request(url, { method: 'POST', headers: { Authorization: 'Bearer ' + token },
+    body: JSON.stringify({ kind: 'player', name: 'TEST' }) });
+  const response = await handleStagingRosterRoute(request, {
+    LEGACY_API: { fetch: async () => { legacyCalls++; throw Error('Unexpected legacy API call'); } }
+  }, async () => actor);
+  assert.equal(response.status, 503);
+  assert.equal(legacyCalls, 0);
+});
