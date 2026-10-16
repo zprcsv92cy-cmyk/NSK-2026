@@ -229,3 +229,24 @@ test('Testlag 2 administrator cannot edit Team 18', async () => {
   assert.equal(response.status, 403);
   assert.equal(db.calls.length, 0);
 });
+
+
+test('staging roster accepts the five supported team roles', async () => {
+  for (const kind of ['player', 'coach', 'team_manager', 'fitness', 'equipment']) {
+    const db = store();
+    const result = await stagingRoster(request('POST', 'team-18', {
+      kind, name: 'NSK TEST'
+    }), db, admin, json);
+    assert.equal(result.status, 201, kind);
+    assert.equal(db.calls.length, 1, kind);
+    assert.equal(db.calls[0].args[2], kind);
+  }
+});
+test('staging roster rejects unknown role without writing', async () => {
+  const db = store();
+  const result = await stagingRoster(request('POST', 'team-18', {
+    kind: 'team_admin', name: 'NSK TEST'
+  }), db, admin, json);
+  assert.equal(result.status, 400);
+  assert.equal(db.calls.length, 0);
+});
