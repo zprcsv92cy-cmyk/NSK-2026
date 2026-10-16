@@ -5,6 +5,7 @@ on:
     paths:
       - 'worker/**'
       - 'scripts/check-staging-imports.mjs'
+      - '.github/workflows/auth-staging.yml'
       - '.github/workflows/staging-import-preflight.yml'
   workflow_dispatch:
 permissions:
@@ -17,5 +18,7 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: '22'
-      - name: Check staging entrypoint dependencies
+      - name: Check staging entrypoint dependencies and syntax
         run: node scripts/check-staging-imports.mjs
+      - name: Run authorization regression tests
+        run: node --experimental-default-type=module --test worker/team-authorization-policy.test.mjs worker/production-roster-route-guard.test.mjs worker/staging-roster.test.mjs worker/staging-roster-route.test.mjs worker/staging-session-identity.test.mjs worker/staging-auth-dispatch.test.mjs
