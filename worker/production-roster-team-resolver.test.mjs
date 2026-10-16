@@ -123,3 +123,19 @@ test('rejects zero and unsafe roster row IDs before reading any row', async () =
     }
   }
 });
+
+test('rejects duplicate trusted team mappings instead of selecting the first', async () => {
+  for (const method of ['POST', 'PATCH', 'DELETE']) {
+    const path = method === 'POST' ? '/api/spelare' : '/api/spelare/41';
+    let reads = 0;
+    await assert.rejects(resolveLegacyRosterTeam(req(path, method), {
+      ...dependencies,
+      listTeams: async () => [
+        { id: 18, Namn: 'NSK Team 18', 'Säsong': '2026' },
+        { id: 19, Namn: 'NSK Team 18', 'Säsong': '2026' }
+      ],
+      readRow: async () => { reads++; return { Lag: [{ id: 18 }] }; }
+    }), /ambiguous/, method);
+    assert.equal(reads, 0);
+  }
+});
