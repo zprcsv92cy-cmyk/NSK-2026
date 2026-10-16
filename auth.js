@@ -1,7 +1,8 @@
 // NSK authentication adapter. Server-side authorization must be enforced by the Worker.
 // Existing admin/match flows remain unchanged until the Worker supports user accounts.
 (() => {
-  const API = window.APP_CONFIG?.API_URL || 'https://nsk-api.peter-hasselberg.workers.dev';
+  // Use the isolated authentication Worker, never the legacy data API for credentials.
+  const API = String(window.APP_CONFIG?.AUTH_URL || 'https://nsk-auth-staging.peter-hasselberg.workers.dev').replace(/\/$/, '');
   const KEY = 'nsk_user_token';
   const PERMISSIONS = Object.freeze(['read','pool:create','lineup:edit','shifts:check','match:manage','pool:finish','pool:reopen','roster:manage','users:manage']);
   let session = null;
@@ -26,6 +27,20 @@
       if (!session) sessionStorage.removeItem(KEY);
       return session;
     } catch { session = null; return null; }
+  }
+  function canTeam(teamId, permission) {
+    return !!session && session.memberships.some(m => m.team_id === teamId && m.role === 'team_admin') && session.permissions.includes(permission);
+  }
+  async function checkTeamFeature(teamId, feature) {
+    if (!token() || !teamId || !feature) return false;
+    const query = new URLSearchParams({ team_id: String(teamId), feature: String(feature) });
+    const response = await fetch(API + '/api/auth/feature-access?' + query, {
+      headers: { Authorization: 'Bearer ' + token() }, cache: 'no-store', credentials: 'omit'
+    });
+    if (response.status === 401) { session = null; sessionStorage.removeItem(KEY); return false; }
+    if (!response.ok) return false;
+    const data = await response.json().catch(() => ({}));
+    return data.allowed === true;
   }
   function can(permission) {
     return !!session && session.permissions.includes(permission);
@@ -52,7 +67,7 @@
     }
   }
   window.Auth = Object.freeze({
-    init, login, logout, can, getSession: () => session,
+    init, login, logout, can, canTeam, checkTeamFeature, getSession: () => session,
     getClient: () => null, getToken: token, permissions: PERMISSIONS
   });
 })();
