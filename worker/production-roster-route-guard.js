@@ -16,7 +16,11 @@ export async function guardRosterRoute(request, { resolveTeamId, verifyIdentity,
       typeof mutate !== 'function') {
     return { ok: false, status: 500, error: 'Säkerhetskontroll saknas' };
   }
-  // Only intended roster mutations may pass this write guard.\n  if (!['POST', 'PATCH', 'DELETE'].includes(request?.method)) {\n    return { ok: false, status: 405, error: 'Metoden är inte tillåten' };\n  }\n  // Reject missing credentials before performing any database/team lookup.
+  // Only intended roster mutations may pass this write guard.
+  if (!['POST', 'PATCH', 'DELETE'].includes(request?.method)) {
+    return { ok: false, status: 405, error: 'Metoden är inte tillåten' };
+  }
+  // Reject missing credentials before performing any database/team lookup.
   const authorization = request?.headers?.get?.('Authorization') || '';
   if (!/^Bearer ([^\s]+)$/.test(authorization)) {
     return { ok: false, status: 401, error: 'Personlig inloggning krävs' };
@@ -27,5 +31,8 @@ export async function guardRosterRoute(request, { resolveTeamId, verifyIdentity,
   } catch {
     return { ok: false, status: 502, error: 'Laget kunde inte verifieras' };
   }
-  if (typeof teamId !== 'string' || !teamId.trim() || teamId.length > 100) {\n    return { ok: false, status: 502, error: 'Laget kunde inte verifieras' };\n  }\n  return authorizeRosterMutation(request, teamId, verifyIdentity, mutate);
+  if (typeof teamId !== 'string' || !teamId.trim() || teamId.length > 100) {
+    return { ok: false, status: 502, error: 'Laget kunde inte verifieras' };
+  }
+  return authorizeRosterMutation(request, teamId, verifyIdentity, mutate);
 }
