@@ -88,3 +88,22 @@ test('legacy wildcard CORS cannot override staging origin restriction', async ()
   }), {}, legacy);
   assert.equal(approved.headers.get('Access-Control-Allow-Origin'), site);
 });
+
+test('entrypoint adapter preserves activation and bootstrap routes', async () => {
+  const { createStagingAuthHandler } = await import('./staging-auth-dispatch.js');
+  const calls = [];
+  const adapter = createStagingAuthHandler({
+    handleTeamAuth: async () => { calls.push('auth'); return new Response('auth'); },
+    handleActivation: async () => { calls.push('activation'); return new Response('activation'); },
+    bootstrapTestAccount: async () => { calls.push('bootstrap'); return new Response('bootstrap'); }
+  });
+  for (const [path, expected] of [
+    ['activate', 'activation'],
+    ['staging/bootstrap-test', 'bootstrap'],
+    ['me', 'auth']
+  ]) {
+    const response = await adapter(new Request(root + path), {});
+    assert.equal(await response.text(), expected);
+  }
+  assert.deepEqual(calls, ['activation', 'bootstrap', 'auth']);
+});
