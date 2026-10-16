@@ -1,4 +1,5 @@
 import { stagingRoster } from './staging-roster.js';
+import { verifyStagingSession } from './staging-session-identity.js';
 
 const json = (body, status = 200) => new Response(JSON.stringify(body), {
   status,
@@ -11,7 +12,7 @@ const json = (body, status = 200) => new Response(JSON.stringify(body), {
  * return the trusted actor (including memberships and permissions).
  * No fallback to the legacy shared admin token is permitted.
  */
-export async function handleStagingRosterRoute(request, env, verifyIdentity) {
+export async function handleStagingRosterRoute(request, env, verifyIdentity = verifyStagingSession) {
   if (typeof verifyIdentity !== 'function' || !env?.AUTH_DB) {
     return json({ error: 'Stagingbehörighet är inte konfigurerad' }, 503);
   }
