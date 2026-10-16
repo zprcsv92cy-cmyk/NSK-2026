@@ -133,3 +133,40 @@ test('permits DELETE only for an authorized team', async () => {
   assert.equal(result.ok, true);
   assert.equal(writes, 1);
 });
+
+test('rejects an oversized trusted team identifier before authentication or writes', async () => {
+  let verified = 0, writes = 0;
+  const result = await guardRosterRoute(request, {
+    resolveTeamId: async () => 'x'.repeat(101),
+    verifyIdentity: async () => { verified++; return actor; },
+    mutate: async () => { writes++; }
+  });
+  assert.equal(result.status, 502);
+  assert.equal(verified, 0);
+  assert.equal(writes, 0);
+});
+
+test('rejects an identity-service error without writing', async () => {
+  let writes = 0;
+  const result = await guardRosterRoute(request, {
+    resolveTeamId: async () => 'team-18',
+    verifyIdentity: async () => { throw Error('identity service unavailable'); },
+    mutate: async () => { writes++; }
+  });
+  assert.equal(result.status, 401);
+  assert.equal(writes, 0);
+});
+
+test('rejects a member with no roster permission', async () => {
+  let writes = 0;
+  const result = await guardRosterRoute(request, {
+    resolveTeamId: async () => 'team-18',
+    verifyIdentity: async () => ({
+      memberships: [{ team_id: 'team-18', role: 'team_admin' }],
+      permissions: []
+    }),
+    mutate: async () => { writes++; }
+  });
+  assert.equal(result.status, 403);
+  assert.equal(writes, 0);
+});
