@@ -99,10 +99,7 @@
       option.textContent=member.team_id;
       select.appendChild(option);
     }
-    const stored=sessionStorage.getItem('nsk_active_team');
-    if(memberships.some(m=>m.team_id===stored)) select.value=stored;
-    else if(memberships.length) sessionStorage.setItem('nsk_active_team',select.value);
-    else sessionStorage.removeItem('nsk_active_team');
+    if(Auth.activeTeam()) select.value=Auth.activeTeam();
     role.textContent=memberships.find(m=>m.team_id===select.value)?.role||'';
 
   }
@@ -116,7 +113,7 @@
     const identity=Auth.getSession();
     const membership=identity?.memberships?.find(m=>m.team_id===teamId);
     if(!membership) return;
-    sessionStorage.setItem('nsk_active_team',teamId);
+    Auth.selectTeam(teamId);
     document.getElementById('nsk-team-role').textContent=membership.role;
   });
   form.addEventListener('submit',async event=>{
