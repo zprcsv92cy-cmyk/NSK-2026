@@ -55,3 +55,16 @@ test('rejects missing bearer token after resolving team', async () => {
   assert.equal(result.status, 401);
   assert.equal(writes, 0);
 });
+
+test('missing credentials do not trigger trusted team lookup', async () => {
+  let lookups = 0;
+  let writes = 0;
+  const result = await guardRosterRoute(new Request('https://example.test/api/spelare'), {
+    resolveTeamId: async () => { lookups++; return 'team-18'; },
+    verifyIdentity: async () => actor,
+    mutate: async () => { writes++; }
+  });
+  assert.equal(result.status, 401);
+  assert.equal(lookups, 0);
+  assert.equal(writes, 0);
+});
