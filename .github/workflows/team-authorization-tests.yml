@@ -13,6 +13,8 @@ on:
       - 'worker/staging-roster-route.test.mjs'
       - 'worker/staging-session-identity.js'
       - 'worker/staging-session-identity.test.mjs'
+      - 'worker/staging-auth-dispatch.js'
+      - 'worker/staging-auth-dispatch.test.mjs'
       - '.github/workflows/team-authorization-tests.yml'
   pull_request:
     paths:
@@ -26,6 +28,8 @@ on:
       - 'worker/staging-roster-route.test.mjs'
       - 'worker/staging-session-identity.js'
       - 'worker/staging-session-identity.test.mjs'
+      - 'worker/staging-auth-dispatch.js'
+      - 'worker/staging-auth-dispatch.test.mjs'
       - '.github/workflows/team-authorization-tests.yml'
 jobs:
   authorization:
@@ -37,4 +41,4 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: '22'
-      - run: node --experimental-default-type=module --test worker/team-authorization-policy.test.mjs worker/production-roster-route-guard.test.mjs worker/staging-roster.test.mjs worker/staging-roster-route.test.mjs worker/staging-session-identity.test.mjs
+      - run: node --experimental-default-type=module --test worker/team-authorization-policy.test.mjs worker/production-roster-route-guard.test.mjs worker/staging-roster.test.mjs worker/staging-roster-route.test.mjs worker/staging-session-identity.test.mjs worker/staging-auth-dispatch.test.mjs
