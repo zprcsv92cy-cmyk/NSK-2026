@@ -12,6 +12,8 @@ on:
       - 'worker/production-lagpersonal-auth-guard.test.mjs'
       - 'worker/personal-roster-identity-adapter.js'
       - 'worker/personal-roster-identity-adapter.test.mjs'
+      - 'worker/personal-roster-worker-adapter.js'
+      - 'worker/personal-roster-worker-adapter.test.mjs'
       - 'worker/production-roster-route-guard.js'
       - 'worker/production-roster-route-guard.test.mjs'
       - 'worker/staging-roster.js'
@@ -34,6 +36,8 @@ on:
       - 'worker/production-lagpersonal-auth-guard.test.mjs'
       - 'worker/personal-roster-identity-adapter.js'
       - 'worker/personal-roster-identity-adapter.test.mjs'
+      - 'worker/personal-roster-worker-adapter.js'
+      - 'worker/personal-roster-worker-adapter.test.mjs'
       - 'worker/production-roster-route-guard.js'
       - 'worker/production-roster-route-guard.test.mjs'
       - 'worker/staging-roster.js'
@@ -55,4 +59,4 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: '22'
-      - run: node --experimental-default-type=module --test worker/team-authorization-policy.test.mjs worker/production-roster-route-guard.test.mjs worker/production-roster-team-resolver.test.mjs worker/production-roster-integration.test.mjs worker/production-lagpersonal-auth-guard.test.mjs worker/personal-roster-identity-adapter.test.mjs worker/staging-roster.test.mjs worker/staging-roster-route.test.mjs worker/staging-session-identity.test.mjs worker/staging-auth-dispatch.test.mjs
+      - run: node --experimental-default-type=module --test worker/team-authorization-policy.test.mjs worker/production-roster-route-guard.test.mjs worker/production-roster-team-resolver.test.mjs worker/production-roster-integration.test.mjs worker/production-lagpersonal-auth-guard.test.mjs worker/personal-roster-identity-adapter.test.mjs worker/personal-roster-worker-adapter.test.mjs worker/staging-roster.test.mjs worker/staging-roster-route.test.mjs worker/staging-session-identity.test.mjs worker/staging-auth-dispatch.test.mjs
