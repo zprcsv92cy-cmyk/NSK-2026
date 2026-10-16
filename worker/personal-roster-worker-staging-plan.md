@@ -10,7 +10,7 @@ Staging har en fungerande separat D1-baserad skrivväg `/api/auth/roster-staging
 
 `authorizePersonalWorkerWrite` och dess Baserow/KV-resolvers är ännu fristående moduler, inte inkopplade i den riktiga Worker v42. Nuvarande tester använder mockar för identitet, Baserow och KV. Ingen produktionstoken eller produktionsskrivning har använts.
 
-**Särskild risk att hantera:** staging-konfigurationen innehåller en service binding `LEGACY_API` till produktions-Workern `nsk-api`. Kommentaren ”read-only” i TOML begränsar inte tekniskt HTTP-metoderna. Inför ett framtida skrivtest bör den bindningen tas bort eller tekniskt begränsas till GET i en verifierad mellanhand; inga produktionsskrivningar får vara möjliga från staging.
+**Åtgärdad konfigurationsrisk:** service binding `LEGACY_API` till produktions-Workern `nsk-api` har tagits bort ur `wrangler.auth.staging.toml`. `scripts/check-staging-imports.mjs` stoppar framtida stagingbyggen som återinför den bindningen. GitHub Actions för commit `ca58a02d` verifierade grön förkontroll, Wrangler dry-run och behörighetstester. Detta visar att GitHub-konfigurationen är byggbar och spärrad, **inte** att den redan driftsatta Cloudflare-Workern har uppdaterats. En separat stagingdriftsättning och livekontroll återstår.
 
 ## Före isolerad stagingdrift
 
