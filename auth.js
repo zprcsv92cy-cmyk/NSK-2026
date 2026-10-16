@@ -61,6 +61,23 @@
     return data.allowed === true;
     } catch { return false; }
   }
+  // Read existing legacy roster only after the staging Worker confirms team membership.
+  // This does not authorize any legacy writes.
+  async function checkRosterRead(teamId = activeTeam()) {
+    if (!teamId || !token()) return false;
+    try {
+      const query = new URLSearchParams({ team_id: teamId, feature: 'roster' });
+      const response = await fetch(API + '/api/auth/integration/access?' + query, {
+        headers: { Authorization: 'Bearer ' + token() }, credentials: 'omit', cache: 'no-store'
+      });
+      if (response.status === 401) {
+        session = null; sessionStorage.removeItem(KEY); sessionStorage.removeItem(TEAM_KEY);
+      }
+      if (!response.ok) return false;
+      const result = await response.json();
+      return result.team_id === teamId && typeof result.allowed === 'boolean';
+    } catch { return false; }
+  }
   async function stagingRosterList() {
     const teamId = activeTeam();
     if (!teamId || !token()) throw new Error('Logga in och välj ett lag');
@@ -130,7 +147,7 @@
     }
   }
   window.Auth = Object.freeze({
-    init, login, logout, can, canTeam, checkTeamFeature, stagingRosterList, stagingRosterWrite, activeTeam, selectTeam, getSession: () => session,
+    init, login, logout, can, canTeam, checkTeamFeature, checkRosterRead, stagingRosterList, stagingRosterWrite, activeTeam, selectTeam, getSession: () => session,
     getClient: () => null, getToken: token, permissions: PERMISSIONS
   });
 })();
