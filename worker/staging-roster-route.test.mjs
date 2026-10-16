@@ -266,3 +266,32 @@ test('real session verifier loads viewer membership from D1 and rejects all Test
   assert.equal(queries.filter(q => /auth_user_permissions/.test(q.sql)).length, 3);
   assert.equal(queries.filter(q => /auth_roster_staging/.test(q.sql)).length, 0);
 });
+
+test('lineup server rejects viewer writes for Testlag 2 before database access', async () => {
+  const { stagingLineups } = await import('./staging-lineups.js');
+  const viewer = {
+    user: { id: 'test-user' },
+    memberships: [
+      { team_id: 'NSK Team 18', role: 'team_admin' },
+      { team_id: 'NSK Testlag 2', role: 'viewer' }
+    ],
+    permissions: ['lineup:edit']
+  };
+  let databaseCalls = 0;
+  const db = { prepare() { databaseCalls++; throw Error('viewer must not touch database for writes'); } };
+  const respond = (body, status = 200) => new Response(JSON.stringify(body), { status });
+  const id = '123e4567-e89b-42d3-a456-426614174000';
+  for (const [method, suffix, body] of [
+    ['POST', '', { match_name: 'DENIED', player_ids: [], coach_ids: [] }],
+    ['PATCH', '&id=' + id, { match_name: 'DENIED', player_ids: [], coach_ids: [] }],
+    ['DELETE', '&id=' + id, undefined]
+  ]) {
+    const request = new Request('https://example.test/api/auth/lineups-staging?team_id=NSK%20Testlag%202' + suffix, {
+      method,
+      ...(body ? { body: JSON.stringify(body) } : {})
+    });
+    const response = await stagingLineups(request, db, viewer, respond);
+    assert.equal(response.status, 403, method);
+    assert.equal(databaseCalls, 0, method);
+  }
+});
