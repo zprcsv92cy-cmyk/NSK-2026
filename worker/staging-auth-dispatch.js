@@ -24,13 +24,13 @@ export async function dispatchStagingAuth(request, env, handleTeamAuth) {
       'Access-Control-Max-Age': '600'
     } });
   }
-  if (typeof handleTeamAuth !== 'function') {
+  const isRoster = path === '/api/auth/roster-staging' ||
+    path.startsWith('/api/auth/roster-staging/');
+  if (!isRoster && typeof handleTeamAuth !== 'function') {
     return new Response(JSON.stringify({ error: 'Autentisering saknas' }), {
       status: 503, headers: { ...headers, 'Content-Type': 'application/json' }
     });
   }
-  const isRoster = path === '/api/auth/roster-staging' ||
-    path.startsWith('/api/auth/roster-staging/');
   const response = isRoster
     ? await handleStagingRosterRoute(request, env)
     : await handleTeamAuth(request, env);
