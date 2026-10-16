@@ -59,3 +59,40 @@ test('team lookup outage fails closed', async () => {
   assert.equal(result.status, 502);
   assert.equal(writes, 0);
 });
+
+test('isolated production adapter denies viewer across all roster write routes without mutations', async () => {
+  const viewer = { memberships: [{ team_id: '18', role: 'viewer' }], permissions: ['roster:manage'] };
+  for (const [method, path] of [
+    ['POST', '/api/spelare'],
+    ['POST', '/api/tranare'],
+    ['PATCH', '/api/spelare/7'],
+    ['PATCH', '/api/tranare/7'],
+    ['DELETE', '/api/spelare/7'],
+    ['DELETE', '/api/tranare/7']
+  ]) {
+    const { result, writes } = await run(request(method, path), { verifyIdentity: async () => viewer });
+    assert.equal(result.status, 403, method + ' ' + path);
+    assert.equal(writes, 0, method + ' ' + path);
+  }
+});
+
+test('isolated production adapter never mutates on missing personal credentials', async () => {
+  for (const [method, path] of [
+    ['POST', '/api/spelare'],
+    ['POST', '/api/tranare'],
+    ['PATCH', '/api/spelare/7'],
+    ['PATCH', '/api/tranare/7'],
+    ['DELETE', '/api/spelare/7'],
+    ['DELETE', '/api/tranare/7']
+  ]) {
+    let reads = 0;
+    const { result, writes } = await run(request(method, path, ''), {
+      listTeams: async () => { reads++; return teams; },
+      readRow: async () => { reads++; return { Lag: [{ id: 18 }] }; },
+      verifyIdentity: async () => { throw Error('Must not verify missing token'); }
+    });
+    assert.equal(result.status, 401, method + ' ' + path);
+    assert.equal(reads, 0, method + ' ' + path);
+    assert.equal(writes, 0, method + ' ' + path);
+  }
+});
