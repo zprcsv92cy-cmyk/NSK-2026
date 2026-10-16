@@ -69,3 +69,39 @@ assert.match(lineupHtml, /TESTMILJÖ/);
 assert.match(lineupHtml, /api\/auth\/integration\/roster/);
 assert.match(lineupHtml, /lineup:edit/);
 console.log('PASS GET /laguppstallning/ 200');
+
+
+const approvedOrigin = 'https://zprcsv92cy-cmyk.github.io';
+const disallowedOrigin = 'https://untrusted.example';
+for (const [label, origin, expectedOrigin] of [
+  ['approved', approvedOrigin, approvedOrigin],
+  ['disallowed', disallowedOrigin, null],
+  ['missing', null, null]
+]) {
+  for (const path of [
+    '/api/auth/roster-staging?team_id=NSK%20Team%2018',
+    '/api/auth/roster-staging?team_id=NSK%20Testlag%202'
+  ]) {
+    const headers = origin ? { Origin: origin } : {};
+    const response = await fetch(base + path, { headers });
+    assert.equal(response.status, 401, label + ' origin must not bypass roster authorization');
+    assert.equal(response.headers.get('Access-Control-Allow-Origin'), expectedOrigin);
+    assert.equal(response.headers.get('Cache-Control'), 'no-store');
+    assert.equal(response.headers.get('Vary'), 'Origin');
+    console.log('PASS roster origin', label, path);
+  }
+}
+for (const origin of [approvedOrigin, disallowedOrigin]) {
+  const response = await fetch(base + '/api/auth/roster-staging', {
+    method: 'OPTIONS',
+    headers: {
+      Origin: origin,
+      'Access-Control-Request-Method': 'POST',
+      'Access-Control-Request-Headers': 'Authorization, Content-Type'
+    }
+  });
+  assert.equal(response.status, origin === approvedOrigin ? 204 : 403);
+  assert.equal(response.headers.get('Access-Control-Allow-Origin'),
+    origin === approvedOrigin ? approvedOrigin : null);
+  console.log('PASS roster preflight', origin, response.status);
+}
