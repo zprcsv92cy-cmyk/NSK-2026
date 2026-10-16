@@ -1,0 +1,16 @@
+# Isolated staging deployment only. Does not modify the existing nsk-api Worker.
+# Run from the repository root: npx wrangler deploy --config wrangler.auth.staging.toml
+name = "nsk-auth-staging"
+main = "worker/staging-entry.js"
+compatibility_date = "2026-10-01"
+workers_dev = true
+
+[[d1_databases]]
+binding = "AUTH_DB"
+database_name = "nsk-auth-staging"
+database_id = "b5a439d1-9e94-42eb-a8c4-5d3a0e7416f8"
+
+# Read-only requests to the existing Worker through a same-account service binding.
+[[services]]
+binding = "LEGACY_API"
+service = "nsk-api"
