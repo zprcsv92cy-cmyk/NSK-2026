@@ -9,7 +9,7 @@ export async function stagingRoster(request,db,actor,json) {
  const canManage=authorizeTeamFeature(actor,teamId,'roster').allowed;
  // Validate the route before reading request bodies or touching storage.
  const isCollection=path==='/api/auth/roster-staging';
- const rowMatch=/^\/api\/auth\/roster-staging\/([0-9a-f-]{36})$/.exec(path);
+ const rowMatch=/^\/api\/auth\/roster-staging\/([0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})$/.exec(path);
  if(!isCollection&&!rowMatch)return json({error:'Okänd begäran'},404);
  if(isCollection&&!['GET','POST'].includes(request.method))return json({error:'Metoden stöds inte'},405);
  if(rowMatch&&!['PATCH','DELETE'].includes(request.method))return json({error:'Metoden stöds inte'},405);
