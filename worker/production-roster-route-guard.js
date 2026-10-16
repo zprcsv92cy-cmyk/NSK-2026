@@ -16,6 +16,11 @@ export async function guardRosterRoute(request, { resolveTeamId, verifyIdentity,
       typeof mutate !== 'function') {
     return { ok: false, status: 500, error: 'Säkerhetskontroll saknas' };
   }
+  // Reject missing credentials before performing any database/team lookup.
+  const authorization = request?.headers?.get?.('Authorization') || '';
+  if (!/^Bearer ([^\s]+)$/.test(authorization)) {
+    return { ok: false, status: 401, error: 'Personlig inloggning krävs' };
+  }
   let teamId;
   try {
     teamId = await resolveTeamId(request);
