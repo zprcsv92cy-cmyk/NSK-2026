@@ -65,3 +65,14 @@ test('session identity fails closed if permissions query fails', async () => {
   } };
   await assert.rejects(() => verifyStagingSession(token, { AUTH_DB: db }));
 });
+
+test('session verification binds only the SHA-256 token hash, never the bearer token', async () => {
+  const db = database({ id: 'u1', display_name: 'Test' });
+  await verifyStagingSession(token, { AUTH_DB: db });
+  const expected = [...new Uint8Array(await crypto.subtle.digest('SHA-256', new TextEncoder().encode(token)))]
+    .map(byte => byte.toString(16).padStart(2, '0')).join('');
+  assert.equal(db.calls[0].args[0], expected);
+  assert.notEqual(db.calls[0].args[0], token);
+  assert.match(db.calls[0].sql, /u\.disabled=0/);
+  assert.match(db.calls[0].sql, /s\.revoked_at IS NULL/);
+});
