@@ -42,3 +42,22 @@ export async function requireTeamWrite(actor, teamId, feature, handler) {
   }
   return handler();
 }
+
+/**
+ * Use for every protected roster mutation in the production API.
+ * verifyIdentity must authenticate the bearer token server-side.
+ * teamId must be resolved from the affected row or trusted server mapping,
+ * not taken solely from client input for PATCH/DELETE.
+ */
+export async function authorizeRosterMutation(request, teamId, verifyIdentity, mutate) {
+  if (!request || typeof verifyIdentity !== 'function' || typeof mutate !== 'function') {
+    return { ok: false, status: 500, error: 'Säkerhetskontroll saknas' };
+  }
+  const header = request.headers?.get?.('Authorization') || '';
+  const match = /^Bearer ([^\\s]+)$/.exec(header);
+  if (!match) return { ok: false, status: 401, error: 'Personlig inloggning krävs' };
+  let actor;
+  try { actor = await verifyIdentity(match[1]); }
+  catch { return { ok: false, status: 401, error: 'Inloggningen kunde inte verifieras' }; }
+  return requireTeamWrite(actor, teamId, 'roster', mutate);
+}
