@@ -52,3 +52,21 @@ test('roster denies access if staging database is not configured', async () => {
   const response = await dispatchStagingAuth(new Request(root + 'roster-staging?team_id=team-18'));
   assert.equal(response.status, 503);
 });
+
+test('staging API failure preserves approved origin CORS and no-store', async () => {
+  const response = await dispatchStagingAuth(new Request(root + 'me', {
+    headers: { Origin: site }
+  }), {}, async () => { throw Error('database offline'); });
+  assert.equal(response.status, 503);
+  assert.equal(response.headers.get('Access-Control-Allow-Origin'), site);
+  assert.equal(response.headers.get('Cache-Control'), 'no-store');
+  assert.equal(response.headers.get('Vary'), 'Origin');
+  assert.equal((await response.json()).error, 'Stagingtjänsten är tillfälligt otillgänglig');
+});
+test('staging API failure never grants CORS to unknown origins', async () => {
+  const response = await dispatchStagingAuth(new Request(root + 'me', {
+    headers: { Origin: 'https://evil.example' }
+  }), {}, async () => { throw Error('database offline'); });
+  assert.equal(response.status, 503);
+  assert.equal(response.headers.has('Access-Control-Allow-Origin'), false);
+});
