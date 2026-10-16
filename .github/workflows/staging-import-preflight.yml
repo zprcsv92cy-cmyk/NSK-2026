@@ -4,6 +4,7 @@ on:
     branches: [main]
     paths:
       - 'worker/**'
+      - 'wrangler.auth.staging.toml'
       - 'scripts/check-staging-imports.mjs'
       - '.github/workflows/auth-staging.yml'
       - '.github/workflows/staging-import-preflight.yml'
