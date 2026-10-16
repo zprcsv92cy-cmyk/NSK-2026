@@ -16,7 +16,9 @@ export async function resolveLegacyRosterTeam(request, { listTeams, readRow, tea
   const team = teams.find(t => t?.Namn === teamName && String(t['Säsong']) === season);
   if (!team || !Number.isSafeInteger(Number(team.id)) || Number(team.id) <= 0) throw new Error('Trusted team missing');
   if (['PATCH', 'DELETE'].includes(request.method)) {
-    const row = await readRow(match[1], Number(match[2]));
+    const rowId = Number(match[2]);
+    if (!Number.isSafeInteger(rowId) || rowId <= 0) throw new Error('Invalid roster row ID');
+    const row = await readRow(match[1], rowId);
     if (!row) throw new Error('Roster row missing');
     const links = Array.isArray(row.Lag) ? row.Lag : [];
     const ids = links.map(x => Number(typeof x === 'object' ? x?.id : x));
