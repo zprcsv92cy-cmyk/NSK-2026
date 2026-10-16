@@ -2,7 +2,15 @@
 
 ## Verifierad status 2026-10-16
 
-GitHub Actions **Team authorization tests** är grön för commit `9545c611`. Den testade `personal-roster-worker-adapter.js` anropar serververifierad D1-identitet, betrodd Baserow-lagupplösning och lagbaserade skrivkontroller. Testerna använder mockar, **inte** den kompilerade produktions-Workern eller riktiga Baserow/KV-bindningar. Det är inte ett genomfört stagingtest av hela Worker-koden.
+GitHub Actions **Team authorization tests**, **Staging import preflight** och **Automatisk appversion** är gröna för commit `b0625fdb`. Detta inkluderar regressionstester för staging-D1:s lagbegränsade PATCH och för att ett saknat AUTH_DB inte får leda till anrop mot LEGACY_API.
+
+Det finns redan en separat Worker-konfiguration `wrangler.auth.staging.toml` med `AUTH_DB` kopplad till databasen `nsk-auth-staging`. Det verifierar **konfigurationen**, inte att D1 fungerar vid ett verkligt Cloudflare-anrop. Det finns även en manuellt startad GitHub Actions-workflow för stagingdeploy, men ingen ny sådan körning har verifierats i detta arbete.
+
+Staging har en fungerande separat D1-baserad skrivväg `/api/auth/roster-staging` för testdata, med personlig sessionskontroll och lagbegränsade SQL-skrivningar. Den är **inte samma sak** som integration med produktions-Workerns Baserow/KV-baserade trupp- och lagpersonalrutter.
+
+`authorizePersonalWorkerWrite` och dess Baserow/KV-resolvers är ännu fristående moduler, inte inkopplade i den riktiga Worker v42. Nuvarande tester använder mockar för identitet, Baserow och KV. Ingen produktionstoken eller produktionsskrivning har använts.
+
+**Särskild risk att hantera:** staging-konfigurationen innehåller en service binding `LEGACY_API` till produktions-Workern `nsk-api`. Kommentaren ”read-only” i TOML begränsar inte tekniskt HTTP-metoderna. Inför ett framtida skrivtest bör den bindningen tas bort eller tekniskt begränsas till GET i en verifierad mellanhand; inga produktionsskrivningar får vara möjliga från staging.
 
 ## Före isolerad stagingdrift
 
