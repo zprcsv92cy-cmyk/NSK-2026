@@ -61,6 +61,29 @@
     return data.allowed === true;
     } catch { return false; }
   }
+  // Staging-only roster writes are authorized again by the Worker.
+  // Never fall back to the legacy admin token or production data API.
+  async function stagingRosterWrite(method, rowId, payload) {
+    if (!['POST', 'PATCH', 'DELETE'].includes(method)) throw new Error('Ogiltig metod');
+    const teamId = activeTeam();
+    if (!teamId || !token()) throw new Error('Logga in och välj ett lag');
+    if (!canTeam(teamId, 'roster:manage')) throw new Error('Saknar behörighet till Truppen');
+    if (method !== 'POST' && !/^[0-9a-f-]{36}$/i.test(String(rowId || '')))
+      throw new Error('Ogiltigt post-ID');
+    const path = '/api/auth/roster-staging' + (method === 'POST' ? '' : '/' + encodeURIComponent(rowId));
+    const query = new URLSearchParams({ team_id: teamId });
+    const response = await fetch(API + path + '?' + query, {
+      method, credentials: 'omit', cache: 'no-store',
+      headers: { Authorization: 'Bearer ' + token(), 'Content-Type': 'application/json' },
+      ...(method === 'DELETE' ? {} : { body: JSON.stringify(payload || {}) })
+    });
+    const data = await response.json().catch(() => ({}));
+    if (response.status === 401) {
+      session = null; sessionStorage.removeItem(KEY); sessionStorage.removeItem(TEAM_KEY);
+    }
+    if (!response.ok) throw new Error(data.error || 'Kunde inte spara i testmiljön');
+    return data;
+  }
   // A personal grant alone is never sufficient to edit a team's data.
   // Legacy callers without a team context must not receive write permission.
   function can(permission, teamId) {
@@ -92,7 +115,7 @@
     }
   }
   window.Auth = Object.freeze({
-    init, login, logout, can, canTeam, checkTeamFeature, activeTeam, selectTeam, getSession: () => session,
+    init, login, logout, can, canTeam, checkTeamFeature, stagingRosterWrite, activeTeam, selectTeam, getSession: () => session,
     getClient: () => null, getToken: token, permissions: PERMISSIONS
   });
 })();
