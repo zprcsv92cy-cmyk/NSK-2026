@@ -5,11 +5,15 @@ on:
     paths:
       - 'worker/team-authorization-policy.js'
       - 'worker/team-authorization-policy.test.mjs'
+      - 'worker/production-roster-route-guard.js'
+      - 'worker/production-roster-route-guard.test.mjs'
       - '.github/workflows/team-authorization-tests.yml'
   pull_request:
     paths:
       - 'worker/team-authorization-policy.js'
       - 'worker/team-authorization-policy.test.mjs'
+      - 'worker/production-roster-route-guard.js'
+      - 'worker/production-roster-route-guard.test.mjs'
       - '.github/workflows/team-authorization-tests.yml'
 jobs:
   authorization:
@@ -21,4 +25,4 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: '22'
-      - run: node --experimental-default-type=module --test worker/team-authorization-policy.test.mjs
+      - run: node --experimental-default-type=module --test worker/team-authorization-policy.test.mjs worker/production-roster-route-guard.test.mjs
