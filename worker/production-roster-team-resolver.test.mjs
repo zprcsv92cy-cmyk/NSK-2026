@@ -64,3 +64,23 @@ test('accepts matching persisted team link without consuming original body', asy
   assert.equal(await resolveLegacyRosterTeam(request, dependencies), '18');
   assert.equal(request.bodyUsed, false);
 });
+
+test('DELETE resolves the persisted player or coach team, not the browser query', async () => {
+  for (const path of ['/api/spelare/41?team_id=2', '/api/tranare/5?team_id=2']) {
+    assert.equal(await resolveLegacyRosterTeam(req(path, 'DELETE'), dependencies), '18');
+  }
+});
+test('DELETE rejects a row owned by another team or a missing row', async () => {
+  for (const readRow of [async () => ({ Lag: [{ id: 2 }] }), async () => null]) {
+    await assert.rejects(resolveLegacyRosterTeam(req('/api/spelare/41', 'DELETE'), {
+      ...dependencies, readRow
+    }));
+  }
+});
+test('DELETE collection route is rejected without reading or deleting rows', async () => {
+  let reads = 0;
+  await assert.rejects(resolveLegacyRosterTeam(req('/api/spelare', 'DELETE'), {
+    ...dependencies, readRow: async () => { reads++; return { Lag: [{ id: 18 }] }; }
+  }), /Unsupported/);
+  assert.equal(reads, 0);
+});
