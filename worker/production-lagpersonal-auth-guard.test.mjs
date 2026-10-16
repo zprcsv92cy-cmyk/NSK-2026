@@ -122,3 +122,23 @@ test('lagpersonal rejects duplicate trusted team records', async () => {
   assert.equal(result.status, 502);
   assert.equal(writes, 0);
 });
+
+test('lagpersonal rejects noncanonical trusted team IDs', async () => {
+  for (const id of ['018', 18.5, '9007199254740992', 0, -18]) {
+    const { result, writes } = await run(req('POST', 18), {
+      listTeams: async () => [{ id }]
+    });
+    assert.equal(result.status, 502, String(id));
+    assert.equal(writes, 0, String(id));
+  }
+});
+
+test('lagpersonal PATCH rejects noncanonical persisted ownership IDs', async () => {
+  for (const team_id of ['018', 18.5, '9007199254740992', null, '2']) {
+    const { result, writes } = await run(req('PATCH', 18), {
+      readStaff: async () => ({ team_id })
+    });
+    assert.equal(result.status, 502, String(team_id));
+    assert.equal(writes, 0, String(team_id));
+  }
+});
