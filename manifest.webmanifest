@@ -2,11 +2,11 @@
   "name": "NSK Team 18",
   "short_name": "NSK",
   "description": "NSK lagapp för poolspel, laguppställning och bytesschema.",
-  "start_url": "./startsida/?v=708",
+  "start_url": "./startsida/?v=709",
   "display": "standalone",
   "background_color": "#111111",
   "theme_color": "#c8102e",
-  "version": "708",
+  "version": "709",
   "icons": [
     {
       "src": "./icon-192.png",
