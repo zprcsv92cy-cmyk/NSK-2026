@@ -10,7 +10,7 @@ import { resolveLegacyRosterTeam } from './production-roster-team-resolver.js';
  * It does not register routes in the production Worker.
  */
 export async function authorizePersonalWorkerWrite(request, env, {
-  listTeams, readRow, mutateRoster, mutateLagpersonal
+  listTeams, readRow, readStaff, mutateRoster, mutateLagpersonal
 } = {}) {
   if (!request?.url) return { ok: false, status: 400, error: 'Ogiltig begäran' };
   const path = new URL(request.url).pathname;
@@ -28,7 +28,7 @@ export async function authorizePersonalWorkerWrite(request, env, {
   if (path === '/api/lagpersonal') {
     return guardLagpersonalMutation(request, {
       verifyIdentity,
-      resolveTeamId: r => resolveLagpersonalTeam(r, { listTeams }),
+      resolveTeamId: r => resolveLagpersonalTeam(r, { listTeams, readStaff }),
       mutate: () => {
         if (typeof mutateLagpersonal !== 'function') return { ok: false, status: 500, error: 'Skrivfunktion saknas' };
         return mutateLagpersonal(request);
