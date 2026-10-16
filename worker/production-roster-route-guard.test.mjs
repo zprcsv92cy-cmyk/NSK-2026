@@ -47,7 +47,7 @@ test('rejects incomplete security wiring', async () => {
 
 test('rejects missing bearer token after resolving team', async () => {
   let writes = 0;
-  const result = await guardRosterRoute(new Request('https://example.test/api/spelare'), {
+  const result = await guardRosterRoute(new Request('https://example.test/api/spelare', { method: 'POST' }), {
     resolveTeamId: async () => 'team-18',
     verifyIdentity: async () => actor,
     mutate: async () => { writes++; }
@@ -59,7 +59,7 @@ test('rejects missing bearer token after resolving team', async () => {
 test('missing credentials do not trigger trusted team lookup', async () => {
   let lookups = 0;
   let writes = 0;
-  const result = await guardRosterRoute(new Request('https://example.test/api/spelare'), {
+  const result = await guardRosterRoute(new Request('https://example.test/api/spelare', { method: 'POST' }), {
     resolveTeamId: async () => { lookups++; return 'team-18'; },
     verifyIdentity: async () => actor,
     mutate: async () => { writes++; }
