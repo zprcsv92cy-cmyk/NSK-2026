@@ -51,19 +51,21 @@
   async function checkTeamFeature(teamId, feature) {
     if (!token() || !teamId || !feature) return false;
     const query = new URLSearchParams({ team_id: String(teamId), feature: String(feature) });
+    try {
     const response = await fetch(API + '/api/auth/feature-access?' + query, {
       headers: { Authorization: 'Bearer ' + token() }, cache: 'no-store', credentials: 'omit'
     });
-    if (response.status === 401) { session = null; sessionStorage.removeItem(KEY); return false; }
+    if (response.status === 401) { session = null; sessionStorage.removeItem(KEY); sessionStorage.removeItem(TEAM_KEY); return false; }
     if (!response.ok) return false;
     const data = await response.json().catch(() => ({}));
     return data.allowed === true;
+    } catch { return false; }
   }
   // A personal grant alone is never sufficient to edit a team's data.
   // Legacy callers without a team context must not receive write permission.
   function can(permission, teamId) {
     if (!session || !session.permissions.includes(permission)) return false;
-    if (permission === 'read') return session.memberships.length > 0;
+    if (permission === 'read') return teamId ? session.memberships.some(m => m.team_id === teamId) : session.memberships.length > 0;
     return typeof teamId === 'string' && canTeam(teamId, permission);
   }
   async function login(email, password) {
