@@ -25,8 +25,11 @@ input{width:100%;box-sizing:border-box}
 </form>
 <a href="../startsida/">Till startsidan</a>
 </main>
-<script src="../config.js"></script>
-<script src="../auth.js"></script>
+<script src="../version.js"></script>
+<script>
+  document.write('<script src="../config.js?v=' + window.NSK_VERSION + '"><\/script>');
+  document.write('<script src="../auth.js?v=' + window.NSK_VERSION + '"><\/script>');
+</script>
 <script>
 document.getElementById('loginForm').addEventListener('submit',async function(event){
  event.preventDefault();

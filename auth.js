@@ -48,7 +48,7 @@
   function canTeam(teamId, permission) {
     return !!session && session.memberships.some(m => m.team_id === teamId && m.role === 'team_admin') && session.permissions.includes(permission);
   }
-  async function checkTeamFeature(teamId, feature) {
+  async function checkTeamFeature(feature, teamId = activeTeam()) {
     if (!token() || !teamId || !feature) return false;
     const query = new URLSearchParams({ team_id: String(teamId), feature: String(feature) });
     try {
@@ -58,7 +58,7 @@
     if (response.status === 401) { session = null; sessionStorage.removeItem(KEY); sessionStorage.removeItem(TEAM_KEY); return false; }
     if (!response.ok) return false;
     const data = await response.json().catch(() => ({}));
-    return data.allowed === true;
+    return data.allowed === true && data.team_id === teamId;
     } catch { return false; }
   }
   // Read existing legacy roster only after the staging Worker confirms team membership.
@@ -75,7 +75,13 @@
       }
       if (!response.ok) return false;
       const result = await response.json();
-      return result.team_id === teamId && typeof result.allowed === 'boolean';
+      return result.team_id === teamId &&
+        (result.allowed === true ||
+         (result.allowed === false &&
+          typeof result.role === 'string' &&
+          session?.memberships?.some(
+            m => m.team_id === teamId && m.role === result.role
+          )));
     } catch { return false; }
   }
   async function stagingRosterList() {
@@ -99,7 +105,9 @@
     if (!['POST', 'PATCH', 'DELETE'].includes(method)) throw new Error('Ogiltig metod');
     const teamId = activeTeam();
     if (!teamId || !token()) throw new Error('Logga in och välj ett lag');
-    if (!canTeam(teamId, 'roster:manage')) throw new Error('Saknar behörighet till Truppen');
+    if (!canTeam(teamId, 'roster:manage') ||
+        !await checkTeamFeature('roster', teamId))
+      throw new Error('Saknar behörighet till Truppen');
     if (method !== 'POST' && !/^[0-9a-f-]{36}$/i.test(String(rowId || '')))
       throw new Error('Ogiltigt post-ID');
     const path = '/api/auth/roster-staging' + (method === 'POST' ? '' : '/' + encodeURIComponent(rowId));
@@ -121,6 +129,7 @@
   function can(permission, teamId) {
     if (!session || !session.permissions.includes(permission)) return false;
     if (permission === 'read') return teamId ? session.memberships.some(m => m.team_id === teamId) : session.memberships.length > 0;
+    if (permission === 'users:manage' && teamId === undefined) return true;
     return typeof teamId === 'string' && canTeam(teamId, permission);
   }
   async function login(email, password) {

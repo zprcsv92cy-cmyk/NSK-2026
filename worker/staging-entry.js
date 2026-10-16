@@ -12,19 +12,9 @@ import { bootstrapPage } from './bootstrap-page.js';
 import { activationPage } from './activation-page.js';
 import { handleTeamAuth } from './team-auth.js';
 import { handleActivation } from './account-activation.js';
+import { createStagingAuthHandler } from './staging-auth-dispatch.js';
 
-// Isolated API dispatcher used by cross-origin requests from NSK GitHub Pages.
-async function handleAuthRequest(request, env, url) {
-  if (url.pathname === '/api/auth/staging/bootstrap-test') return bootstrapTestAccount(request, env);
-  if (url.pathname === '/api/auth/activate') {
-    try { return await handleActivation(request, env); }
-    catch (error) {
-      console.error('Activation failure:', error);
-      return new Response(JSON.stringify({ error: 'Internt serverfel vid aktivering' }), { status: 500, headers: { 'content-type': 'application/json' } });
-    }
-  }
-  return handleTeamAuth(request, env);
-}
+const handleAuthRequest = createStagingAuthHandler({ handleTeamAuth, handleActivation, bootstrapTestAccount });
 
 export default {
   async fetch(request, env) {
@@ -45,7 +35,7 @@ export default {
     }
     // All authenticated API responses must carry the same restricted CORS policy.
     if (url.pathname.startsWith('/api/auth/') && allowedOrigin) {
-      const response = await handleAuthRequest(request, env, url);
+      const response = await handleAuthRequest(request, env);
       const headers = new Headers(response.headers);
       headers.set('Access-Control-Allow-Origin', allowedOrigin);
       headers.set('Vary', 'Origin');
@@ -82,6 +72,6 @@ export default {
         return new Response(JSON.stringify({ error: 'Internt serverfel vid aktivering' }), { status: 500, headers: { 'content-type': 'application/json', 'cache-control': 'no-store' } });
       }
     }
-    return handleTeamAuth(request, env);
+    return handleAuthRequest(request, env);
   }
 };

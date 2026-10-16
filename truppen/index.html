@@ -6,7 +6,7 @@
   <title>Truppen</title>
   <meta name="theme-color" content="#b11226">
 
-  <script src="../version.js?v=690"></script>
+  <script src="../version.js?v=866"></script>
   <script>
     document.write('<link rel="manifest" href="../manifest.webmanifest?v=' + window.NSK_VERSION + '">');
     document.write('<link rel="stylesheet" href="../app.css?v=' + window.NSK_VERSION + '">');
@@ -69,21 +69,28 @@
     </section>
 
 
-    <section class="card roster-card" aria-labelledby="nsk-test-roster-title">
-      <h2 id="nsk-test-roster-title">Truppen – behörighetsstyrd testmiljö</h2>
-      <p id="nsk-test-roster-status" role="status">Logga in på startsidan för att använda testtruppen.</p>
-      <div id="nsk-test-roster-controls" hidden>
-        <label for="nsk-test-roster-kind">Roll</label>
-        <select id="nsk-test-roster-kind">
-          <option value="player">Spelare</option><option value="coach">Tränare</option>
-          <option value="team_manager">Lagledare</option><option value="fitness">Fysansvarig</option>
+    <section class="card roster-card" aria-label="Personlig lagbehörighet">
+      <h2>Lagbehörighet</h2>
+      <p id="rosterPersonalAccess" class="small" aria-live="polite">Kontrollerar inloggning…</p>
+      <p class="small">Personlig behörighet visas här. Redigering av den befintliga truppen använder tills vidare det äldre adminläget.</p>
+    </section>
+
+    <section class="card roster-card" id="stagingRosterPanel" hidden>
+      <h2>Testtrupp – endast staging</h2>
+      <p class="small">Separat testdata. Ändringar här påverkar aldrig den riktiga truppen.</p>
+      <p id="stagingRosterMessage" class="small" aria-live="polite"></p>
+      <div class="btnrow roster-add-row">
+        <select id="stagingRosterKind" aria-label="Roll">
+          <option value="player">Spelare</option>
+          <option value="coach">Tränare</option>
+          <option value="team_manager">Lagledare</option>
+          <option value="fitness">Fysansvarig</option>
           <option value="equipment">Materialförvaltare</option>
         </select>
-        <label for="nsk-test-roster-name">Namn</label>
-        <input id="nsk-test-roster-name" type="text" maxlength="120">
-        <button id="nsk-test-roster-add" type="button">Lägg till i testtruppen</button>
+        <input id="stagingRosterName" maxlength="120" placeholder="Namn i testtruppen">
+        <button id="stagingRosterAdd" type="button">Lägg till i testtrupp</button>
       </div>
-      <div id="nsk-test-roster-list"></div>
+      <div id="stagingRosterRows"></div>
     </section>
 
     <section class="card roster-card roster-backup">
@@ -175,61 +182,105 @@
   </script>
 
 <script>
-(function(){
-  const status=document.getElementById('nsk-test-roster-status');
-  const controls=document.getElementById('nsk-test-roster-controls');
-  const list=document.getElementById('nsk-test-roster-list');
-  const add=document.getElementById('nsk-test-roster-add');
-  const names={player:'Spelare',coach:'Tränare',team_manager:'Lagledare',fitness:'Fysansvarig',equipment:'Materialförvaltare'};
-  async function refresh(){
-    if(!window.Auth){status.textContent='Inloggningen är inte tillgänglig.';return;}
-    if(!Auth.getSession()) await Auth.init();
-    const teamId=Auth.activeTeam();
-    if(!teamId){status.textContent='Logga in på startsidan och välj ett lag.';controls.hidden=true;list.replaceChildren();return;}
-    try{
-      const data=await Auth.stagingRosterList();
-      controls.hidden=!data.canManage;
-      status.textContent='Testtrupp för '+teamId+(data.canManage?' – redigering tillåten':' – endast läsning');
-      list.replaceChildren();
-      for(const row of data.rows||[]){
-        const item=document.createElement('div');
-        item.className='listrow';
-        const label=document.createElement('span');
-        label.textContent=(names[row.kind]||row.kind)+': ';
-        const input=document.createElement('input');
-        input.value=row.name;input.maxLength=120;input.readOnly=!data.canManage;
-        item.append(label,input);
-        if(data.canManage){
-          input.addEventListener('change',async()=>{
-            try{await Auth.stagingRosterWrite('PATCH',row.id,{name:input.value.trim()});await refresh();}
-            catch(error){status.textContent=error.message;}
-          });
-          const remove=document.createElement('button');
-          remove.type='button';remove.textContent='Ta bort';
-          remove.addEventListener('click',async()=>{
-            if(!confirm('Ta bort personen ur testtruppen?'))return;
-            try{await Auth.stagingRosterWrite('DELETE',row.id);await refresh();}
-            catch(error){status.textContent=error.message;}
-          });
-          item.append(remove);
-        }
-        list.append(item);
+(() => {
+  const label = document.getElementById('rosterPersonalAccess');
+  let requestId = 0;
+  async function refreshPersonalAccess() {
+    const current = ++requestId;
+    label.textContent = 'Kontrollerar personlig lagbehörighet…';
+    if (!window.Auth || !window.APP_CONFIG?.AUTH_URL) {
+      label.textContent = 'Personlig inloggning är inte konfigurerad.';
+      return;
+    }
+    try {
+      const identity = await Auth.init();
+      if (current !== requestId) return;
+      if (!identity) {
+        label.textContent = 'Inte personligt inloggad. Logga in via Startsida.';
+        return;
       }
-    }catch(error){status.textContent=error.message;controls.hidden=true;list.replaceChildren();}
+      const team = Auth.activeTeam();
+      if (!team) {
+        label.textContent = 'Inloggad, men inget aktivt lag valt. Välj lag på Startsida.';
+        return;
+      }
+      const allowed = await Auth.checkTeamFeature('roster', team);
+      if (current !== requestId) return;
+      label.textContent = 'Aktivt lag: ' + team + '. Personlig rätt att hantera truppen: ' +
+        (allowed ? 'Ja (verifierad av servern)' : 'Nej eller kunde inte verifieras') +
+        '. Befintlig trupp använder fortfarande äldre adminläge.';
+    } catch {
+      if (current === requestId) label.textContent = 'Personlig lagbehörighet kunde inte kontrolleras.';
+    }
   }
-  add.addEventListener('click',async()=>{
-    const input=document.getElementById('nsk-test-roster-name');
-    const name=input.value.trim();
-    if(!name)return;
-    add.disabled=true;
-    try{
-      await Auth.stagingRosterWrite('POST',null,{kind:document.getElementById('nsk-test-roster-kind').value,name});
-      input.value='';await refresh();
-    }catch(error){status.textContent=error.message;}
-    finally{add.disabled=false;}
+  refreshPersonalAccess();
+  window.addEventListener('focus', refreshPersonalAccess);
+  window.addEventListener('pageshow', event => { if (event.persisted) refreshPersonalAccess(); });
+})();
+</script>
+<script>
+(async () => {
+  const panel = document.getElementById('stagingRosterPanel');
+  const message = document.getElementById('stagingRosterMessage');
+  const list = document.getElementById('stagingRosterRows');
+  const add = document.getElementById('stagingRosterAdd');
+  const name = document.getElementById('stagingRosterName');
+  if (!window.Auth?.stagingRosterList) return;
+  const identity = await Auth.init();
+  if (!identity || !Auth.activeTeam()) return;
+  panel.hidden = false;
+  let canManage = false;
+  async function refresh() {
+    list.replaceChildren();
+    try {
+      const data = await Auth.stagingRosterList();
+      canManage = data.canManage === true;
+      add.disabled = !canManage;
+      name.disabled = !canManage;
+      message.textContent = canManage ? 'Testtrupp för ' + Auth.activeTeam() : 'Endast läsning av testtruppen för ' + Auth.activeTeam();
+      for (const item of data.rows || []) {
+        const row = document.createElement('div');
+        row.className = 'listrow';
+        const input = document.createElement('input');
+        input.value = item.name;
+        input.maxLength = 120;
+        input.readOnly = !canManage;
+        const kind = document.createElement('span');
+        kind.textContent = ' (' + item.kind + ') ';
+        row.append(input, kind);
+        if (canManage) {
+          input.addEventListener('change', async () => {
+            try { await Auth.stagingRosterWrite('PATCH', item.id, { name: input.value.trim() }); await refresh(); }
+            catch (error) { message.textContent = error.message; }
+          });
+          const remove = document.createElement('button');
+          remove.type = 'button';
+          remove.textContent = 'Ta bort';
+          remove.addEventListener('click', async () => {
+            if (!confirm('Ta bort från testtruppen?')) return;
+            try { await Auth.stagingRosterWrite('DELETE', item.id); await refresh(); }
+            catch (error) { message.textContent = error.message; }
+          });
+          row.append(remove);
+        }
+        list.append(row);
+      }
+    } catch (error) {
+      add.disabled = true;
+      name.disabled = true;
+      message.textContent = 'Testtruppen kunde inte hämtas: ' + error.message;
+    }
+  }
+  add.addEventListener('click', async () => {
+    if (!canManage || !name.value.trim()) return;
+    add.disabled = true;
+    try {
+      await Auth.stagingRosterWrite('POST', null, { kind: document.getElementById('stagingRosterKind').value, name: name.value.trim() });
+      name.value = '';
+      await refresh();
+    } catch (error) { message.textContent = error.message; add.disabled = !canManage; }
   });
-  window.addEventListener('focus',refresh);
-  refresh();
+  await refresh();
 })();
 </script>
 <script src="../admin-mode.js?v=1"></script>

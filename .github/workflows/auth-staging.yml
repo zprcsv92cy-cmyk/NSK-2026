@@ -15,60 +15,22 @@ jobs:
     runs-on: ubuntu-latest
     environment: auth-staging
     steps:
-      - name: Checkout selected branch
+      - name: Checkout verified main
         uses: actions/checkout@v4
+        with:
+          ref: main
       - name: Set up Node.js
         uses: actions/setup-node@v4
         with:
           node-version: '22'
-      - name: Validate activation inputs
-        run: node scripts/test-account-activation.mjs
-      - name: Test legacy roster ID and access compatibility (mock data)
-        run: node scripts/test-legacy-db-auth-guard.mjs
-      - name: Test existing lineup and shift references (mock data)
-        run: node scripts/test-legacy-relationships.mjs
-      - name: Exercise existing db.js reads against simulated API
-        run: node scripts/test-existing-db-integration.mjs
-      - name: Verify legacy roster adapter team isolation
-        run: node scripts/test-staging-legacy-roster-adapter.mjs
-      - name: Verify server-side team authorization policy
-        run: node scripts/test-team-authorization-policy.mjs
-      - name: Verify legacy write migration authorization map
-        run: node scripts/test-legacy-write-authorization.mjs
-      - name: Verify isolated protected write gateway
-        run: node scripts/test-protected-legacy-write.mjs
-      - name: Audit legacy API integration (read-only)
-        run: node scripts/audit-legacy-api.mjs
-      - name: Verify shared authentication client
-        run: node scripts/test-auth-client.mjs
-      - name: Verify roster and lineup write denials (no data writes)
-        run: node scripts/test-staging-write-denials.mjs
-      - name: Install Wrangler with native dependencies
-        run: npm install --no-save --include=optional --ignore-scripts wrangler@4
-        timeout-minutes: 3
-      - name: Initialize isolated lineup test table
-        run: ./node_modules/.bin/wrangler d1 execute nsk-auth-staging --remote --file worker/lineups-staging.sql --config wrangler.auth.staging.toml
-        env:
-          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
-          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
-      - name: Initialize match details in isolated staging D1
-        run: ./node_modules/.bin/wrangler d1 execute nsk-auth-staging --remote --file worker/lineups-match-details-migration.sql --config wrangler.auth.staging.toml
-        env:
-          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
-          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
-      - name: Initialize lineup positions in isolated staging D1
-        run: ./node_modules/.bin/wrangler d1 execute nsk-auth-staging --remote --file worker/lineups-positions-staging.sql --config wrangler.auth.staging.toml
-        env:
-          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
-          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
-      - name: Initialize lineup units in isolated staging D1
-        run: ./node_modules/.bin/wrangler d1 execute nsk-auth-staging --remote --file worker/lineups-units-staging.sql --config wrangler.auth.staging.toml
-        env:
-          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
-          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+      - name: Verify staging dependencies before deployment
+        run: node scripts/check-staging-imports.mjs
+      - name: Run authorization regression tests before deployment
+        run: node --experimental-default-type=module --test worker/team-authorization-policy.test.mjs worker/production-roster-route-guard.test.mjs worker/production-roster-team-resolver.test.mjs worker/production-roster-integration.test.mjs worker/staging-roster.test.mjs worker/staging-roster-route.test.mjs worker/staging-session-identity.test.mjs worker/staging-auth-dispatch.test.mjs worker/staging-entry-routing.test.mjs
+      - name: Verify staging Worker build without deploying
+        run: npx --yes wrangler@4 deploy --dry-run --outdir /tmp/nsk-staging-build --config wrangler.auth.staging.toml
       - name: Deploy isolated staging Worker
-        run: ./node_modules/.bin/wrangler deploy --config wrangler.auth.staging.toml
-        timeout-minutes: 3
+        run: npx --yes wrangler@4 deploy --config wrangler.auth.staging.toml
         env:
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}

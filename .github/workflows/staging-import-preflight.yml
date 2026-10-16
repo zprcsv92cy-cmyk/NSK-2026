@@ -1,0 +1,41 @@
+name: Staging import preflight
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'worker/**'
+      - 'wrangler.auth.staging.toml'
+      - 'scripts/check-staging-imports.mjs'
+      - '.github/workflows/auth-staging.yml'
+      - '.github/workflows/staging-import-preflight.yml'
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  preflight:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Check staging entrypoint dependencies and syntax
+        run: node scripts/check-staging-imports.mjs
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Validate staging bundle without deployment
+        run: npx --yes wrangler@4 deploy --dry-run --outdir /tmp/nsk-staging-build --config wrangler.auth.staging.toml
+  authorization:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Run authorization regression tests independently of missing staging imports
+        run: node --experimental-default-type=module --test worker/team-authorization-policy.test.mjs worker/production-roster-route-guard.test.mjs worker/staging-roster.test.mjs worker/staging-roster-route.test.mjs worker/staging-session-identity.test.mjs worker/staging-auth-dispatch.test.mjs worker/staging-entry-routing.test.mjs

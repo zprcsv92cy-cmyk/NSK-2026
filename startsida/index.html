@@ -6,7 +6,7 @@
   <title>Startsida</title>
   <meta name="theme-color" content="#b11226">
 
-  <script src="../version.js?v=690"></script>
+  <script src="../version.js?v=866"></script>
   <script>
     document.write('<link rel="manifest" href="../manifest.webmanifest?v=' + window.NSK_VERSION + '">');
     document.write('<link rel="stylesheet" href="../app.css?v=' + window.NSK_VERSION + '">');
@@ -35,24 +35,19 @@
       </div>
     </section>
 
-    <section class="card" aria-labelledby="nsk-login-title">
-      <h2 id="nsk-login-title">Användarkonto</h2>
-      <p id="nsk-login-status" role="status">Kontrollerar inloggning…</p>
-      <form id="nsk-login-form" hidden>
-        <label for="nsk-login-email">E-postadress</label>
-        <input id="nsk-login-email" type="email" autocomplete="username" required>
-        <label for="nsk-login-password">Lösenord</label>
-        <input id="nsk-login-password" type="password" autocomplete="current-password" required>
+    <section class="card" id="personalAuthPanel" aria-label="Personlig inloggning">
+      <h2>Personlig inloggning</h2>
+      <p id="personalAuthStatus" class="small" aria-live="polite"></p>
+      <form id="personalAuthForm" hidden>
+        <label>E-post <input type="email" id="personalAuthEmail" autocomplete="username" required></label>
+        <label>Lösenord <input type="password" id="personalAuthPassword" autocomplete="current-password" required></label>
         <button type="submit">Logga in</button>
       </form>
-      <div id="nsk-team-panel" hidden>
-        <label for="nsk-team-select">Aktivt lag</label>
-        <select id="nsk-team-select"></select>
-        <p id="nsk-team-role" class="small"></p>
+      <div id="personalAuthSignedIn" hidden>
+        <label>Aktivt lag <select id="personalAuthTeam"></select></label>
+        <button type="button" id="personalAuthLogout">Logga ut</button>
       </div>
-      <button id="nsk-logout" type="button" hidden>Logga ut</button>
     </section>
-
     <section class="card home-shortcuts home-create-pool">
       <div class="home-create-intro">
         <span class="home-create-icon" aria-hidden="true">＋</span>
@@ -78,62 +73,47 @@
     </script>
   </div>
 <script>
-(function(){
-  const form=document.getElementById('nsk-login-form');
-  const status=document.getElementById('nsk-login-status');
-  const logout=document.getElementById('nsk-logout');
-  function display(identity){
-    const signedIn=!!identity?.user;
-    form.hidden=signedIn;
-    logout.hidden=!signedIn;
-    status.textContent=signedIn?'Inloggad som '+identity.user.name:'Logga in med ditt personliga NSK-konto.';
-    const panel=document.getElementById('nsk-team-panel');
-    const select=document.getElementById('nsk-team-select');
-    const role=document.getElementById('nsk-team-role');
-    const memberships=signedIn&&Array.isArray(identity.memberships)?identity.memberships:[];
-    panel.hidden=!signedIn||memberships.length===0;
-    select.replaceChildren();
-    for(const member of memberships){
-      const option=document.createElement('option');
-      option.value=member.team_id;
-      option.textContent=member.team_id;
-      select.appendChild(option);
+(() => {
+  const status = document.getElementById('personalAuthStatus');
+  const form = document.getElementById('personalAuthForm');
+  const signedIn = document.getElementById('personalAuthSignedIn');
+  const teams = document.getElementById('personalAuthTeam');
+  const configured = !!window.APP_CONFIG?.AUTH_URL;
+  if (!configured) {
+    status.textContent = 'Personlig inloggning är under införande. Befintliga funktioner påverkas inte.';
+    return;
+  }
+  async function refresh() {
+    const identity = await Auth.init();
+    form.hidden = !!identity;
+    signedIn.hidden = !identity;
+    if (!identity) {
+      status.textContent = 'Logga in med ditt personliga konto.';
+      return;
     }
-    if(Auth.activeTeam()) select.value=Auth.activeTeam();
-    role.textContent=memberships.find(m=>m.team_id===select.value)?.role||'';
-
+    status.textContent = 'Inloggad: ' + (identity.user?.name || identity.user?.email || 'Användare');
+    teams.replaceChildren();
+    for (const membership of identity.memberships) {
+      const option = document.createElement('option');
+      option.value = membership.team_id;
+      option.textContent = membership.team_name || membership.team_id;
+      teams.append(option);
+    }
+    if (identity.memberships.length && !Auth.activeTeam()) Auth.selectTeam(identity.memberships[0].team_id);
+    teams.value = Auth.activeTeam() || '';
   }
-  async function start(){
-    if(!window.Auth){status.textContent='Inloggningen kunde inte startas.';return;}
-    try{display(await Auth.init());}
-    catch{display(null);}
-  }
-  document.getElementById('nsk-team-select').addEventListener('change',event=>{
-    const teamId=event.target.value;
-    const identity=Auth.getSession();
-    const membership=identity?.memberships?.find(m=>m.team_id===teamId);
-    if(!membership) return;
-    Auth.selectTeam(teamId);
-    document.getElementById('nsk-team-role').textContent=membership.role;
-  });
-  form.addEventListener('submit',async event=>{
+  form.addEventListener('submit', async event => {
     event.preventDefault();
-    const button=form.querySelector('button');
-    button.disabled=true;status.textContent='Loggar in…';
-    try{
-      const identity=await Auth.login(document.getElementById('nsk-login-email').value,document.getElementById('nsk-login-password').value);
-      document.getElementById('nsk-login-password').value='';
-      display(identity);
-    }catch(error){status.textContent=error.message||'Inloggningen misslyckades.';}
-    finally{button.disabled=false;}
+    status.textContent = 'Loggar in…';
+    try {
+      await Auth.login(document.getElementById('personalAuthEmail').value, document.getElementById('personalAuthPassword').value);
+      document.getElementById('personalAuthPassword').value = '';
+      await refresh();
+    } catch (error) { status.textContent = error.message || 'Inloggningen misslyckades'; }
   });
-  logout.addEventListener('click',async()=>{
-    logout.disabled=true;
-    try{await Auth.logout();display(null);}
-    catch{status.textContent='Utloggningen kunde inte slutföras.';}
-    finally{logout.disabled=false;}
-  });
-  start();
+  teams.addEventListener('change', () => { try { Auth.selectTeam(teams.value); } catch (error) { status.textContent = error.message; } });
+  document.getElementById('personalAuthLogout').addEventListener('click', async () => { await Auth.logout(); await refresh(); });
+  refresh().catch(() => { status.textContent = 'Inloggningen kunde inte kontrolleras'; });
 })();
 </script>
 <script src="../admin-mode.js?v=1"></script>

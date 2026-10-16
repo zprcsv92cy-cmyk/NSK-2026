@@ -69,3 +69,98 @@ assert.match(lineupHtml, /TESTMILJÖ/);
 assert.match(lineupHtml, /api\/auth\/integration\/roster/);
 assert.match(lineupHtml, /lineup:edit/);
 console.log('PASS GET /laguppstallning/ 200');
+
+
+const approvedOrigin = 'https://zprcsv92cy-cmyk.github.io';
+const disallowedOrigin = 'https://untrusted.example';
+for (const [label, origin, expectedOrigin] of [
+  ['approved', approvedOrigin, approvedOrigin],
+  ['disallowed', disallowedOrigin, null],
+  ['missing', null, null]
+]) {
+  for (const path of [
+    '/api/auth/roster-staging?team_id=NSK%20Team%2018',
+    '/api/auth/roster-staging?team_id=NSK%20Testlag%202'
+  ]) {
+    const headers = origin ? { Origin: origin } : {};
+    const response = await fetch(base + path, { headers });
+    assert.equal(response.status, 401, label + ' origin must not bypass roster authorization');
+    assert.equal(response.headers.get('Access-Control-Allow-Origin'), expectedOrigin);
+    assert.equal(response.headers.get('Cache-Control'), 'no-store');
+    assert.equal(response.headers.get('Vary'), 'Origin');
+    console.log('PASS roster origin', label, path);
+  }
+}
+for (const origin of [approvedOrigin, disallowedOrigin]) {
+  const response = await fetch(base + '/api/auth/roster-staging', {
+    method: 'OPTIONS',
+    headers: {
+      Origin: origin,
+      'Access-Control-Request-Method': 'POST',
+      'Access-Control-Request-Headers': 'Authorization, Content-Type'
+    }
+  });
+  assert.equal(response.status, origin === approvedOrigin ? 204 : 403);
+  assert.equal(response.headers.get('Access-Control-Allow-Origin'),
+    origin === approvedOrigin ? approvedOrigin : null);
+  console.log('PASS roster preflight', origin, response.status);
+}
+
+const protectedWrites = [
+  { path: '/api/auth/roster-staging?team_id=NSK%20Team%2018', method: 'POST',
+    body: { kind: 'player', name: 'MUST NOT BE CREATED' } },
+  { path: '/api/auth/roster-staging/123e4567-e89b-12d3-a456-426614174000?team_id=NSK%20Team%2018',
+    method: 'PATCH', body: { name: 'MUST NOT BE UPDATED' } },
+  { path: '/api/auth/roster-staging/123e4567-e89b-12d3-a456-426614174000?team_id=NSK%20Team%2018',
+    method: 'DELETE' }
+];
+for (const item of protectedWrites) {
+  const response = await fetch(base + item.path, {
+    method: item.method,
+    headers: item.body ? { 'content-type': 'application/json' } : {},
+    body: item.body ? JSON.stringify(item.body) : undefined
+  });
+  assert.equal(response.status, 401, item.method + ' must require personal authentication');
+  assert.equal(response.headers.get('cache-control'), 'no-store');
+  console.log('PASS unauthenticated roster mutation blocked', item.method);
+}
+
+for (const method of ['GET', 'POST', 'PATCH', 'DELETE']) {
+  const rowId = '123e4567-e89b-42d3-a456-426614174000';
+  const path = '/api/auth/roster-staging' +
+    (['PATCH', 'DELETE'].includes(method) ? '/' + rowId : '') +
+    '?team_id=NSK%20Team%2018&team_id=NSK%20Testlag%202';
+  const response = await fetch(base + path, {
+    method,
+    headers: method === 'POST' || method === 'PATCH' ? { 'content-type': 'application/json' } : {},
+    body: method === 'POST' ? JSON.stringify({ kind: 'player', name: 'DENIED' })
+      : method === 'PATCH' ? JSON.stringify({ name: 'DENIED' }) : undefined
+  });
+  assert.equal(response.status, 401, method + ' must reject unauthenticated duplicate-team request');
+  assert.equal(response.headers.get('cache-control'), 'no-store');
+  console.log('PASS unauthenticated duplicate-team request', method);
+}
+
+for (const team of ['NSK Team 18', 'NSK Testlag 2']) {
+  const teamId = encodeURIComponent(team);
+  const rowId = '123e4567-e89b-42d3-a456-426614174000';
+  for (const [method, suffix, payload] of [
+    ['POST', '', { kind: 'player', name: 'DENIED LIVE SMOKE' }],
+    ['PATCH', '/' + rowId, { name: 'DENIED LIVE SMOKE' }],
+    ['DELETE', '/' + rowId, undefined]
+  ]) {
+    for (const authorization of [undefined, 'Bearer shared-admin-token']) {
+      const response = await fetch(base + '/api/auth/roster-staging' + suffix + '?team_id=' + teamId, {
+        method,
+        headers: {
+          ...(authorization ? { Authorization: authorization } : {}),
+          ...(payload ? { 'content-type': 'application/json' } : {})
+        },
+        body: payload ? JSON.stringify(payload) : undefined
+      });
+      assert.equal(response.status, 401, method + ' ' + team + ' must reject missing or legacy credentials');
+      assert.equal(response.headers.get('cache-control'), 'no-store');
+      console.log('PASS staging denies', method, team, authorization ? 'legacy token' : 'no token');
+    }
+  }
+}

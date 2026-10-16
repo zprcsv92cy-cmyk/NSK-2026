@@ -8,7 +8,10 @@
 <form id="detailsForm"><label>Namn <input id="editName" required maxlength="150"></label> <label>E-post <input id="editEmail" type="email" required maxlength="254"></label> <button type="submit">Spara namn och e-post</button> <button type="button" id="deleteUser">Ta bort användare</button></form><h2>Behörigheter</h2><form id="permissionsForm"><fieldset id="grants"><legend>Funktioner personen får använda</legend></fieldset>
 <button type="submit">Spara behörigheter</button></form></section>
 <p id="message" role="status" aria-live="polite">Kontrollerar behörighet…</p></main>
-<script src="../config.js"></script><script src="../auth.js"></script><script>
+<script src="../version.js"></script><script>
+document.write('<script src="../config.js?v=' + window.NSK_VERSION + '"><\/script>');
+document.write('<script src="../auth.js?v=' + window.NSK_VERSION + '"><\/script>');
+</script><script>
 const choices=[
  ['read','Läsbehörighet'],['pool:create','Skapa poolspel'],
  ['lineup:edit','Ändra laguppställning'],['shifts:check','Checka byten'],
@@ -16,7 +19,7 @@ const choices=[
  ['pool:reopen','Återöppna poolspel'],['roster:manage','Hantera truppen'],
  ['users:manage','Hantera användare']
 ];
-const api=window.APP_CONFIG?.API_URL||'https://nsk-api.peter-hasselberg.workers.dev';
+const api=String(window.APP_CONFIG?.AUTH_URL || '').replace(/\/$/, '');
 const message=document.getElementById('message');
 const select=document.getElementById('person');
 const grants=document.getElementById('grants');
