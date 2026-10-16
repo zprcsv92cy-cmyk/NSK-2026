@@ -182,29 +182,40 @@
   </script>
 
 <script>
-(async () => {
+(() => {
   const label = document.getElementById('rosterPersonalAccess');
-  if (!window.Auth || !window.APP_CONFIG?.AUTH_URL) {
-    label.textContent = 'Personlig inloggning är inte konfigurerad.';
-    return;
-  }
-  try {
-    const identity = await Auth.init();
-    if (!identity) {
-      label.textContent = 'Inte personligt inloggad. Logga in via Startsida.';
+  let requestId = 0;
+  async function refreshPersonalAccess() {
+    const current = ++requestId;
+    label.textContent = 'Kontrollerar personlig lagbehörighet…';
+    if (!window.Auth || !window.APP_CONFIG?.AUTH_URL) {
+      label.textContent = 'Personlig inloggning är inte konfigurerad.';
       return;
     }
-    const team = Auth.activeTeam();
-    if (!team) {
-      label.textContent = 'Inloggad, men inget aktivt lag valt. Välj lag på Startsida.';
-      return;
+    try {
+      const identity = await Auth.init();
+      if (current !== requestId) return;
+      if (!identity) {
+        label.textContent = 'Inte personligt inloggad. Logga in via Startsida.';
+        return;
+      }
+      const team = Auth.activeTeam();
+      if (!team) {
+        label.textContent = 'Inloggad, men inget aktivt lag valt. Välj lag på Startsida.';
+        return;
+      }
+      const allowed = await Auth.checkTeamFeature('roster', team);
+      if (current !== requestId) return;
+      label.textContent = 'Aktivt lag: ' + team + '. Personlig rätt att hantera truppen: ' +
+        (allowed ? 'Ja (verifierad av servern)' : 'Nej eller kunde inte verifieras') +
+        '. Befintlig trupp använder fortfarande äldre adminläge.';
+    } catch {
+      if (current === requestId) label.textContent = 'Personlig lagbehörighet kunde inte kontrolleras.';
     }
-    const allowed = await Auth.checkTeamFeature('roster', team);
-    label.textContent = 'Aktivt lag: ' + team + '. Personlig rätt att hantera truppen: ' +
-      (allowed ? 'Ja' : 'Nej eller kunde inte verifieras') + '.';
-  } catch {
-    label.textContent = 'Personlig lagbehörighet kunde inte kontrolleras.';
   }
+  refreshPersonalAccess();
+  window.addEventListener('focus', refreshPersonalAccess);
+  window.addEventListener('pageshow', event => { if (event.persisted) refreshPersonalAccess(); });
 })();
 </script>
 <script>
