@@ -53,6 +53,35 @@
       return result.allowed === true && result.team_id === team;
     } catch { return false; }
   }
+  // Isolated staging roster only. Never sends personal credentials to the legacy production API.
+  async function stagingRosterRequest(method, rowId, payload, team = activeTeam()) {
+    if (!base || !token() || !team || !identity?.memberships?.some(m => m.team_id === team)) {
+      throw new Error('Personlig inloggning och giltigt lag krävs');
+    }
+    if (method !== 'GET' && !(await checkTeamFeature('roster', team))) {
+      throw new Error('Saknar verifierad rätt att ändra truppen');
+    }
+    const query = new URLSearchParams({ team_id: team });
+    const url = base + '/api/auth/roster-staging' + (rowId == null ? '' : '/' + encodeURIComponent(rowId)) + '?' + query;
+    let response;
+    try {
+      response = await fetch(url, {
+        method,
+        headers: { Authorization: 'Bearer ' + token(), ...(method === 'GET' ? {} : { 'Content-Type': 'application/json' }) },
+        credentials: 'omit', cache: 'no-store',
+        ...(method === 'GET' ? {} : { body: JSON.stringify(payload || {}) })
+      });
+    } catch { throw new Error('Testservern kunde inte nås'); }
+    if (response.status === 401) clear();
+    const data = await response.json().catch(() => ({}));
+    if (!response.ok) throw new Error(data.error || 'Testservern nekade begäran');
+    return data;
+  }
+  const stagingRosterList = () => stagingRosterRequest('GET');
+  const stagingRosterWrite = (method, rowId, payload) => {
+    if (!['POST', 'PATCH', 'DELETE'].includes(method)) throw new Error('Otillåten åtgärd');
+    return stagingRosterRequest(method, rowId, payload);
+  };
   async function login(email, password) {
     if (!base) throw new Error('Personlig inloggning är inte aktiverad ännu');
     const response = await fetch(base + '/api/auth/login', {
@@ -79,7 +108,7 @@
     }
   }
   window.Auth = Object.freeze({
-    init, login, logout, can, checkTeamFeature, activeTeam, selectTeam,
+    init, login, logout, can, checkTeamFeature, stagingRosterList, stagingRosterWrite, activeTeam, selectTeam,
     getSession: () => identity, getToken: token, getClient: () => null
   });
 })();
