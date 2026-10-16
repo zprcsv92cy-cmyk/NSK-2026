@@ -13,8 +13,10 @@ export async function resolveLegacyRosterTeam(request, { listTeams, readRow, tea
   }
   const teams = await listTeams();
   if (!Array.isArray(teams)) throw new Error('Team list unavailable');
-  const team = teams.find(t => t?.Namn === teamName && String(t['Säsong']) === season);
-  if (!team || !Number.isSafeInteger(Number(team.id)) || Number(team.id) <= 0) throw new Error('Trusted team missing');
+  const matches = teams.filter(t => t?.Namn === teamName && String(t['Säsong']) === season);
+  if (matches.length !== 1) throw new Error('Trusted team missing or ambiguous');
+  const team = matches[0];
+  if (!Number.isSafeInteger(Number(team.id)) || Number(team.id) <= 0) throw new Error('Trusted team missing');
   if (['PATCH', 'DELETE'].includes(request.method)) {
     const rowId = Number(match[2]);
     if (!Number.isSafeInteger(rowId) || rowId <= 0) throw new Error('Invalid roster row ID');
