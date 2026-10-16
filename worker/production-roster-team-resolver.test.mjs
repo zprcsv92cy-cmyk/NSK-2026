@@ -100,3 +100,14 @@ test('rejects conflicting secondary team alias even when primary alias matches',
     assert.equal(request.bodyUsed, false);
   }
 });
+
+test('rejects ambiguous or missing persisted team links before PATCH or DELETE', async () => {
+  for (const links of [[], [18, 2], [{ id: 18 }, { id: 18 }], [{ id: 18 }, { id: 2 }]]) {
+    for (const method of ['PATCH', 'DELETE']) {
+      const request = req('/api/spelare/41', method);
+      await assert.rejects(resolveLegacyRosterTeam(request, {
+        ...dependencies, readRow: async () => ({ Lag: links })
+      }), /another team/, method + ' ' + JSON.stringify(links));
+    }
+  }
+});
