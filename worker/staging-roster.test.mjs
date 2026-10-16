@@ -79,3 +79,13 @@ test('unsupported collection method is rejected before database access', async (
   assert.equal(result.status, 405);
   assert.equal(db.calls.length, 0);
 });
+
+test('malformed row identifiers are rejected without database access', async () => {
+  const db = store();
+  for (const id of ['not-a-uuid', '------------------------------------', '123e4567-e89b-42d3-a456-42661417400z']) {
+    const req = new Request('https://example.test/api/auth/roster-staging/' + id + '?team_id=team-18', { method: 'DELETE' });
+    const result = await stagingRoster(req, db, admin, json);
+    assert.equal(result.status, 404, id);
+  }
+  assert.equal(db.calls.length, 0);
+});
