@@ -30,7 +30,7 @@ export async function resolveLagpersonalTeam(request, { listTeams, readStaff } =
   if (!raw || !/^[1-9]\d*$/.test(raw) || !Number.isSafeInteger(Number(raw))) throw new Error('Invalid team');
   const teams = await listTeams();
   if (!Array.isArray(teams)) throw new Error('Team list unavailable');
-  const matches = teams.filter(t => t && /^[1-9]\\d*$/.test(String(t.id)) && Number.isSafeInteger(Number(t.id)) && String(t.id) === raw);
+  const matches = teams.filter(t => t && /^[1-9]\d*$/.test(String(t.id)) && Number.isSafeInteger(Number(t.id)) && String(t.id) === raw);
   if (matches.length !== 1) throw new Error('Unknown or ambiguous team');
   const team = matches[0];
   if (request.method === 'PATCH') {
@@ -41,7 +41,7 @@ export async function resolveLagpersonalTeam(request, { listTeams, readStaff } =
     if (!staffId || !/^[A-Za-z0-9_-]{1,100}$/.test(staffId)) throw new Error('Invalid staff ID');
     const stored = await readStaff(staffId);
     if (!stored || typeof stored !== 'object' || Array.isArray(stored) ||
-        !/^[1-9]\\d*$/.test(String(stored.team_id)) ||
+        !/^[1-9]\d*$/.test(String(stored.team_id)) ||
         !Number.isSafeInteger(Number(stored.team_id)) ||
         String(stored.team_id) !== raw) throw new Error('Stored staff belongs to another team');
   }
