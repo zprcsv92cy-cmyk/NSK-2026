@@ -41,3 +41,14 @@ test('missing auth handler fails closed', async () => {
   const response = await dispatchStagingAuth(new Request(root + 'me'), {});
   assert.equal(response.status, 503);
 });
+
+test('roster rejects missing personal token even without legacy handler', async () => {
+  const response = await dispatchStagingAuth(new Request(root + 'roster-staging?team_id=team-18'), {
+    AUTH_DB: {}
+  });
+  assert.equal(response.status, 401);
+});
+test('roster denies access if staging database is not configured', async () => {
+  const response = await dispatchStagingAuth(new Request(root + 'roster-staging?team_id=team-18'));
+  assert.equal(response.status, 503);
+});
