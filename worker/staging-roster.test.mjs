@@ -89,3 +89,15 @@ test('malformed row identifiers are rejected without database access', async () 
   }
   assert.equal(db.calls.length, 0);
 });
+
+test('oversized write is rejected before database access', async () => {
+  const db = store();
+  const req = new Request('https://example.test/api/auth/roster-staging?team_id=team-18', {
+    method: 'POST',
+    headers: { 'Content-Length': '2049' },
+    body: JSON.stringify({ kind: 'player', name: 'Test' })
+  });
+  const result = await stagingRoster(req, db, admin, json);
+  assert.equal(result.status, 413);
+  assert.equal(db.calls.length, 0);
+});
