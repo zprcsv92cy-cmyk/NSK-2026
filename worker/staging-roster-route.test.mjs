@@ -68,3 +68,29 @@ test('default identity verifier rejects unknown session before roster query', as
   assert.match(queries[0], /auth_sessions/);
   assert.doesNotMatch(queries[0], /auth_roster_staging/);
 });
+
+test('default D1 identity verifier authorizes member and scopes roster query', async () => {
+  const sqlCalls = [];
+  const db = { prepare(sql) {
+    const entry = { sql, args: [] }; sqlCalls.push(entry);
+    return { bind(...args) {
+      entry.args = args;
+      return {
+        first: async () => ({ id: 'user-1', display_name: 'Test' }),
+        all: async () => ({ results: sql.includes('auth_team_memberships')
+          ? [{ team_id: 'team-18', role: 'team_admin' }]
+          : sql.includes('auth_user_permissions')
+            ? [{ permission: 'roster:manage' }]
+            : [{ id: 'row-1', kind: 'player', name: 'Test' }] })
+      };
+    } };
+  } };
+  const req = new Request(url, { headers: { Authorization: 'Bearer ' + token } });
+  const response = await handleStagingRosterRoute(req, { AUTH_DB: db });
+  assert.equal(response.status, 200);
+  assert.equal((await response.json()).canManage, true);
+  assert.equal(sqlCalls.length, 4);
+  assert.deepEqual(sqlCalls[1].args, ['user-1']);
+  assert.deepEqual(sqlCalls[2].args, ['user-1']);
+  assert.deepEqual(sqlCalls[3].args, ['team-18']);
+});
