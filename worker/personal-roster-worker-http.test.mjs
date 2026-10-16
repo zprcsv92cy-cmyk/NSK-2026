@@ -24,6 +24,7 @@ const server = createServer(async (incoming, outgoing) => {
     const result = await authorizePersonalWorkerWrite(request, env, {
       listTeams: async () => { lookupCount++; return teams; },
       readRow: async (_, id) => ({ id, Lag: [{ id: id === 99 ? 2 : 18 }] }),
+      readStaff: async id => id === 'foreign' ? { team_id: '2' } : id === 'missing' ? null : { team_id: '18' },
       mutateRoster: async () => { writes++; return { ok: true, status: 200 }; },
       mutateLagpersonal: async () => { writes++; return { ok: true, status: 200 }; }
     });
@@ -66,6 +67,26 @@ try {
     const before = writes;
     const x = await call('POST', '/api/lagpersonal?team_id=2');
     assert.equal(x.status, 403); assert.equal(writes, before);
+  });
+  await test('HTTP personal session updates persisted own team staff', async () => {
+    const before = writes;
+    const x = await call('PATCH', '/api/lagpersonal?team_id=18&id=staff1');
+    assert.equal(x.status, 200); assert.equal(writes, before + 1);
+  });
+  await test('HTTP persisted foreign staff cannot be edited via Team 18', async () => {
+    const before = writes;
+    const x = await call('PATCH', '/api/lagpersonal?team_id=18&id=foreign');
+    assert.equal(x.status, 502); assert.equal(writes, before);
+  });
+  await test('HTTP missing persisted staff cannot be edited', async () => {
+    const before = writes;
+    const x = await call('PATCH', '/api/lagpersonal?team_id=18&id=missing');
+    assert.equal(x.status, 502); assert.equal(writes, before);
+  });
+  await test('HTTP PATCH without staff ID is denied', async () => {
+    const before = writes;
+    const x = await call('PATCH', '/api/lagpersonal?team_id=18');
+    assert.equal(x.status, 502); assert.equal(writes, before);
   });
   await test('HTTP missing bearer token is denied before team lookup', async () => {
     const before = writes, lookups = lookupCount;
