@@ -174,3 +174,26 @@ test('PATCH rejects non-string name without database access', async () => {
   assert.equal(result.status, 400);
   assert.equal(db.calls.length, 0);
 });
+
+test('multibyte UTF-8 write is limited by bytes, not character count', async () => {
+  const db = store();
+  const body = JSON.stringify({ kind: 'player', name: 'å'.repeat(1100) });
+  const req = new Request('https://example.test/api/auth/roster-staging?team_id=team-18', {
+    method: 'POST', body
+  });
+  const result = await stagingRoster(req, db, admin, json);
+  assert.equal(result.status, 413);
+  assert.equal(db.calls.length, 0);
+});
+
+test('unauthorized write is rejected before reading the request body', async () => {
+  const db = store();
+  const coach = { memberships: [{ team_id: 'team-18', role: 'coach' }], permissions: [] };
+  const req = new Request('https://example.test/api/auth/roster-staging?team_id=team-18', {
+    method: 'POST', body: JSON.stringify({ kind: 'player', name: 'Test' })
+  });
+  const result = await stagingRoster(req, db, coach, json);
+  assert.equal(result.status, 403);
+  assert.equal(req.bodyUsed, false);
+  assert.equal(db.calls.length, 0);
+});
