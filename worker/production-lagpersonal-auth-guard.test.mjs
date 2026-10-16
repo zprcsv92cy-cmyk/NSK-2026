@@ -4,13 +4,13 @@ import { guardLagpersonalMutation, resolveLagpersonalTeam } from './production-l
 
 const teams = [{ id: 18 }, { id: 2 }];
 const actor = { memberships: [{ team_id: '18', role: 'team_admin' }], permissions: ['roster:manage'] };
-const req = (method, team, token = 'valid') => new Request('https://example.test/api/lagpersonal?team_id=' + team, {
+const req = (method, team, token = 'valid') => new Request('https://example.test/api/lagpersonal?team_id=' + team + (method === 'PATCH' ? '&id=staff1' : ''), {
   method, headers: token ? { Authorization: 'Bearer ' + token } : {}
 });
-async function run(request, { listTeams = async () => teams, verifyIdentity = async () => actor } = {}) {
+async function run(request, { listTeams = async () => teams, readStaff = async () => ({ team_id: '18' }), verifyIdentity = async () => actor } = {}) {
   let writes = 0, lookups = 0;
   const result = await guardLagpersonalMutation(request, {
-    resolveTeamId: r => { lookups++; return resolveLagpersonalTeam(r, { listTeams }); },
+    resolveTeamId: r => { lookups++; return resolveLagpersonalTeam(r, { listTeams, readStaff }); },
     verifyIdentity,
     mutate: async () => { writes++; return { ok: true }; }
   });
@@ -57,4 +57,17 @@ test('team lookup outage fails closed', async () => {
 test('GET is not a mutation', async () => {
   const { result, writes } = await run(req('GET', 18));
   assert.equal(result.status, 405); assert.equal(writes, 0);
+});
+
+test('PATCH cannot alter persisted staff owned by another team', async () => {
+  const { result, writes } = await run(req('PATCH', 18), { readStaff: async () => ({ team_id: '2' }) });
+  assert.equal(result.status, 502); assert.equal(writes, 0);
+});
+test('PATCH cannot proceed when stored staff is missing', async () => {
+  const { result, writes } = await run(req('PATCH', 18), { readStaff: async () => null });
+  assert.equal(result.status, 502); assert.equal(writes, 0);
+});
+test('PATCH cannot proceed without persisted staff lookup', async () => {
+  const { result, writes } = await run(req('PATCH', 18), { readStaff: null });
+  assert.equal(result.status, 502); assert.equal(writes, 0);
 });
