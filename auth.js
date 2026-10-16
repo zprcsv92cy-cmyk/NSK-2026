@@ -24,9 +24,26 @@
       });
       if (!response.ok) { session = null; if (response.status === 401 || response.status === 403) sessionStorage.removeItem(KEY); return null; }
       session = normalize(await response.json());
-      if (!session) sessionStorage.removeItem(KEY);
+      if (!session) { sessionStorage.removeItem(KEY); sessionStorage.removeItem(TEAM_KEY); }
+      else if (!activeTeam()) {
+        sessionStorage.removeItem(TEAM_KEY);
+        if (session.memberships.length) selectTeam(session.memberships[0].team_id);
+      }
       return session;
     } catch { session = null; return null; }
+  }
+  const TEAM_KEY = 'nsk_active_team';
+  function activeTeam() {
+    if (!session || !Array.isArray(session.memberships)) return null;
+    const selected = sessionStorage.getItem(TEAM_KEY);
+    return session.memberships.some(m => m.team_id === selected) ? selected : null;
+  }
+  function selectTeam(teamId) {
+    if (!session || !session.memberships.some(m => m.team_id === teamId)) {
+      throw new Error('Du saknar åtkomst till laget');
+    }
+    sessionStorage.setItem(TEAM_KEY, teamId);
+    return teamId;
   }
   function canTeam(teamId, permission) {
     return !!session && session.memberships.some(m => m.team_id === teamId && m.role === 'team_admin') && session.permissions.includes(permission);
@@ -56,6 +73,7 @@
     });
     const data = await response.json().catch(() => ({}));
     if (!response.ok || !data.token) throw new Error(data.error || 'Inloggningen misslyckades');
+    sessionStorage.removeItem(TEAM_KEY);
     sessionStorage.setItem(KEY, data.token);
     const result = await init();
     if (!result) { sessionStorage.removeItem(KEY); throw new Error('Kontot kunde inte verifieras'); }
@@ -64,6 +82,7 @@
   async function logout() {
     const value = token();
     sessionStorage.removeItem(KEY);
+    sessionStorage.removeItem(TEAM_KEY);
     session = null;
     if (value) {
       try { await fetch(API + '/api/auth/logout', { method: 'POST', headers: { Authorization: 'Bearer ' + value } }); }
@@ -71,7 +90,7 @@
     }
   }
   window.Auth = Object.freeze({
-    init, login, logout, can, canTeam, checkTeamFeature, getSession: () => session,
+    init, login, logout, can, canTeam, checkTeamFeature, activeTeam, selectTeam, getSession: () => session,
     getClient: () => null, getToken: token, permissions: PERMISSIONS
   });
 })();
