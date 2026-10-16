@@ -99,3 +99,26 @@ test('lagpersonal PATCH cannot cross team boundary even with administrator permi
   assert.equal(result.status, 502);
   assert.equal(writes, 0);
 });
+
+test('lagpersonal rejects duplicate team and staff query parameters', async () => {
+  for (const [method, path] of [
+    ['POST', '/api/lagpersonal?team_id=18&team_id=2'],
+    ['POST', '/api/lagpersonal?team_id=18&team_id=18'],
+    ['PATCH', '/api/lagpersonal?team_id=18&id=staff1&id=staff2']
+  ]) {
+    const request = new Request('https://example.test' + path, {
+      method, headers: { Authorization: 'Bearer valid' }
+    });
+    const { result, writes } = await run(request);
+    assert.equal(result.status, 502, method + ' ' + path);
+    assert.equal(writes, 0, method + ' ' + path);
+  }
+});
+
+test('lagpersonal rejects duplicate trusted team records', async () => {
+  const { result, writes } = await run(req('POST', 18), {
+    listTeams: async () => [{ id: 18 }, { id: 18 }]
+  });
+  assert.equal(result.status, 502);
+  assert.equal(writes, 0);
+});
