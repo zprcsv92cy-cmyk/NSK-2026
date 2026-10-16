@@ -151,3 +151,18 @@ test('rejects noncanonical trusted team IDs before reading roster rows', async (
     assert.equal(reads, 0);
   }
 });
+
+test('accepts canonical numeric team IDs and rejects ambiguous team references', async () => {
+  for (const id of [18, '18']) {
+    assert.equal(await resolveLegacyRosterTeam(req('/api/spelare/41', 'DELETE'), {
+      ...dependencies,
+      listTeams: async () => [{ id, Namn: 'NSK Team 18', 'Säsong': '2026' }]
+    }), '18');
+  }
+  for (const links of [[{ id: 18 }, { id: 2 }], [{ id: 18 }, { id: 18 }]]) {
+    await assert.rejects(resolveLegacyRosterTeam(req('/api/tranare/5', 'DELETE'), {
+      ...dependencies,
+      readRow: async () => ({ Lag: links })
+    }), /another team/);
+  }
+});
