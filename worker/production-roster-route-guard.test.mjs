@@ -206,3 +206,23 @@ test('production guard rejects invalid trusted team identifiers before verifying
     assert.equal(writes, 0, String(invalid));
   }
 });
+
+test('production DELETE guard refuses another team without invoking mutation', async () => {
+  const deleteRequest = new Request('https://example.test/api/spelare/41', {
+    method: 'DELETE', headers: { Authorization: 'Bearer valid-token' }
+  });
+  for (const team of ['NSK Testlag 2', '', null]) {
+    let writes = 0;
+    const result = await guardRosterRoute(deleteRequest, {
+      resolveTeamId: async () => team,
+      verifyIdentity: async () => ({
+        memberships: [{ team_id: 'NSK Team 18', role: 'team_admin' }],
+        permissions: ['roster:manage']
+      }),
+      mutate: async () => { writes++; return { ok: true }; }
+    });
+    assert.equal(result.ok, false, String(team));
+    assert.equal(result.status, team ? 403 : 502);
+    assert.equal(writes, 0);
+  }
+});
