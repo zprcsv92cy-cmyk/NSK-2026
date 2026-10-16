@@ -27,3 +27,13 @@ Ingen produktionsendpoint aktiveras genom detta dokument.
 - **Frontend:** aktivera aldrig personlig skrivning genom att enbart dölja/visa knappar. Skrivvägen måste först gå till ett serververifierat API.
 - **Rollback:** spara och verifiera driftsatt Worker-kod, konfiguration och relevanta databackuper innan en framtida produktionsrelease.
 - **Releasegräns:** ändra inte produktions-Worker `nsk-api` eller migrera riktiga truppposter utan separat uttryckligt godkännande.
+
+## Produktions-Worker: verifierad återställningsreferens 2026-10-16
+
+- Worker: `nsk-api`; Cloudflare deployment-ID: `17408693-062c-4f71-b36e-9eb37881536e`.
+- Aktiv version: **42**, version-ID `95247668-0e10-4ba3-b6c5-469ed37a986c`, 100 % trafik.
+- Publicerad: `2026-10-13T15:02:54.622304Z`.
+- Konfiguration: compatibility date `2026-10-10`; binding-namn `ADMIN_KV`, `ADMIN_PASSWORD`, `BASEROW_DATABASE_ID`, `BASEROW_TOKEN`, `MATCH_PASSWORD`, `NSK_TRAINERS`, `SHIFT_LOCK`.
+- Tidigare versioner finns listade i Cloudflare, men **återställning är inte provad**.
+- **Viktigt:** En fullständig verifierad källkodskopia har ännu inte hämtats eller lagts i GitHub. Versionsmetadata är inte en fullständig backup. Hemligheter och bindnings-ID:n ska inte läggas i repo.
+- Produktions-Worker har inte uppdaterats genom denna inventering.
