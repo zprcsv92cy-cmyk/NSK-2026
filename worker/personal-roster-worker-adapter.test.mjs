@@ -19,6 +19,7 @@ async function run(request, identity = env(), row = { Lag: [{ id: 18 }] }) {
   const result = await authorizePersonalWorkerWrite(request, identity, {
     listTeams: async () => teams,
     readRow: async () => row,
+    readStaff: async () => ({ team_id: '18' }),
     mutateRoster: async () => { rosterWrites++; return { ok: true }; },
     mutateLagpersonal: async () => { staffWrites++; return { ok: true }; }
   });
@@ -59,4 +60,14 @@ test('shared admin token is not a personal session', async () => {
 test('unknown write path denied', async () => {
   const x = await run(req('POST', '/api/unknown'));
   assert.equal(x.result.status, 404); assert.equal(x.rosterWrites, 0);
+});
+
+test('worker adapter denies PATCH when persisted staff belongs to Team 2', async () => {
+  let writes = 0;
+  const result = await authorizePersonalWorkerWrite(req('PATCH', '/api/lagpersonal?team_id=18&id=staff1'), env(), {
+    listTeams: async () => teams,
+    readStaff: async () => ({ team_id: '2' }),
+    mutateLagpersonal: async () => { writes++; return { ok: true }; }
+  });
+  assert.equal(result.status, 502); assert.equal(writes, 0);
 });
