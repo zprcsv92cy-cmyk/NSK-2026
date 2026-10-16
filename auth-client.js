@@ -35,7 +35,16 @@
     return !!state.identity?.memberships?.some(m=>m.team_id===teamId&&m.role==='team_admin')&&
       !!state.identity?.permissions?.includes(permission);
   }
-  global.NSK_AUTH={login,logout,me:()=>state.identity,teamAccess,
+  // Ask the Worker for the authoritative per-team decision before enabling a feature.
+  // UI checks improve usability; every actual write must still be checked server-side.
+  async function checkFeatureAccess(teamId,feature){
+    if(!state.token) return false;
+    if(typeof teamId!=='string'||!teamId||typeof feature!=='string'||!feature) return false;
+    const query=new URLSearchParams({team_id:teamId,feature});
+    const decision=await call('/api/auth/feature-access?'+query.toString());
+    return decision.allowed===true;
+  }
+  global.NSK_AUTH={login,logout,me:()=>state.identity,teamAccess,checkFeatureAccess,
     // Only send tokens to an auth endpoint, never directly to the old data API.
     authRequest:(path,options)=>{if(!state.token)throw Error('Inte inloggad');return call(path,options);}};
 })(window);
