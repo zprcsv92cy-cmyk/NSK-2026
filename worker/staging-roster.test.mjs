@@ -122,3 +122,33 @@ test('valid explicit Content-Length does not block authorized small writes', asy
   assert.equal(result.status, 201);
   assert.equal(db.calls.length, 1);
 });
+
+test('malformed JSON is rejected without database access', async () => {
+  const db = store();
+  const req = new Request('https://example.test/api/auth/roster-staging?team_id=team-18', {
+    method: 'POST', body: '{"kind":'
+  });
+  const result = await stagingRoster(req, db, admin, json);
+  assert.equal(result.status, 400);
+  assert.equal(db.calls.length, 0);
+});
+
+test('non-object JSON is rejected without database access', async () => {
+  const db = store();
+  const req = new Request('https://example.test/api/auth/roster-staging?team_id=team-18', {
+    method: 'POST', body: 'null'
+  });
+  const result = await stagingRoster(req, db, admin, json);
+  assert.equal(result.status, 400);
+  assert.equal(db.calls.length, 0);
+});
+
+test('invalid UTF-8 JSON is rejected without database access', async () => {
+  const db = store();
+  const req = new Request('https://example.test/api/auth/roster-staging?team_id=team-18', {
+    method: 'POST', body: new Uint8Array([0x7b,0x22,0x61,0x22,0x3a,0xff,0x7d])
+  });
+  const result = await stagingRoster(req, db, admin, json);
+  assert.equal(result.status, 400);
+  assert.equal(db.calls.length, 0);
+});
