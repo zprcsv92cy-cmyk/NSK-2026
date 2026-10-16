@@ -75,6 +75,24 @@
       <p class="small">Personlig behörighet visas här. Redigering av den befintliga truppen använder tills vidare det äldre adminläget.</p>
     </section>
 
+    <section class="card roster-card" id="stagingRosterPanel" hidden>
+      <h2>Testtrupp – endast staging</h2>
+      <p class="small">Separat testdata. Ändringar här påverkar aldrig den riktiga truppen.</p>
+      <p id="stagingRosterMessage" class="small" aria-live="polite"></p>
+      <div class="btnrow roster-add-row">
+        <select id="stagingRosterKind" aria-label="Roll">
+          <option value="player">Spelare</option>
+          <option value="coach">Tränare</option>
+          <option value="team_manager">Lagledare</option>
+          <option value="fitness">Fysansvarig</option>
+          <option value="equipment">Materialförvaltare</option>
+        </select>
+        <input id="stagingRosterName" maxlength="120" placeholder="Namn i testtruppen">
+        <button id="stagingRosterAdd" type="button">Lägg till i testtrupp</button>
+      </div>
+      <div id="stagingRosterRows"></div>
+    </section>
+
     <section class="card roster-card roster-backup">
 
       <div class="btnrow">
@@ -187,6 +205,71 @@
   } catch {
     label.textContent = 'Personlig lagbehörighet kunde inte kontrolleras.';
   }
+})();
+</script>
+<script>
+(async () => {
+  const panel = document.getElementById('stagingRosterPanel');
+  const message = document.getElementById('stagingRosterMessage');
+  const list = document.getElementById('stagingRosterRows');
+  const add = document.getElementById('stagingRosterAdd');
+  const name = document.getElementById('stagingRosterName');
+  if (!window.Auth?.stagingRosterList) return;
+  const identity = await Auth.init();
+  if (!identity || !Auth.activeTeam()) return;
+  panel.hidden = false;
+  let canManage = false;
+  async function refresh() {
+    list.replaceChildren();
+    try {
+      const data = await Auth.stagingRosterList();
+      canManage = data.canManage === true;
+      add.disabled = !canManage;
+      name.disabled = !canManage;
+      message.textContent = canManage ? 'Testtrupp för ' + Auth.activeTeam() : 'Endast läsning av testtruppen för ' + Auth.activeTeam();
+      for (const item of data.rows || []) {
+        const row = document.createElement('div');
+        row.className = 'listrow';
+        const input = document.createElement('input');
+        input.value = item.name;
+        input.maxLength = 120;
+        input.readOnly = !canManage;
+        const kind = document.createElement('span');
+        kind.textContent = ' (' + item.kind + ') ';
+        row.append(input, kind);
+        if (canManage) {
+          input.addEventListener('change', async () => {
+            try { await Auth.stagingRosterWrite('PATCH', item.id, { name: input.value.trim() }); await refresh(); }
+            catch (error) { message.textContent = error.message; }
+          });
+          const remove = document.createElement('button');
+          remove.type = 'button';
+          remove.textContent = 'Ta bort';
+          remove.addEventListener('click', async () => {
+            if (!confirm('Ta bort från testtruppen?')) return;
+            try { await Auth.stagingRosterWrite('DELETE', item.id); await refresh(); }
+            catch (error) { message.textContent = error.message; }
+          });
+          row.append(remove);
+        }
+        list.append(row);
+      }
+    } catch (error) {
+      add.disabled = true;
+      name.disabled = true;
+      message.textContent = 'Testtruppen kunde inte hämtas: ' + error.message;
+    }
+  }
+  add.addEventListener('click', async () => {
+    if (!canManage || !name.value.trim()) return;
+    add.disabled = true;
+    try {
+      await Auth.stagingRosterWrite('POST', null, { kind: document.getElementById('stagingRosterKind').value, name: name.value.trim() });
+      name.value = '';
+      await refresh();
+    } catch (error) { message.textContent = error.message; add.disabled = !canManage; }
+  });
+  await refresh();
 })();
 </script>
 <script src="../admin-mode.js?v=1"></script>
