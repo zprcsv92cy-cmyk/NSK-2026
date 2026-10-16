@@ -268,3 +268,16 @@ test('PATCH and DELETE cannot modify a row belonging to another team', async () 
     assert.equal(db.calls[0].args.at(-1), 'team-18');
   }
 });
+
+test('duplicate team_id parameters are rejected before database access', async () => {
+  for (const method of ['GET', 'POST']) {
+    const db = store();
+    const req = new Request(
+      'https://example.test/api/auth/roster-staging?team_id=team-18&team_id=team-2',
+      { method, ...(method === 'POST' ? { body: JSON.stringify({ kind: 'player', name: 'Must not save' }) } : {}) }
+    );
+    const result = await stagingRoster(req, db, admin, json);
+    assert.equal(result.status, 400);
+    assert.equal(db.calls.length, 0);
+  }
+});
