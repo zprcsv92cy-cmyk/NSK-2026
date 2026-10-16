@@ -54,7 +54,7 @@ export async function authorizeRosterMutation(request, teamId, verifyIdentity, m
     return { ok: false, status: 500, error: 'Säkerhetskontroll saknas' };
   }
   const header = request.headers?.get?.('Authorization') || '';
-  const match = /^Bearer ([^\\s]+)$/.exec(header);
+  const match = /^Bearer ([^\s]+)$/.exec(header);
   if (!match) return { ok: false, status: 401, error: 'Personlig inloggning krävs' };
   let actor;
   try { actor = await verifyIdentity(match[1]); }
