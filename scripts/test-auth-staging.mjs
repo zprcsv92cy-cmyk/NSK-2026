@@ -105,3 +105,22 @@ for (const origin of [approvedOrigin, disallowedOrigin]) {
     origin === approvedOrigin ? approvedOrigin : null);
   console.log('PASS roster preflight', origin, response.status);
 }
+
+const protectedWrites = [
+  { path: '/api/auth/roster-staging?team_id=NSK%20Team%2018', method: 'POST',
+    body: { kind: 'player', name: 'MUST NOT BE CREATED' } },
+  { path: '/api/auth/roster-staging/123e4567-e89b-12d3-a456-426614174000?team_id=NSK%20Team%2018',
+    method: 'PATCH', body: { name: 'MUST NOT BE UPDATED' } },
+  { path: '/api/auth/roster-staging/123e4567-e89b-12d3-a456-426614174000?team_id=NSK%20Team%2018',
+    method: 'DELETE' }
+];
+for (const item of protectedWrites) {
+  const response = await fetch(base + item.path, {
+    method: item.method,
+    headers: item.body ? { 'content-type': 'application/json' } : {},
+    body: item.body ? JSON.stringify(item.body) : undefined
+  });
+  assert.equal(response.status, 401, item.method + ' must require personal authentication');
+  assert.equal(response.headers.get('cache-control'), 'no-store');
+  console.log('PASS unauthenticated roster mutation blocked', item.method);
+}
