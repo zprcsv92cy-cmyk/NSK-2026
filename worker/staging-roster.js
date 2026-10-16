@@ -19,6 +19,10 @@ export async function stagingRoster(request,db,actor,json) {
  }
  if(!['POST','PATCH','DELETE'].includes(request.method))return json({error:'Metoden stöds inte'},405);
  if(!canManage)return json({error:'Saknar behörighet att ändra Truppen'},403);
+ if(['POST','PATCH'].includes(request.method)){
+  const length=request.headers.get('Content-Length');
+  if(length!==null&&(!/^\\d+$/.test(length)||Number(length)>2048))return json({error:'Begäran är för stor'},413);
+ }
  if(path==='/api/auth/roster-staging'&&request.method==='POST'){
   let data;try{data=await request.json()}catch{return json({error:'Ogiltig JSON'},400)}
   const kind=String(data.kind||''),name=String(data.name||'').trim();
