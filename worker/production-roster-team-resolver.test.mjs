@@ -40,3 +40,27 @@ test('unsupported methods and route shapes are rejected', async () => {
     await assert.rejects(resolveLegacyRosterTeam(request, dependencies), /Unsupported/);
   }
 });
+
+test('rejects attempts to change persisted team via PATCH body', async () => {
+  for (const payload of [
+    { team_id: 2 },
+    { teamId: 2 },
+    { Lag: [{ id: 2 }] },
+    { Lag: [{ id: 18 }, { id: 2 }] },
+    { Lag: '18' }
+  ]) {
+    const request = new Request('https://nsk.example/api/spelare/41', {
+      method: 'PATCH', body: JSON.stringify(payload)
+    });
+    await assert.rejects(resolveLegacyRosterTeam(request, dependencies), /Conflicting/, JSON.stringify(payload));
+    assert.equal(request.bodyUsed, false);
+  }
+});
+
+test('accepts matching persisted team link without consuming original body', async () => {
+  const request = new Request('https://nsk.example/api/spelare/41', {
+    method: 'PATCH', body: JSON.stringify({ Lag: [{ id: 18 }], Namn: 'TEST' })
+  });
+  assert.equal(await resolveLegacyRosterTeam(request, dependencies), '18');
+  assert.equal(request.bodyUsed, false);
+});
