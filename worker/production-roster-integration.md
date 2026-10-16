@@ -35,7 +35,7 @@ Ingen produktionsendpoint aktiveras genom detta dokument.
 - Publicerad: `2026-10-13T15:02:54.622304Z`.
 - Konfiguration: compatibility date `2026-10-10`; binding-namn `ADMIN_KV`, `ADMIN_PASSWORD`, `BASEROW_DATABASE_ID`, `BASEROW_TOKEN`, `MATCH_PASSWORD`, `NSK_TRAINERS`, `SHIFT_LOCK`.
 - Tidigare versioner finns listade i Cloudflare, men **återställning är inte provad**.
-- **Viktigt:** En fullständig verifierad källkodskopia har ännu inte hämtats eller lagts i GitHub. Versionsmetadata är inte en fullständig backup. Hemligheter och bindnings-ID:n ska inte läggas i repo.
+- **Viktigt:** Användaren har nu lämnat en kopia av Cloudflares visade `worker.js` (656 rader, kompilerad kod med `sourceMappingURL`). Kopian finns som uppladdad fil i konversationen och som separat lokal granskningsfil, **inte** i GitHub. Exakt byteidentitet mot Cloudflare version 42, fullständiga källmoduler och rollback är ännu inte verifierade. Versionsmetadata är inte en fullständig backup. Hemligheter och bindnings-ID:n ska inte läggas i repo.
 - Produktions-Worker har inte uppdaterats genom denna inventering.
 
 ## Checklista för säker export och återställning
@@ -48,4 +48,11 @@ Ingen produktionsendpoint aktiveras genom detta dokument.
 6. Testa den nya Worker-koden och negativa behörighetsfall i isolerad staging. Kontrollera därefter att staging använder egna databindningar och aldrig produktionens Baserow/KV.
 7. Kräv separat godkännande innan produktions-Worker, produktionsbindningar eller riktiga truppdata ändras.
 
-**Status 2026-10-16:** versions-ID och bindningstyper verifierade via Cloudflare API; export av fullständig Worker-kod saknas fortfarande. Ingen rollback har genomförts.
+**Status 2026-10-16:** versions-ID och bindningsnamn verifierade via Cloudflare API. Användaren har delat en kompilerad `worker.js` från kodredigeraren; den behöver fortfarande matchas mot den driftsatta versionen och kompletteras med konfiguration och databackup. Ingen rollback har genomförts.
+
+## Granskningsfynd från användarens Worker-kopia
+
+- `POST/PATCH /api/spelare` och `/api/tranare` använder fortfarande gemensam `ADMIN_KV`-session och hårdkodad `NSK Team 18`-mappning.
+- `/api/lagpersonal`-blocket ligger efter en generell `if (req.method !== 'GET') return 405`; dess `POST/PATCH` kan därför inte nås i den visade koden. Korrigering kräver säkerhetstester och godkänd release.
+- Separata förberedande moduler `production-roster-team-resolver.js`, `production-roster-route-guard.js` och `team-authorization-policy.js` är **inte** importerade av produktions-Workern. Integrationstesterna kör dessa moduler med mockade datakällor och skriver inte i Baserow.
+- **Nästa tekniska steg:** isolerad Worker-testhärva mot den mottagna koden med simulerad Baserow/KV, därefter personlig sessionsverifiering och behörighet för samtliga skrivvägar. Produktionsdriftsättning kräver fortfarande separat godkännande.
