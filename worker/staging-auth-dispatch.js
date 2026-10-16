@@ -50,3 +50,18 @@ export async function dispatchStagingAuth(request, env, handleTeamAuth) {
   for (const [key, value] of Object.entries(headers)) responseHeaders.set(key, value);
   return new Response(response.body, { status: response.status, headers: responseHeaders });
 }
+
+/**
+ * Staging entrypoint adapter. Keeps activation and test-account bootstrap
+ * on their original handlers while routing roster calls through personal auth.
+ * Only use this in nsk-auth-staging, never in nsk-api.
+ */
+export function createStagingAuthHandler({ handleTeamAuth, handleActivation, bootstrapTestAccount }) {
+  return (request, env) => {
+    const path = new URL(request.url).pathname;
+    const handler = path === '/api/auth/activate' ? handleActivation
+      : path === '/api/auth/staging/bootstrap-test' ? bootstrapTestAccount
+      : handleTeamAuth;
+    return dispatchStagingAuth(request, env, handler);
+  };
+}
