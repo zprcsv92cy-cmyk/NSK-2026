@@ -56,3 +56,14 @@ Ingen produktionsendpoint aktiveras genom detta dokument.
 - `/api/lagpersonal`-blocket ligger efter en generell `if (req.method !== 'GET') return 405`; dess `POST/PATCH` kan därför inte nås i den visade koden. Korrigering kräver säkerhetstester och godkänd release.
 - Separata förberedande moduler `production-roster-team-resolver.js`, `production-roster-route-guard.js` och `team-authorization-policy.js` är **inte** importerade av produktions-Workern. Integrationstesterna kör dessa moduler med mockade datakällor och skriver inte i Baserow.
 - **Nästa tekniska steg:** isolerad Worker-testhärva mot den mottagna koden med simulerad Baserow/KV, därefter personlig sessionsverifiering och behörighet för samtliga skrivvägar. Produktionsdriftsättning kräver fortfarande separat godkännande.
+
+## Verifierad stagingkontroll – laguppställningar 2026-10-16
+
+- Inloggad testanvändare har via webbläsaren gjort riktiga HTTP-anrop mot den isolerade stagingservern för `NSK Testlag 2`.
+- `DELETE /api/auth/lineups-staging` returnerade **403 Forbidden**.
+- `POST /api/auth/lineups-staging` returnerade **403 Forbidden**.
+- `PATCH /api/auth/lineups-staging` returnerade **403 Forbidden**.
+- Detta bekräftar att servern nekar dessa tre skrivmetoder för användarens aktuella behörighet i Testlag 2. Det verifierar **inte** alla skrivvägar i produktion eller ett fullständigt säkerhetstest av alla roller.
+- GitHub Actions `Team authorization tests` och `Staging import preflight` var gröna för testcommit `ea9ccf47`. Testerna använder simulerad databas.
+- Nästa releaseblockerare: återställningsbar versionshanterad produktions-Worker, säker koppling till personlig serververifierad identitet, verifierad teammappning, negativa och positiva stagingtester för produktionsskrivvägar samt separat produktionsgodkännande.
+- Inga produktionsändringar har utförts som del av dessa kontroller.
