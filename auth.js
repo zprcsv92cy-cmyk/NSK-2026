@@ -38,6 +38,21 @@
     return !!team && !!identity?.memberships?.some(m => m.team_id === team && (permission === 'read' || m.role === 'team_admin'))
       && (permission === 'read' || identity.permissions.includes(permission));
   }
+  // Confirm each team-specific edit against the server; browser role flags are only UI hints.
+  async function checkTeamFeature(feature, team = activeTeam()) {
+    if (!base || !token() || !team || !identity?.memberships?.some(m => m.team_id === team)) return false;
+    try {
+      const query = new URLSearchParams({ team_id: team, feature });
+      const response = await fetch(base + '/api/auth/feature-access?' + query, {
+        headers: { Authorization: 'Bearer ' + token() },
+        credentials: 'omit', cache: 'no-store'
+      });
+      if (response.status === 401) { clear(); return false; }
+      if (!response.ok) return false;
+      const result = await response.json();
+      return result.allowed === true && result.team_id === team;
+    } catch { return false; }
+  }
   async function login(email, password) {
     if (!base) throw new Error('Personlig inloggning är inte aktiverad ännu');
     const response = await fetch(base + '/api/auth/login', {
@@ -64,7 +79,7 @@
     }
   }
   window.Auth = Object.freeze({
-    init, login, logout, can, activeTeam, selectTeam,
+    init, login, logout, can, checkTeamFeature, activeTeam, selectTeam,
     getSession: () => identity, getToken: token, getClient: () => null
   });
 })();
