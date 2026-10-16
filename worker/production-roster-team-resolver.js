@@ -17,7 +17,7 @@ export async function resolveLegacyRosterTeam(request, { listTeams, readRow, tea
   if (matches.length !== 1) throw new Error('Trusted team missing or ambiguous');
   const team = matches[0];
   if (!Number.isSafeInteger(Number(team.id)) || Number(team.id) <= 0 ||
-      !/^[1-9]\\d*$/.test(String(team.id))) throw new Error('Trusted team missing');
+      !/^[1-9]\d*$/.test(String(team.id))) throw new Error('Trusted team missing');
   if (['PATCH', 'DELETE'].includes(request.method)) {
     const rowId = Number(match[2]);
     if (!Number.isSafeInteger(rowId) || rowId <= 0) throw new Error('Invalid roster row ID');
