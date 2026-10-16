@@ -31,9 +31,16 @@ export async function dispatchStagingAuth(request, env, handleTeamAuth) {
       status: 503, headers: { ...headers, 'Content-Type': 'application/json' }
     });
   }
-  const response = isRoster
-    ? await handleStagingRosterRoute(request, env)
-    : await handleTeamAuth(request, env);
+  let response;
+  try {
+    response = isRoster
+      ? await handleStagingRosterRoute(request, env)
+      : await handleTeamAuth(request, env);
+  } catch {
+    response = new Response(JSON.stringify({ error: 'Stagingtjänsten är tillfälligt otillgänglig' }), {
+      status: 503, headers: { 'Content-Type': 'application/json; charset=utf-8' }
+    });
+  }
   const responseHeaders = new Headers(response.headers);
   for (const [key, value] of Object.entries(headers)) responseHeaders.set(key, value);
   return new Response(response.body, { status: response.status, headers: responseHeaders });
