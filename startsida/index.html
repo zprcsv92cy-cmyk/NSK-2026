@@ -35,6 +35,19 @@
       </div>
     </section>
 
+    <section class="card" id="personalAuthPanel" aria-label="Personlig inloggning">
+      <h2>Personlig inloggning</h2>
+      <p id="personalAuthStatus" class="small" aria-live="polite"></p>
+      <form id="personalAuthForm" hidden>
+        <label>E-post <input type="email" id="personalAuthEmail" autocomplete="username" required></label>
+        <label>Lösenord <input type="password" id="personalAuthPassword" autocomplete="current-password" required></label>
+        <button type="submit">Logga in</button>
+      </form>
+      <div id="personalAuthSignedIn" hidden>
+        <label>Aktivt lag <select id="personalAuthTeam"></select></label>
+        <button type="button" id="personalAuthLogout">Logga ut</button>
+      </div>
+    </section>
     <section class="card home-shortcuts home-create-pool">
       <div class="home-create-intro">
         <span class="home-create-icon" aria-hidden="true">＋</span>
@@ -59,6 +72,50 @@
       document.write('<script src="../app.js?v=' + window.NSK_VERSION + '"><\/script>');
     </script>
   </div>
+<script>
+(() => {
+  const status = document.getElementById('personalAuthStatus');
+  const form = document.getElementById('personalAuthForm');
+  const signedIn = document.getElementById('personalAuthSignedIn');
+  const teams = document.getElementById('personalAuthTeam');
+  const configured = !!window.APP_CONFIG?.AUTH_URL;
+  if (!configured) {
+    status.textContent = 'Personlig inloggning är under införande. Befintliga funktioner påverkas inte.';
+    return;
+  }
+  async function refresh() {
+    const identity = await Auth.init();
+    form.hidden = !!identity;
+    signedIn.hidden = !identity;
+    if (!identity) {
+      status.textContent = 'Logga in med ditt personliga konto.';
+      return;
+    }
+    status.textContent = 'Inloggad: ' + (identity.user?.name || identity.user?.email || 'Användare');
+    teams.replaceChildren();
+    for (const membership of identity.memberships) {
+      const option = document.createElement('option');
+      option.value = membership.team_id;
+      option.textContent = membership.team_name || membership.team_id;
+      teams.append(option);
+    }
+    if (identity.memberships.length && !Auth.activeTeam()) Auth.selectTeam(identity.memberships[0].team_id);
+    teams.value = Auth.activeTeam() || '';
+  }
+  form.addEventListener('submit', async event => {
+    event.preventDefault();
+    status.textContent = 'Loggar in…';
+    try {
+      await Auth.login(document.getElementById('personalAuthEmail').value, document.getElementById('personalAuthPassword').value);
+      document.getElementById('personalAuthPassword').value = '';
+      await refresh();
+    } catch (error) { status.textContent = error.message || 'Inloggningen misslyckades'; }
+  });
+  teams.addEventListener('change', () => { try { Auth.selectTeam(teams.value); } catch (error) { status.textContent = error.message; } });
+  document.getElementById('personalAuthLogout').addEventListener('click', async () => { await Auth.logout(); await refresh(); });
+  refresh().catch(() => { status.textContent = 'Inloggningen kunde inte kontrolleras'; });
+})();
+</script>
 <script src="../admin-mode.js?v=1"></script>
 </body>
 </html>
