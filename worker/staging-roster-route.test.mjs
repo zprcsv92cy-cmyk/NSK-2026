@@ -230,3 +230,39 @@ test('server rejects all unauthenticated roster mutations before any database op
   assert.equal(verified, 0);
   assert.equal(storageCalls, 0);
 });
+
+test('real session verifier loads viewer membership from D1 and rejects all Testlag 2 writes', async () => {
+  const queries = [];
+  const db = { prepare(sql) {
+    const query = { sql, args: [] };
+    queries.push(query);
+    return { bind(...args) {
+      query.args = args;
+      return {
+        first: async () => ({ id: 'viewer-user', display_name: 'Viewer' }),
+        all: async () => ({ results: sql.includes('auth_team_memberships')
+          ? [{ team_id: 'NSK Team 18', role: 'team_admin' }, { team_id: 'NSK Testlag 2', role: 'viewer' }]
+          : [{ permission: 'roster:manage' }] }),
+        run: async () => { throw Error('Viewer must never mutate storage'); }
+      };
+    } };
+  } };
+  const id = '123e4567-e89b-42d3-a456-426614174000';
+  for (const [method, suffix, body] of [
+    ['POST', '', { kind: 'player', name: 'DENIED' }],
+    ['PATCH', '/' + id, { name: 'DENIED' }],
+    ['DELETE', '/' + id, undefined]
+  ]) {
+    const request = new Request('https://example.test/api/auth/roster-staging' + suffix + '?team_id=NSK%20Testlag%202', {
+      method, headers: { Authorization: 'Bearer ' + token },
+      ...(body ? { body: JSON.stringify(body) } : {})
+    });
+    const response = await handleStagingRosterRoute(request, { AUTH_DB: db });
+    assert.equal(response.status, 403, method);
+    assert.equal(response.headers.get('cache-control'), 'no-store');
+  }
+  assert.equal(queries.filter(q => /auth_sessions/.test(q.sql)).length, 3);
+  assert.equal(queries.filter(q => /auth_team_memberships/.test(q.sql)).length, 3);
+  assert.equal(queries.filter(q => /auth_user_permissions/.test(q.sql)).length, 3);
+  assert.equal(queries.filter(q => /auth_roster_staging/.test(q.sql)).length, 0);
+});
