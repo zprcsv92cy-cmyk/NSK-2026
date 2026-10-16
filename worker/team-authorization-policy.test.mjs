@@ -31,3 +31,20 @@ test('permits verified authorized write once', async () => {
   assert.equal(result.ok, true);
   assert.equal(writes, 1);
 });
+
+test('rejects invalid bearer token and failed identity lookup', async () => {
+  let writes = 0;
+  const invalid = new Request('https://example.test', { headers: { Authorization: 'Bearer invalid' } });
+  const rejected = await authorizeRosterMutation(invalid, 'team-18', async () => null, async () => { writes++; });
+  assert.equal(rejected.status, 401);
+  const failed = await authorizeRosterMutation(invalid, 'team-18', async () => { throw Error('expired'); }, async () => { writes++; });
+  assert.equal(failed.status, 401);
+  assert.equal(writes, 0);
+});
+test('rejects missing team context before writing', async () => {
+  let writes = 0;
+  const request = new Request('https://example.test', { headers: { Authorization: 'Bearer valid-token' } });
+  const result = await authorizeRosterMutation(request, '', async () => actor, async () => { writes++; });
+  assert.equal(result.status, 400);
+  assert.equal(writes, 0);
+});
