@@ -42,6 +42,10 @@ export async function dispatchStagingAuth(request, env, handleTeamAuth) {
     });
   }
   const responseHeaders = new Headers(response.headers);
+  // The legacy handler must never widen the staging origin policy.
+  responseHeaders.delete('Access-Control-Allow-Origin');
+  responseHeaders.delete('Access-Control-Allow-Credentials');
+  responseHeaders.delete('Access-Control-Expose-Headers');
   for (const [key, value] of Object.entries(headers)) responseHeaders.set(key, value);
   return new Response(response.body, { status: response.status, headers: responseHeaders });
 }
