@@ -322,3 +322,22 @@ test('Testlag 2 viewer cannot create, update, or delete even with roster:manage 
     if (req.method !== 'DELETE') assert.equal(req.bodyUsed, false);
   }
 });
+
+test('cross-team row mutations are denied before storage or body parsing', async () => {
+  const actor = {
+    memberships: [{ team_id: 'NSK Team 18', role: 'team_admin' }],
+    permissions: ['roster:manage']
+  };
+  const id = '123e4567-e89b-42d3-a456-426614174000';
+  for (const method of ['PATCH', 'DELETE']) {
+    const db = store();
+    const req = new Request(
+      'https://example.test/api/auth/roster-staging/' + id + '?team_id=NSK%20Testlag%202',
+      { method, ...(method === 'PATCH' ? { body: JSON.stringify({ name: 'DENIED' }) } : {}) }
+    );
+    const result = await stagingRoster(req, db, actor, json);
+    assert.equal(result.status, 403, method);
+    assert.equal(db.calls.length, 0, method);
+    if (method === 'PATCH') assert.equal(req.bodyUsed, false);
+  }
+});
