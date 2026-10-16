@@ -15,8 +15,10 @@ jobs:
     runs-on: ubuntu-latest
     environment: auth-staging
     steps:
-      - name: Checkout selected branch
+      - name: Checkout verified main
         uses: actions/checkout@v4
+        with:
+          ref: main
       - name: Set up Node.js
         uses: actions/setup-node@v4
         with:
