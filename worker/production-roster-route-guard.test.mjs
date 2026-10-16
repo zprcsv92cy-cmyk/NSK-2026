@@ -191,3 +191,18 @@ test('production guard isolates a multi-team administrator from viewer-only team
     if (!allowed) assert.equal(result.status, 403);
   }
 });
+
+test('production guard rejects invalid trusted team identifiers before verifying or mutating', async () => {
+  for (const invalid of [null, undefined, '', '   ', 18, {}, 'x'.repeat(101)]) {
+    let verified = 0;
+    let writes = 0;
+    const result = await guardRosterRoute(request, {
+      resolveTeamId: async () => invalid,
+      verifyIdentity: async () => { verified++; return actor; },
+      mutate: async () => { writes++; return { ok: true }; }
+    });
+    assert.equal(result.status, 502, String(invalid));
+    assert.equal(verified, 0, String(invalid));
+    assert.equal(writes, 0, String(invalid));
+  }
+});
