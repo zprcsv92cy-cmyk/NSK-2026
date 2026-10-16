@@ -152,3 +152,25 @@ test('invalid UTF-8 JSON is rejected without database access', async () => {
   assert.equal(result.status, 400);
   assert.equal(db.calls.length, 0);
 });
+
+test('POST rejects non-string role and name without database access', async () => {
+  for (const payload of [
+    { kind: ['player'], name: 'Test' },
+    { kind: 'player', name: ['Test'] },
+    { kind: 'player', name: { toString: 'Test' } }
+  ]) {
+    const db = store();
+    const result = await stagingRoster(request('POST', 'team-18', payload), db, admin, json);
+    assert.equal(result.status, 400);
+    assert.equal(db.calls.length, 0);
+  }
+});
+test('PATCH rejects non-string name without database access', async () => {
+  const db = store();
+  const req = new Request('https://example.test/api/auth/roster-staging/123e4567-e89b-42d3-a456-426614174000?team_id=team-18', {
+    method: 'PATCH', body: JSON.stringify({ name: ['Test'] })
+  });
+  const result = await stagingRoster(req, db, admin, json);
+  assert.equal(result.status, 400);
+  assert.equal(db.calls.length, 0);
+});
