@@ -27,6 +27,8 @@ jobs:
         run: node scripts/check-staging-imports.mjs
       - name: Run authorization regression tests before deployment
         run: node --experimental-default-type=module --test worker/team-authorization-policy.test.mjs worker/production-roster-route-guard.test.mjs worker/staging-roster.test.mjs worker/staging-roster-route.test.mjs worker/staging-session-identity.test.mjs worker/staging-auth-dispatch.test.mjs
+      - name: Verify staging Worker build without deploying
+        run: npx --yes wrangler@4 deploy --dry-run --outdir /tmp/nsk-staging-build --config wrangler.auth.staging.toml
       - name: Deploy isolated staging Worker
         run: npx --yes wrangler@4 deploy --config wrangler.auth.staging.toml
         env:
