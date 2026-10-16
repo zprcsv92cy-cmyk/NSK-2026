@@ -4,6 +4,7 @@ import { handleStagingRosterRoute } from './staging-roster-route.js';
  * Staging-only API adapter. Call from the deployed Worker fetch handler,
  * passing its existing handleTeamAuth as fallback.
  * Keep the production Worker completely separate.
+ * Activation and bootstrap endpoints are handled by the entrypoint before this adapter.
  */
 export async function dispatchStagingAuth(request, env, handleTeamAuth) {
   const path = new URL(request.url).pathname;
