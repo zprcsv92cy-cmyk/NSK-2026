@@ -21,6 +21,15 @@ jobs:
           node-version: '22'
       - name: Check staging entrypoint dependencies and syntax
         run: node scripts/check-staging-imports.mjs
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Validate staging bundle without deployment
+        run: npx --yes wrangler@4 deploy --dry-run --outdir /tmp/nsk-staging-build --config wrangler.auth.staging.toml
   authorization:
     runs-on: ubuntu-latest
     steps:
