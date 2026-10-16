@@ -20,7 +20,8 @@ export async function resolveLegacyRosterTeam(request, { listTeams, readRow, tea
     if (!row) throw new Error('Roster row missing');
     const links = Array.isArray(row.Lag) ? row.Lag : [];
     const ids = links.map(x => Number(typeof x === 'object' ? x?.id : x));
-    if (!ids.includes(Number(team.id))) throw new Error('Roster row belongs to another team');
+    if (ids.length !== 1 || ids[0] !== Number(team.id))
+      throw new Error('Roster row belongs to another team');
   }
   // Reject client-supplied team overrides before the mutation handler runs.
   // Read a clone so the real handler can still consume the request body.
