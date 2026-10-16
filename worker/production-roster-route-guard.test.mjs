@@ -170,3 +170,24 @@ test('rejects a member with no roster permission', async () => {
   assert.equal(result.status, 403);
   assert.equal(writes, 0);
 });
+
+test('production guard isolates a multi-team administrator from viewer-only team writes', async () => {
+  const multiTeamActor = {
+    memberships: [
+      { team_id: 'NSK Team 18', role: 'team_admin' },
+      { team_id: 'NSK Testlag 2', role: 'viewer' }
+    ],
+    permissions: ['roster:manage']
+  };
+  for (const [team, allowed] of [['NSK Team 18', true], ['NSK Testlag 2', false]]) {
+    let writes = 0;
+    const result = await guardRosterRoute(request, {
+      resolveTeamId: async () => team,
+      verifyIdentity: async () => multiTeamActor,
+      mutate: async () => { writes++; return { ok: true }; }
+    });
+    assert.equal(result.ok === true, allowed, team);
+    assert.equal(writes, allowed ? 1 : 0, team);
+    if (!allowed) assert.equal(result.status, 403);
+  }
+});
