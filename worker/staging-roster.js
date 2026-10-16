@@ -48,7 +48,8 @@ export async function stagingRoster(request,db,actor,json) {
  }
  if(path==='/api/auth/roster-staging'&&request.method==='POST'){
   const data=parsedWrite;
-  const kind=String(data.kind||''),name=String(data.name||'').trim();
+  const kind=typeof data.kind==='string'?data.kind:'';
+  const name=typeof data.name==='string'?data.name.trim():'';
   if(!['player','coach','team_manager','fitness','equipment'].includes(kind)||!name||name.length>120)return json({error:'Ogiltig roll eller namn'},400);
   const id=crypto.randomUUID();
   await db.prepare('INSERT INTO auth_roster_staging(id,team_id,kind,name) VALUES(?,?,?,?)').bind(id,teamId,kind,name).run();
@@ -57,7 +58,7 @@ export async function stagingRoster(request,db,actor,json) {
  const match=rowMatch;
  if(match&&request.method==='PATCH'){
   let data;try{data=await request.json()}catch{return json({error:'Ogiltig JSON'},400)}
-  const name=String(data.name||'').trim();
+  const name=typeof data.name==='string'?data.name.trim():'';
   if(!name||name.length>120)return json({error:'Ogiltigt namn'},400);
   const result=await db.prepare('UPDATE auth_roster_staging SET name=? WHERE id=? AND team_id=?').bind(name,match[1],teamId).run();
   return result.meta.changes?json({ok:true}):json({error:'Hittades inte'},404);
