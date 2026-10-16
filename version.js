@@ -1,1 +1,1 @@
-window.NSK_VERSION = "851";
+window.NSK_VERSION = "852";
