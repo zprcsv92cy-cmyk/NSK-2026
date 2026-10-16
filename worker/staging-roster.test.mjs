@@ -296,3 +296,29 @@ test('duplicate team IDs block row PATCH and DELETE before storage', async () =>
     if (method === 'PATCH') assert.equal(req.bodyUsed, false);
   }
 });
+
+test('Testlag 2 viewer cannot create, update, or delete even with roster:manage grant', async () => {
+  const viewer = {
+    memberships: [{ team_id: 'NSK Testlag 2', role: 'viewer' }],
+    permissions: ['roster:manage']
+  };
+  const id = '123e4567-e89b-42d3-a456-426614174000';
+  const attempts = [
+    new Request('https://example.test/api/auth/roster-staging?team_id=NSK%20Testlag%202', {
+      method: 'POST', body: JSON.stringify({ kind: 'player', name: 'MUST NOT CREATE' })
+    }),
+    new Request('https://example.test/api/auth/roster-staging/' + id + '?team_id=NSK%20Testlag%202', {
+      method: 'PATCH', body: JSON.stringify({ name: 'MUST NOT UPDATE' })
+    }),
+    new Request('https://example.test/api/auth/roster-staging/' + id + '?team_id=NSK%20Testlag%202', {
+      method: 'DELETE'
+    })
+  ];
+  for (const req of attempts) {
+    const db = store();
+    const result = await stagingRoster(req, db, viewer, json);
+    assert.equal(result.status, 403, req.method);
+    assert.equal(db.calls.length, 0, req.method + ' must not reach D1');
+    if (req.method !== 'DELETE') assert.equal(req.bodyUsed, false);
+  }
+});
