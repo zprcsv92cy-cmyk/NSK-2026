@@ -95,3 +95,33 @@ test('default D1 identity verifier authorizes member and scopes roster query', a
   assert.deepEqual(sqlCalls[2].args, ['user-1']);
   assert.deepEqual(sqlCalls[3].args, ['team-18']);
 });
+
+
+test('verified Team 18 session can write own roster but not Testlag 2', async () => {
+  const writes = [];
+  const db = { prepare(sql) {
+    return { bind(...args) {
+      return { run: async () => { writes.push({ sql, args }); return { meta: { changes: 1 } }; } };
+    } };
+  } };
+  const actor = {
+    memberships: [{ team_id: 'NSK Team 18', role: 'team_admin' }],
+    permissions: ['roster:manage']
+  };
+  const send = team => new Request(
+    'https://example.test/api/auth/roster-staging?team_id=' + encodeURIComponent(team),
+    { method: 'POST', headers: { Authorization: 'Bearer ' + token },
+      body: JSON.stringify({ kind: 'player', name: 'TEST' }) }
+  );
+  const verify = async supplied => {
+    assert.equal(supplied, token);
+    return actor;
+  };
+  const own = await handleStagingRosterRoute(send('NSK Team 18'), { AUTH_DB: db }, verify);
+  assert.equal(own.status, 201);
+  assert.equal(writes.length, 1);
+  assert.equal(writes[0].args[1], 'NSK Team 18');
+  const other = await handleStagingRosterRoute(send('NSK Testlag 2'), { AUTH_DB: db }, verify);
+  assert.equal(other.status, 403);
+  assert.equal(writes.length, 1);
+});
