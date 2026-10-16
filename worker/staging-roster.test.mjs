@@ -65,3 +65,17 @@ test('DELETE is scoped to authenticated team', async () => {
   assert.equal(result.status, 200);
   assert.deepEqual(db.calls[0].args, [id, 'team-18']);
 });
+
+test('unknown staging route is rejected before database access', async () => {
+  const db = store();
+  const req = new Request('https://example.test/api/auth/roster-staging/not-a-uuid?team_id=team-18', { method: 'DELETE' });
+  const result = await stagingRoster(req, db, admin, json);
+  assert.equal(result.status, 404);
+  assert.equal(db.calls.length, 0);
+});
+test('unsupported collection method is rejected before database access', async () => {
+  const db = store();
+  const result = await stagingRoster(request('DELETE', 'team-18'), db, admin, json);
+  assert.equal(result.status, 405);
+  assert.equal(db.calls.length, 0);
+});
