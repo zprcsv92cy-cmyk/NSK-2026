@@ -124,3 +124,19 @@ for (const item of protectedWrites) {
   assert.equal(response.headers.get('cache-control'), 'no-store');
   console.log('PASS unauthenticated roster mutation blocked', item.method);
 }
+
+for (const method of ['GET', 'POST', 'PATCH', 'DELETE']) {
+  const rowId = '123e4567-e89b-42d3-a456-426614174000';
+  const path = '/api/auth/roster-staging' +
+    (['PATCH', 'DELETE'].includes(method) ? '/' + rowId : '') +
+    '?team_id=NSK%20Team%2018&team_id=NSK%20Testlag%202';
+  const response = await fetch(base + path, {
+    method,
+    headers: method === 'POST' || method === 'PATCH' ? { 'content-type': 'application/json' } : {},
+    body: method === 'POST' ? JSON.stringify({ kind: 'player', name: 'DENIED' })
+      : method === 'PATCH' ? JSON.stringify({ name: 'DENIED' }) : undefined
+  });
+  assert.equal(response.status, 401, method + ' must reject unauthenticated duplicate-team request');
+  assert.equal(response.headers.get('cache-control'), 'no-store');
+  console.log('PASS unauthenticated duplicate-team request', method);
+}
