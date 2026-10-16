@@ -111,3 +111,15 @@ test('rejects ambiguous or missing persisted team links before PATCH or DELETE',
     }
   }
 });
+
+test('rejects zero and unsafe roster row IDs before reading any row', async () => {
+  for (const id of ['0', '9007199254740993', '999999999999999999999']) {
+    for (const method of ['PATCH', 'DELETE']) {
+      let reads = 0;
+      await assert.rejects(resolveLegacyRosterTeam(req('/api/spelare/' + id, method), {
+        ...dependencies, readRow: async () => { reads++; return { Lag: [{ id: 18 }] }; }
+      }), /Invalid roster row ID/, method + ' ' + id);
+      assert.equal(reads, 0);
+    }
+  }
+});
