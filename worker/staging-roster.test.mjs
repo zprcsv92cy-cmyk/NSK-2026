@@ -197,3 +197,35 @@ test('unauthorized write is rejected before reading the request body', async () 
   assert.equal(req.bodyUsed, false);
   assert.equal(db.calls.length, 0);
 });
+
+
+test('Team 18 administrator can edit Team 18 but not Testlag 2', async () => {
+  const db = store();
+  const actor = {
+    memberships: [{ team_id: 'NSK Team 18', role: 'team_admin' }],
+    permissions: ['roster:manage']
+  };
+  const own = await stagingRoster(request('POST', 'NSK%20Team%2018', {
+    kind: 'player', name: 'NSK TESTSPELARE'
+  }), db, actor, json);
+  assert.equal(own.status, 201);
+  assert.equal(db.calls.length, 1);
+  assert.equal(db.calls[0].args[1], 'NSK Team 18');
+  const other = await stagingRoster(request('POST', 'NSK%20Testlag%202', {
+    kind: 'player', name: 'MUST NOT SAVE'
+  }), db, actor, json);
+  assert.equal(other.status, 403);
+  assert.equal(db.calls.length, 1, 'cross-team write must not touch the database');
+});
+test('Testlag 2 administrator cannot edit Team 18', async () => {
+  const db = store();
+  const actor = {
+    memberships: [{ team_id: 'NSK Testlag 2', role: 'team_admin' }],
+    permissions: ['roster:manage']
+  };
+  const response = await stagingRoster(request('POST', 'NSK%20Team%2018', {
+    kind: 'player', name: 'MUST NOT SAVE'
+  }), db, actor, json);
+  assert.equal(response.status, 403);
+  assert.equal(db.calls.length, 0);
+});
