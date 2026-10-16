@@ -17,7 +17,7 @@
   }
   async function init() {
     const value = token();
-    if (!value) { session = null; return null; }
+    if (!value) { session = null; sessionStorage.removeItem(TEAM_KEY); return null; }
     try {
       const response = await fetch(API + '/api/auth/me', {
         headers: { Authorization: 'Bearer ' + value }, cache: 'no-store'
