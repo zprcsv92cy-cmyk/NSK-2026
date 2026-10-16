@@ -19,26 +19,35 @@ export async function stagingRoster(request,db,actor,json) {
  }
  if(!['POST','PATCH','DELETE'].includes(request.method))return json({error:'Metoden stöds inte'},405);
  if(!canManage)return json({error:'Saknar behörighet att ändra Truppen'},403);
+ let parsedWrite;
  if(['POST','PATCH'].includes(request.method)){
   const length=request.headers.get('Content-Length');
   if(length!==null&&(!/^[0-9]+$/.test(length)||Number(length)>2048))return json({error:'Begäran är för stor'},413);
-  // Enforce the limit on actual bytes too: Content-Length can be absent or forged.
-  if(request.body){
-   const copy=request.clone();
-   const reader=copy.body.getReader();
-   let bytes=0;
-   try{
-    while(true){
-     const {done,value}=await reader.read();
-     if(done)break;
-     bytes+=value.byteLength;
-     if(bytes>2048){await reader.cancel();return json({error:'Begäran är för stor'},413);}
-    }
-   }finally{reader.releaseLock();}
-  }
+  // Read at most 2049 bytes from the original stream, even without Content-Length.
+  // Do not clone/tee the body: a stalled second stream can buffer unbounded data.
+  const reader=request.body?.getReader();
+  if(!reader)return json({error:'Ogiltig JSON'},400);
+  const chunks=[];
+  let bytes=0;
+  try{
+   while(true){
+    const {done,value}=await reader.read();
+    if(done)break;
+    bytes+=value.byteLength;
+    if(bytes>2048){reader.cancel().catch(()=>{});return json({error:'Begäran är för stor'},413);}
+    chunks.push(value);
+   }
+  }finally{reader.releaseLock();}
+  const body=new Uint8Array(bytes);
+  let offset=0;
+  for(const chunk of chunks){body.set(chunk,offset);offset+=chunk.byteLength;}
+  try{parsedWrite=JSON.parse(new TextDecoder('utf-8',{fatal:true}).decode(body));}
+  catch{return json({error:'Ogiltig JSON'},400);}
+  if(!parsedWrite||typeof parsedWrite!=='object'||Array.isArray(parsedWrite))
+   return json({error:'Ogiltig JSON'},400);
  }
  if(path==='/api/auth/roster-staging'&&request.method==='POST'){
-  let data;try{data=await request.json()}catch{return json({error:'Ogiltig JSON'},400)}
+  const data=parsedWrite;
   const kind=String(data.kind||''),name=String(data.name||'').trim();
   if(!['player','coach','team_manager','fitness','equipment'].includes(kind)||!name||name.length>120)return json({error:'Ogiltig roll eller namn'},400);
   const id=crypto.randomUUID();
