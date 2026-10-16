@@ -35,6 +35,19 @@
       </div>
     </section>
 
+    <section class="card" aria-labelledby="nsk-login-title">
+      <h2 id="nsk-login-title">Användarkonto</h2>
+      <p id="nsk-login-status" role="status">Kontrollerar inloggning…</p>
+      <form id="nsk-login-form" hidden>
+        <label for="nsk-login-email">E-postadress</label>
+        <input id="nsk-login-email" type="email" autocomplete="username" required>
+        <label for="nsk-login-password">Lösenord</label>
+        <input id="nsk-login-password" type="password" autocomplete="current-password" required>
+        <button type="submit">Logga in</button>
+      </form>
+      <button id="nsk-logout" type="button" hidden>Logga ut</button>
+    </section>
+
     <section class="card home-shortcuts home-create-pool">
       <div class="home-create-intro">
         <span class="home-create-icon" aria-hidden="true">＋</span>
@@ -59,6 +72,42 @@
       document.write('<script src="../app.js?v=' + window.NSK_VERSION + '"><\/script>');
     </script>
   </div>
+<script>
+(function(){
+  const form=document.getElementById('nsk-login-form');
+  const status=document.getElementById('nsk-login-status');
+  const logout=document.getElementById('nsk-logout');
+  function display(identity){
+    const signedIn=!!identity?.user;
+    form.hidden=signedIn;
+    logout.hidden=!signedIn;
+    status.textContent=signedIn?'Inloggad som '+identity.user.name:'Logga in med ditt personliga NSK-konto.';
+  }
+  async function start(){
+    if(!window.Auth){status.textContent='Inloggningen kunde inte startas.';return;}
+    try{display(await Auth.init());}
+    catch{display(null);}
+  }
+  form.addEventListener('submit',async event=>{
+    event.preventDefault();
+    const button=form.querySelector('button');
+    button.disabled=true;status.textContent='Loggar in…';
+    try{
+      const identity=await Auth.login(document.getElementById('nsk-login-email').value,document.getElementById('nsk-login-password').value);
+      document.getElementById('nsk-login-password').value='';
+      display(identity);
+    }catch(error){status.textContent=error.message||'Inloggningen misslyckades.';}
+    finally{button.disabled=false;}
+  });
+  logout.addEventListener('click',async()=>{
+    logout.disabled=true;
+    try{await Auth.logout();display(null);}
+    catch{status.textContent='Utloggningen kunde inte slutföras.';}
+    finally{logout.disabled=false;}
+  });
+  start();
+})();
+</script>
 <script src="../admin-mode.js?v=1"></script>
 </body>
 </html>
