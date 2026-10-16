@@ -61,6 +61,21 @@
     return data.allowed === true;
     } catch { return false; }
   }
+  async function stagingRosterList() {
+    const teamId = activeTeam();
+    if (!teamId || !token()) throw new Error('Logga in och välj ett lag');
+    const query = new URLSearchParams({ team_id: teamId });
+    const response = await fetch(API + '/api/auth/roster-staging?' + query, {
+      headers: { Authorization: 'Bearer ' + token() },
+      cache: 'no-store', credentials: 'omit'
+    });
+    const data = await response.json().catch(() => ({}));
+    if (response.status === 401) {
+      session = null; sessionStorage.removeItem(KEY); sessionStorage.removeItem(TEAM_KEY);
+    }
+    if (!response.ok) throw new Error(data.error || 'Kunde inte hämta testtruppen');
+    return data;
+  }
   // Staging-only roster writes are authorized again by the Worker.
   // Never fall back to the legacy admin token or production data API.
   async function stagingRosterWrite(method, rowId, payload) {
@@ -115,7 +130,7 @@
     }
   }
   window.Auth = Object.freeze({
-    init, login, logout, can, canTeam, checkTeamFeature, stagingRosterWrite, activeTeam, selectTeam, getSession: () => session,
+    init, login, logout, can, canTeam, checkTeamFeature, stagingRosterList, stagingRosterWrite, activeTeam, selectTeam, getSession: () => session,
     getClient: () => null, getToken: token, permissions: PERMISSIONS
   });
 })();
