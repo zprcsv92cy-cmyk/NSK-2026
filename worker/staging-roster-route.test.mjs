@@ -32,7 +32,8 @@ test('allows server-verified member to read staging roster', async () => {
 test('fails closed when identity verifier or database is unavailable', async () => {
   const req = new Request(url, { headers: { Authorization: 'Bearer ' + token } });
   assert.equal((await handleStagingRosterRoute(req, {}, async () => actor)).status, 503);
-  assert.equal((await handleStagingRosterRoute(req, env)).status, 503);
+  // A missing session in a configured D1 store is an authentication failure.
+  assert.equal((await handleStagingRosterRoute(req, env)).status, 401);
 });
 
 test('cross-team staging reads are rejected after identity verification', async () => {
