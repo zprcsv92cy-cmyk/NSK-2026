@@ -45,6 +45,11 @@
         <input id="nsk-login-password" type="password" autocomplete="current-password" required>
         <button type="submit">Logga in</button>
       </form>
+      <div id="nsk-team-panel" hidden>
+        <label for="nsk-team-select">Aktivt lag</label>
+        <select id="nsk-team-select"></select>
+        <p id="nsk-team-role" class="small"></p>
+      </div>
       <button id="nsk-logout" type="button" hidden>Logga ut</button>
     </section>
 
@@ -82,12 +87,38 @@
     form.hidden=signedIn;
     logout.hidden=!signedIn;
     status.textContent=signedIn?'Inloggad som '+identity.user.name:'Logga in med ditt personliga NSK-konto.';
+    const panel=document.getElementById('nsk-team-panel');
+    const select=document.getElementById('nsk-team-select');
+    const role=document.getElementById('nsk-team-role');
+    const memberships=signedIn&&Array.isArray(identity.memberships)?identity.memberships:[];
+    panel.hidden=!signedIn||memberships.length===0;
+    select.replaceChildren();
+    for(const member of memberships){
+      const option=document.createElement('option');
+      option.value=member.team_id;
+      option.textContent=member.team_id;
+      select.appendChild(option);
+    }
+    const stored=sessionStorage.getItem('nsk_active_team');
+    if(memberships.some(m=>m.team_id===stored)) select.value=stored;
+    else if(memberships.length) sessionStorage.setItem('nsk_active_team',select.value);
+    else sessionStorage.removeItem('nsk_active_team');
+    role.textContent=memberships.find(m=>m.team_id===select.value)?.role||'';
+
   }
   async function start(){
     if(!window.Auth){status.textContent='Inloggningen kunde inte startas.';return;}
     try{display(await Auth.init());}
     catch{display(null);}
   }
+  document.getElementById('nsk-team-select').addEventListener('change',event=>{
+    const teamId=event.target.value;
+    const identity=Auth.getSession();
+    const membership=identity?.memberships?.find(m=>m.team_id===teamId);
+    if(!membership) return;
+    sessionStorage.setItem('nsk_active_team',teamId);
+    document.getElementById('nsk-team-role').textContent=membership.role;
+  });
   form.addEventListener('submit',async event=>{
     event.preventDefault();
     const button=form.querySelector('button');
