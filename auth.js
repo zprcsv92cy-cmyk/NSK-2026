@@ -42,8 +42,12 @@
     const data = await response.json().catch(() => ({}));
     return data.allowed === true;
   }
-  function can(permission) {
-    return !!session && session.permissions.includes(permission);
+  // A personal grant alone is never sufficient to edit a team's data.
+  // Legacy callers without a team context must not receive write permission.
+  function can(permission, teamId) {
+    if (!session || !session.permissions.includes(permission)) return false;
+    if (permission === 'read') return session.memberships.length > 0;
+    return typeof teamId === 'string' && canTeam(teamId, permission);
   }
   async function login(email, password) {
     const response = await fetch(API + '/api/auth/login', {
