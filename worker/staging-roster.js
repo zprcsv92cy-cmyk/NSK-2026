@@ -3,7 +3,7 @@ export async function stagingRoster(request,db,actor,json) {
  const url=new URL(request.url), path=url.pathname;
  if(!actor) return json({error:'Inte inloggad'},401);
  const teamId=url.searchParams.get('team_id');
- if(!teamId || teamId.length>100) return json({error:'Välj ett giltigt lag'},400);
+ if(!teamId || teamId.length>100 || teamId.trim()!==teamId) return json({error:'Välj ett giltigt lag'},400);
  if(!Array.isArray(actor.memberships) || !actor.memberships.some(m=>m && m.team_id===teamId)) return json({error:'Saknar lagmedlemskap'},403);
  // A personal grant alone never authorizes edits in another team.
  const canManage=authorizeTeamFeature(actor,teamId,'roster').allowed;
