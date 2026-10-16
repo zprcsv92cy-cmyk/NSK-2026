@@ -71,3 +71,31 @@ test('PATCH cannot proceed without persisted staff lookup', async () => {
   const { result, writes } = await run(req('PATCH', 18), { readStaff: null });
   assert.equal(result.status, 502); assert.equal(writes, 0);
 });
+
+test('lagpersonal viewer is denied for both POST and PATCH before mutation', async () => {
+  const viewer = { memberships: [{ team_id: '18', role: 'viewer' }], permissions: ['roster:manage'] };
+  for (const method of ['POST', 'PATCH']) {
+    const { result, writes } = await run(req(method, 18), { verifyIdentity: async () => viewer });
+    assert.equal(result.status, 403, method);
+    assert.equal(writes, 0, method);
+  }
+});
+
+test('lagpersonal missing bearer blocks POST and PATCH before trusted lookups', async () => {
+  for (const method of ['POST', 'PATCH']) {
+    const { result, writes, lookups } = await run(req(method, 18, ''), {
+      verifyIdentity: async () => { throw Error('Must not verify missing credentials'); }
+    });
+    assert.equal(result.status, 401, method);
+    assert.equal(lookups, 0, method);
+    assert.equal(writes, 0, method);
+  }
+});
+
+test('lagpersonal PATCH cannot cross team boundary even with administrator permission', async () => {
+  const { result, writes } = await run(req('PATCH', 18), {
+    readStaff: async () => ({ team_id: '2' })
+  });
+  assert.equal(result.status, 502);
+  assert.equal(writes, 0);
+});
