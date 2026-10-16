@@ -140,3 +140,27 @@ for (const method of ['GET', 'POST', 'PATCH', 'DELETE']) {
   assert.equal(response.headers.get('cache-control'), 'no-store');
   console.log('PASS unauthenticated duplicate-team request', method);
 }
+
+for (const team of ['NSK Team 18', 'NSK Testlag 2']) {
+  const teamId = encodeURIComponent(team);
+  const rowId = '123e4567-e89b-42d3-a456-426614174000';
+  for (const [method, suffix, payload] of [
+    ['POST', '', { kind: 'player', name: 'DENIED LIVE SMOKE' }],
+    ['PATCH', '/' + rowId, { name: 'DENIED LIVE SMOKE' }],
+    ['DELETE', '/' + rowId, undefined]
+  ]) {
+    for (const authorization of [undefined, 'Bearer shared-admin-token']) {
+      const response = await fetch(base + '/api/auth/roster-staging' + suffix + '?team_id=' + teamId, {
+        method,
+        headers: {
+          ...(authorization ? { Authorization: authorization } : {}),
+          ...(payload ? { 'content-type': 'application/json' } : {})
+        },
+        body: payload ? JSON.stringify(payload) : undefined
+      });
+      assert.equal(response.status, 401, method + ' ' + team + ' must reject missing or legacy credentials');
+      assert.equal(response.headers.get('cache-control'), 'no-store');
+      console.log('PASS staging denies', method, team, authorization ? 'legacy token' : 'no token');
+    }
+  }
+}
