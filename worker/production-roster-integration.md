@@ -37,3 +37,15 @@ Ingen produktionsendpoint aktiveras genom detta dokument.
 - Tidigare versioner finns listade i Cloudflare, men **återställning är inte provad**.
 - **Viktigt:** En fullständig verifierad källkodskopia har ännu inte hämtats eller lagts i GitHub. Versionsmetadata är inte en fullständig backup. Hemligheter och bindnings-ID:n ska inte läggas i repo.
 - Produktions-Worker har inte uppdaterats genom denna inventering.
+
+## Checklista för säker export och återställning
+
+1. Exportera **den driftsatta versionens faktiska kod** från Cloudflare Workers: `nsk-api`, version 42 (`95247668-0e10-4ba3-b6c5-469ed37a986c`). Spara ursprungliga filnamn och modulstruktur.
+2. Kontrollera att exporten kan läsas och byggas separat. Jämför relevanta API-rutter med den driftsatta versionen. Lägg **inte** in hemliga miljövariabler eller autentiseringstoken i GitHub.
+3. Dokumentera bindningarnas **namn och typer**, compatibility date, routes och konfiguration separat från hemligheterna.
+4. Ta en separat, verifierbar backup av relevant produktionsdata innan schemaändringar eller migrering. Export av Worker-kod är inte en databasbackup.
+5. Förbered återställning till exakt versions-ID ovan, men **utför inte** återställning eller deployment som del av en skrivskyddad kontroll.
+6. Testa den nya Worker-koden och negativa behörighetsfall i isolerad staging. Kontrollera därefter att staging använder egna databindningar och aldrig produktionens Baserow/KV.
+7. Kräv separat godkännande innan produktions-Worker, produktionsbindningar eller riktiga truppdata ändras.
+
+**Status 2026-10-16:** versions-ID och bindningstyper verifierade via Cloudflare API; export av fullständig Worker-kod saknas fortfarande. Ingen rollback har genomförts.
