@@ -101,3 +101,24 @@ test('oversized write is rejected before database access', async () => {
   assert.equal(result.status, 413);
   assert.equal(db.calls.length, 0);
 });
+
+test('oversized actual body is rejected even without Content-Length', async () => {
+  const db = store();
+  const req = new Request('https://example.test/api/auth/roster-staging?team_id=team-18', {
+    method: 'POST',
+    body: JSON.stringify({ kind: 'player', name: 'X'.repeat(3000) })
+  });
+  const result = await stagingRoster(req, db, admin, json);
+  assert.equal(result.status, 413);
+  assert.equal(db.calls.length, 0);
+});
+test('valid explicit Content-Length does not block authorized small writes', async () => {
+  const db = store();
+  const body = JSON.stringify({ kind: 'player', name: 'Test' });
+  const req = new Request('https://example.test/api/auth/roster-staging?team_id=team-18', {
+    method: 'POST', headers: { 'Content-Length': String(new TextEncoder().encode(body).length) }, body
+  });
+  const result = await stagingRoster(req, db, admin, json);
+  assert.equal(result.status, 201);
+  assert.equal(db.calls.length, 1);
+});
