@@ -17,3 +17,13 @@
 6. Migrera frontendens skrivfunktioner först när staging är grön; avveckla gemensam adminsession i en kontrollerad release.
 
 Ingen produktionsendpoint aktiveras genom detta dokument.
+
+## Säker migreringsordning (uppdaterad)
+
+- **Nuvarande läge:** den ordinarie `truppen/index.html` använder `db.js` och det äldre adminläget för riktiga ändringar. Den personliga behörighetsindikatorn är informativ och ger inte skrivåtkomst.
+- **Staging:** `/truppen-befintlig/` och `/api/auth/roster-staging` använder isolerade testposter; dessa är inte en kopia av produktionsregistret.
+- **Spelare och tränare:** bevara befintliga rad-ID:n och lagkopplingar. POST kräver betrodd lagmappning; PATCH och eventuell DELETE kräver lagupplösning från den sparade raden innan skrivning.
+- **Lagledare, fysansvarig och materialförvaltare:** bevara befintlig `lagpersonal`-lagring och kontrollera serverns lagkoppling vid varje skrivning.
+- **Frontend:** aktivera aldrig personlig skrivning genom att enbart dölja/visa knappar. Skrivvägen måste först gå till ett serververifierat API.
+- **Rollback:** spara och verifiera driftsatt Worker-kod, konfiguration och relevanta databackuper innan en framtida produktionsrelease.
+- **Releasegräns:** ändra inte produktions-Worker `nsk-api` eller migrera riktiga truppposter utan separat uttryckligt godkännande.
