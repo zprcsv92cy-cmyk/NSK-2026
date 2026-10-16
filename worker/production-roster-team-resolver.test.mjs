@@ -84,3 +84,19 @@ test('DELETE collection route is rejected without reading or deleting rows', asy
   }), /Unsupported/);
   assert.equal(reads, 0);
 });
+
+test('rejects conflicting secondary team alias even when primary alias matches', async () => {
+  for (const payload of [
+    { team_id: 18, teamId: 2 },
+    { team_id: null, teamId: 2 },
+    { team_id: 18, teamId: null },
+    { team_id: null },
+    { teamId: null }
+  ]) {
+    const request = new Request('https://nsk.example/api/spelare/41', {
+      method: 'PATCH', body: JSON.stringify(payload)
+    });
+    await assert.rejects(resolveLegacyRosterTeam(request, dependencies), /Conflicting/, JSON.stringify(payload));
+    assert.equal(request.bodyUsed, false);
+  }
+});
