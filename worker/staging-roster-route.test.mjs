@@ -34,3 +34,23 @@ test('fails closed when identity verifier or database is unavailable', async () 
   assert.equal((await handleStagingRosterRoute(req, {}, async () => actor)).status, 503);
   assert.equal((await handleStagingRosterRoute(req, env)).status, 503);
 });
+
+test('cross-team staging reads are rejected after identity verification', async () => {
+  let queries = 0;
+  const db = { prepare() { queries++; throw Error('should not query'); } };
+  const req = new Request('https://example.test/api/auth/roster-staging?team_id=team-2', {
+    headers: { Authorization: 'Bearer ' + token }
+  });
+  const response = await handleStagingRosterRoute(req, { AUTH_DB: db }, async () => actor);
+  assert.equal(response.status, 403);
+  assert.equal(queries, 0);
+});
+
+test('failed identity verification never queries staging database', async () => {
+  let queries = 0;
+  const db = { prepare() { queries++; throw Error('should not query'); } };
+  const req = new Request(url, { headers: { Authorization: 'Bearer ' + token } });
+  const response = await handleStagingRosterRoute(req, { AUTH_DB: db }, async () => { throw Error('expired'); });
+  assert.equal(response.status, 401);
+  assert.equal(queries, 0);
+});
