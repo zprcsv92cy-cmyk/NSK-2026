@@ -28,9 +28,10 @@ export async function resolveLegacyRosterTeam(request, { listTeams, readRow, tea
     let body;
     try { body = await request.clone().json(); } catch { throw new Error('Invalid roster JSON'); }
     if (!body || typeof body !== 'object' || Array.isArray(body)) throw new Error('Invalid roster payload');
-    const requestedTeam = body.team_id ?? body.teamId;
-    if (requestedTeam != null && String(requestedTeam) !== String(team.id))
-      throw new Error('Conflicting team override');
+    for (const key of ['team_id', 'teamId']) {
+      if (Object.prototype.hasOwnProperty.call(body, key) && String(body[key]) !== String(team.id))
+        throw new Error('Conflicting team override');
+    }
     if (Object.prototype.hasOwnProperty.call(body, 'Lag')) {
       const links = body.Lag;
       if (!Array.isArray(links) || links.length !== 1 ||
