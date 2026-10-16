@@ -75,3 +75,28 @@ test('worker adapter denies PATCH when staff is not stored in Team 18 KV', async
   });
   assert.equal(result.status, 502); assert.equal(writes, 0);
 });
+
+test('roster POST rejects conflicting team_id in JSON body', async () => {
+  const request = new Request('https://example.test/api/spelare', {
+    method: 'POST', headers: { Authorization: 'Bearer ' + token, 'Content-Type': 'application/json' },
+    body: JSON.stringify({ name: 'Test', team_id: 2 })
+  });
+  const x = await run(request);
+  assert.equal(x.result.status, 502); assert.equal(x.rosterWrites, 0);
+});
+test('roster POST rejects conflicting Baserow Lag link', async () => {
+  const request = new Request('https://example.test/api/spelare', {
+    method: 'POST', headers: { Authorization: 'Bearer ' + token, 'Content-Type': 'application/json' },
+    body: JSON.stringify({ name: 'Test', Lag: [{ id: 2 }] })
+  });
+  const x = await run(request);
+  assert.equal(x.result.status, 502); assert.equal(x.rosterWrites, 0);
+});
+test('roster POST accepts matching Baserow Lag link', async () => {
+  const request = new Request('https://example.test/api/spelare', {
+    method: 'POST', headers: { Authorization: 'Bearer ' + token, 'Content-Type': 'application/json' },
+    body: JSON.stringify({ name: 'Test', Lag: [{ id: 18 }] })
+  });
+  const x = await run(request);
+  assert.equal(x.result.ok, true); assert.equal(x.rosterWrites, 1);
+});
