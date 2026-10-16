@@ -69,6 +69,12 @@
     </section>
 
 
+    <section class="card roster-card" aria-label="Personlig lagbehörighet">
+      <h2>Lagbehörighet</h2>
+      <p id="rosterPersonalAccess" class="small" aria-live="polite">Kontrollerar inloggning…</p>
+      <p class="small">Personlig behörighet visas här. Redigering av den befintliga truppen använder tills vidare det äldre adminläget.</p>
+    </section>
+
     <section class="card roster-card roster-backup">
 
       <div class="btnrow">
@@ -157,6 +163,32 @@
     document.write('<script src="../app.js?v=' + window.NSK_VERSION + '"><\/script>');
   </script>
 
+<script>
+(async () => {
+  const label = document.getElementById('rosterPersonalAccess');
+  if (!window.Auth || !window.APP_CONFIG?.AUTH_URL) {
+    label.textContent = 'Personlig inloggning är inte konfigurerad.';
+    return;
+  }
+  try {
+    const identity = await Auth.init();
+    if (!identity) {
+      label.textContent = 'Inte personligt inloggad. Logga in via Startsida.';
+      return;
+    }
+    const team = Auth.activeTeam();
+    if (!team) {
+      label.textContent = 'Inloggad, men inget aktivt lag valt. Välj lag på Startsida.';
+      return;
+    }
+    const allowed = await Auth.checkTeamFeature('roster', team);
+    label.textContent = 'Aktivt lag: ' + team + '. Personlig rätt att hantera truppen: ' +
+      (allowed ? 'Ja' : 'Nej eller kunde inte verifieras') + '.';
+  } catch {
+    label.textContent = 'Personlig lagbehörighet kunde inte kontrolleras.';
+  }
+})();
+</script>
 <script src="../admin-mode.js?v=1"></script>
 <script>
 (function(){
