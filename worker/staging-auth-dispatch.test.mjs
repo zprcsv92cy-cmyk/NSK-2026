@@ -70,3 +70,21 @@ test('staging API failure never grants CORS to unknown origins', async () => {
   assert.equal(response.status, 503);
   assert.equal(response.headers.has('Access-Control-Allow-Origin'), false);
 });
+
+test('legacy wildcard CORS cannot override staging origin restriction', async () => {
+  const legacy = async () => new Response('ok', { headers: {
+    'Access-Control-Allow-Origin': '*',
+    'Access-Control-Allow-Credentials': 'true',
+    'Access-Control-Expose-Headers': 'X-Secret'
+  } });
+  const denied = await dispatchStagingAuth(new Request(root + 'me', {
+    headers: { Origin: 'https://evil.example' }
+  }), {}, legacy);
+  assert.equal(denied.headers.has('Access-Control-Allow-Origin'), false);
+  assert.equal(denied.headers.has('Access-Control-Allow-Credentials'), false);
+  assert.equal(denied.headers.has('Access-Control-Expose-Headers'), false);
+  const approved = await dispatchStagingAuth(new Request(root + 'me', {
+    headers: { Origin: site }
+  }), {}, legacy);
+  assert.equal(approved.headers.get('Access-Control-Allow-Origin'), site);
+});
