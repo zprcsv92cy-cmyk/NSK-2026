@@ -7,6 +7,12 @@ export async function stagingRoster(request,db,actor,json) {
  if(!Array.isArray(actor.memberships) || !actor.memberships.some(m=>m && m.team_id===teamId)) return json({error:'Saknar lagmedlemskap'},403);
  // A personal grant alone never authorizes edits in another team.
  const canManage=authorizeTeamFeature(actor,teamId,'roster').allowed;
+ // Validate the route before reading request bodies or touching storage.
+ const isCollection=path==='/api/auth/roster-staging';
+ const rowMatch=/^\/api\/auth\/roster-staging\/([0-9a-f-]{36})$/.exec(path);
+ if(!isCollection&&!rowMatch)return json({error:'Okänd begäran'},404);
+ if(isCollection&&!['GET','POST'].includes(request.method))return json({error:'Metoden stöds inte'},405);
+ if(rowMatch&&!['PATCH','DELETE'].includes(request.method))return json({error:'Metoden stöds inte'},405);
  if(path==='/api/auth/roster-staging'&&request.method==='GET'){
   const rows=await db.prepare('SELECT id,kind,name FROM auth_roster_staging WHERE team_id=? ORDER BY kind,name').bind(teamId).all();
   return json({rows:rows.results||[],canManage});
@@ -21,7 +27,7 @@ export async function stagingRoster(request,db,actor,json) {
   await db.prepare('INSERT INTO auth_roster_staging(id,team_id,kind,name) VALUES(?,?,?,?)').bind(id,teamId,kind,name).run();
   return json({ok:true,id},201);
  }
- const match=/^\/api\/auth\/roster-staging\/([0-9a-f-]{36})$/.exec(path);
+ const match=rowMatch;
  if(match&&request.method==='PATCH'){
   let data;try{data=await request.json()}catch{return json({error:'Ogiltig JSON'},400)}
   const name=String(data.name||'').trim();
