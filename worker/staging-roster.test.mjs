@@ -281,3 +281,18 @@ test('duplicate team_id parameters are rejected before database access', async (
     assert.equal(db.calls.length, 0);
   }
 });
+
+test('duplicate team IDs block row PATCH and DELETE before storage', async () => {
+  const id = '123e4567-e89b-42d3-a456-426614174000';
+  for (const method of ['PATCH', 'DELETE']) {
+    const db = store();
+    const req = new Request(
+      'https://example.test/api/auth/roster-staging/' + id + '?team_id=team-18&team_id=team-2',
+      { method, ...(method === 'PATCH' ? { body: JSON.stringify({ name: 'MUST NOT CHANGE' }) } : {}) }
+    );
+    const result = await stagingRoster(req, db, admin, json);
+    assert.equal(result.status, 400);
+    assert.equal(db.calls.length, 0);
+    if (method === 'PATCH') assert.equal(req.bodyUsed, false);
+  }
+});
