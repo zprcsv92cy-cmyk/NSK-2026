@@ -3,6 +3,12 @@ import { readFileSync, existsSync } from 'node:fs';
 import { dirname, resolve } from 'node:path';
 import { spawnSync } from 'node:child_process';
 const entry = resolve('worker/staging-entry.js');
+const config = readFileSync(resolve('wrangler.auth.staging.toml'), 'utf8');
+if (/^\s*service\s*=\s*["']nsk-api["']/m.test(config) ||
+    /^\s*binding\s*=\s*["']LEGACY_API["']/m.test(config)) {
+  console.error('Staging must not bind to production nsk-api or LEGACY_API.');
+  process.exitCode = 1;
+}
 const entrySource = readFileSync(entry, 'utf8');
 const dispatcherImported = entrySource.includes("from './staging-auth-dispatch.js'");
 const dispatcherWired = entrySource.includes('createStagingAuthHandler(');
