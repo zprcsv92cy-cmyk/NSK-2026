@@ -139,3 +139,15 @@ test('rejects duplicate trusted team mappings instead of selecting the first', a
     assert.equal(reads, 0);
   }
 });
+
+test('rejects noncanonical trusted team IDs before reading roster rows', async () => {
+  for (const id of ['18.0', '018', '1e1', ' 18', 18.5, null, '9007199254740993']) {
+    let reads = 0;
+    await assert.rejects(resolveLegacyRosterTeam(req('/api/spelare/41', 'PATCH'), {
+      ...dependencies,
+      listTeams: async () => [{ id, Namn: 'NSK Team 18', 'Säsong': '2026' }],
+      readRow: async () => { reads++; return { Lag: [{ id: 18 }] }; }
+    }), /Trusted team missing/, String(id));
+    assert.equal(reads, 0);
+  }
+});
