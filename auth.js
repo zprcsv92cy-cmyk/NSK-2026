@@ -92,8 +92,8 @@
       throw new Error('Produktionsinloggning och valt lag krävs');
     }
     const legacyBase = String(window.APP_CONFIG?.API_URL || '').replace(/\/$/, '');
-    const teamResponse = await fetch(legacyBase + '/api/lag?size=200', {
-      cache: 'no-store', credentials: 'omit'
+    const teamResponse = await fetch(base + '/api/personal/lag', {
+      headers:{Authorization:'Bearer '+token()},cache: 'no-store', credentials: 'omit'
     });
     if (!teamResponse.ok) throw new Error('Kunde inte kontrollera lag');
     const teamData = await teamResponse.json();
@@ -138,8 +138,8 @@
       throw new Error('Saknar verifierad rätt att ändra truppen');
     }
     const legacyBase = String(window.APP_CONFIG?.API_URL || '').replace(/\/$/, '');
-    const teamsResponse = await fetch(legacyBase + '/api/lag?size=200', {
-      cache:'no-store',credentials:'omit'
+    const teamsResponse = await fetch(base + '/api/personal/lag', {
+      headers:{Authorization:'Bearer '+token()},cache:'no-store',credentials:'omit'
     });
     if (!teamsResponse.ok) throw new Error('Kunde inte verifiera laget');
     const teams = await teamsResponse.json();
@@ -179,7 +179,7 @@
     let teamId=firstRow?.Lag?.[0]?.id||firstRow?.Lag?.[0];
     if(!Number.isSafeInteger(Number(teamId))||Number(teamId)<=0){
       const legacyBase=String(window.APP_CONFIG?.API_URL||'').replace(/\/$/,'');
-      const response=await fetch(legacyBase+'/api/lag?size=200',{cache:'no-store',credentials:'omit'});
+      const response=await fetch(base+'/api/personal/lag',{headers:{Authorization:'Bearer '+token()},cache:'no-store',credentials:'omit'});
       if(!response.ok)throw new Error('Laget kunde inte verifieras');
       const result=await response.json();
       const matches=(result.results||[]).filter(row=>row.Namn===team&&String(row['Säsong'])==='2026');
