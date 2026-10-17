@@ -76,3 +76,30 @@ test('session verification binds only the SHA-256 token hash, never the bearer t
   assert.match(db.calls[0].sql, /u\.disabled=0/);
   assert.match(db.calls[0].sql, /s\.revoked_at IS NULL/);
 });
+
+test('verified D1 session grants shift access only to its own team', async () => {
+  const { createPersonalRosterIdentityVerifier } = await import('./personal-roster-identity-adapter.js');
+  const { requireTeamWrite } = await import('./team-authorization-policy.js');
+  const db = {
+    prepare(sql) {
+      return {
+        bind() {
+          return {
+            first: async () => ({ id: 'u-shifts', display_name: 'NSK test', is_global_admin: 0 }),
+            all: async () => ({ results: sql.includes('auth_team_memberships')
+              ? [{ team_id: 'NSK Team 18', role: 'team_admin' }]
+              : [{ permission: 'shifts:check' }] })
+          };
+        }
+      };
+    }
+  };
+  const verify = createPersonalRosterIdentityVerifier({ AUTH_DB: db });
+  const actor = await verify(token);
+  assert.ok(actor);
+  let writes = 0;
+  const mutate = async () => { writes++; return { ok: true }; };
+  assert.deepEqual(await requireTeamWrite(actor, 'NSK Team 18', 'shifts', mutate), { ok: true });
+  assert.equal((await requireTeamWrite(actor, 'NSK Testlag 2', 'shifts', mutate)).status, 403);
+  assert.equal(writes, 1);
+});
