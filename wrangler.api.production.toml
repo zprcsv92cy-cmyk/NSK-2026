@@ -1,0 +1,14 @@
+# Production API configuration. Do not deploy until worker source is restored and reviewed.
+name = "nsk-api"
+compatibility_date = "2026-10-10"
+workers_dev = true
+
+# Must match the existing production authentication database.
+[[d1_databases]]
+binding = "AUTH_DB"
+database_name = "nsk-auth-production"
+database_id = "9f937bcb-b0c0-4129-af5b-775cf284dfcb"
+
+# Existing ADMIN_KV, NSK_TRAINERS, SHIFT_LOCK, Baserow and secret bindings
+# MUST be carried forward from the live Worker before any deployment.
+# This file is intentionally incomplete and is not a deployable release manifest.
