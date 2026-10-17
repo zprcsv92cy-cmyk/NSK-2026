@@ -37,6 +37,7 @@ jobs:
           }
           NODE
       - name: Upload candidate to Cloudflare (manual only, no deployment)
+        id: upload
         if: github.event_name == 'workflow_dispatch'
         env:
           CF_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
@@ -47,12 +48,13 @@ jobs:
           cat > dist/metadata.json <<'JSON'
           {"main_module":"nsk-api-worker.mjs","bindings":[{"name":"ADMIN_KV","type":"inherit"},{"name":"ADMIN_PASSWORD","type":"inherit"},{"name":"AUTH_DB","type":"inherit"},{"name":"BASEROW_DATABASE_ID","type":"inherit"},{"name":"BASEROW_TOKEN","type":"inherit"},{"name":"MATCH_PASSWORD","type":"inherit"},{"name":"NSK_TRAINERS","type":"inherit"},{"name":"SHIFT_LOCK","type":"inherit"}]}
           JSON
-          curl --fail-with-body --silent --show-error --request POST             --header "Authorization: Bearer $CF_API_TOKEN"             --form 'metadata=<dist/metadata.json;type=application/json'             --form 'nsk-api-worker.mjs=@dist/nsk-api-worker.mjs;type=application/javascript+module'             "https://api.cloudflare.com/client/v4/accounts/$CF_ACCOUNT_ID/workers/scripts/nsk-api/versions?bindings_inherit=strict"             | python3 -c 'import json,sys; d=json.load(sys.stdin); assert d.get("success"), d.get("errors"); print("Uploaded candidate version:", (d.get("result") or {}).get("id"))'
+          curl --fail-with-body --silent --show-error --request POST             --header "Authorization: Bearer $CF_API_TOKEN"             --form 'metadata=<dist/metadata.json;type=application/json'             --form 'nsk-api-worker.mjs=@dist/nsk-api-worker.mjs;type=application/javascript+module'             "https://api.cloudflare.com/client/v4/accounts/$CF_ACCOUNT_ID/workers/scripts/nsk-api/versions?bindings_inherit=strict"             | python3 -c 'import json,os,sys; d=json.load(sys.stdin); assert d.get("success"), d.get("errors"); v=(d.get("result") or {}).get("id"); assert v, "Missing uploaded version ID"; print("Uploaded candidate version:",v); open(os.environ["GITHUB_OUTPUT"],"a").write("version_id="+v+"\\n")'
       - name: Verify uploaded Worker version has a preview URL
         if: github.event_name == 'workflow_dispatch'
         env:
           CF_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           CF_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          UPLOADED_VERSION_ID: ${{ steps.upload.outputs.version_id }}
         run: |
           python3 - <<'PY'
           import json, os, urllib.request
@@ -65,11 +67,9 @@ jobs:
               if not data.get("success"):
                   raise RuntimeError(f"Cloudflare API failed: {data.get('errors')}")
               return data["result"]
-          versions = get(base + "/versions")
-          items = versions.get("items", [])
-          if not items:
-              raise RuntimeError("No uploaded Worker versions found")
-          version_id = items[0]["id"]
+          version_id = os.environ["UPLOADED_VERSION_ID"]
+          if not version_id:
+              raise RuntimeError("Upload step did not return a Worker version ID")
           detail = get(base + "/versions/" + version_id)
           preview = detail.get("metadata", {}).get("has_preview")
           print("Latest uploaded Worker version:", version_id)
