@@ -15,7 +15,7 @@ const METHODS=Object.freeze({
   '/api/auth/feature-access':'GET',
   '/api/auth/integration/access':'GET',
   '/api/auth/activate':'POST',
-  '/api/auth/users':'GET',
+  '/api/auth/users':'GET,POST',
   '/api/auth/team-members':'GET'
 });
 function deny(status, error) {
@@ -36,7 +36,7 @@ export async function handleProductionAuth(request, env) {
       'Access-Control-Max-Age':'600','Vary':'Origin'
     }});
   }
-  if(request.method!==METHODS[pathname])return deny(405,'Method not allowed');
+  if(!METHODS[pathname].split(',').includes(request.method))return deny(405,'Method not allowed');
   if(!env?.AUTH_DB)return deny(503,'Production authentication is not configured');
   let result;
   try {
