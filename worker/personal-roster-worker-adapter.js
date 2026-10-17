@@ -11,7 +11,7 @@ import { resolveLagpersonalKvOwnership } from './lagpersonal-kv-ownership.js';
  * It does not register routes in the production Worker.
  */
 export async function authorizePersonalWorkerWrite(request, env, {
-  listTeams, readRow, readTeamStaff, mutateRoster, mutateLagpersonal
+  listTeams, readRow, readTeamStaff, mutateRoster, mutateLagpersonal, authorizationTeamId
 } = {}) {
   if (!request?.url) return { ok: false, status: 400, error: 'Ogiltig begäran' };
   const path = new URL(request.url).pathname;
@@ -19,7 +19,7 @@ export async function authorizePersonalWorkerWrite(request, env, {
   if (/^\/api\/(spelare|tranare)(?:\/\d+)?$/.test(path)) {
     return guardRosterRoute(request, {
       verifyIdentity,
-      resolveTeamId: r => resolveLegacyRosterTeam(r, { listTeams, readRow }),
+      resolveTeamId: r => resolveLegacyRosterTeam(r, { listTeams, readRow, authorizationTeamId }),
       mutate: () => {
         if (typeof mutateRoster !== 'function') return { ok: false, status: 500, error: 'Skrivfunktion saknas' };
         return mutateRoster(request);
