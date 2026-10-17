@@ -19,6 +19,8 @@ on:
       - 'worker/lagpersonal-kv-ownership.test.mjs'
       - 'reference/legacy-nsk-api-worker-v42.snapshot.js'
       - 'scripts/audit-production-worker-snapshot.mjs'
+      - 'worker/production-roster-scoped-data.js'
+      - 'worker/production-roster-scoped-data.test.mjs'
       - 'worker/production-roster-read-integration.js'
       - 'worker/production-roster-read-integration.test.mjs'
       - 'worker/production-team-id-map.js'
@@ -57,6 +59,8 @@ on:
       - 'worker/lagpersonal-kv-ownership.test.mjs'
       - 'reference/legacy-nsk-api-worker-v42.snapshot.js'
       - 'scripts/audit-production-worker-snapshot.mjs'
+      - 'worker/production-roster-scoped-data.js'
+      - 'worker/production-roster-scoped-data.test.mjs'
       - 'worker/production-roster-read-integration.js'
       - 'worker/production-roster-read-integration.test.mjs'
       - 'worker/production-team-id-map.js'
@@ -104,6 +108,8 @@ jobs:
         run: node scripts/audit-production-worker-snapshot.mjs
       - name: Check trusted legacy team ID mapping
         run: node --test worker/production-team-id-map.test.mjs
+      - name: Check server-scoped roster data output
+        run: node --test worker/production-roster-scoped-data.test.mjs
       - name: Check personal identity-to-roster integration
         run: node --test worker/production-roster-read-integration.test.mjs
       - name: Check production read boundary
