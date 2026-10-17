@@ -116,7 +116,7 @@ jobs:
               } })
             }
           };
-          async function call(method, path, body, authorized = true) {
+          async function call(method, path, body, authorized = true, hasGrant = true) {
             const response = await worker.fetch(new Request('https://nsk-api.example' + path, {
               method, headers: { 'Content-Type': 'application/json',
                 Origin: 'https://zprcsv92cy-cmyk.github.io',
@@ -127,7 +127,7 @@ jobs:
                 first: async () => ({ id: 'u-shift', display_name: 'Tester', is_global_admin: 0 }),
                 all: async () => ({ results: sql.includes('auth_team_memberships')
                   ? [{ team_id: authorized ? 'NSK Team 18' : 'NSK Testlag 2', role: 'team_admin' }]
-                  : [{ permission: 'shifts:check' }] })
+                  : hasGrant ? [{ permission: 'shifts:check' }] : [] })
               }; } }; }
             } }, {});
             return response.status;
@@ -145,6 +145,15 @@ jobs:
             if (await call('PATCH', '/api/bytesschema/31/done', { done: false }, false) !== 403)
               throw Error('Cross-team done accepted');
             if (lockCalls.length !== 2) throw Error('Unauthorized done reached lock');
+            if (await call('POST', '/api/bytesschema/save', save, true, false) !== 403)
+              throw Error('Save without personal grant accepted');
+            if (await call('PATCH', '/api/bytesschema/31/done', { done: true }, true, false) !== 403)
+              throw Error('Done without personal grant accepted');
+            if (lockCalls.length !== 2) throw Error('Missing grant reached lock');
+            delete rows['1255101/12'];
+            if (await call('POST', '/api/bytesschema/save', save) !== 503)
+              throw Error('Missing trusted pool did not fail closed');
+            if (lockCalls.length !== 2) throw Error('Missing trusted pool reached lock');
             if (requests.some(url => !url.startsWith('https://api.baserow.io/api/database/rows/table/')))
               throw Error('Unexpected external request');
           } finally { globalThis.fetch = originalFetch; }
