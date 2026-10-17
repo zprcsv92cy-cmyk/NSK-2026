@@ -2,7 +2,7 @@
 // One-time production administrator bootstrap.
 // Run only after reviewing the target D1 database ID and migration.
 // Never commit generated tokens or execute against staging by accident.
-import { randomBytes, randomUUID, createHash } from 'node:crypto';
+import { randomUUID } from 'node:crypto';
 import { spawnSync } from 'node:child_process';
 
 const [emailArg, displayArg] = process.argv.slice(2);
@@ -20,8 +20,6 @@ if(process.env.NSK_PRODUCTION_BOOTSTRAP!=='CONFIRM_PRODUCTION'||
   console.error('Refusing to run. Set NSK_PRODUCTION_BOOTSTRAP=CONFIRM_PRODUCTION and NSK_D1_DATABASE_ID to the verified production D1 UUID.');
   process.exit(2);
 }
-const token=randomBytes(32).toString('base64url');
-const hash=createHash('sha256').update(token).digest('hex');
 const userId=randomUUID();
 const quote=s=>"'"+s.replaceAll("'","''")+"'";
 const sql=[
@@ -29,8 +27,7 @@ const sql=[
   `INSERT INTO auth_users(id,email,display_name,password_hash,disabled) VALUES(${quote(userId)},${quote(email)},${quote(display)},'!activation-required!',1);`,
   `INSERT INTO auth_team_memberships(user_id,team_id,role) VALUES(${quote(userId)},${quote(teamId)},'owner');`,
   ...['read','pool:create','lineup:edit','shifts:check','match:manage','pool:finish','pool:reopen','roster:manage','users:manage'].map(p=>
-    `INSERT INTO auth_user_permissions(user_id,permission) VALUES(${quote(userId)},${quote(p)});`),
-  `INSERT INTO auth_setup_tokens(token_hash,user_id,expires_at) VALUES(${quote(hash)},${quote(userId)},datetime('now','+120 minutes'));`
+    `INSERT INTO auth_user_permissions(user_id,permission) VALUES(${quote(userId)},${quote(p)});`)
 ].join('\n');
 const result=spawnSync('npx',['wrangler','d1','execute','nsk-auth-production','--remote','--command',sql],{
   encoding:'utf8',stdio:['ignore','pipe','pipe']
@@ -42,5 +39,5 @@ if(result.status!==0){
 console.log('Production admin bootstrap succeeded.');
 console.log('Account:',email);
 console.log('Scope: Global owner (all app teams)');
-console.log('Activation token (shown once; send securely):',token);
-console.log('Activate within 120 minutes, then sign in and rotate credentials if required.');
+console.log('Account remains disabled. No activation token was issued.');
+console.log('Issue a short-lived activation token separately only after the production activation endpoint is available.');
