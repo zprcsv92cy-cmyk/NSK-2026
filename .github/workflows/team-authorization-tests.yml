@@ -39,6 +39,8 @@ on:
       - 'worker/production-personal-staff-mutation.test.mjs'
       - 'worker/production-personal-roster-mutation.js'
       - 'worker/production-personal-roster-mutation.test.mjs'
+      - 'worker/production-login-guard.js'
+      - 'worker/production-login-guard.test.mjs'
       - 'worker/production-auth-boundary.js'
       - 'worker/production-auth-boundary.test.mjs'
       - 'worker/production-personal-preflight.test.mjs'
@@ -112,6 +114,8 @@ on:
       - 'worker/production-personal-staff-mutation.test.mjs'
       - 'worker/production-personal-roster-mutation.js'
       - 'worker/production-personal-roster-mutation.test.mjs'
+      - 'worker/production-login-guard.js'
+      - 'worker/production-login-guard.test.mjs'
       - 'worker/production-auth-boundary.js'
       - 'worker/production-auth-boundary.test.mjs'
       - 'worker/production-personal-preflight.test.mjs'
@@ -195,6 +199,8 @@ jobs:
         run: node --experimental-default-type=module --test worker/production-personal-staff-mutation.test.mjs
       - name: Check personally authorized roster mutations
         run: node --experimental-default-type=module --test worker/production-personal-roster-mutation.test.mjs
+      - name: Check production login throttling
+        run: node --experimental-default-type=module --test worker/production-login-guard.test.mjs
       - name: Check allowlisted production authentication endpoints
         run: node --experimental-default-type=module --test worker/production-auth-boundary.test.mjs
       - name: Check composited production Worker entrypoint
