@@ -46,7 +46,7 @@ async function call(method, path, auth = personalToken, body = undefined) {
 try {
   await test('HTTP personal session creates player in trusted team', async () => {
     const before = writes;
-    const x = await call('POST', '/api/spelare?team_id=2');
+    const x = await call('POST', '/api/spelare?team_id=18');
     assert.equal(x.status, 200); assert.equal(writes, before + 1);
   });
   await test('HTTP personal session updates own team player', async () => {
