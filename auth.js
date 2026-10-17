@@ -55,6 +55,7 @@
   }
   // Isolated staging roster only. Never sends personal credentials to the legacy production API.
   async function stagingRosterRequest(method, rowId, payload, team = activeTeam()) {
+    if (base === 'https://nsk-auth.peter-hasselberg.workers.dev') throw new Error('Testtruppen är inte tillgänglig med produktionsinloggning');
     if (!base || !token() || !team || !identity?.memberships?.some(m => m.team_id === team)) {
       throw new Error('Personlig inloggning och giltigt lag krävs');
     }

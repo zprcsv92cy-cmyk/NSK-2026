@@ -34,6 +34,8 @@ on:
       - 'docs/first-production-administrator.md'
   pull_request:
     paths:
+      - 'config.js'
+      - 'auth.js'
       - 'login/index.html'
       - 'aktivera/index.html'
       - 'startsida/index.html'
