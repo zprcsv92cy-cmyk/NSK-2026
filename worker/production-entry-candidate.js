@@ -3,6 +3,7 @@
 import legacyWorker, { ShiftLock } from '../reference/legacy-nsk-api-worker-v42.snapshot.js';
 import { handlePersonalRosterRead } from './production-personal-roster-endpoint.js';
 import { handlePersonalRosterMutation } from './production-personal-roster-mutation.js';
+import { handlePersonalStaffMutation } from './production-personal-staff-mutation.js';
 import { handleProductionAuth } from './production-auth-boundary.js';
 
 const PERSONAL_PREFIX = '/api/personal/';
@@ -18,7 +19,8 @@ export default {
       if(origin && origin!=='https://zprcsv92cy-cmyk.github.io')
         return Response.json({ok:false,error:'Origin not allowed'},{status:403});
       const mutation=/^\/api\/personal\/(spelare|tranare)(?:\/\d+)?$/.test(pathname);
-      if(request.method==='OPTIONS' && mutation && origin==='https://zprcsv92cy-cmyk.github.io')
+      const staffMutation=pathname==='/api/personal/lagpersonal';
+      if(request.method==='OPTIONS' && (mutation || staffMutation) && origin==='https://zprcsv92cy-cmyk.github.io')
         return new Response(null,{status:204,headers:{
           'Access-Control-Allow-Origin':origin,
           'Access-Control-Allow-Methods':'GET,POST,PATCH,DELETE,OPTIONS',
@@ -31,6 +33,13 @@ export default {
         headers.set('Vary','Origin');
         if(origin==='https://zprcsv92cy-cmyk.github.io')
           headers.set('Access-Control-Allow-Origin',origin);
+        return new Response(response.body,{status:response.status,headers});
+      }
+      if(staffMutation && ['POST','PATCH'].includes(request.method)){
+        const response=await handlePersonalStaffMutation(request,env);
+        const headers=new Headers(response.headers);
+        headers.set('Vary','Origin');
+        if(origin==='https://zprcsv92cy-cmyk.github.io')headers.set('Access-Control-Allow-Origin',origin);
         return new Response(response.body,{status:response.status,headers});
       }
       return handlePersonalRosterRead(request, env);
