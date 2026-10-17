@@ -7,6 +7,7 @@ on:
       - '.github/workflows/staging-safety-tests.yml'
       - 'scripts/check-staging-imports.mjs'
       - 'scripts/test-auth-staging.mjs'
+      - 'scripts/check-production-auth-readiness.mjs'
       - 'worker/**'
       - 'wrangler.auth.staging.toml'
   workflow_dispatch:
@@ -32,6 +33,8 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version: '24'
+      - name: Report production-release blockers (informational, never deploys)
+        run: node scripts/check-production-auth-readiness.mjs
       - name: Verify staging imports and JavaScript syntax
         run: node scripts/check-staging-imports.mjs
       - name: Run local Worker security regression tests
