@@ -21,7 +21,8 @@ export function authorizeTeamFeature(actor, teamId, feature) {
     ? actor.memberships.find(m => m && m.team_id === teamId) : null;
   if (!membership) return { allowed: false, status: 403, reason: 'Ingen åtkomst till laget' };
   const permission = FEATURE_PERMISSIONS[feature];
-  const allowed = Array.isArray(actor.permissions) && actor.permissions.includes(permission);
+  const allowed = (membership.role === 'team_admin' || actor.is_global_admin === true || (membership.role === 'coach' && feature === 'lineup')) &&
+    Array.isArray(actor.permissions) && actor.permissions.includes(permission);
   return { allowed, status: allowed ? 200 : 403,
     reason: allowed ? 'Tillåtet' : 'Saknar behörighet', permission };
 }
