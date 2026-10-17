@@ -21,6 +21,6 @@ test('API reference retains explicit GET staff route and non-GET deny', () => {
 });
 
 test('shift routes parse Bearer tokens using real whitespace boundaries', () => {
-  const matches = source.match(/identityToken = \/\^Bearer \(\[\^\\\\s\]\+\)\$\/\.exec/g) || [];
-  assert.equal(matches.length, 2, 'save and done routes must both use the correct Bearer token regex');
+  const expected = String.raw`const identityToken = /^Bearer ([^\s]+)$/`;
+  assert.equal(source.split(expected).length - 1, 2, 'save and done routes must both use the correct Bearer token regex');
 });
