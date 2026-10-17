@@ -31,6 +31,7 @@ on:
       - 'wrangler.auth.production.toml'
       - 'worker/production-entry.js'
       - '.github/workflows/team-authorization-tests.yml'
+      - 'docs/first-production-administrator.md'
   pull_request:
     paths:
       - 'login/index.html'
@@ -39,6 +40,7 @@ on:
       - 'wrangler.auth.production.toml'
       - 'worker/production-entry.js'
       - '.github/workflows/team-authorization-tests.yml'
+      - 'docs/first-production-administrator.md'
       - 'worker/team-authorization-policy.js'
       - 'worker/team-authorization-policy.test.mjs'
       - 'worker/production-roster-team-resolver.js'
@@ -67,6 +69,7 @@ on:
       - 'wrangler.auth.production.toml'
       - 'worker/production-entry.js'
       - '.github/workflows/team-authorization-tests.yml'
+      - 'docs/first-production-administrator.md'
 jobs:
   security-checks:
     runs-on: ubuntu-latest
