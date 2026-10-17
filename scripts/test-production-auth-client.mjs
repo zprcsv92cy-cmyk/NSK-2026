@@ -18,8 +18,10 @@ const fetch=async (url,options={})=>{
   requests.push({url:String(url),headers:options.headers||{}});
   if(String(url)==='https://nsk-api.test/api/auth/me')
     return Response.json(identity);
-  if(String(url).includes('/api/lag?'))
+  if(String(url).includes('/api/personal/lag')) {
+    assert.equal(options.headers.Authorization,'Bearer production-only');
     return Response.json({results:[{id:18,Namn:'NSK Team 18','Säsong':2026}]});
+  }
   if(String(url).includes('/api/personal/')){
     assert.equal(options.headers.Authorization,'Bearer production-only');
     assert.match(String(url),/team_id=18/);
