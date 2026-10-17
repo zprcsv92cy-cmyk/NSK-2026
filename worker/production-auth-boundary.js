@@ -3,6 +3,7 @@
 import { handleTeamAuth } from './team-auth.js';
 import { handleActivation } from './account-activation.js';
 import { productionRateLimitedLogin } from './production-login-guard.js';
+import { handlePersonalTeamList } from './production-personal-teams.js';
 
 const ORIGIN='https://zprcsv92cy-cmyk.github.io';
 const METHODS=Object.freeze({
@@ -42,6 +43,22 @@ export async function handleProductionAuth(request, env) {
         : await handleTeamAuth(request,env);
   } catch {
     return deny(503,'Authentication is temporarily unavailable');
+  }
+  if(pathname==='/api/auth/me' && result.ok){
+    const identity=await result.json();
+    if(identity?.memberships?.some(m=>m.team_id==='*'&&m.role==='owner')){
+      const teamRequest=new Request(new URL('/api/personal/lag',request.url),{
+        method:'GET',headers:{Authorization:request.headers.get('Authorization')||''}
+      });
+      const teamsResponse=await handlePersonalTeamList(teamRequest,env);
+      if(!teamsResponse.ok)return deny(503,'Huvudadministratörens lag kunde inte verifieras');
+      const data=await teamsResponse.json();
+      const names=(data.results||[]).map(t=>t.Namn);
+      if(!names.length||new Set(names).size!==names.length)
+        return deny(503,'Lagmappning är ogiltig');
+      identity.memberships=names.map(team_id=>({team_id,role:'owner'}));
+      result=Response.json(identity,{status:200});
+    }
   }
   const headers=new Headers(result.headers);
   headers.set('Vary','Origin');
