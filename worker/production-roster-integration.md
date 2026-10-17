@@ -67,3 +67,10 @@ Ingen produktionsendpoint aktiveras genom detta dokument.
 - GitHub Actions `Team authorization tests` och `Staging import preflight` var gröna för testcommit `ea9ccf47`. Testerna använder simulerad databas.
 - Nästa releaseblockerare: återställningsbar versionshanterad produktions-Worker, säker koppling till personlig serververifierad identitet, verifierad teammappning, negativa och positiva stagingtester för produktionsskrivvägar samt separat produktionsgodkännande.
 - Inga produktionsändringar har utförts som del av dessa kontroller.
+
+## Kodgranskning av bevarad Worker-kopia – 2026-10-17
+
+- Underlag: tidigare uppladdade `worker-production-v42-backup.js` (656 rader). Filen finns i projektets filbibliotek, men kunde inte exporteras som råfil till arbetsmiljön. Den är därför **inte** en verifierad, byggbar GitHub-källa.
+- I den bevarade koden ligger `if (req.method !== "GET") return ...405` **före** grenen för `/api/lagpersonal` med `GET,POST,PATCH`. Detta gör att lagpersonalens POST och PATCH är oåtkomliga via den grenen. Att enbart ändra frontendknappar löser inte problemet.
+- Åtgärdsordning: återställ versionshanterad källa och jämför mot aktiv Worker, skapa isolerade regressionstester för lagpersonalens metoder, integrera serververifierad personlig behörighet och gör först därefter en kontrollerad produktionsrelease med återställningsmöjlighet.
+- Ingen produktionsdeployment eller ändring i Baserow utfördes vid denna granskning.
