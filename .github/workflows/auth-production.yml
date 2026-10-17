@@ -28,6 +28,11 @@ jobs:
         run: node --experimental-default-type=module --test worker/team-authorization-policy.test.mjs worker/production-roster-route-guard.test.mjs worker/production-roster-team-resolver.test.mjs worker/production-roster-integration.test.mjs worker/production-lagpersonal-auth-guard.test.mjs
       - name: Build production Worker without deploying
         run: npx --yes wrangler@4 deploy --dry-run --outdir /tmp/nsk-production-build --config wrangler.auth.production.toml
+      - name: Ensure production global administrator role schema exists
+        run: npx --yes wrangler@4 d1 execute nsk-auth-production --remote --file worker/auth-global-admin.sql --yes
+        env:
+          CLOUDFLARE_API_TOKEN: \${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: \${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
       - name: Deploy isolated production auth Worker
         run: npx --yes wrangler@4 deploy --config wrangler.auth.production.toml
         env:
