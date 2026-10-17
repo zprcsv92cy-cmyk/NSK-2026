@@ -1,7 +1,7 @@
 /**
  * Resolves the owner of a pool from Baserow records, never from request data.
- * Team IDs are canonical decimal Baserow row IDs represented as strings, which
- * must match the membership team_id convention in AUTH_DB.
+ * Authorization team IDs must match the canonical team_id values in AUTH_DB.
+ * Baserow row IDs are used only to fetch the trusted team record.
  */
 export function createPoolOwnerResolver(env, fetchImpl = fetch) {
   return async function findPoolOwner({ poolId, shiftRowId, lagNo, resolveOnly = true } = {}) {
@@ -32,6 +32,6 @@ export function createPoolOwnerResolver(env, fetchImpl = fetch) {
     const team = await teamResponse.json();
     if (Number(team.id) !== teamId || typeof team.Namn !== 'string' || !team.Namn.trim())
       throw new Error('Lagets identitet kunde inte verifieras');
-    return { teamId: String(team.id), teamName: team.Namn, poolId: resolvedPoolId };
+    return { teamId: team.Namn, teamName: team.Namn, baserowTeamRowId: String(team.id), poolId: resolvedPoolId };
   };
 }
