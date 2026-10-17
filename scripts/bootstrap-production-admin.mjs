@@ -16,8 +16,9 @@ if(!email||email.length>254||!/^\S+@\S+\.\S+$/.test(email)||
   process.exit(2);
 }
 if(process.env.NSK_PRODUCTION_BOOTSTRAP!=='CONFIRM_PRODUCTION'||
-   process.env.NSK_D1_DATABASE_ID!==expectedDb){
-  console.error('Refusing to run. Set NSK_PRODUCTION_BOOTSTRAP=CONFIRM_PRODUCTION and NSK_D1_DATABASE_ID to the verified production D1 UUID.');
+   process.env.NSK_D1_DATABASE_ID!==expectedDb||
+   process.env.NSK_PRODUCTION_AUTH_READY!=='CONFIRM_AUTH_ENDPOINTS_READY'){
+  console.error('Refusing to run. Set NSK_PRODUCTION_BOOTSTRAP=CONFIRM_PRODUCTION, NSK_D1_DATABASE_ID to the verified production D1 UUID and NSK_PRODUCTION_AUTH_READY=CONFIRM_AUTH_ENDPOINTS_READY only after verifying the deployed authentication endpoints.');
   process.exit(2);
 }
 const userId=randomUUID();
