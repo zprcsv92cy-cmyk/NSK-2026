@@ -283,6 +283,55 @@ jobs:
               throw Error('Persisted shift row has wrong fields');
           } finally { globalThis.fetch = originalFetch; }
           NODE
+      - name: Verify repeated shift save and completed-shift protection
+        run: |
+          node --input-type=module <<'NODE'
+          import { ShiftLock } from './dist/nsk-api-worker.mjs';
+          const originalFetch = globalThis.fetch;
+          const base = 'https://api.baserow.io/api/database/rows/table/';
+          const pool = { id: 12, Lag: [{ id: 92 }], 'Antal lag': 1, 'Antal matcher': 1, Perioder: 2 };
+          const shiftRows = [];
+          const writes = [];
+          globalThis.fetch = async (url, init = {}) => {
+            if (!String(url).startsWith(base) || init.headers?.Authorization !== 'Token fake-baserow')
+              throw Error('Unexpected external request');
+            const path = String(url).slice(base.length).split('?')[0].replace(/\/$/, '');
+            const method = init.method || 'GET';
+            if (path === '1255101/12' && method === 'GET') return Response.json(pool);
+            if (path === '1255083/92' && method === 'GET') return Response.json({ id: 92, Namn: 'NSK Testlag 2' });
+            if (path === '1255098' && method === 'GET')
+              return Response.json({ results: [{ id: 51, Lag: [{ id: 92 }] }], next: null });
+            if (path === '1255115' && method === 'GET')
+              return Response.json({ results: shiftRows, next: null });
+            if (path === '1255115' && method === 'POST') {
+              const body = JSON.parse(init.body);
+              writes.push(body);
+              const row = { id: 31, ...body };
+              shiftRows.push(row);
+              return Response.json(row);
+            }
+            throw Error('Unexpected operation: ' + method + ' ' + path);
+          };
+          try {
+            const lock = new ShiftLock({}, { BASEROW_TOKEN: 'fake-baserow' });
+            const body = { action: 'save', pool_id: 12, lag_no: 1, match_no: 1,
+              shifts: [{ period_no: 1, time_left: '09:00', players: [51] }] };
+            const call = async data => lock.fetch(new Request('https://shift-lock.internal/', {
+              method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(data)
+            }));
+            const first = await call(body);
+            if (first.status !== 200 || writes.length !== 1 ||
+                writes[0].Bytenummer !== 1 || writes[0]['Spelare på plan'][0] !== 51)
+              throw Error('First save did not persist expected shift');
+            const second = await call(body);
+            if (second.status !== 200 || (await second.json()).verified !== true || writes.length !== 1)
+              throw Error('Repeated save did not verify persisted shift');
+            shiftRows[0]['Genomfört'] = true;
+            const changed = await call({ ...body, shifts: [{ ...body.shifts[0], time_left: '08:30' }] });
+            if (changed.status !== 409 || writes.length !== 1)
+              throw Error('Completed shift was changed or not protected');
+          } finally { globalThis.fetch = originalFetch; }
+          NODE
       - name: Upload candidate to Cloudflare (manual only, no deployment)
         id: upload
         if: github.event_name == 'workflow_dispatch'
