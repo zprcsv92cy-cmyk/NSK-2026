@@ -36,3 +36,17 @@ test('ShiftLock refuses incomplete isolated mapping before any Baserow write', a
   const response = await lock.save({ pool_id: 12, lag_no: 1, match_no: 1, shifts: [] });
   assert.equal(response.status, 503);
 });
+
+test('isolated preview mode requires separate Baserow mapping, token and database', async () => {
+  for (const env of [
+    { NSK_ISOLATED_MODE: 'true' },
+    { NSK_ISOLATED_MODE: 'true', BASEROW_TABLE_IDS: '' },
+    { NSK_ISOLATED_MODE: 'true', BASEROW_TABLE_IDS: JSON.stringify(isolated) },
+    { NSK_ISOLATED_MODE: 'true', BASEROW_TABLE_IDS: JSON.stringify(isolated), BASEROW_TOKEN: 'fake' },
+    { NSK_ISOLATED_MODE: 'true', BASEROW_TABLE_IDS: JSON.stringify(isolated), BASEROW_DATABASE_ID: 'test' }
+  ]) {
+    const response = await get(env);
+    assert.equal(response.status, 503);
+    assert.match((await response.json()).error, /Invalid Baserow table mapping/);
+  }
+});
