@@ -14,7 +14,6 @@ export function createPersonalRosterIdentityVerifier(env) {
         return null;
       return {
         user: actor.user,
-        is_global_admin: actor.is_global_admin === true,
         memberships: actor.memberships.map(m => ({
           team_id: typeof m?.team_id === 'string' ? m.team_id : String(m?.team_id ?? ''),
           role: m?.role
