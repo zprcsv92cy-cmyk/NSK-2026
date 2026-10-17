@@ -162,6 +162,41 @@
     if (!response.ok || !data.ok) throw new Error(data.error || 'Kunde inte spara truppen');
     return data;
   }
+  async function personalStaffWrite(method, role, rowId, name, team=activeTeam()) {
+    if(!productionMode||!base||!token()||!team||
+      !identity?.memberships?.some(m=>m.team_id===team))
+      throw new Error('Personlig produktionsinloggning krävs');
+    if(!['POST','PATCH'].includes(method)||
+      !['Lagledare','Fysansvarig','Materialförvaltare'].includes(role)||
+      (method==='PATCH'&&!/^[a-f0-9-]{36}$/i.test(String(rowId||''))))
+      throw new Error('Ogiltig ändring av lagpersonal');
+    if(!(await checkTeamFeature('roster',team)))
+      throw new Error('Saknar verifierad rätt att ändra lagpersonal');
+    const list=await personalRosterList(team);
+    // The actual numeric team ID comes from the trusted server, never a role
+    // assertion. The server also maps this ID to the session before writing.
+    const firstRow=list.players[0]||list.coaches[0];
+    let teamId=firstRow?.Lag?.[0]?.id||firstRow?.Lag?.[0];
+    if(!Number.isSafeInteger(Number(teamId))||Number(teamId)<=0){
+      const legacyBase=String(window.APP_CONFIG?.API_URL||'').replace(/\/$/,'');
+      const response=await fetch(legacyBase+'/api/lag?size=200',{cache:'no-store',credentials:'omit'});
+      if(!response.ok)throw new Error('Laget kunde inte verifieras');
+      const result=await response.json();
+      const matches=(result.results||[]).filter(row=>row.Namn===team&&String(row['Säsong'])==='2026');
+      if(matches.length!==1)throw new Error('Laget kunde inte verifieras');
+      teamId=matches[0].id;
+    }
+    const payload={team_id:String(teamId),role,name:String(name||'').trim()};
+    if(method==='PATCH')payload.id=String(rowId);
+    const response=await fetch(base+'/api/personal/lagpersonal',{
+      method,headers:{'Authorization':'Bearer '+token(),'Content-Type':'application/json'},
+      body:JSON.stringify(payload),cache:'no-store',credentials:'omit'
+    });
+    if(response.status===401)clear();
+    const result=await response.json().catch(()=>({}));
+    if(!response.ok||!result.ok)throw new Error(result.error||'Kunde inte spara lagpersonal');
+    return result;
+  }
   const stagingRosterList = () => stagingRosterRequest('GET');
   const stagingRosterWrite = (method, rowId, payload) => {
     if (!['POST', 'PATCH', 'DELETE'].includes(method)) throw new Error('Otillåten åtgärd');
@@ -193,7 +228,7 @@
     }
   }
   window.Auth = Object.freeze({
-    init, login, logout, can, checkTeamFeature, stagingRosterList, stagingRosterWrite, personalRosterList, personalRosterWrite, activeTeam, selectTeam,
+    init, login, logout, can, checkTeamFeature, stagingRosterList, stagingRosterWrite, personalRosterList, personalRosterWrite, personalStaffWrite, activeTeam, selectTeam,
     getSession: () => identity, getToken: token, getMode: () => productionMode ? 'production' : 'staging', getClient: () => null
   });
 })();
