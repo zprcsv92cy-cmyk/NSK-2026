@@ -39,7 +39,7 @@ export async function handleProductionOwnerAdministration(request,env){
           return reply(400,{error:'Endast namn och e-postadress får ändras'});
         const email=typeof body.email==='string'?body.email.trim().toLowerCase():'';
         const name=typeof body.name==='string'?body.name.trim():'';
-        if(email.length>254||!/^[^\\s@]+@[^\\s@]+\\.[^\\s@]+$/.test(email)||!name||name.length>150)
+        if(email.length>254||!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)||!name||name.length>150)
           return reply(400,{error:'Ogiltigt namn eller e-postadress'});
         const conflict=await env.AUTH_DB.prepare('SELECT id FROM auth_users WHERE email=? AND id<>?')
           .bind(email,userId).first();
