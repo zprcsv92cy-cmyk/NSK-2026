@@ -45,6 +45,7 @@ on:
       - 'migrations/production-auth/001_login_attempts.sql'
       - 'worker/production-owner-administration.js'
       - 'worker/production-owner-administration.test.mjs'
+      - 'worker/production-owner-create-user.test.mjs'
       - 'worker/production-auth-boundary.js'
       - 'worker/production-auth-boundary.test.mjs'
       - 'worker/production-global-owner-access.test.mjs'
@@ -129,6 +130,7 @@ on:
       - 'migrations/production-auth/001_login_attempts.sql'
       - 'worker/production-owner-administration.js'
       - 'worker/production-owner-administration.test.mjs'
+      - 'worker/production-owner-create-user.test.mjs'
       - 'worker/production-auth-boundary.js'
       - 'worker/production-auth-boundary.test.mjs'
       - 'worker/production-global-owner-access.test.mjs'
@@ -221,6 +223,8 @@ jobs:
         run: node scripts/test-bootstrap-production-admin.mjs
       - name: Check production login throttling
         run: node --experimental-default-type=module --test worker/production-login-guard.test.mjs
+      - name: Check global owner disabled user creation
+        run: node --experimental-default-type=module --test worker/production-owner-create-user.test.mjs
       - name: Check owner-only production user administration reads
         run: node --experimental-default-type=module --test worker/production-owner-administration.test.mjs
       - name: Check verified global owner feature authorization
