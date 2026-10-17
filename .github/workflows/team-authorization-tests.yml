@@ -19,6 +19,8 @@ on:
       - 'worker/lagpersonal-kv-ownership.test.mjs'
       - 'reference/legacy-nsk-api-worker-v42.snapshot.js'
       - 'scripts/audit-production-worker-snapshot.mjs'
+      - 'worker/production-personal-staff-mutation.js'
+      - 'worker/production-personal-staff-mutation.test.mjs'
       - 'worker/production-personal-roster-mutation.js'
       - 'worker/production-personal-roster-mutation.test.mjs'
       - 'worker/production-auth-boundary.js'
@@ -73,6 +75,8 @@ on:
       - 'worker/lagpersonal-kv-ownership.test.mjs'
       - 'reference/legacy-nsk-api-worker-v42.snapshot.js'
       - 'scripts/audit-production-worker-snapshot.mjs'
+      - 'worker/production-personal-staff-mutation.js'
+      - 'worker/production-personal-staff-mutation.test.mjs'
       - 'worker/production-personal-roster-mutation.js'
       - 'worker/production-personal-roster-mutation.test.mjs'
       - 'worker/production-auth-boundary.js'
@@ -135,6 +139,8 @@ jobs:
         run: node scripts/audit-production-worker-snapshot.mjs
       - name: Check trusted legacy team ID mapping
         run: node --test worker/production-team-id-map.test.mjs
+      - name: Check personally authorized lagpersonal writes
+        run: node --experimental-default-type=module --test worker/production-personal-staff-mutation.test.mjs
       - name: Check personally authorized roster mutations
         run: node --experimental-default-type=module --test worker/production-personal-roster-mutation.test.mjs
       - name: Check allowlisted production authentication endpoints
