@@ -41,9 +41,9 @@ test('derives both pool and team position from trusted shift row', async () => {
   assert.equal(owner.poolId, 12);
 });
 
-test('fails closed when requested team position is not linked to the pool', async () => {
-  const db = fakeBaserow({ '1255101/12': { Lag: [{ id: 91 }] } });
-  await assert.rejects(createPoolOwnerResolver(env, db.fetchImpl)({ poolId: 12, lagNo: 2 }), /Poolspel saknar angivet lag/);
+test('fails closed when requested team position is not linked to a multi-team pool', async () => {
+  const db = fakeBaserow({ '1255101/12': { Lag: [{ id: 91 }, { id: 92 }] } });
+  await assert.rejects(createPoolOwnerResolver(env, db.fetchImpl)({ poolId: 12, lagNo: 3 }), /Poolspel saknar angivet lag/);
   assert.equal(db.requested.length, 1);
 });
 
@@ -61,4 +61,15 @@ test('fails closed on missing Baserow token and malformed IDs', async () => {
   await assert.rejects(createPoolOwnerResolver(env, db.fetchImpl)({ poolId: 0, lagNo: 1 }));
   await assert.rejects(createPoolOwnerResolver(env, db.fetchImpl)({ poolId: 12, lagNo: -1 }));
   assert.equal(db.requested.length, 0);
+});
+
+test('one linked association team owns every numbered squad in its pool', async () => {
+  const db = fakeBaserow({
+    '1255101/12': { Lag: [{ id: 91 }], 'Antal lag': 3 },
+    '1255083/91': { id: 91, Namn: 'NSK Team 18' }
+  });
+  for (const lagNo of [1, 2, 3]) {
+    const owner = await createPoolOwnerResolver(env, db.fetchImpl)({ poolId: 12, lagNo });
+    assert.equal(owner.teamId, 'NSK Team 18');
+  }
 });
