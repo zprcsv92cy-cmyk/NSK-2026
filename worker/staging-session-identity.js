@@ -8,7 +8,7 @@ export async function verifyStagingSession(token, env) {
   const digest = await crypto.subtle.digest('SHA-256', bytes);
   const hash = [...new Uint8Array(digest)].map(byte => byte.toString(16).padStart(2, '0')).join('');
   const db = env.AUTH_DB;
-  const user = await db.prepare(`SELECT u.id, u.display_name FROM auth_sessions s
+  const user = await db.prepare(`SELECT u.id, u.display_name, EXISTS(SELECT 1 FROM auth_global_admins ga WHERE ga.user_id=u.id AND ga.enabled=1) AS is_global_admin FROM auth_sessions s
     JOIN auth_users u ON u.id=s.user_id
     WHERE s.token_hash=? AND s.revoked_at IS NULL
       AND s.expires_at > datetime('now') AND u.disabled=0`).bind(hash).first();
@@ -19,11 +19,10 @@ export async function verifyStagingSession(token, env) {
   const grants = await db.prepare(
     'SELECT permission FROM auth_user_permissions WHERE user_id=?'
   ).bind(user.id).all();
-  const globalAdmin = await db.prepare("SELECT 1 AS enabled FROM auth_global_admins WHERE user_id=? AND enabled=1").bind(user.id).first();
   return {
     user: { id: user.id, name: user.display_name },
     memberships: memberships.results || [],
     permissions: (grants.results || []).map(row => row.permission),
-    is_global_admin: !!globalAdmin
+    is_global_admin: user.is_global_admin === 1 || user.is_global_admin === true
   };
 }
