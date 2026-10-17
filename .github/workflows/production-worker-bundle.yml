@@ -206,6 +206,33 @@ jobs:
               body: JSON.stringify({ action: 'save', pool_id: 12, lag_no: 1, match_no: 1, shifts: [] })
             }));
             if (save.status !== 200) throw Error('ShiftLock.save failed for non-Team-18 pool: ' + save.status);
+            // Concurrent requests to the same Durable Object must not overlap.
+            let active = 0, peak = 0;
+            globalThis.fetch = async (url, init = {}) => {
+              if (!String(url).startsWith(base)) throw Error('External network blocked');
+              if (init.headers?.Authorization !== 'Token fake-baserow') throw Error('Unexpected token');
+              const path = String(url).slice(base.length).split('?')[0].replace(/\\/$/, '');
+              if (init.method === 'PATCH' && path === '1255115/31') {
+                active++; peak = Math.max(peak, active);
+                await new Promise(resolve => setTimeout(resolve, 20));
+                Object.assign(rows[path], JSON.parse(init.body));
+                active--;
+                return Response.json(rows[path]);
+              }
+              if (path === '1255101/12' || path === '1255083/92' || path === '1255115/31')
+                return Response.json(rows[path]);
+              throw Error('Unexpected Baserow operation: ' + path);
+            };
+            const makeDone = done => new Request('https://shift-lock.internal/', {
+              method: 'POST', headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ action: 'done', id: 31, pool_id: 12, lag_no: 1, match_no: 1, done })
+            });
+            const [first, second] = await Promise.all([
+              lock.fetch(makeDone(false)), lock.fetch(makeDone(true))
+            ]);
+            if (first.status !== 200 || second.status !== 200 || peak !== 1 ||
+                rows['1255115/31']['Genomfört'] !== true)
+              throw Error('Concurrent done requests were not serialized correctly');
           } finally { globalThis.fetch = originalFetch; }
           NODE
       - name: Upload candidate to Cloudflare (manual only, no deployment)
