@@ -47,7 +47,7 @@ test('pool owner resolver uses trusted pool links and selected lag number', asyn
     '1255101:40': { id: 40, Lag: [{ id: 8 }, { id: 18 }] },
     '1255083:18': { id: 18, Namn: 'NSK Team 18' }
   }));
-  assert.deepEqual(await resolver({ poolId: 40, lagNo: 2 }), { teamId: '18', teamName: 'NSK Team 18', poolId: 40 });
+  assert.deepEqual(await resolver({ poolId: 40, lagNo: 2 }), { teamId: 'NSK Team 18', teamName: 'NSK Team 18', baserowTeamRowId: '18', poolId: 40 });
 });
 test('pool owner resolver derives pool and lag from trusted shift row', async () => {
   const resolver = createPoolOwnerResolver({ BASEROW_TOKEN: 'test' }, fakeBaserow({
