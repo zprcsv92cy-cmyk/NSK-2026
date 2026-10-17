@@ -94,7 +94,7 @@ test('uses only configured isolated Baserow tables for owner lookup', async () =
 });
 
 test('rejects missing or invalid isolated table mapping without legacy fallback', async () => {
-  for (const mapping of ['{}', '{"lag":991,"poolspel":992}', '{"lag":991,"poolspel":992,"bytesschema":0}', 'not-json']) {
+  for (const mapping of ['{}', '{"lag":991,"poolspel":992}', '{"lag":991,"poolspel":992,"bytesschema":0}', '{"lag":1255083,"poolspel":992,"bytesschema":993}', 'not-json']) {
     const db = fakeBaserow({});
     const isolated = { ...env, BASEROW_TABLE_IDS: mapping };
     await assert.rejects(createPoolOwnerResolver(isolated, db.fetchImpl)({ shiftRowId: 31 }));
