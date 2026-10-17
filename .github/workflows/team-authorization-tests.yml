@@ -27,6 +27,7 @@ on:
       - 'worker/staging-session-identity.test.mjs'
       - 'worker/staging-auth-dispatch.js'
       - 'worker/staging-auth-dispatch.test.mjs'
+      - '.github/workflows/auth-production.yml'
       - 'wrangler.auth.production.toml'
       - 'worker/production-entry.js'
       - '.github/workflows/team-authorization-tests.yml'
@@ -34,6 +35,7 @@ on:
     paths:
       - 'login/index.html'
       - 'startsida/index.html'
+      - '.github/workflows/auth-production.yml'
       - 'wrangler.auth.production.toml'
       - 'worker/production-entry.js'
       - '.github/workflows/team-authorization-tests.yml'
@@ -61,6 +63,7 @@ on:
       - 'worker/staging-session-identity.test.mjs'
       - 'worker/staging-auth-dispatch.js'
       - 'worker/staging-auth-dispatch.test.mjs'
+      - '.github/workflows/auth-production.yml'
       - 'wrangler.auth.production.toml'
       - 'worker/production-entry.js'
       - '.github/workflows/team-authorization-tests.yml'
