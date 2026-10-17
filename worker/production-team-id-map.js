@@ -20,7 +20,7 @@ export function mapTrustedMembershipsToLegacyTeams(actor, teams, {
       for (const row of teams) {
         if (String(row?.['Säsong']) !== season) continue;
         const id = String(row.id);
-        if (!/^[1-9]\\d*$/.test(id) || !Number.isSafeInteger(Number(id)) ||
+        if (!/^[1-9]\d*$/.test(id) || !Number.isSafeInteger(Number(id)) ||
             typeof row.Namn !== 'string' || !row.Namn.trim() ||
             teams.filter(t=>t?.Namn===row.Namn&&String(t['Säsong'])===season).length!==1 ||
             resolved.some(x=>x.team_id===id)) throw Error('Ambiguous global team mapping');
