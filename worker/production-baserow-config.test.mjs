@@ -8,7 +8,7 @@ const isolated = Object.fromEntries(names.map((name, i) => [name, 990001 + i]));
 const get = (env) => worker.fetch(new Request('https://nsk.test/api/lag'), env);
 
 test('rejects incomplete isolated Baserow configuration before any network request', async () => {
-  for (const config of ['{}', 'not-json', JSON.stringify({ ...isolated, lag: 0 }), JSON.stringify({ ...isolated, extra: 4 })]) {
+  for (const config of ['{}', 'not-json', JSON.stringify({ ...isolated, lag: 0 }), JSON.stringify({ ...isolated, extra: 4 }), JSON.stringify({ ...isolated, lag: 1255083 }), JSON.stringify({ ...isolated, poolspel: 1255101 }), JSON.stringify({ ...isolated, lag: isolated.spelare })]) {
     const response = await get({ BASEROW_TABLE_IDS: config, BASEROW_TOKEN: 'fake' });
     assert.equal(response.status, 503);
     assert.match((await response.json()).error, /Invalid Baserow table mapping/);
