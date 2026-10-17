@@ -19,6 +19,8 @@ on:
       - 'worker/lagpersonal-kv-ownership.test.mjs'
       - 'reference/legacy-nsk-api-worker-v42.snapshot.js'
       - 'scripts/audit-production-worker-snapshot.mjs'
+      - 'worker/production-personal-shift-done.js'
+      - 'worker/production-personal-shift-done.test.mjs'
       - 'worker/production-personal-lineup-write.js'
       - 'worker/production-personal-lineup-write.test.mjs'
       - 'worker/production-personal-match-write.js'
@@ -85,6 +87,8 @@ on:
       - 'worker/lagpersonal-kv-ownership.test.mjs'
       - 'reference/legacy-nsk-api-worker-v42.snapshot.js'
       - 'scripts/audit-production-worker-snapshot.mjs'
+      - 'worker/production-personal-shift-done.js'
+      - 'worker/production-personal-shift-done.test.mjs'
       - 'worker/production-personal-lineup-write.js'
       - 'worker/production-personal-lineup-write.test.mjs'
       - 'worker/production-personal-match-write.js'
@@ -159,6 +163,8 @@ jobs:
         run: node scripts/audit-production-worker-snapshot.mjs
       - name: Check trusted legacy team ID mapping
         run: node --test worker/production-team-id-map.test.mjs
+      - name: Check personally authorized shift completion
+        run: node --experimental-default-type=module --test worker/production-personal-shift-done.test.mjs
       - name: Check personally authorized lineup saves
         run: node --experimental-default-type=module --test worker/production-personal-lineup-write.test.mjs
       - name: Check personally authorized match configuration writes
