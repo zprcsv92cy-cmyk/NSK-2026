@@ -46,3 +46,9 @@ Cloudflare's Workers deployment API supports creating a deployment with a `versi
 4. Run read-only API smoke checks, then authorized application checks. If state migrations occurred, reverting Worker code alone may not revert Durable Object or D1 data.
 
 Do **not** run a rollback simply to test the procedure on live production. Migration history remains unverified.
+
+## Source audit: ShiftLock (2026-10-17)
+
+The `main` branch's `worker/production-api-v42-reference.js` defines `var ShiftLock = class { ... }` and explicitly exports `ShiftLock` alongside the default Worker handler. The current `wrangler.api.production.toml` binds `SHIFT_LOCK` to `class_name = "ShiftLock"`, but has no `[[migrations]]` declaration.
+
+This matches the existing deployed class name and namespace owner, **but is not proof of migration continuity**. No migration tag should be guessed. Before a new Worker version is uploaded, obtain authoritative migration history from the original deployment artifacts or Cloudflare and verify whether this already-created class can be deployed without a new migration entry. Preserve the existing namespace ID and stored objects.
