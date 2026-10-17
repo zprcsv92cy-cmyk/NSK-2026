@@ -1,0 +1,34 @@
+import { strict as assert } from 'node:assert';
+import { test } from 'node:test';
+import { guardShiftRoute } from './production-shift-route-guard.js';
+
+const actor = { memberships: [{ team_id: '18', role: 'team_admin' }], permissions: ['shifts:check'] };
+const env = { AUTH_DB: {} };
+const verifyIdentity = async token => token === 'valid' ? actor : null;
+const req = (path, body = {}, method = 'POST') => new Request('https://nsk.test' + path, {
+  method, headers: { Authorization: 'Bearer valid', 'Content-Type': 'application/json' }, body: JSON.stringify(body)
+});
+
+test('shift save authorizes the server-resolved pool owner before mutation', async () => {
+  let writes = 0;
+  const response = await guardShiftRoute(req('/api/bytesschema/save', { pool_id: 10, lag_no: 1, match_no: 2 }), env, {
+    verifyIdentity, findPoolOwner: async ({ poolId }) => ({ teamId: poolId === 10 ? '18' : '2' }),
+    mutate: async () => { writes++; return Response.json({ ok: true }); }
+  });
+  assert.equal(response.status, 200);
+  assert.equal(writes, 1);
+});
+
+test('cross-team, missing identity and client-supplied team are denied before mutation', async () => {
+  let writes = 0;
+  const options = { verifyIdentity, findPoolOwner: async ({ poolId }) => ({ teamId: poolId === 10 ? '18' : '2' }), mutate: async () => { writes++; return Response.json({ ok: true }); } };
+  assert.equal((await guardShiftRoute(req('/api/bytesschema/save', { pool_id: 11, lag_no: 1, match_no: 2 }), env, options)).status, 403);
+  assert.equal((await guardShiftRoute(req('/api/bytesschema/save', { pool_id: 10, lag_no: 1, match_no: 2, team_id: '18' }), env, options)).status, 400);
+  assert.equal((await guardShiftRoute(req('/api/bytesschema/save'), env, { ...options, verifyIdentity: async () => null })).status, 401);
+  assert.equal(writes, 0);
+});
+
+test('fails closed when AUTH_DB or pool owner resolver is missing', async () => {
+  assert.equal((await guardShiftRoute(req('/api/bytesschema/save', { pool_id: 10 }), {}, { verifyIdentity, findPoolOwner: async () => ({ teamId: '18' }), mutate: async () => {} })).status, 503);
+  assert.equal((await guardShiftRoute(req('/api/bytesschema/save', { pool_id: 10 }), env, { verifyIdentity, mutate: async () => {} })).status, 503);
+});
