@@ -35,3 +35,13 @@ test('fails closed when pool lookup fails', async () => {
   assert.equal(result.status, 503);
   assert.equal(writes, 0);
 });
+
+test('rejects an overlong server-resolved team identifier before mutation', async () => {
+  let writes = 0;
+  const result = await authorizeShiftWrite(actor, 42, {
+    findPoolOwner: async () => 'x'.repeat(101),
+    mutate: async () => { writes++; return { ok: true }; }
+  });
+  assert.equal(result.status, 403);
+  assert.equal(writes, 0);
+});
