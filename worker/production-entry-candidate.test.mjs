@@ -11,6 +11,14 @@ assert.equal(result.status,405,'Personal write routes are disabled');
 result=await candidate.fetch(request('/api/personal/unknown'),noPersonalBinding,{});
 assert.equal(result.status,404,'Unrecognized personal path is denied');
 
+for (const path of ['/api/lag','/api/spelare','/api/tranare','/api/poolspel','/api/bytesschema']) {
+  for (const method of ['GET','POST']) {
+    result=await candidate.fetch(request(path,method),noPersonalBinding,{});
+    assert.equal(result.status,503,`${method} ${path} must fail closed until authorized`);
+    assert.equal(result.headers.get('cache-control'),'no-store');
+  }
+}
+
 const oldFetch=globalThis.fetch;
 let calls=0;
 globalThis.fetch=async requestUrl=>{
@@ -27,4 +35,4 @@ try {
 } finally {
   globalThis.fetch=oldFetch;
 }
-console.log('PASS migration entrypoint: legacy health preserved, personal endpoint fail closed');
+console.log('PASS migration entrypoint: legacy API denied, legacy health preserved, personal endpoint fail closed');
