@@ -71,6 +71,8 @@ on:
       - 'auth.js'
       - 'config.js'
       - 'scripts/test-production-auth-client.mjs'
+      - 'scripts/bootstrap-production-admin.mjs'
+      - 'scripts/test-bootstrap-production-admin.mjs'
       - '.github/workflows/team-authorization-tests.yml'
   pull_request:
     paths:
@@ -79,6 +81,8 @@ on:
       - 'auth.js'
       - 'config.js'
       - 'scripts/test-production-auth-client.mjs'
+      - 'scripts/bootstrap-production-admin.mjs'
+      - 'scripts/test-bootstrap-production-admin.mjs'
       - '.github/workflows/team-authorization-tests.yml'
       - 'worker/team-authorization-policy.js'
       - 'worker/team-authorization-policy.test.mjs'
@@ -148,6 +152,8 @@ on:
       - 'auth.js'
       - 'config.js'
       - 'scripts/test-production-auth-client.mjs'
+      - 'scripts/bootstrap-production-admin.mjs'
+      - 'scripts/test-bootstrap-production-admin.mjs'
       - '.github/workflows/team-authorization-tests.yml'
 jobs:
   security-checks:
@@ -205,6 +211,8 @@ jobs:
         run: node --experimental-default-type=module --test worker/production-personal-roster-mutation.test.mjs
       - name: Verify production login D1 schema
         run: python3 scripts/test-production-login-schema.py
+      - name: Dry-run first production administrator activation
+        run: node scripts/test-bootstrap-production-admin.mjs
       - name: Check production login throttling
         run: node --experimental-default-type=module --test worker/production-login-guard.test.mjs
       - name: Check allowlisted production authentication endpoints
