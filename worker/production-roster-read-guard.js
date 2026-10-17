@@ -39,6 +39,11 @@ export async function guardProductionRosterRead(request, {
   if (!actor.memberships.some(m => m && m.team_id === ownerTeam)) {
     return deny(403, 'Saknar åtkomst till laget');
   }
+  // Team membership alone does not grant read access: require an explicit
+  // personal read permission from the verified server-side session.
+  if (!Array.isArray(actor.permissions) || !actor.permissions.includes('read')) {
+    return deny(403, 'Saknar läsbehörighet');
+  }
   // Never let a user swap another team into a query parameter after ownership resolution.
   const suppliedTeams = url.searchParams.getAll('team_id');
   if (suppliedTeams.length > 1 ||
