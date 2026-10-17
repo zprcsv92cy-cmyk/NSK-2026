@@ -41,6 +41,8 @@ on:
       - 'worker/production-personal-roster-mutation.test.mjs'
       - 'worker/production-login-guard.js'
       - 'worker/production-login-guard.test.mjs'
+      - 'scripts/test-production-login-schema.py'
+      - 'migrations/production-auth/001_login_attempts.sql'
       - 'worker/production-auth-boundary.js'
       - 'worker/production-auth-boundary.test.mjs'
       - 'worker/production-personal-preflight.test.mjs'
@@ -116,6 +118,8 @@ on:
       - 'worker/production-personal-roster-mutation.test.mjs'
       - 'worker/production-login-guard.js'
       - 'worker/production-login-guard.test.mjs'
+      - 'scripts/test-production-login-schema.py'
+      - 'migrations/production-auth/001_login_attempts.sql'
       - 'worker/production-auth-boundary.js'
       - 'worker/production-auth-boundary.test.mjs'
       - 'worker/production-personal-preflight.test.mjs'
@@ -199,6 +203,8 @@ jobs:
         run: node --experimental-default-type=module --test worker/production-personal-staff-mutation.test.mjs
       - name: Check personally authorized roster mutations
         run: node --experimental-default-type=module --test worker/production-personal-roster-mutation.test.mjs
+      - name: Verify production login D1 schema
+        run: python3 scripts/test-production-login-schema.py
       - name: Check production login throttling
         run: node --experimental-default-type=module --test worker/production-login-guard.test.mjs
       - name: Check allowlisted production authentication endpoints
