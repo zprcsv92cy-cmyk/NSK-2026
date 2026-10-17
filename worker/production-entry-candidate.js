@@ -4,6 +4,7 @@ import legacyWorker, { ShiftLock } from '../reference/legacy-nsk-api-worker-v42.
 import { handlePersonalRosterRead } from './production-personal-roster-endpoint.js';
 import { handlePersonalRosterMutation } from './production-personal-roster-mutation.js';
 import { handlePersonalStaffMutation } from './production-personal-staff-mutation.js';
+import { handlePersonalTeamList } from './production-personal-teams.js';
 import { handleProductionAuth } from './production-auth-boundary.js';
 
 const PERSONAL_PREFIX = '/api/personal/';
@@ -18,6 +19,13 @@ export default {
       const origin=request.headers.get('Origin');
       if(origin && origin!=='https://zprcsv92cy-cmyk.github.io')
         return Response.json({ok:false,error:'Origin not allowed'},{status:403});
+      if(pathname==='/api/personal/lag' && request.method==='GET'){
+        const response=await handlePersonalTeamList(request,env);
+        const headers=new Headers(response.headers);
+        headers.set('Vary','Origin');
+        if(origin==='https://zprcsv92cy-cmyk.github.io')headers.set('Access-Control-Allow-Origin',origin);
+        return new Response(response.body,{status:response.status,headers});
+      }
       const mutation=/^\/api\/personal\/(spelare|tranare)(?:\/\d+)?$/.test(pathname);
       const staffMutation=pathname==='/api/personal/lagpersonal';
       if(request.method==='OPTIONS' && (mutation || staffMutation) && origin==='https://zprcsv92cy-cmyk.github.io')
