@@ -6,7 +6,7 @@ export default {
   async fetch(request, env) {
     const path = new URL(request.url).pathname;
     const userAction = /^\/api\/auth\/users\/[a-f0-9-]{36}\/(?:permissions|setup-token|status)$/.test(path);
-    const actionMethod = path.endsWith('/permissions') || path.endsWith('/status') ? 'PUT' : 'POST';
+    const actionMethod = path.endsWith('/permissions') ? 'PUT' : (path.endsWith('/status') ? 'PATCH' : 'POST');
     const methods = allowed.get(path) || (userAction ? actionMethod : null);
     if (!methods) return new Response('Not found', {status:404});
     const origin = request.headers.get('Origin');
