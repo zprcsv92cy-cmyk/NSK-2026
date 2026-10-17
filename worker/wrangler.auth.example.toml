@@ -1,0 +1,10 @@
+# Example only. Do not deploy this file as-is.
+# Create a separate staging Worker and D1 database before configuring production.
+name = "nsk-auth-staging"
+main = "worker/staging-entry.js"
+compatibility_date = "2026-10-01"
+
+[[d1_databases]]
+binding = "AUTH_DB"
+database_name = "nsk-auth-staging"
+database_id = "REPLACE_WITH_STAGING_D1_DATABASE_UUID"

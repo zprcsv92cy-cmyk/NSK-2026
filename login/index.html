@@ -1,0 +1,55 @@
+<!doctype html>
+<html lang="sv">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Logga in – NSK</title>
+<link rel="stylesheet" href="../app.css">
+<style>
+main{max-width:440px;margin:3rem auto;padding:1.5rem}
+form,label{display:grid;gap:12px}
+label{gap:5px}
+input{width:100%;box-sizing:border-box}
+#message{min-height:1.5em}
+</style>
+</head>
+<body>
+<main class="card">
+<h1>Logga in</h1>
+<p>Personlig inloggning för NSK:s lag.</p>
+<form id="loginForm">
+<label>E-postadress<input id="email" type="email" autocomplete="username" required></label>
+<label>Lösenord<input id="password" type="password" autocomplete="current-password" required></label>
+<button id="submitButton" type="submit">Logga in</button>
+<p id="message" role="status" aria-live="polite"></p>
+</form>
+<a href="../startsida/">Till startsidan</a>
+</main>
+<script src="../version.js"></script>
+<script>
+  document.write('<script src="../config.js?v=' + window.NSK_VERSION + '"><\/script>');
+  document.write('<script src="../auth.js?v=' + window.NSK_VERSION + '"><\/script>');
+</script>
+<script>
+document.getElementById('loginForm').addEventListener('submit',async function(event){
+ event.preventDefault();
+ const button=document.getElementById('submitButton');
+ const message=document.getElementById('message');
+ button.disabled=true;
+ message.textContent='Kontrollerar inloggningen…';
+ try{
+   const email=document.getElementById('email').value.trim();
+   const password=document.getElementById('password').value;
+   const session=await Auth.login(email,password);
+   message.textContent='Inloggad som '+session.user.name;
+   location.replace('../startsida/');
+ }catch(error){
+   message.textContent=error.message||'Inloggningen misslyckades';
+ }finally{
+   document.getElementById('password').value='';
+   button.disabled=false;
+ }
+});
+</script>
+</body>
+</html>

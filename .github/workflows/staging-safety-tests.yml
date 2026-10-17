@@ -1,0 +1,48 @@
+name: NSK staging safety tests (no deployment)
+
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - '.github/workflows/staging-safety-tests.yml'
+      - 'scripts/check-staging-imports.mjs'
+      - 'scripts/test-auth-staging.mjs'
+      - 'scripts/check-production-auth-readiness.mjs'
+      - 'scripts/test-authenticated-staging-readonly.mjs'
+      - 'worker/**'
+      - 'wrangler.auth.staging.toml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: nsk-staging-safety-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  staging-security:
+    name: staging-security
+    runs-on: ubuntu-latest
+    timeout-minutes: 8
+    steps:
+      - name: Checkout source under test
+        uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+      - name: Report production-release blockers (informational, never deploys)
+        run: node scripts/check-production-auth-readiness.mjs
+      - name: Verify staging imports and JavaScript syntax
+        run: node scripts/check-staging-imports.mjs
+      - name: Syntax-check opt-in authenticated read-only live tests
+        run: node --check scripts/test-authenticated-staging-readonly.mjs
+      - name: Run local Worker security regression tests
+        run: node --test worker/*.test.mjs
+      - name: Check live staging HTTP authorization denials
+        env:
+          NSK_AUTH_STAGING_URL: https://nsk-auth-staging.peter-hasselberg.workers.dev
+        run: node scripts/test-auth-staging.mjs

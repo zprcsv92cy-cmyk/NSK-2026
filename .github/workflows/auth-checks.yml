@@ -1,0 +1,41 @@
+name: NSK auth checks (no deployment)
+on:
+  push:
+    branches:
+      - feature/team-role-auth-foundation
+  pull_request:
+    branches:
+      - main
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  security-checks:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Verify legacy roster adapter team isolation
+        run: node scripts/test-staging-legacy-roster-adapter.mjs
+      - name: Verify server-side team authorization policy
+        run: node scripts/test-team-authorization-policy.mjs
+      - name: Verify legacy write migration authorization map
+        run: node scripts/test-legacy-write-authorization.mjs
+      - name: Verify isolated protected write gateway
+        run: node scripts/test-protected-legacy-write.mjs
+      - name: Inventory legacy API access (read-only)
+        run: node scripts/audit-legacy-api.mjs
+      - name: Shared auth client login and logout
+        run: node scripts/test-auth-client.mjs
+      - name: Denied roster and lineup writes
+        run: node scripts/test-staging-write-denials.mjs
+      - name: Existing legacy ID compatibility
+        run: node scripts/test-legacy-db-auth-guard.mjs
+      - name: Existing match and shift references
+        run: node scripts/test-legacy-relationships.mjs
+      - name: Existing db.js integration
+        run: node scripts/test-existing-db-integration.mjs
+      - name: Account activation inputs
+        run: node scripts/test-account-activation.mjs

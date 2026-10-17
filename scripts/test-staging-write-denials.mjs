@@ -1,0 +1,151 @@
+import assert from 'node:assert/strict';
+import { stagingRoster } from '../worker/staging-roster.js';
+import { stagingLineups } from '../worker/staging-lineups.js';
+
+const team='NSK Team 18';
+const actor={memberships:[{team_id:team,role:'viewer'}],permissions:['read']};
+let databaseCalls=0;
+const db={prepare(){databaseCalls++;throw Error('Database must not be touched by denied write');}};
+const json=(body,status=200)=>new Response(JSON.stringify(body),{status,headers:{'content-type':'application/json'}});
+const uuid='00000000-0000-4000-8000-000000000000';
+const cases=[
+ ['trupp: skapa',stagingRoster,'POST','/api/auth/roster-staging'],
+ ['trupp: ändra',stagingRoster,'PATCH','/api/auth/roster-staging/'+uuid],
+ ['trupp: ta bort',stagingRoster,'DELETE','/api/auth/roster-staging/'+uuid],
+ ['laguppställning: skapa',stagingLineups,'POST','/api/auth/lineups-staging'],
+ ['laguppställning: ändra',stagingLineups,'PATCH','/api/auth/lineups-staging'],
+ ['laguppställning: ta bort',stagingLineups,'DELETE','/api/auth/lineups-staging']
+];
+for(const [name,handler,method,path] of cases){
+ const url='https://staging.invalid'+path+'?team_id='+encodeURIComponent(team)+'&id='+uuid;
+ const response=await handler(new Request(url,{method}),db,actor,json);
+ assert.equal(response.status,403,name+' should return 403');
+ console.log('PASS',name,'403');
+}
+assert.equal(databaseCalls,0,'Denied writes must not reach the database');
+for(const [name,handler,method,path] of cases){
+ const response=await handler(new Request('https://staging.invalid'+path+'?team_id=Annat+lag&id='+uuid,{method}),db,actor,json);
+ assert.equal(response.status,403,name+' must deny another team');
+}
+console.log('PASS cross-team denials, no database operations');
+
+for(const role of ['viewer','player','coach','team_manager','fitness','equipment']){
+ const elevated={memberships:[{team_id:team,role}],permissions:['roster:manage','lineup:edit']};
+ for(const [name,handler,method,path] of cases){
+  const response=await handler(new Request('https://staging.invalid'+path+'?team_id='+encodeURIComponent(team)+'&id='+uuid,{method}),db,elevated,json);
+  assert.equal(response.status,403,role+' with global grant must not write: '+name);
+ }
+}
+for(const [name,handler,method,path] of cases){
+ const response=await handler(new Request('https://staging.invalid'+path+'?team_id='+encodeURIComponent(team)+'&id='+uuid,{method}),db,null,json);
+ assert.equal(response.status,401,'Unauthenticated: '+name);
+}
+assert.equal(databaseCalls,0,'No denied writes may access the database');
+console.log('PASS role escalation and unauthenticated write denials');
+
+// Read access must also reject unauthenticated and cross-team requests before SQL.
+for(const [name,handler,path] of [
+ ['trupp',stagingRoster,'/api/auth/roster-staging'],
+ ['laguppställning',stagingLineups,'/api/auth/lineups-staging']
+]){
+ const ownUrl='https://staging.invalid'+path+'?team_id='+encodeURIComponent(team);
+ const otherUrl='https://staging.invalid'+path+'?team_id='+encodeURIComponent('Annat lag');
+ assert.equal((await handler(new Request(ownUrl),db,null,json)).status,401,name+' read requires login');
+ assert.equal((await handler(new Request(otherUrl),db,actor,json)).status,403,name+' read must reject another team');
+ assert.equal((await handler(new Request('https://staging.invalid'+path),db,actor,json)).status,400,name+' read requires team');
+}
+assert.equal(databaseCalls,0,'Denied reads must not touch the database');
+console.log('PASS unauthenticated and cross-team read denials before SQL');
+
+
+for(const memberships of [null,{},[null],[]]){
+ const malformed={memberships,permissions:['lineup:edit']};
+ const response=await stagingLineups(new Request('https://staging.invalid/api/auth/lineups-staging?team_id='+encodeURIComponent(team),{method:'POST'}),db,malformed,json);
+ assert.equal(response.status,403,'Malformed lineup memberships must be rejected');
+}
+assert.equal(databaseCalls,0,'Malformed lineup requests must not reach the database');
+console.log('PASS malformed lineup memberships rejected without database access');
+
+
+for(const memberships of [null,{},[null],[]]){
+ const malformed={memberships,permissions:['roster:manage']};
+ const response=await stagingRoster(new Request('https://staging.invalid/api/auth/roster-staging?team_id='+encodeURIComponent(team),{method:'POST'}),db,malformed,json);
+ assert.equal(response.status,403,'Malformed roster memberships must be rejected');
+}
+assert.equal(databaseCalls,0,'Malformed roster requests must not reach the database');
+console.log('PASS malformed roster memberships rejected without database access');
+
+
+const lineupAdmin={user:{id:uuid},memberships:[{team_id:team,role:'team_admin'}],permissions:['lineup:edit']};
+const lineupUrl='https://staging.invalid/api/auth/lineups-staging?team_id='+encodeURIComponent(team);
+for(const [name,payload] of [
+ ['empty match name',{match_name:'',player_ids:[],coach_ids:[]}],
+ ['invalid date',{match_name:'Test',match_date:'2026-99-99-xx',player_ids:[],coach_ids:[]}],
+ ['duplicate players',{match_name:'Test',player_ids:[uuid,uuid],coach_ids:[]}],
+ ['goalie also outfield',{match_name:'Test',player_ids:[uuid],coach_ids:[],goalie_id:uuid}],
+ ['invalid position',{match_name:'Test',player_ids:[],coach_ids:[],positions:{[uuid]:'forward'}}],
+ ['invalid unit',{match_name:'Test',player_ids:[],coach_ids:[],units:{[uuid]:'line1'}}],
+ ['too many players',{match_name:'Test',player_ids:Array.from({length:101},(_,i)=>'00000000-0000-4000-8000-'+String(i).padStart(12,'0')),coach_ids:[]}]
+]){
+ const response=await stagingLineups(new Request(lineupUrl,{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify(payload)}),db,lineupAdmin,json);
+ assert.equal(response.status,400,name+' must be rejected before SQL');
+}
+assert.equal(databaseCalls,0,'Invalid lineup payloads must not reach the database');
+console.log('PASS invalid lineup payloads rejected before SQL');
+
+
+let lineupLookupCalls=0;
+const wrongTeamDb={prepare(sql){
+ lineupLookupCalls++;
+ assert.ok(sql.includes('FROM auth_roster_staging WHERE team_id=?'),'Lineup validation must query roster by team');
+ return {bind(...args){
+  assert.equal(args[0],team,'Roster lookup must use selected team');
+  return {all:async()=>({results:[]})};
+ }};
+}};
+for(const [name,payload] of [
+ ['player from another team',{match_name:'Cross-team player',player_ids:[uuid],coach_ids:[]}],
+ ['coach from another team',{match_name:'Cross-team coach',player_ids:[],coach_ids:[uuid]}],
+ ['goalie from another team',{match_name:'Cross-team goalie',player_ids:[],coach_ids:[],goalie_id:uuid}]
+]){
+ const response=await stagingLineups(new Request(lineupUrl,{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify(payload)}),wrongTeamDb,lineupAdmin,json);
+ assert.equal(response.status,400,name+' must be rejected');
+}
+assert.equal(lineupLookupCalls,3,'Each foreign member must be validated in selected team');
+console.log('PASS lineup rejects cross-team players, coaches and goalies');
+
+
+const createdLineups=new Map();
+const crudDb={prepare(sql){return {bind(...args){return {
+ async run(){
+  if(sql.startsWith('INSERT INTO auth_lineups_staging(')){createdLineups.set(args[0],{id:args[0],team_id:args[1],match_name:args[2],goalie_id:args[3],player_ids:args[4],coach_ids:args[5],created_at:'2026-10-15'});return {meta:{changes:1}};}
+  if(sql.startsWith('UPDATE auth_lineups_staging SET')){const row=createdLineups.get(args[4]);if(!row||row.team_id!==args[5])return {meta:{changes:0}};Object.assign(row,{match_name:args[0],goalie_id:args[1],player_ids:args[2],coach_ids:args[3]});return {meta:{changes:1}};}
+  if(sql.startsWith('DELETE FROM auth_lineups_staging WHERE')){const row=createdLineups.get(args[0]);if(!row||row.team_id!==args[1])return {meta:{changes:0}};createdLineups.delete(args[0]);return {meta:{changes:1}};}
+  return {meta:{changes:1}};
+ },
+ async all(){if(sql.startsWith('SELECT l.id,'))return {results:[...createdLineups.values()].filter(row=>row.team_id===args[0]).map(row=>({...row,match_date:null,opponent:null,start_time:null,gathering_time:null,positions_json:null,units_json:null}))};throw Error('Unexpected SELECT: '+sql);}
+};}};}};
+const crudPayload=(match_name)=>({match_name,player_ids:[],coach_ids:[]});
+const sendLineup=(method,url,payload)=>stagingLineups(new Request(url,{method,headers:{'content-type':'application/json'},...(payload?{body:JSON.stringify(payload)}:{})}),crudDb,lineupAdmin,json);
+const createResponse=await sendLineup('POST',lineupUrl,crudPayload('NSK CRUD TEST'));
+assert.equal(createResponse.status,201,'Create lineup');
+const created=await createResponse.json();
+assert.ok(createdLineups.has(created.id));
+let listResponse=await sendLineup('GET',lineupUrl);
+assert.equal(listResponse.status,200,'List lineups');
+assert.equal((await listResponse.json()).lineups.find(x=>x.id===created.id)?.match_name,'NSK CRUD TEST');
+const idUrl=lineupUrl+'&id='+created.id;
+assert.equal((await sendLineup('PATCH',idUrl,crudPayload('NSK CRUD UPDATED'))).status,200,'Update lineup');
+listResponse=await sendLineup('GET',lineupUrl);
+assert.equal((await listResponse.json()).lineups.find(x=>x.id===created.id)?.match_name,'NSK CRUD UPDATED');
+const otherTeamUrl='https://staging.invalid/api/auth/lineups-staging?team_id='+encodeURIComponent('NSK Testlag 2')+'&id='+created.id;
+const otherTeamAdmin={user:{id:uuid},memberships:[{team_id:'NSK Testlag 2',role:'team_admin'}],permissions:['lineup:edit']};
+const otherTeamPatch=await stagingLineups(new Request(otherTeamUrl,{method:'PATCH',headers:{'content-type':'application/json'},body:JSON.stringify(crudPayload('FORBIDDEN CROSS-TEAM UPDATE'))}),crudDb,otherTeamAdmin,json);
+assert.equal(otherTeamPatch.status,404,'Another team cannot update existing lineup');
+const otherTeamDelete=await stagingLineups(new Request(otherTeamUrl,{method:'DELETE'}),crudDb,otherTeamAdmin,json);
+assert.equal(otherTeamDelete.status,404,'Another team cannot delete existing lineup');
+assert.equal(createdLineups.get(created.id)?.match_name,'NSK CRUD UPDATED','Cross-team mutation must not modify lineup');
+assert.equal((await sendLineup('DELETE',idUrl)).status,200,'Delete lineup');
+listResponse=await sendLineup('GET',lineupUrl);
+assert.equal((await listResponse.json()).lineups.some(x=>x.id===created.id),false,'Deleted lineup must disappear');
+console.log('PASS lineup create/list/update/delete using isolated in-memory SQL stub');
