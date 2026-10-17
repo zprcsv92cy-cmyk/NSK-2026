@@ -18,7 +18,7 @@ const METHODS=Object.freeze({
   '/api/auth/integration/access':'GET',
   '/api/auth/activate':'POST',
   '/api/auth/users':'GET,POST',
-  '/api/auth/team-members':'GET,PUT'
+  '/api/auth/team-members':'GET,PUT,DELETE'
 });
 function deny(status, error) {
   return Response.json({ok:false,error},{status,headers:{'cache-control':'no-store'}});
@@ -45,7 +45,7 @@ export async function handleProductionAuth(request, env) {
   if(!env?.AUTH_DB)return deny(503,'Production authentication is not configured');
   let result;
   try {
-    result=pathname==='/api/auth/team-members'&&request.method==='PUT'
+    result=pathname==='/api/auth/team-members'&&['PUT','DELETE'].includes(request.method)
       ? await handleProductionOwnerTeamMembership(request,env)
       : permissionsMutation ? await handleProductionOwnerPermissions(request,env)
       : (pathname==='/api/auth/users'||pathname==='/api/auth/team-members'||userMutation)
