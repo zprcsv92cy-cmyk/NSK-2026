@@ -36,6 +36,18 @@ jobs:
             if (response.status !== 401) throw new Error(method + ' ' + path + ' returned ' + response.status + ', expected 401');
           }
           NODE
+      - name: Upload candidate to Cloudflare (manual only, no deployment)
+        if: github.event_name == 'workflow_dispatch'
+        env:
+          CF_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CF_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+        run: |
+          test -n "$CF_API_TOKEN"
+          test -n "$CF_ACCOUNT_ID"
+          cat > dist/metadata.json <<'JSON'
+          {"main_module":"nsk-api-worker.mjs","bindings":[{"name":"ADMIN_KV","type":"inherit"},{"name":"ADMIN_PASSWORD","type":"inherit"},{"name":"AUTH_DB","type":"inherit"},{"name":"BASEROW_DATABASE_ID","type":"inherit"},{"name":"BASEROW_TOKEN","type":"inherit"},{"name":"MATCH_PASSWORD","type":"inherit"},{"name":"NSK_TRAINERS","type":"inherit"},{"name":"SHIFT_LOCK","type":"inherit"}]}
+          JSON
+          curl --fail-with-body --silent --show-error --request POST             --header "Authorization: Bearer $CF_API_TOKEN"             --form 'metadata=<dist/metadata.json;type=application/json'             --form 'nsk-api-worker.mjs=@dist/nsk-api-worker.mjs;type=application/javascript+module'             "https://api.cloudflare.com/client/v4/accounts/$CF_ACCOUNT_ID/workers/scripts/nsk-api/versions?bindings_inherit=strict"             | python3 -c 'import json,sys; d=json.load(sys.stdin); assert d.get("success"), d.get("errors"); print("Uploaded candidate version:", (d.get("result") or {}).get("id"))'
       - name: Store bundle for review (no deployment)
         uses: actions/upload-artifact@v4
         with:
