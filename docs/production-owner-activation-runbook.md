@@ -17,6 +17,7 @@ Utför endast från en kontrollerad terminal där Wrangler är inloggat mot rät
 ```sh
 NSK_PRODUCTION_BOOTSTRAP=CONFIRM_PRODUCTION \
 NSK_D1_DATABASE_ID=9f937bcb-b0c0-4129-af5b-775cf284dfcb \
+NSK_PRODUCTION_AUTH_READY=CONFIRM_AUTH_ENDPOINTS_READY \
 node scripts/bootstrap-production-admin.mjs \
   'peter_hasselberg@hotmail.com' 'Peter Hasselberg'
 ```
