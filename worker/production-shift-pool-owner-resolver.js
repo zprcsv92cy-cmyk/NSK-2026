@@ -5,7 +5,7 @@
  */
 export function createPoolOwnerResolver(env, fetchImpl = fetch) {
   return async function findPoolOwner({ poolId, shiftRowId, lagNo, resolveOnly = true } = {}) {
-    if (!env?.BASEROW_TOKEN || ((!Number.isSafeInteger(poolId) || poolId <= 0) && (!Number.isSafeInteger(shiftRowId) || shiftRowId <= 0)) || !Number.isSafeInteger(lagNo) || lagNo <= 0)
+    if (!env?.BASEROW_TOKEN || ((!Number.isSafeInteger(poolId) || poolId <= 0) && (!Number.isSafeInteger(shiftRowId) || shiftRowId <= 0)) || (lagNo !== undefined && (!Number.isSafeInteger(lagNo) || lagNo <= 0)))
       throw new Error('Pool owner resolver is not configured');
     const headers = { Authorization: 'Token ' + env.BASEROW_TOKEN };
     const base = 'https://api.baserow.io/api/database/rows/table/';
@@ -15,6 +15,7 @@ export function createPoolOwnerResolver(env, fetchImpl = fetch) {
       if (!shiftResponse.ok) throw new Error('Byte kunde inte läsas');
       const shift = await shiftResponse.json();
       resolvedPoolId = Number((shift.Poolspel || [])[0]?.id || (shift.Poolspel || [])[0]);
+      lagNo = Number(shift.Lagnummer);
     }
     if (!Number.isSafeInteger(resolvedPoolId) || resolvedPoolId <= 0) throw new Error('Ogiltigt poolspel');
     const poolResponse = await fetchImpl(`${base}1255101/${resolvedPoolId}/?user_field_names=true`, { headers });
@@ -22,6 +23,7 @@ export function createPoolOwnerResolver(env, fetchImpl = fetch) {
     const pool = await poolResponse.json();
     const links = Array.isArray(pool.Lag) ? pool.Lag : [];
     const ids = links.map(x => Number(typeof x === 'object' ? x?.id : x));
+    if (!Number.isSafeInteger(lagNo) || lagNo <= 0) throw new Error('Ogiltigt lagnummer');
     const teamId = ids[lagNo - 1];
     if (!Number.isSafeInteger(teamId) || teamId <= 0 || ids.some(id => !Number.isSafeInteger(id) || id <= 0))
       throw new Error('Poolspel saknar angivet lag');
