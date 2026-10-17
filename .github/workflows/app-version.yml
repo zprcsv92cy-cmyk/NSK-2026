@@ -24,6 +24,19 @@ jobs:
           node --check app.js
           node --check sw.js
           node --check scripts/bump-version.cjs
+      - name: Verifiera konsekvent publicerad version
+        run: |
+          node - <<'NODE'
+          const assert = require('node:assert/strict');
+          const fs = require('node:fs');
+          const version = fs.readFileSync('version.js','utf8').match(/NSK_VERSION\s*=\s*"([0-9]+)"/)?.[1];
+          assert.ok(version, 'version.js saknar versionsnummer');
+          assert.equal(String(JSON.parse(fs.readFileSync('deploy.json','utf8')).version), version);
+          const manifest = JSON.parse(fs.readFileSync('manifest.webmanifest','utf8'));
+          assert.equal(String(manifest.version), version);
+          assert.ok(manifest.start_url.includes('v=' + version));
+          console.log('Versionsfiler matchar:', version);
+          NODE
       - name: Testa versionshöjning utan publicering
         run: |
           node scripts/bump-version.cjs
