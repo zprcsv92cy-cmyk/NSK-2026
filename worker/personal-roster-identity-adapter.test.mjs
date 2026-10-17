@@ -11,10 +11,9 @@ function db({ disabled = false, membership = '18', role = 'team_admin', permissi
     return { bind(...args) {
       return {
         async first() {
-          if (sql.includes('auth_global_admins')) return globalAdmin ? { enabled: 1 } : null;
           assert.match(sql, /auth_sessions/);
           assert.equal(args[0], hash);
-          return disabled ? null : { id: 'u1', display_name: 'Test Admin' };
+          return disabled ? null : { id: 'u1', display_name: 'Test Admin', is_global_admin: globalAdmin ? 1 : 0 };
         },
         async all() {
           if (sql.includes('auth_team_memberships')) return { results: [{ team_id: membership, role }] };
