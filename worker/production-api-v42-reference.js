@@ -73,10 +73,9 @@ var ShiftLock = class {
       const pr = await fetch(`${base}${TABLES.poolspel}/${poolId}/?user_field_names=true`, { headers: auth });
       if (!pr.ok) return reply({ ok: false, error: "Poolspel kunde inte l\xE4sas" }, 502);
       const pool = await pr.json();
-      const tr = await fetch(`${base}${TABLES.lag}/?user_field_names=true&size=100`, { headers: auth });
-      if (!tr.ok) throw new Error("Laget kunde inte kontrolleras");
-      const team = (await tr.json()).results?.find((t) => t.Namn === "NSK Team 18" && String(t["S\xE4song"]) === "2026");
-      if (!team || !ids(pool.Lag).includes(Number(team.id))) return reply({ ok: false, error: "Fel poolspel" }, 403);
+      const owner = await createPoolOwnerResolver(this.env)({ poolId, lagNo });
+      const team = { id: Number(owner.baserowTeamRowId) };
+      if (!ids(pool.Lag).includes(team.id)) return reply({ ok: false, error: "Fel poolspel" }, 403);
       if (lagNo > Number(pool["Antal lag"]) || matchNo > Number(pool["Antal matcher"]) || shifts.some((s) => s.period_no > Number(pool.Perioder)))
         return reply({ ok: false, error: "Lag, match eller period utanf\xF6r poolspelet" }, 400);
       let valid = /* @__PURE__ */ new Set(), page = 1;
@@ -151,10 +150,9 @@ var ShiftLock = class {
         return reply({ ok: false, error: "Bytet tillh\xF6r inte matchen" }, 409);
       const pr = await fetch(`${base}${TABLES.poolspel}/${poolId}/?user_field_names=true`, { headers: auth });
       if (!pr.ok) return reply({ ok: false, error: "Poolspel saknas" }, 403);
-      const pool = await pr.json();      const tr = await fetch(`${base}${TABLES.lag}/?user_field_names=true&size=100`, { headers: auth });
-      if (!tr.ok) throw Error("Laget kunde inte kontrolleras");
-      const team = (await tr.json()).results?.find((t) => t.Namn === "NSK Team 18" && String(t["S\xE4song"]) === "2026");
-      if (!team || !ids(pool.Lag).includes(Number(team.id))) return reply({ ok: false, error: "Fel lag" }, 403);
+      const pool = await pr.json();      const owner = await createPoolOwnerResolver(this.env)({ shiftRowId: id });
+      const team = { id: Number(owner.baserowTeamRowId) };
+      if (owner.poolId !== poolId || !ids(pool.Lag).includes(team.id)) return reply({ ok: false, error: "Fel lag" }, 403);
       if (row["Genomf\xF6rt"] === done) return reply({ ok: true, row });
       const wr = await fetch(`${base}${TABLES.bytesschema}/${id}/?user_field_names=true`, { method: "PATCH", headers: { ...auth, "Content-Type": "application/json" }, body: JSON.stringify({ "Genomf\xF6rt": done }) });
       if (!wr.ok) return reply({ ok: false, error: "Kunde inte \xE4ndra byte" }, 502);
