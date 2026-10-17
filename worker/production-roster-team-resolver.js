@@ -3,7 +3,7 @@
  * Preparation only: not imported by the deployed production Worker.
  * Never authorize from a team_id submitted by the browser.
  */
-export async function resolveLegacyRosterTeam(request, { listTeams, readRow, teamName = 'NSK Team 18', season = '2026' } = {}) {
+export async function resolveLegacyRosterTeam(request, { listTeams, readRow, teamName = 'NSK Team 18', season = '2026', authorizationTeamId } = {}) {
   if (typeof listTeams !== 'function' || typeof readRow !== 'function') throw new Error('Team resolver not configured');
   const url = new URL(request.url);
   const match = /^\/api\/(spelare|tranare)(?:\/(\d+))?$/.exec(url.pathname);
@@ -44,6 +44,10 @@ export async function resolveLegacyRosterTeam(request, { listTeams, readRow, tea
           String(typeof links[0] === 'object' ? links[0]?.id : links[0]) !== String(team.id))
         throw new Error('Conflicting roster team links');
     }
+  }
+  if (authorizationTeamId !== undefined) {
+    if (typeof authorizationTeamId !== 'string' || !authorizationTeamId.trim() || authorizationTeamId.length > 100) throw new Error('Invalid trusted team mapping');
+    return authorizationTeamId;
   }
   return String(team.id);
 }

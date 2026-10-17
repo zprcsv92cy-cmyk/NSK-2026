@@ -166,3 +166,20 @@ test('accepts canonical numeric team IDs and rejects ambiguous team references',
     }), /another team/);
   }
 });
+
+
+test('trusted auth team mapping uses membership key after verifying Baserow ownership', async () => {
+  const team = await resolveLegacyRosterTeam(req('/api/spelare/41?team_id=2', 'PATCH'), {
+    ...dependencies, authorizationTeamId: 'NSK Team 18'
+  });
+  assert.equal(team, 'NSK Team 18');
+});
+
+test('trusted auth team mapping rejects invalid keys and foreign persisted rows', async () => {
+  await assert.rejects(resolveLegacyRosterTeam(req('/api/spelare', 'POST'), {
+    ...dependencies, authorizationTeamId: ''
+  }), /Invalid trusted team mapping/);
+  await assert.rejects(resolveLegacyRosterTeam(req('/api/spelare/41', 'PATCH'), {
+    ...dependencies, authorizationTeamId: 'NSK Team 18', readRow: async () => ({ Lag: [{ id: 2 }] })
+  }), /another team/);
+});
