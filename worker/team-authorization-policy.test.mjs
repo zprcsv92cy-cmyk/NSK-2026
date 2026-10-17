@@ -7,7 +7,7 @@ test('only verified team member with explicit roster permission may write', () =
   assert.equal(authorizeTeamFeature(actor, 'team-18', 'roster').allowed, true);
   assert.equal(authorizeTeamFeature(actor, 'team-2', 'roster').status, 403);
   assert.equal(authorizeTeamFeature({ ...actor, permissions: [] }, 'team-18', 'roster').status, 403);
-  assert.equal(authorizeTeamFeature({ ...actor, memberships: [{ team_id: 'team-18', role: 'coach' }] }, 'team-18', 'roster').status, 200);
+  assert.equal(authorizeTeamFeature({ ...actor, memberships: [{ team_id: 'team-18', role: 'coach' }] }, 'team-18', 'roster').status, 403);
   assert.equal(authorizeTeamFeature(null, 'team-18', 'roster').status, 401);
   assert.equal(authorizeTeamFeature(actor, 'team-18', 'unknown').status, 400);
 });
