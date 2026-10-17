@@ -23,7 +23,7 @@ export function authorizeTeamFeature(actor, teamId, feature) {
     m?.team_id === '*' && m.role === 'owner');
   if (!membership && !owner) return { allowed: false, status: 403, reason: 'Ingen åtkomst till laget' };
   const permission = FEATURE_PERMISSIONS[feature];
-  const allowed = (owner || membership?.role === 'team_admin') &&
+  const allowed = (owner || membership?.role === 'owner' || membership?.role === 'team_admin') &&
     Array.isArray(actor.permissions) && actor.permissions.includes(permission);
   return { allowed, status: allowed ? 200 : 403,
     reason: allowed ? 'Tillåtet' : 'Saknar behörighet', permission };
