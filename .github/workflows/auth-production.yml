@@ -1,0 +1,35 @@
+name: NSK production auth deployment
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: nsk-auth-production
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    environment: auth-production
+    steps:
+      - name: Checkout protected main
+        uses: actions/checkout@v4
+        with:
+          ref: main
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Verify production entrypoint syntax
+        run: node --experimental-default-type=module --check worker/production-entry.js
+      - name: Run authorization tests
+        run: node --experimental-default-type=module --test worker/team-authorization-policy.test.mjs worker/production-roster-route-guard.test.mjs worker/production-roster-team-resolver.test.mjs worker/production-roster-integration.test.mjs worker/production-lagpersonal-auth-guard.test.mjs
+      - name: Build production Worker without deploying
+        run: npx --yes wrangler@4 deploy --dry-run --outdir /tmp/nsk-production-build --config wrangler.auth.production.toml
+      - name: Deploy isolated production auth Worker
+        run: npx --yes wrangler@4 deploy --config wrangler.auth.production.toml
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
