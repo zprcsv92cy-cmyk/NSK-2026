@@ -35,6 +35,7 @@ on:
   pull_request:
     paths:
       - 'login/index.html'
+      - 'aktivera/index.html'
       - 'startsida/index.html'
       - '.github/workflows/auth-production.yml'
       - 'wrangler.auth.production.toml'
