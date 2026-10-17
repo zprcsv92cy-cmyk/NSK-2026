@@ -21,9 +21,9 @@ const trainers=[{id:51,Namn:'Tillåten tränare',Lag:[{id:18}]},{id:52,Namn:'Ann
 const oldFetch=globalThis.fetch;
 globalThis.fetch=async url=>{
  assert.match(String(url),/api\.baserow\.io/);
- const url=String(url);
- if(url.includes('/1255098/'))return Response.json({results:players,next:null});
- if(url.includes('/1255100/'))return Response.json({results:trainers,next:null});
+ const address=String(url);
+ if(address.includes('/1255098/'))return Response.json({results:players,next:null});
+ if(address.includes('/1255100/'))return Response.json({results:trainers,next:null});
  return Response.json({results:teams,next:null});
 };
 const req=(path,auth=true,origin='https://zprcsv92cy-cmyk.github.io')=>
