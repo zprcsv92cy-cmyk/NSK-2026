@@ -32,3 +32,32 @@ test('fails closed when AUTH_DB or pool owner resolver is missing', async () => 
   assert.equal((await guardShiftRoute(req('/api/bytesschema/save', { pool_id: 10 }), {}, { verifyIdentity, findPoolOwner: async () => ({ teamId: '18' }), mutate: async () => {} })).status, 503);
   assert.equal((await guardShiftRoute(req('/api/bytesschema/save', { pool_id: 10 }), env, { verifyIdentity, mutate: async () => {} })).status, 503);
 });
+
+import { createPoolOwnerResolver } from './production-shift-pool-owner-resolver.js';
+function fakeBaserow(rows) {
+  return async url => {
+    const match = String(url).match(/table\/(\d+)\/(\d+)\//);
+    if (!match) return Response.json({}, { status: 404 });
+    const row = rows[`${match[1]}:${match[2]}`];
+    return row ? Response.json(row) : Response.json({}, { status: 404 });
+  };
+}
+test('pool owner resolver uses trusted pool links and selected lag number', async () => {
+  const resolver = createPoolOwnerResolver({ BASEROW_TOKEN: 'test' }, fakeBaserow({
+    '1255101:40': { id: 40, Lag: [{ id: 8 }, { id: 18 }] },
+    '1255083:18': { id: 18, Namn: 'NSK Team 18' }
+  }));
+  assert.deepEqual(await resolver({ poolId: 40, lagNo: 2 }), { teamId: '18', teamName: 'NSK Team 18', poolId: 40 });
+});
+test('pool owner resolver derives pool and lag from trusted shift row', async () => {
+  const resolver = createPoolOwnerResolver({ BASEROW_TOKEN: 'test' }, fakeBaserow({
+    '1255115:90': { id: 90, Poolspel: [{ id: 40 }], Lagnummer: 2 },
+    '1255101:40': { id: 40, Lag: [{ id: 8 }, { id: 18 }] },
+    '1255083:18': { id: 18, Namn: 'NSK Team 18' }
+  }));
+  assert.deepEqual(await resolver({ shiftRowId: 90 }), { teamId: '18', teamName: 'NSK Team 18', poolId: 40 });
+});
+test('pool owner resolver fails closed on invalid pool links', async () => {
+  const resolver = createPoolOwnerResolver({ BASEROW_TOKEN: 'test' }, fakeBaserow({ '1255101:40': { id: 40, Lag: [] } }));
+  await assert.rejects(() => resolver({ poolId: 40, lagNo: 1 }));
+});
