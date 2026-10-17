@@ -1,0 +1,28 @@
+name: Build production Worker bundle
+
+on:
+  pull_request:
+    paths:
+      - 'worker/**'
+      - '.github/workflows/production-worker-bundle.yml'
+  workflow_dispatch:
+
+jobs:
+  bundle:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v4
+      - name: Bundle all Worker modules
+        run: |
+          npx --yes esbuild@0.25.12 worker/production-api-v42-reference.js --bundle --format=esm --platform=browser --target=es2022 --outfile=dist/nsk-api-worker.mjs
+          node --check dist/nsk-api-worker.mjs
+          test -s dist/nsk-api-worker.mjs
+          grep -q 'AUTH_DB' dist/nsk-api-worker.mjs
+      - name: Store bundle for review (no deployment)
+        uses: actions/upload-artifact@v4
+        with:
+          name: nsk-api-worker-candidate
+          path: dist/nsk-api-worker.mjs
+          retention-days: 7
