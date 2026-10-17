@@ -1,5 +1,5 @@
 // Production candidate: personally authorized shift completion.
-// Validate persisted shift ownership before invoking the existing ShiftLock.
+// Validate persisted shift ownership before invoking the shared personal shift lock.
 import { verifyStagingSession } from './staging-session-identity.js';
 import { mapTrustedMembershipsToLegacyTeams } from './production-team-id-map.js';
 import { authorizeTeamFeature } from './team-authorization-policy.js';
@@ -34,7 +34,7 @@ export async function handlePersonalShiftDone(request,env){
   if(request.method!=='PATCH')return fail(405,'Metoden är inte tillåten');
   const id=Number(match[1]);
   if(!pos(id))return fail(400,'Ogiltigt byte-ID');
-  if(!env?.AUTH_DB||!env?.BASEROW_TOKEN||!env?.SHIFT_LOCK)
+  if(!env?.AUTH_DB||!env?.BASEROW_TOKEN||!env?.SHIFT_SAVE_LOCK)
     return fail(503,'Behörighet eller bytestjänst saknas');
   const token=/^Bearer ([A-Za-z0-9_-]{32,256})$/.exec(request.headers.get('Authorization')||'')?.[1];
   if(!token)return fail(401,'Personlig inloggning krävs');
@@ -63,10 +63,10 @@ export async function handlePersonalShiftDone(request,env){
       return fail(403,'Bytet tillhör ett annat lag');
     if(lagNo>Number(pool['Antal lag'])||matchNo>Number(pool['Antal matcher']))
       return fail(409,'Bytet tillhör en ogiltig match');
-    const stub=env.SHIFT_LOCK.get(env.SHIFT_LOCK.idFromName(poolIds[0]+':'+lagNo+':'+matchNo));
-    const result=await stub.fetch('https://shift-lock.internal/',{
+    const stub=env.SHIFT_SAVE_LOCK.get(env.SHIFT_SAVE_LOCK.idFromName(poolIds[0]+':'+lagNo+':'+matchNo));
+    const result=await stub.fetch('https://personal-shift-lock.internal/',{
       method:'POST',headers:{'Content-Type':'application/json'},
-      body:JSON.stringify({action:'done',id,pool_id:poolIds[0],lag_no:lagNo,match_no:matchNo,done:body.done})
+      body:JSON.stringify({action:'done',id,team_id:Number(body.team_id),pool_id:poolIds[0],lag_no:lagNo,match_no:matchNo,done:body.done})
     });
     const headers=new Headers(result.headers);
     headers.set('Cache-Control','no-store');
