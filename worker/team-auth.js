@@ -47,7 +47,8 @@ async function identity(db, request) {
   if (!user) return null;
   const memberships = await db.prepare('SELECT team_id, role FROM auth_team_memberships WHERE user_id=?').bind(user.id).all();
   const grants = await db.prepare('SELECT permission FROM auth_user_permissions WHERE user_id=?').bind(user.id).all();
-  return { user: { id: user.id, name: user.display_name }, memberships: memberships.results || [], permissions: (grants.results || []).map(row => row.permission) };
+  const globalAdmin = await db.prepare("SELECT 1 AS enabled FROM auth_global_admins WHERE user_id=? AND enabled=1").bind(user.id).first();
+  return { user: { id: user.id, name: user.display_name }, memberships: memberships.results || [], permissions: (grants.results || []).map(row => row.permission), is_global_admin: !!globalAdmin };
 }
 export async function handleTeamAuth(request, env) {
   if (!env.AUTH_DB) return json({ error: 'Autentisering är inte konfigurerad' }, 503);
