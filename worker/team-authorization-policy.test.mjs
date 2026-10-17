@@ -90,3 +90,19 @@ test('shift permission is scoped to team membership and an explicit personal gra
   assert.equal(authorizeTeamFeature(globalAdmin, 'team-18', 'shifts').allowed, true);
   assert.equal(authorizeTeamFeature(globalAdmin, 'team-2', 'shifts').status, 403);
 });
+
+test('shift writes execute once only for authorized Team 18 and never for Testlag 2', async () => {
+  const { requireTeamWrite } = await import('./team-authorization-policy.js');
+  const allowedActor = {
+    memberships: [{ team_id: 'NSK Team 18', role: 'team_admin' }],
+    permissions: ['shifts:check']
+  };
+  let writes = 0;
+  const write = async () => { writes++; return { ok: true }; };
+  assert.deepEqual(await requireTeamWrite(allowedActor, 'NSK Team 18', 'shifts', write), { ok: true });
+  assert.equal(writes, 1);
+  assert.equal((await requireTeamWrite(allowedActor, 'NSK Testlag 2', 'shifts', write)).status, 403);
+  assert.equal((await requireTeamWrite({ ...allowedActor, permissions: [] }, 'NSK Team 18', 'shifts', write)).status, 403);
+  assert.equal((await requireTeamWrite(null, 'NSK Team 18', 'shifts', write)).status, 401);
+  assert.equal(writes, 1);
+});
