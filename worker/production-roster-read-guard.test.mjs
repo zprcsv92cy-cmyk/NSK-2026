@@ -4,7 +4,7 @@ import { guardProductionRosterRead as guard } from './production-roster-read-gua
 const token = 'a'.repeat(43);
 const req = (path, auth = true, method = 'GET') => new Request(
   'https://nsk-api.example' + path, { method, headers: auth ? { Authorization: 'Bearer ' + token } : {} });
-const actor = { user: { id: 'user-1' }, memberships: [{ team_id: '18', role: 'viewer' }] };
+const actor = { user: { id: 'user-1' }, memberships: [{ team_id: '18', role: 'viewer' }], permissions: ['read'] };
 let reads = 0, owners = 0, sessions = 0;
 const deps = {
   verifyIdentity: async () => { sessions++; return actor; },
@@ -19,6 +19,8 @@ async function check(path, status, overrides = {}, auth = true, method = 'GET') 
 await check('/api/spelare?team_id=18', 200);
 assert.equal(reads, 1);
 await check('/api/spelare?team_id=19', 403);
+await check('/api/spelare?team_id=18', 403, { verifyIdentity: async () => ({ ...actor, permissions: [] }) });
+await check('/api/spelare?team_id=18', 403, { verifyIdentity: async () => ({ ...actor, permissions: undefined }) });
 await check('/api/spelare?team_id=18&team_id=19', 403);
 await check('/api/spelare', 401, {}, false);
 await check('/api/spelare', 403, { resolveOwnerTeam: async () => '19' });
