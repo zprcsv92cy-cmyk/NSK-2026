@@ -5,14 +5,14 @@
 import { randomBytes, randomUUID, createHash } from 'node:crypto';
 import { spawnSync } from 'node:child_process';
 
-const [emailArg, displayArg, teamIdArg] = process.argv.slice(2);
+const [emailArg, displayArg] = process.argv.slice(2);
 const email=(emailArg||'').trim().toLowerCase();
 const display=(displayArg||'').trim();
-const teamId=(teamIdArg||'').trim();
+const teamId='*'; // Reserved global owner membership; never assigned by normal user management.
 const expectedDb='9f937bcb-b0c0-4129-af5b-775cf284dfcb';
 if(!email||email.length>254||!/^\S+@\S+\.\S+$/.test(email)||
-   !display||display.length>120||!['NSK Team 18','NSK Testlag 2'].includes(teamId)){
-  console.error('Usage: node scripts/bootstrap-production-admin.mjs <admin-email> <display-name> <exact-team-name>');
+   !display||display.length>120||process.argv.length!==4){
+  console.error('Usage: node scripts/bootstrap-production-admin.mjs <admin-email> <display-name>');
   process.exit(2);
 }
 if(process.env.NSK_PRODUCTION_BOOTSTRAP!=='CONFIRM_PRODUCTION'||
@@ -27,7 +27,7 @@ const quote=s=>"'"+s.replaceAll("'","''")+"'";
 const sql=[
   'PRAGMA foreign_keys=ON;',
   `INSERT INTO auth_users(id,email,display_name,password_hash,disabled) VALUES(${quote(userId)},${quote(email)},${quote(display)},'!activation-required!',1);`,
-  `INSERT INTO auth_team_memberships(user_id,team_id,role) VALUES(${quote(userId)},${quote(teamId)},'team_admin');`,
+  `INSERT INTO auth_team_memberships(user_id,team_id,role) VALUES(${quote(userId)},${quote(teamId)},'owner');`,
   ...['read','pool:create','lineup:edit','shifts:check','match:manage','pool:finish','pool:reopen','roster:manage','users:manage'].map(p=>
     `INSERT INTO auth_user_permissions(user_id,permission) VALUES(${quote(userId)},${quote(p)});`),
   `INSERT INTO auth_setup_tokens(token_hash,user_id,expires_at) VALUES(${quote(hash)},${quote(userId)},datetime('now','+120 minutes'));`
@@ -41,6 +41,6 @@ if(result.status!==0){
 }
 console.log('Production admin bootstrap succeeded.');
 console.log('Account:',email);
-console.log('Team:',teamId);
+console.log('Scope: Global owner (all app teams)');
 console.log('Activation token (shown once; send securely):',token);
 console.log('Activate within 120 minutes, then sign in and rotate credentials if required.');
