@@ -20,7 +20,7 @@ jobs:
           node --check dist/nsk-api-worker.mjs
           test -s dist/nsk-api-worker.mjs
           grep -q 'AUTH_DB' dist/nsk-api-worker.mjs
-      - name: Store bundle for review (no deployment)
+      - name: Reject unauthenticated production shift writes\n        run: |\n          node --input-type=module <<'NODE'\n          import worker from './dist/nsk-api-worker.mjs';\n          const env = { AUTH_DB: {}, BASEROW_TOKEN: 'placeholder', SHIFT_LOCK: {} };\n          for (const [method, path, body] of [\n            ['POST', '/api/bytesschema/save', { pool_id: 1, lag_no: 1, match_no: 1 }],\n            ['PATCH', '/api/bytesschema/1/done', { done: true }]\n          ]) {\n            const request = new Request('https://nsk-api.example' + path, {\n              method, headers: { 'Content-Type': 'application/json', Origin: 'https://zprcsv92cy-cmyk.github.io' }, body: JSON.stringify(body)\n            });\n            const response = await worker.fetch(request, env, {});\n            if (response.status !== 401) throw new Error(method + ' ' + path + ' returned ' + response.status + ', expected 401');\n          }\n          NODE\n      - name: Store bundle for review (no deployment)
         uses: actions/upload-artifact@v4
         with:
           name: nsk-api-worker-candidate
