@@ -49,7 +49,7 @@ export async function handleProductionAuth(request, env) {
   // other users. Never grant a feature for an arbitrary query team_id.
   if((pathname==='/api/auth/feature-access'||pathname==='/api/auth/integration/access') && result.ok){
     const raw=await result.json();
-    if(raw?.allowed===false){
+    {
       const me=await handleTeamAuth(new Request(new URL('/api/auth/me',request.url),{
         headers:{Authorization:request.headers.get('Authorization')||''}
       }),env);
