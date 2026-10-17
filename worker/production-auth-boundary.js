@@ -5,6 +5,7 @@ import { handleActivation } from './account-activation.js';
 import { productionRateLimitedLogin } from './production-login-guard.js';
 import { handlePersonalTeamList } from './production-personal-teams.js';
 import { authorizeTeamFeature } from './team-authorization-policy.js';
+import { handleProductionOwnerAdministration } from './production-owner-administration.js';
 
 const ORIGIN='https://zprcsv92cy-cmyk.github.io';
 const METHODS=Object.freeze({
@@ -13,7 +14,9 @@ const METHODS=Object.freeze({
   '/api/auth/logout':'POST',
   '/api/auth/feature-access':'GET',
   '/api/auth/integration/access':'GET',
-  '/api/auth/activate':'POST'
+  '/api/auth/activate':'POST',
+  '/api/auth/users':'GET',
+  '/api/auth/team-members':'GET'
 });
 function deny(status, error) {
   return Response.json({ok:false,error},{status,headers:{'cache-control':'no-store'}});
@@ -37,7 +40,9 @@ export async function handleProductionAuth(request, env) {
   if(!env?.AUTH_DB)return deny(503,'Production authentication is not configured');
   let result;
   try {
-    result=pathname==='/api/auth/activate'
+    result=(pathname==='/api/auth/users'||pathname==='/api/auth/team-members')
+      ? await handleProductionOwnerAdministration(request,env)
+      : pathname==='/api/auth/activate'
       ? await handleActivation(request,env)
       : pathname==='/api/auth/login'
         ? await productionRateLimitedLogin(request,env,handleTeamAuth)
