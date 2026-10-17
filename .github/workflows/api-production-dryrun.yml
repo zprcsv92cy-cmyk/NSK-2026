@@ -1,0 +1,36 @@
+name: Production API dry-run
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - 'worker/**'
+      - 'wrangler.api.production.toml'
+      - '.github/workflows/api-production-dryrun.yml'
+  push:
+    branches: [main]
+    paths:
+      - 'worker/**'
+      - 'wrangler.api.production.toml'
+      - '.github/workflows/api-production-dryrun.yml'
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  api-build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Check Worker and authorization module syntax
+        run: |
+          node --check worker/production-api-v42-reference.js
+          node --check worker/production-shift-pool-owner-resolver.js
+          node --check worker/personal-roster-identity-adapter.js
+      - name: Run shift authorization regressions
+        run: node --experimental-default-type=module --test worker/shift-write-authorization.test.mjs worker/production-shift-route-guard.test.mjs worker/team-authorization-policy.test.mjs worker/production-api-staff-route.test.mjs
+      - name: Bundle production candidate without deploying
+        run: npx --yes wrangler@4 deploy --dry-run --outdir /tmp/nsk-api-dry-run --config wrangler.api.production.toml
+      - name: Confirm no production publication performed
+        run: echo "Dry-run only. No Cloudflare production deployment or binding modification."
