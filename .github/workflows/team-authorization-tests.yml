@@ -32,6 +32,8 @@ on:
       - '.github/workflows/auth-production.yml'
       - 'wrangler.auth.production.toml'
       - 'wrangler.api.production.toml'
+      - 'scripts/check-api-production-release.mjs'
+      - 'scripts/check-api-production-release.test.mjs'
       - 'worker/production-api-v42-reference.js'
       - 'worker/production-entry.js'
       - '.github/workflows/team-authorization-tests.yml'
@@ -47,6 +49,8 @@ on:
       - '.github/workflows/auth-production.yml'
       - 'wrangler.auth.production.toml'
       - 'wrangler.api.production.toml'
+      - 'scripts/check-api-production-release.mjs'
+      - 'scripts/check-api-production-release.test.mjs'
       - 'worker/production-api-v42-reference.js'
       - 'worker/production-entry.js'
       - '.github/workflows/team-authorization-tests.yml'
@@ -80,6 +84,8 @@ on:
       - '.github/workflows/auth-production.yml'
       - 'wrangler.auth.production.toml'
       - 'wrangler.api.production.toml'
+      - 'scripts/check-api-production-release.mjs'
+      - 'scripts/check-api-production-release.test.mjs'
       - 'worker/production-api-v42-reference.js'
       - 'worker/production-entry.js'
       - '.github/workflows/team-authorization-tests.yml'
@@ -99,6 +105,7 @@ jobs:
           node --check auth.js
           node --check worker/production-api-v42-reference.js
           node scripts/check-staging-imports.mjs
+          node --test scripts/check-api-production-release.test.mjs
       - name: Confirm login page uses existing auth client without rewriting legacy data
         run: |
           node --input-type=module -e "import {readFileSync as read} from 'node:fs'; import assert from 'node:assert/strict'; const h=read('login/index.html','utf8'); assert.match(h,/Auth\\.login\\(/); assert.match(h,/\.\.\\/auth\\.js/); assert.doesNotMatch(h,/nsk_admin_token|nsk_match_token/); console.log('Login integration verified');"
