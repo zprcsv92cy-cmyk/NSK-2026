@@ -34,6 +34,7 @@ on:
       - 'docs/first-production-administrator.md'
   pull_request:
     paths:
+      - 'worker/production-roster-integration.md'
       - 'config.js'
       - 'auth.js'
       - 'login/index.html'
