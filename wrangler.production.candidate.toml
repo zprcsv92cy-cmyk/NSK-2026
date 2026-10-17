@@ -24,6 +24,14 @@ id = "f60b048621ea4aca8d67774f5c9db664"
 name = "SHIFT_LOCK"
 class_name = "ShiftLock"
 
+[[durable_objects.bindings]]
+name = "SHIFT_SAVE_LOCK"
+class_name = "PersonalShiftSaveLock"
+
+[[migrations]]
+tag = "candidate-personal-shift-v1"
+new_classes = ["PersonalShiftSaveLock"]
+
 # Existing secret names in live nsk-api:
 # ADMIN_PASSWORD, BASEROW_TOKEN, MATCH_PASSWORD.
 # Existing plain-text binding: BASEROW_DATABASE_ID.
