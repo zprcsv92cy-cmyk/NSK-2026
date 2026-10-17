@@ -15,6 +15,20 @@ export function mapTrustedMembershipsToLegacyTeams(actor, teams, {
     if (!member || typeof member.team_id !== 'string' || !member.team_id.trim())
       throw new Error('Invalid membership');
     const name = member.team_id.trim();
+    if (name === '*') {
+      if (member.role !== 'owner') throw new Error('Invalid global membership');
+      for (const row of teams) {
+        if (String(row?.['Säsong']) !== season) continue;
+        const id = String(row.id);
+        if (!/^[1-9]\\d*$/.test(id) || !Number.isSafeInteger(Number(id)) ||
+            typeof row.Namn !== 'string' || !row.Namn.trim() ||
+            teams.filter(t=>t?.Namn===row.Namn&&String(t['Säsong'])===season).length!==1 ||
+            resolved.some(x=>x.team_id===id)) throw Error('Ambiguous global team mapping');
+        resolved.push({team_id:id,role:'owner'});
+      }
+      if (!resolved.length) throw Error('No verified teams');
+      continue;
+    }
     // Do not accept a numeric team string until it is explicitly mapped by a
     // trusted team name/season record. No client-provided substitutions.
     const matches = teams.filter(row =>
