@@ -183,6 +183,31 @@
     }
     throw new Error('För många sidor matchuppgifter');
   }
+  async function personalLineupWrite(configId,players,coaches,team=activeTeam()){
+    if(!productionMode||!base||!token()||!team||
+      !identity?.memberships?.some(m=>m.team_id===team)||
+      !Number.isSafeInteger(Number(configId))||Number(configId)<=0)
+      throw new Error('Personlig inloggning och vald match krävs');
+    if(!(await checkTeamFeature('lineup',team)))
+      throw new Error('Saknar rätt att ändra laguppställningen');
+    const r=await fetch(base+'/api/personal/lag',{
+      headers:{Authorization:'Bearer '+token()},cache:'no-store',credentials:'omit'
+    });
+    if(r.status===401)clear();
+    if(!r.ok)throw new Error('Laget kunde inte verifieras');
+    const teams=await r.json();
+    const own=(teams.results||[]).filter(x=>x.Namn===team&&String(x['Säsong'])==='2026');
+    if(own.length!==1)throw new Error('Laget kunde inte verifieras');
+    const response=await fetch(base+'/api/personal/laguppstallningar/'+encodeURIComponent(configId),{
+      method:'POST',headers:{Authorization:'Bearer '+token(),'Content-Type':'application/json'},
+      body:JSON.stringify({team_id:String(own[0].id),players,coaches}),
+      credentials:'omit',cache:'no-store'
+    });
+    if(response.status===401)clear();
+    const data=await response.json().catch(()=>({}));
+    if(!response.ok||!data.ok)throw new Error(data.error||'Uppställningen kunde inte sparas');
+    return data;
+  }
   async function personalMatchConfigWrite(method,rowId,payload,team=activeTeam()){
     if(!productionMode||!base||!token()||!team||
       !identity?.memberships?.some(m=>m.team_id===team))
@@ -316,7 +341,7 @@
     }
   }
   window.Auth = Object.freeze({
-    init, login, logout, can, checkTeamFeature, stagingRosterList, stagingRosterWrite, personalRosterList, personalPoolList, personalMatchRows, personalMatchConfigWrite, personalRosterWrite, personalStaffWrite, activeTeam, selectTeam,
+    init, login, logout, can, checkTeamFeature, stagingRosterList, stagingRosterWrite, personalRosterList, personalPoolList, personalMatchRows, personalMatchConfigWrite, personalLineupWrite, personalRosterWrite, personalStaffWrite, activeTeam, selectTeam,
     getSession: () => identity, getToken: token, getMode: () => productionMode ? 'production' : 'staging', getClient: () => null
   });
 })();
