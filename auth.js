@@ -124,6 +124,35 @@
     ]);
     return { team_id: team, players, coaches, staff };
   }
+  async function personalPoolList(team=activeTeam()) {
+    if(!productionMode||!base||!token()||!team||
+      !identity?.memberships?.some(m=>m.team_id===team))
+      throw new Error('Produktionsinloggning och valt lag krävs');
+    const authorization={Authorization:'Bearer '+token()};
+    const teamsResponse=await fetch(base+'/api/personal/lag',{
+      headers:authorization,credentials:'omit',cache:'no-store'
+    });
+    if(teamsResponse.status===401)clear();
+    if(!teamsResponse.ok)throw new Error('Lagbehörigheten kunde inte kontrolleras');
+    const teams=await teamsResponse.json();
+    const own=(teams.results||[]).filter(t=>t.Namn===team&&String(t['Säsong'])==='2026');
+    if(own.length!==1||!Number.isSafeInteger(Number(own[0].id))||
+      Number(own[0].id)<=0)throw new Error('Inget verifierat produktionslag');
+    const all=[];
+    for(let page=1;page<=100;page++){
+      const query=new URLSearchParams({team_id:String(own[0].id),page:String(page),size:'200'});
+      const response=await fetch(base+'/api/personal/poolspel?'+query,{
+        headers:authorization,credentials:'omit',cache:'no-store'
+      });
+      if(response.status===401)clear();
+      const data=await response.json().catch(()=>({}));
+      if(!response.ok||!Array.isArray(data.results))
+        throw new Error(data.error||'Poolspel kunde inte hämtas');
+      all.push(...data.results);
+      if(!data.next)return {team_id:Number(own[0].id),results:all};
+    }
+    throw new Error('För många poolspelssidor');
+  }
   async function personalRosterWrite(kind, method, rowId, name, team = activeTeam()) {
     if (!productionMode || !base || !token() || !team ||
         !identity?.memberships?.some(m => m.team_id === team)) {
@@ -228,7 +257,7 @@
     }
   }
   window.Auth = Object.freeze({
-    init, login, logout, can, checkTeamFeature, stagingRosterList, stagingRosterWrite, personalRosterList, personalRosterWrite, personalStaffWrite, activeTeam, selectTeam,
+    init, login, logout, can, checkTeamFeature, stagingRosterList, stagingRosterWrite, personalRosterList, personalPoolList, personalRosterWrite, personalStaffWrite, activeTeam, selectTeam,
     getSession: () => identity, getToken: token, getMode: () => productionMode ? 'production' : 'staging', getClient: () => null
   });
 })();
