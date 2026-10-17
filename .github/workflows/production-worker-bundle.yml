@@ -79,6 +79,76 @@ jobs:
             }
           }
           NODE
+      - name: Verify real shift routes with isolated session, Baserow and lock fakes
+        run: |
+          node --input-type=module <<'NODE'
+          import worker from './dist/nsk-api-worker.mjs';
+          const token = 'a'.repeat(32);
+          let lockCalls = [];
+          let requests = [];
+          const rows = {
+            '1255101/12': { id: 12, Lag: [{ id: 91 }], 'Antal lag': 2 },
+            '1255083/91': { id: 91, Namn: 'NSK Team 18' },
+            '1255115/31': { id: 31, Poolspel: [{ id: 12 }], Lagnummer: 1, Matchnummer: 1 }
+          };
+          const originalFetch = globalThis.fetch;
+          globalThis.fetch = async (url, opts) => {
+            requests.push(String(url));
+            if (opts?.headers?.Authorization !== 'Token fake-baserow') throw Error('Unexpected Baserow token');
+            const match = String(url).match(/table\/(\d+)\/(\d+)\//);
+            if (!match) throw Error('Unexpected network request: ' + url);
+            const row = rows[match[1] + '/' + match[2]];
+            return Response.json(row || {}, { status: row ? 200 : 404 });
+          };
+          const env = {
+            BASEROW_TOKEN: 'fake-baserow',
+            AUTH_DB: { prepare(sql) { return { bind() { return {
+              first: async () => ({ id: 'u-shift', display_name: 'Tester', is_global_admin: 0 }),
+              all: async () => ({ results: sql.includes('auth_team_memberships')
+                ? [{ team_id: 'NSK Team 18', role: 'team_admin' }]
+                : [{ permission: 'shifts:check' }] })
+            }; } }; } },
+            SHIFT_LOCK: {
+              idFromName: key => key,
+              get: key => ({ fetch: async (url, init) => {
+                lockCalls.push({ key, body: JSON.parse(init.body) });
+                return Response.json({ ok: true });
+              } })
+            }
+          };
+          async function call(method, path, body, authorized = true) {
+            const response = await worker.fetch(new Request('https://nsk-api.example' + path, {
+              method, headers: { 'Content-Type': 'application/json',
+                Origin: 'https://zprcsv92cy-cmyk.github.io',
+                Authorization: 'Bearer ' + token },
+              body: JSON.stringify(body)
+            }), { ...env, AUTH_DB: {
+              prepare(sql) { return { bind() { return {
+                first: async () => ({ id: 'u-shift', display_name: 'Tester', is_global_admin: 0 }),
+                all: async () => ({ results: sql.includes('auth_team_memberships')
+                  ? [{ team_id: authorized ? 'NSK Team 18' : 'NSK Testlag 2', role: 'team_admin' }]
+                  : [{ permission: 'shifts:check' }] })
+              }; } }; }
+            } }, {});
+            return response.status;
+          }
+          try {
+            const save = { pool_id: 12, lag_no: 1, match_no: 1, shifts: [] };
+            if (await call('POST', '/api/bytesschema/save', save) !== 200) throw Error('Authorized save rejected');
+            if (lockCalls.length !== 1 || lockCalls[0].key !== '12:1:1' || lockCalls[0].body.action !== 'save')
+              throw Error('Authorized save not forwarded to expected lock');
+            if (await call('POST', '/api/bytesschema/save', save, false) !== 403) throw Error('Cross-team save accepted');
+            if (lockCalls.length !== 1) throw Error('Unauthorized save reached lock');
+            if (await call('PATCH', '/api/bytesschema/31/done', { done: true }) !== 200) throw Error('Authorized done rejected');
+            if (lockCalls.length !== 2 || lockCalls[1].body.action !== 'done' || lockCalls[1].body.id !== 31)
+              throw Error('Authorized done not forwarded to lock');
+            if (await call('PATCH', '/api/bytesschema/31/done', { done: false }, false) !== 403)
+              throw Error('Cross-team done accepted');
+            if (lockCalls.length !== 2) throw Error('Unauthorized done reached lock');
+            if (requests.some(url => !url.startsWith('https://api.baserow.io/api/database/rows/table/')))
+              throw Error('Unexpected external request');
+          } finally { globalThis.fetch = originalFetch; }
+          NODE
       - name: Upload candidate to Cloudflare (manual only, no deployment)
         id: upload
         if: github.event_name == 'workflow_dispatch'
