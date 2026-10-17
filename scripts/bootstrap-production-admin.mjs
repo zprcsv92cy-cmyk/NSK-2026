@@ -12,12 +12,12 @@ const teamId=(teamIdArg||'').trim();
 const expectedDb='9f937bcb-b0c0-4129-af5b-775cf284dfcb';
 if(!email||email.length>254||!/^\S+@\S+\.\S+$/.test(email)||
    !display||display.length>120||!/^\d+$/.test(teamId)||Number(teamId)<=0){
-  console.error('Usage: node scripts/bootstrap-production-admin.mjs <admin-email> <display-name> <Baserow-team-row-id>');
+  console.error('Usage: node scripts/bootstrap-production-admin.mjs <admin-email> <display-name> <exact-team-name>');
   process.exit(2);
 }
 if(process.env.NSK_PRODUCTION_BOOTSTRAP!=='CONFIRM_PRODUCTION'||
    process.env.NSK_D1_DATABASE_ID!==expectedDb){
-  console.error('Refusing to run. Set NSК_PRODUCTION_BOOTSTRAP=CONFIRM_PRODUCTION and NSК_D1_DATABASE_ID to the verified production D1 UUID.');
+  console.error('Refusing to run. Set NSK_PRODUCTION_BOOTSTRAP=CONFIRM_PRODUCTION and NSK_D1_DATABASE_ID to the verified production D1 UUID.');
   process.exit(2);
 }
 const token=randomBytes(32).toString('base64url');
