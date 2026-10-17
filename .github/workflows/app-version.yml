@@ -7,6 +7,7 @@ on:
     branches: [main]
 permissions:
   contents: write
+  pull-requests: write
 concurrency:
   group: nsk-version-main
   cancel-in-progress: false
@@ -28,7 +29,7 @@ jobs:
           node scripts/bump-version.cjs
           node -e "const fs=require('fs'); const v=require('./deploy.json').version; if(!fs.readFileSync('version.js','utf8').includes(v)) process.exit(1); console.log('Versionstest OK:',v)"
   version:
-    if: "github.event_name != 'pull_request' && !contains(github.event.head_commit.message, '[skip ci]')"
+    if: "github.event_name == 'pull_request' || !contains(github.event.head_commit.message, '[skip ci]')"
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -39,13 +40,18 @@ jobs:
           node-version: '22'
       - name: Uppdatera versionsnummer
         run: node scripts/bump-version.cjs
-      - name: Publicera versionsfiler
-        run: |
-          git config user.name "github-actions[bot]"
-          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add version.js manifest.webmanifest deploy.json sw.js
-          git add -u -- '*.html'
-          if ! git diff --cached --quiet; then
-            git commit -m "chore: bump app version [skip ci]"
-            git push
-          fi
+      - name: Skapa versions-PR
+        if: github.event_name != 'pull_request'
+        uses: peter-evans/create-pull-request@v7
+        with:
+          branch: chore/auto-version-bump
+          delete-branch: true
+          title: "chore: bump app version"
+          commit-message: "chore: bump app version [skip ci]"
+          body: "Automatisk versionshöjning skapad via pull request för att följa branch protection på main."
+          add-paths: |
+            version.js
+            manifest.webmanifest
+            deploy.json
+            sw.js
+            *.html
