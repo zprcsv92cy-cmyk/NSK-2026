@@ -20,8 +20,8 @@ globalThis.fetch=async (resource, options={})=>{
   const url=String(resource);
   if(url.includes('/1255083/'))return Response.json({results:[{id:18,Namn:'NSK Team 18','Säsong':'2026'},
     {id:27,Namn:'NSK Testlag 2','Säsong':'2026'}],next:null});
-  if(url.includes('/1255098/7/'))return Response.json({id:7,Namn:'Test',Lag:[{id:18}]});
-  if(url.includes('/1255098/8/'))return Response.json({id:8,Namn:'Other',Lag:[{id:27}]});
+  if(url.includes('/1255098/7/')&&(!options.method||options.method==='GET'))return Response.json({id:7,Namn:'Test',Lag:[{id:18}]});
+  if(url.includes('/1255098/8/')&&(!options.method||options.method==='GET'))return Response.json({id:8,Namn:'Other',Lag:[{id:27}]});
   if(url.includes('/1255098/')&&['POST','PATCH','DELETE'].includes(options.method)){
     writes++;bodyWritten=options.body&&JSON.parse(options.body);
     return options.method==='DELETE'?new Response(null,{status:204}):
