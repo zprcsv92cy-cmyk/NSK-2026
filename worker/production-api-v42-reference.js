@@ -248,7 +248,7 @@ var worker_default = { async fetch(req, env) {
   }
   if (url.pathname === "/health" && req.method === "GET") {
     try {
-      const r = await fetch(`https://api.baserow.io/api/database/rows/table/${TABLES.lag}/?user_field_names=true&size=1", { headers: { Authorization: `Token ${env.BASEROW_TOKEN}` } });
+      const r = await fetch(`https://api.baserow.io/api/database/rows/table/${TABLES.lag}/?user_field_names=true&size=1`, { headers: { Authorization: `Token ${env.BASEROW_TOKEN}` } });
       return reply({ ok: r.ok, database: "NSK", table: "Lag", status: r.status }, r.ok ? 200 : 502);
     } catch {
       return reply({ ok: false, error: "Baserow unavailable" }, 502);
@@ -329,7 +329,7 @@ var worker_default = { async fetch(req, env) {
     let payload = { Namn: name };
     let team = null;
     if (req.method === "POST") {
-      const teamResp = await fetch(`https://api.baserow.io/api/database/rows/table/${TABLES.lag}/?user_field_names=true&size=100", { headers: { Authorization: `Token ${env.BASEROW_TOKEN}` } });
+      const teamResp = await fetch(`https://api.baserow.io/api/database/rows/table/${TABLES.lag}/?user_field_names=true&size=100`, { headers: { Authorization: `Token ${env.BASEROW_TOKEN}` } });
       if (!teamResp.ok) return reply({ ok: false, error: "Kunde inte kontrollera lag" }, 502);
       const teams = (await teamResp.json()).results || [];
       team = teams.find((t) => t.Namn === "NSK Team 18" && String(t["S\xE4song"]) === "2026");
@@ -338,7 +338,7 @@ var worker_default = { async fetch(req, env) {
     }
     const rowId = req.method === "PATCH" ? url.pathname.split("/").pop() : null;
     if (rowId) {
-      const teamResp = await fetch(`https://api.baserow.io/api/database/rows/table/${TABLES.lag}/?user_field_names=true&size=100", { headers: { Authorization: `Token ${env.BASEROW_TOKEN}` } });
+      const teamResp = await fetch(`https://api.baserow.io/api/database/rows/table/${TABLES.lag}/?user_field_names=true&size=100`, { headers: { Authorization: `Token ${env.BASEROW_TOKEN}` } });
       if (!teamResp.ok) return reply({ ok: false, error: "Kunde inte kontrollera lag" }, 502);
       const teams = (await teamResp.json()).results || [];
       team = teams.find((t) => t.Namn === "NSK Team 18" && String(t["S\xE4song"]) === "2026");
