@@ -13,7 +13,7 @@ export function createPoolOwnerResolver(env, fetchImpl = fetch) {
     const tableId = (name, legacy) => {
       if (!configuredTables) return legacy;
       const id = configuredTables[name];
-      if (!Number.isSafeInteger(id) || id <= 0) throw new Error('Invalid Baserow table mapping');
+      if (!Number.isSafeInteger(id) || id <= 0 || [1255083, 1255098, 1255100, 1255101, 1255109, 1255113, 1255115, 1255119, 1255152, 1255157].includes(id)) throw new Error('Invalid Baserow table mapping');
       return id;
     };
     let resolvedPoolId = poolId;
