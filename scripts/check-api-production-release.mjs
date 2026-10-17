@@ -16,11 +16,12 @@ if (!hasKV('ADMIN_KV')) issues.push('ADMIN_KV KV namespace missing');
 if (!hasKV('NSK_TRAINERS')) issues.push('NSK_TRAINERS KV namespace missing');
 if (!hasDO) issues.push('SHIFT_LOCK Durable Object binding missing');
 if (/intentionally incomplete|not a deployable/i.test(config)) issues.push('Manifest explicitly marked incomplete');
+if (process.env.NSK_API_PRODUCTION_RELEASE_APPROVED !== 'yes') issues.push('Explicit production release approval missing');
 if (issues.length) {
   console.error('API production deployment BLOCKED: incomplete verified configuration.');
   for (const issue of issues) console.error('- ' + issue);
   console.error('- Preserve live secrets and confirm rollback separately before any deployment.');
   process.exitCode = 1;
 } else {
-  console.log('Static binding declarations passed; live binding IDs, secrets, migrations and rollback still require verification.');
+  console.log('Static declarations and explicit approval passed; live binding IDs, secrets, migrations and rollback still require verification.');
 }
