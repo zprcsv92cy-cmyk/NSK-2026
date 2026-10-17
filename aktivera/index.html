@@ -14,7 +14,7 @@ input{width:100%;box-sizing:border-box}#message{min-height:1.5em}
 <main class="card">
 <h1>Aktivera konto</h1>
 <p>Använd engångskoden som du fått via en säker kanal och välj ett eget lösenord.</p>
-<form id="activationForm">
+<p>Första administratören: generera en lokal engångskod och registrera enbart dess hash i Cloudflare D1. Koden lämnar inte webbläsaren förrän du aktiverar kontot.</p><button type="button" id="generateCode">Skapa lokal engångskod</button><label>SQL för Cloudflare D1 Console<textarea id="setupSql" readonly rows="5" style="width:100%;box-sizing:border-box"></textarea></label><form id="activationForm">
 <label>Aktiveringskod<input id="token" type="text" autocomplete="off" required maxlength="43" minlength="43"></label>
 <label>Nytt lösenord (minst 12 tecken)<input id="password" type="password" autocomplete="new-password" minlength="12" required></label>
 <label>Bekräfta lösenord<input id="confirm" type="password" autocomplete="new-password" minlength="12" required></label>
@@ -24,6 +24,15 @@ input{width:100%;box-sizing:border-box}#message{min-height:1.5em}
 <a href="../login/">Till inloggningen</a>
 </main>
 <script>
+document.getElementById('generateCode').addEventListener('click',async()=>{
+ const random=crypto.getRandomValues(new Uint8Array(32));
+ const code=btoa(String.fromCharCode(...random)).split('+').join('-').split('/').join('_').replace(/=+$/,'');
+ const bytes=new Uint8Array(await crypto.subtle.digest('SHA-256',new TextEncoder().encode(code)));
+ const hash=Array.from(bytes,b=>b.toString(16).padStart(2,'0')).join('');
+ document.getElementById('token').value=code;
+ document.getElementById('setupSql').value="INSERT INTO auth_setup_tokens(token_hash,user_id,expires_at) VALUES ('"+hash+"','f8a37a60-2c41-4b0d-8d3b-69ac843f2e10',datetime('now','+120 minutes'));";
+ document.getElementById('message').textContent='Kopiera SQL till Cloudflare D1 Console och kör det innan du aktiverar kontot.';
+});
 document.getElementById('activationForm').addEventListener('submit',async event=>{
  event.preventDefault();
  const message=document.getElementById('message');
