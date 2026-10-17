@@ -20,7 +20,8 @@ input{width:100%;box-sizing:border-box}
 <form id="loginForm">
 <label>E-postadress<input id="email" type="email" autocomplete="username" required></label>
 <label>Lösenord<input id="password" type="password" autocomplete="current-password" required></label>
-<button id="submitButton" type="submit">Logga in</button>
+<button id="submitButton" type="submit">Logga in (testmiljö)</button>
+<button id="productionButton" type="button">Kontrollera produktionskonto</button>
 <p id="message" role="status" aria-live="polite"></p>
 </form>
 <a href="../startsida/">Till startsidan</a>
@@ -31,6 +32,31 @@ input{width:100%;box-sizing:border-box}
   document.write('<script src="../auth.js?v=' + window.NSK_VERSION + '"><\/script>');
 </script>
 <script>
+document.getElementById('productionButton').addEventListener('click',async()=>{
+ const button=document.getElementById('productionButton');
+ const message=document.getElementById('message');
+ const email=document.getElementById('email').value.trim();
+ const password=document.getElementById('password').value;
+ if(!email||!password){message.textContent='Fyll i e-postadress och lösenord.';return;}
+ button.disabled=true;
+ let token;
+ try {
+  const base='https://nsk-auth.peter-hasselberg.workers.dev';
+  const response=await fetch(base+'/api/auth/login',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({email,password}),credentials:'omit',cache:'no-store'});
+  const data=await response.json().catch(()=>({}));
+  if(!response.ok||!data.token)throw new Error(data.error||'Produktionsinloggning misslyckades');
+  token=data.token;
+  const check=await fetch(base+'/api/auth/me',{headers:{Authorization:'Bearer '+token},credentials:'omit',cache:'no-store'});
+  const identity=await check.json().catch(()=>({}));
+  if(!check.ok||!identity.user)throw new Error('Produktionskontot kunde inte verifieras');
+  message.textContent='Produktionskonto verifierat: '+identity.user.name+'. Ingen produktionssession sparades.';
+ } catch(error){message.textContent=error.message||'Produktionskontroll misslyckades';}
+ finally {
+  document.getElementById('password').value='';
+  if(token)await fetch('https://nsk-auth.peter-hasselberg.workers.dev/api/auth/logout',{method:'POST',headers:{Authorization:'Bearer '+token},credentials:'omit'}).catch(()=>{});
+  button.disabled=false;
+ }
+});
 document.getElementById('loginForm').addEventListener('submit',async function(event){
  event.preventDefault();
  const button=document.getElementById('submitButton');
