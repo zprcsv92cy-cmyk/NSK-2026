@@ -6,6 +6,7 @@ import { handlePersonalRosterMutation } from './production-personal-roster-mutat
 import { handlePersonalStaffMutation } from './production-personal-staff-mutation.js';
 import { handlePersonalTeamList } from './production-personal-teams.js';
 import { handlePersonalPoolList } from './production-personal-pools.js';
+import { handlePersonalMatchRead } from './production-personal-match-read.js';
 import { handleProductionAuth } from './production-auth-boundary.js';
 
 const PERSONAL_PREFIX = '/api/personal/';
@@ -20,6 +21,15 @@ export default {
       const origin=request.headers.get('Origin');
       if(origin && origin!=='https://zprcsv92cy-cmyk.github.io')
         return Response.json({ok:false,error:'Origin not allowed'},{status:403});
+      if(/^\/api\/personal\/(matchkonfiguration|laguppstallningar|bytesschema)$/.test(pathname) &&
+          request.method==='GET'){
+        const response=await handlePersonalMatchRead(request,env);
+        const headers=new Headers(response.headers);
+        headers.set('Vary','Origin');
+        if(origin==='https://zprcsv92cy-cmyk.github.io')
+          headers.set('Access-Control-Allow-Origin',origin);
+        return new Response(response.body,{status:response.status,headers});
+      }
       if(pathname==='/api/personal/poolspel' && request.method==='GET'){
         const response=await handlePersonalPoolList(request,env);
         const headers=new Headers(response.headers);
@@ -36,7 +46,7 @@ export default {
       }
       const mutation=/^\/api\/personal\/(spelare|tranare)(?:\/\d+)?$/.test(pathname);
       const staffMutation=pathname==='/api/personal/lagpersonal';
-      if(request.method==='OPTIONS' && (mutation || staffMutation || pathname==='/api/personal/lag' || pathname==='/api/personal/poolspel') && origin==='https://zprcsv92cy-cmyk.github.io')
+      if(request.method==='OPTIONS' && (mutation || staffMutation || pathname==='/api/personal/lag' || pathname==='/api/personal/poolspel' || /^\/api\/personal\/(matchkonfiguration|laguppstallningar|bytesschema)$/.test(pathname)) && origin==='https://zprcsv92cy-cmyk.github.io')
         return new Response(null,{status:204,headers:{
           'Access-Control-Allow-Origin':origin,
           'Access-Control-Allow-Methods':'GET,POST,PATCH,DELETE,OPTIONS',
