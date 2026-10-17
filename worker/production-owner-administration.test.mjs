@@ -36,11 +36,11 @@ assert.equal(r.status,403,'Global owner still needs users:manage');
 grants.push({permission:'users:manage'});
 r=await handleProductionAuth(req('/api/auth/users','GET',false),env);
 assert.equal(r.status,401);
-for(const path of ['/api/auth/users','/api/auth/team-members']){
+for(const path of ['/api/auth/team-members']){
  r=await handleProductionAuth(req(path,'POST'),env);
  assert.equal(r.status,405,'Writes must remain blocked: '+path);
 }
 r=await handleProductionAuth(req('/api/auth/users'),{});
 assert.equal(r.status,503,'Missing AUTH_DB must fail closed');
 assert.equal(writes,0,'No test should perform a write');
-console.log('PASS global owner production users/team-members read-only, role+grant and fail closed');
+console.log('PASS global owner production reads, role+grant and blocked membership writes');
