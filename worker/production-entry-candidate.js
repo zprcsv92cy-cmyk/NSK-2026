@@ -2,6 +2,7 @@
 // Keep all legacy routes intact. Personal routes require isolated AUTH_DB D1.
 import legacyWorker, { ShiftLock } from '../reference/legacy-nsk-api-worker-v42.snapshot.js';
 import { handlePersonalRosterRead } from './production-personal-roster-endpoint.js';
+import { handlePersonalRosterMutation } from './production-personal-roster-mutation.js';
 import { handleProductionAuth } from './production-auth-boundary.js';
 
 const PERSONAL_PREFIX = '/api/personal/';
@@ -13,6 +14,25 @@ export default {
       return handleProductionAuth(request, env);
     }
     if (pathname.startsWith(PERSONAL_PREFIX)) {
+      const origin=request.headers.get('Origin');
+      if(origin && origin!=='https://zprcsv92cy-cmyk.github.io')
+        return Response.json({ok:false,error:'Origin not allowed'},{status:403});
+      const mutation=/^\/api\/personal\/(spelare|tranare)(?:\/\d+)?$/.test(pathname);
+      if(request.method==='OPTIONS' && mutation && origin==='https://zprcsv92cy-cmyk.github.io')
+        return new Response(null,{status:204,headers:{
+          'Access-Control-Allow-Origin':origin,
+          'Access-Control-Allow-Methods':'GET,POST,PATCH,DELETE,OPTIONS',
+          'Access-Control-Allow-Headers':'Authorization,Content-Type',
+          'Vary':'Origin'
+        }});
+      if(mutation && ['POST','PATCH','DELETE'].includes(request.method)){
+        const response=await handlePersonalRosterMutation(request,env);
+        const headers=new Headers(response.headers);
+        headers.set('Vary','Origin');
+        if(origin==='https://zprcsv92cy-cmyk.github.io')
+          headers.set('Access-Control-Allow-Origin',origin);
+        return new Response(response.body,{status:response.status,headers});
+      }
       return handlePersonalRosterRead(request, env);
     }
     // The historical API has no per-person, per-team authorization. Never expose
