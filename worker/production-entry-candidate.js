@@ -87,7 +87,9 @@ export default {
       const staffMutation=pathname==='/api/personal/lagpersonal';
       const shiftDoneRoute=/^\/api\/personal\/bytesschema\/\d+\/done$/.test(pathname);
       const shiftSaveRoute=pathname==='/api/personal/bytesschema/save';
-      if(request.method==='OPTIONS' && (mutation || staffMutation || shiftDoneRoute || shiftSaveRoute || pathname==='/api/personal/lag' || pathname==='/api/personal/poolspel' || /^\/api\/personal\/(matchkonfiguration|laguppstallningar|bytesschema)$/.test(pathname)) && origin==='https://zprcsv92cy-cmyk.github.io')
+      const lineupWriteRoute=/^\/api\/personal\/laguppstallningar\/\d+$/.test(pathname);
+      const matchWriteRoute=/^\/api\/personal\/matchkonfiguration\/\d+$/.test(pathname);
+      if(request.method==='OPTIONS' && (mutation || staffMutation || shiftDoneRoute || shiftSaveRoute || lineupWriteRoute || matchWriteRoute || pathname==='/api/personal/lag' || pathname==='/api/personal/poolspel' || /^\/api\/personal\/(matchkonfiguration|laguppstallningar|bytesschema)$/.test(pathname)) && origin==='https://zprcsv92cy-cmyk.github.io')
         return new Response(null,{status:204,headers:{
           'Access-Control-Allow-Origin':origin,
           'Access-Control-Allow-Methods':'GET,POST,PATCH,DELETE,OPTIONS',
