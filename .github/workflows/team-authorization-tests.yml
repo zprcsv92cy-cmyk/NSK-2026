@@ -17,6 +17,8 @@ jobs:
       - name: Verify browser auth and staging code syntax
         run: |
           node --check auth.js
+          node --check db.js
+          node --test scripts/shift-client-auth.test.mjs
           node --check worker/production-api-v42-reference.js
           node --test worker/production-api-staff-route.test.mjs
           node scripts/check-staging-imports.mjs
