@@ -44,7 +44,7 @@ function fakeBaserow(rows) {
 }
 test('pool owner resolver uses trusted pool links and selected lag number', async () => {
   const resolver = createPoolOwnerResolver({ BASEROW_TOKEN: 'test' }, fakeBaserow({
-    '1255101:40': { id: 40, Lag: [{ id: 8 }, { id: 18 }] },
+    '1255101:40': { id: 40, Lag: [{ id: 8 }, { id: 18 }], 'Antal lag': 2 },
     '1255083:18': { id: 18, Namn: 'NSK Team 18' }
   }));
   assert.deepEqual(await resolver({ poolId: 40, lagNo: 2 }), { teamId: 'NSK Team 18', teamName: 'NSK Team 18', baserowTeamRowId: '18', poolId: 40 });
@@ -52,7 +52,7 @@ test('pool owner resolver uses trusted pool links and selected lag number', asyn
 test('pool owner resolver derives pool and lag from trusted shift row', async () => {
   const resolver = createPoolOwnerResolver({ BASEROW_TOKEN: 'test' }, fakeBaserow({
     '1255115:90': { id: 90, Poolspel: [{ id: 40 }], Lagnummer: 2 },
-    '1255101:40': { id: 40, Lag: [{ id: 8 }, { id: 18 }] },
+    '1255101:40': { id: 40, Lag: [{ id: 8 }, { id: 18 }], 'Antal lag': 2 },
     '1255083:18': { id: 18, Namn: 'NSK Team 18' }
   }));
   assert.deepEqual(await resolver({ shiftRowId: 90 }), { teamId: 'NSK Team 18', teamName: 'NSK Team 18', baserowTeamRowId: '18', poolId: 40 });
