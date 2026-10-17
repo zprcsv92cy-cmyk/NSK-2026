@@ -608,6 +608,10 @@ var worker_default = { async fetch(req, env) {
     }    if (typeof body?.done !== "boolean") return reply({ ok: false, error: "Ogiltigt v\xE4rde" }, 400);
     const id = Number(url.pathname.split("/")[3]);
     if (!env.SHIFT_LOCK) return reply({ ok: false, error: "SHIFT_LOCK saknas" }, 503);
+      const identityToken = /^Bearer ([^\s]+)$/.exec(req.headers.get("Authorization") || "")?.[1];
+      let actor = null;
+      try { actor = identityToken ? await createPersonalRosterIdentityVerifier(env)(identityToken) : null; } catch { actor = null; }
+      if (!actor) return reply({ ok: false, error: "Personlig inloggning krävs" }, 401);
     const auth = { Authorization: `Token ${env.BASEROW_TOKEN}` };
     const base = "https://api.baserow.io/api/database/rows/table/";
     try {
@@ -617,10 +621,6 @@ var worker_default = { async fetch(req, env) {
       const poolId = Number((row.Poolspel || [])[0]?.id || (row.Poolspel || [])[0]);
       const lagNo = Number(row.Lagnummer), matchNo = Number(row.Matchnummer);
       if (![poolId, lagNo, matchNo].every((n) => Number.isSafeInteger(n) && n > 0)) return reply({ ok: false, error: "Ogiltig match" }, 400);
-      const identityToken = /^Bearer ([^\s]+)$/.exec(req.headers.get("Authorization") || "")?.[1];
-      let actor = null;
-      try { actor = identityToken ? await createPersonalRosterIdentityVerifier(env)(identityToken) : null; } catch { actor = null; }
-      if (!actor) return reply({ ok: false, error: "Personlig inloggning krävs" }, 401);
       const owner = await createPoolOwnerResolver(env)({ shiftRowId: id });
       const access = authorizeTeamFeature(actor, owner.teamId, "shifts");
       if (!access.allowed) return reply({ ok: false, error: access.reason }, access.status);
