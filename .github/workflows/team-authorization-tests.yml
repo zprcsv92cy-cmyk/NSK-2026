@@ -1,5 +1,15 @@
 name: Team authorization tests
 on:
+  pull_request:
+    branches: [main]
+    paths:
+      - '.github/workflows/app-version.yml'
+      - '.github/workflows/team-authorization-tests.yml'
+      - 'worker/**'
+      - 'scripts/check-api-production-release.mjs'
+      - 'scripts/check-api-production-release.test.mjs'
+      - 'wrangler.api.production.toml'
+      - 'wrangler.auth.production.toml'
   push:
     branches: [main]
     paths:
