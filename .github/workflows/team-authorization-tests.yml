@@ -51,6 +51,7 @@ on:
       - 'worker/production-owner-permissions.test.mjs'
       - 'worker/production-owner-team-membership.js'
       - 'worker/production-owner-team-membership.test.mjs'
+      - 'worker/production-owner-team-membership-delete.test.mjs'
       - 'worker/production-auth-boundary.js'
       - 'worker/production-auth-boundary.test.mjs'
       - 'worker/production-global-owner-access.test.mjs'
@@ -141,6 +142,7 @@ on:
       - 'worker/production-owner-permissions.test.mjs'
       - 'worker/production-owner-team-membership.js'
       - 'worker/production-owner-team-membership.test.mjs'
+      - 'worker/production-owner-team-membership-delete.test.mjs'
       - 'worker/production-auth-boundary.js'
       - 'worker/production-auth-boundary.test.mjs'
       - 'worker/production-global-owner-access.test.mjs'
@@ -233,6 +235,8 @@ jobs:
         run: node scripts/test-bootstrap-production-admin.mjs
       - name: Check production login throttling
         run: node --experimental-default-type=module --test worker/production-login-guard.test.mjs
+      - name: Check protected team membership deletions
+        run: node --experimental-default-type=module --test worker/production-owner-team-membership-delete.test.mjs
       - name: Check verified global owner team membership assignments
         run: node --experimental-default-type=module --test worker/production-owner-team-membership.test.mjs
       - name: Check protected per-person permission grants
