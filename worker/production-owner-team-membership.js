@@ -8,7 +8,7 @@ const ROLES=new Set(['team_admin','coach','team_manager','fitness','equipment','
 const reply=(status,data)=>Response.json(data,{status,headers:{'cache-control':'no-store','x-content-type-options':'nosniff'}});
 export async function handleProductionOwnerTeamMembership(request,env){
   if(new URL(request.url).pathname!=='/api/auth/team-members')return reply(404,{error:'Okänd adress'});
-  if(request.method!=='PUT')return reply(405,{error:'Metoden är inte tillåten'});
+  if(!['PUT','DELETE'].includes(request.method))return reply(405,{error:'Metoden är inte tillåten'});
   if(!env?.AUTH_DB)return reply(503,{error:'Databasen är inte tillgänglig'});
   const token=/^Bearer ([A-Za-z0-9_-]{32,256})$/.exec(request.headers.get('Authorization')||'')?.[1];
   if(!token)return reply(401,{error:'Personlig inloggning krävs'});
@@ -22,11 +22,12 @@ export async function handleProductionOwnerTeamMembership(request,env){
     if(raw.length>2048)return reply(413,{error:'För stort underlag'});
     let body;
     try{body=JSON.parse(raw);}catch{return reply(400,{error:'Ogiltig JSON'});}
+    const fields=request.method==='DELETE'?'team_id,user_id':'role,team_id,user_id';
     if(!body||typeof body!=='object'||Array.isArray(body)||
-       Object.keys(body).sort().join(',')!=='role,team_id,user_id'||
+       Object.keys(body).sort().join(',')!==fields||
        typeof body.user_id!=='string'||! /^[a-f0-9-]{36}$/.test(body.user_id)||
        typeof body.team_id!=='string'||body.team_id.length>100||
-       typeof body.role!=='string'||!ROLES.has(body.role))
+       (request.method==='PUT'&&(typeof body.role!=='string'||!ROLES.has(body.role))))
       return reply(400,{error:'Ogiltig användare, lag eller roll'});
     if(body.user_id===actor.user.id)return reply(403,{error:'Huvudadministratörens medlemskap är skyddat'});
     const [user,protectedUser]=await Promise.all([
@@ -47,6 +48,15 @@ export async function handleProductionOwnerTeamMembership(request,env){
     const teams=await teamsResponse.json();
     const verified=(teams.results||[]).filter(t=>t.Namn===body.team_id);
     if(verified.length!==1)return reply(400,{error:'Laget är okänt eller tvetydigt'});
+    if(request.method==='DELETE'){
+      // A missing membership must not be reported as a successful removal.
+      // Deletion targets an exact user/team pair and cannot touch the '*' owner grant.
+      const deleted=await env.AUTH_DB.prepare(
+        'DELETE FROM auth_team_memberships WHERE user_id=? AND team_id=? RETURNING user_id'
+      ).bind(body.user_id,body.team_id).first();
+      if(!deleted)return reply(404,{error:'Lagmedlemskapet finns inte'});
+      return reply(200,{ok:true,user_id:body.user_id,team_id:body.team_id,removed:true});
+    }
     const result=await env.AUTH_DB.prepare(
       'INSERT INTO auth_team_memberships(user_id,team_id,role) VALUES(?,?,?) '+
       'ON CONFLICT(user_id,team_id) DO UPDATE SET role=excluded.role'
