@@ -100,3 +100,14 @@ test('roster POST accepts matching Baserow Lag link', async () => {
   const x = await run(request);
   assert.equal(x.result.ok, true); assert.equal(x.rosterWrites, 1);
 });
+
+
+test('mapped team key requires matching membership', async () => {
+  const result = await authorizePersonalWorkerWrite(req('POST', '/api/spelare'), env(), {
+    listTeams: async () => teams,
+    readRow: async () => ({ Lag: [{ id: 18 }] }),
+    authorizationTeamId: 'NSK Team 18',
+    mutateRoster: async () => ({ ok: true })
+  });
+  assert.equal(result.status, 403);
+});
