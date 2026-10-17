@@ -4,6 +4,7 @@ import { handleTeamAuth } from './team-auth.js';
 import { handleActivation } from './account-activation.js';
 import { productionRateLimitedLogin } from './production-login-guard.js';
 import { handlePersonalTeamList } from './production-personal-teams.js';
+import { authorizeTeamFeature } from './team-authorization-policy.js';
 
 const ORIGIN='https://zprcsv92cy-cmyk.github.io';
 const METHODS=Object.freeze({
@@ -43,6 +44,40 @@ export async function handleProductionAuth(request, env) {
         : await handleTeamAuth(request,env);
   } catch {
     return deny(503,'Authentication is temporarily unavailable');
+  }
+  // Global owners still need the same server-verified team scoping as all
+  // other users. Never grant a feature for an arbitrary query team_id.
+  if((pathname==='/api/auth/feature-access'||pathname==='/api/auth/integration/access') && result.ok){
+    const raw=await result.json();
+    if(raw?.allowed===false){
+      const me=await handleTeamAuth(new Request(new URL('/api/auth/me',request.url),{
+        headers:{Authorization:request.headers.get('Authorization')||''}
+      }),env);
+      if(!me.ok)return deny(401,'Inloggningen kunde inte verifieras');
+      const identity=await me.json();
+      if(identity?.memberships?.some(m=>m.team_id==='*'&&m.role==='owner')){
+        const teamResponse=await handlePersonalTeamList(new Request(
+          new URL('/api/personal/lag',request.url),{
+            headers:{Authorization:request.headers.get('Authorization')||''}
+          }),env);
+        if(!teamResponse.ok)return deny(503,'Lag kunde inte verifieras');
+        const all=await teamResponse.json();
+        const teamId=new URL(request.url).searchParams.get('team_id');
+        const feature=new URL(request.url).searchParams.get('feature');
+        const verified=(all.results||[]).filter(t=>t.Namn===teamId);
+        if(verified.length===1){
+          const access=authorizeTeamFeature(identity,teamId,feature);
+          result=Response.json({team_id:teamId,feature,allowed:access.allowed,
+            permission:access.permission,role:'owner'},{status:access.status===400?400:200});
+        }else{
+          result=Response.json({team_id:teamId,feature,allowed:false,role:null},{status:200});
+        }
+      }else{
+        result=Response.json(raw,{status:200});
+      }
+    }else{
+      result=Response.json(raw,{status:200});
+    }
   }
   if(pathname==='/api/auth/me' && result.ok){
     const identity=await result.json();
