@@ -54,6 +54,31 @@ jobs:
             if (response.status !== 401) throw new Error('Forged token accepted for ' + method + ' ' + path + ': ' + response.status);
           }
           NODE
+      - name: Reject malformed and client-forged shift writes
+        run: |
+          node --input-type=module <<'NODE'
+          import worker from './dist/nsk-api-worker.mjs';
+          const env = { AUTH_DB: {}, BASEROW_TOKEN: 'placeholder', SHIFT_LOCK: {} };
+          const cases = [
+            ['POST', '/api/bytesschema/save', { pool_id: 1, lag_no: 1, match_no: 1, team_id: 'NSK Team 18' }, 400],
+            ['POST', '/api/bytesschema/save', { pool_id: 1, lag_no: 1, match_no: 1, teamId: 'NSK Team 18' }, 400],
+            ['POST', '/api/bytesschema/save', { pool_id: 1, lag_no: 0, match_no: 1 }, 400],
+            ['POST', '/api/bytesschema/save', { pool_id: 1, lag_no: 1, match_no: -1 }, 400],
+            ['PATCH', '/api/bytesschema/1/done', { done: 'true' }, 400],
+            ['PATCH', '/api/bytesschema/1/done', { done: 1 }, 400]
+          ];
+          for (const [method, path, body, expected] of cases) {
+            const response = await worker.fetch(new Request('https://nsk-api.example' + path, {
+              method,
+              headers: { 'Content-Type': 'application/json', Origin: 'https://zprcsv92cy-cmyk.github.io' },
+              body: JSON.stringify(body)
+            }), env, {});
+            if (response.status !== expected) {
+              throw new Error(method + ' ' + path + ' with ' + JSON.stringify(body) +
+                ': expected ' + expected + ', got ' + response.status);
+            }
+          }
+          NODE
       - name: Upload candidate to Cloudflare (manual only, no deployment)
         id: upload
         if: github.event_name == 'workflow_dispatch'
