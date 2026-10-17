@@ -137,7 +137,7 @@
     if (!(await checkTeamFeature('roster', team))) {
       throw new Error('Saknar verifierad rätt att ändra truppen');
     }
-    const legacyBase = String(window.APP_CONFIG?.API_URL || '').replace(/\\/$/, '');
+    const legacyBase = String(window.APP_CONFIG?.API_URL || '').replace(/\/$/, '');
     const teamsResponse = await fetch(legacyBase + '/api/lag?size=200', {
       cache:'no-store',credentials:'omit'
     });
