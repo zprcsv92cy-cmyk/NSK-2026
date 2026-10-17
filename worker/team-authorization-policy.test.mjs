@@ -3,7 +3,7 @@ import { test } from 'node:test';
 import { authorizeTeamFeature, authorizeRosterMutation } from './team-authorization-policy.js';
 
 const actor = { memberships: [{ team_id: 'team-18', role: 'team_admin' }], permissions: ['roster:manage'] };
-test('only team admin with explicit roster permission may write', () => {
+test('only verified team member with explicit roster permission may write', () => {
   assert.equal(authorizeTeamFeature(actor, 'team-18', 'roster').allowed, true);
   assert.equal(authorizeTeamFeature(actor, 'team-2', 'roster').status, 403);
   assert.equal(authorizeTeamFeature({ ...actor, permissions: [] }, 'team-18', 'roster').status, 403);
@@ -63,9 +63,17 @@ test('rejects malformed bearer header before identity verification', async () =>
 });
 
 test('global administrator still requires membership and explicit personal grant', () => {
-  const globalAdmin = { ...actor, is_global_admin: true, memberships: [{ team_id: 'team-18', role: 'viewer' }] };
+  const globalAdmin = { ...actor, is_global_admin: true, memberships: [{ team_id: 'team-18', role: 'coach' }] };
   assert.equal(authorizeTeamFeature(globalAdmin, 'team-18', 'roster').allowed, true);
   assert.equal(authorizeTeamFeature(globalAdmin, 'team-2', 'roster').allowed, false);
   assert.equal(authorizeTeamFeature({ ...globalAdmin, permissions: [] }, 'team-18', 'roster').allowed, false);
   assert.equal(authorizeTeamFeature({ ...globalAdmin, is_global_admin: false }, 'team-18', 'roster').allowed, false);
+  assert.equal(authorizeTeamFeature({ ...globalAdmin, memberships: [{ team_id: 'team-18', role: 'viewer' }] }, 'team-18', 'roster').allowed, false);
+});
+
+test('personal grant permits coach only in member team and only for granted feature', () => {
+  const coach = { memberships: [{ team_id: 'team-18', role: 'coach' }], permissions: ['lineup:edit'] };
+  assert.equal(authorizeTeamFeature(coach, 'team-18', 'lineup').allowed, true);
+  assert.equal(authorizeTeamFeature(coach, 'team-18', 'roster').status, 403);
+  assert.equal(authorizeTeamFeature(coach, 'team-2', 'lineup').status, 403);
 });
