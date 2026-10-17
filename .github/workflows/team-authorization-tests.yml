@@ -27,11 +27,15 @@ on:
       - 'worker/staging-session-identity.test.mjs'
       - 'worker/staging-auth-dispatch.js'
       - 'worker/staging-auth-dispatch.test.mjs'
+      - 'wrangler.auth.production.toml'
+      - 'worker/production-entry.js'
       - '.github/workflows/team-authorization-tests.yml'
   pull_request:
     paths:
       - 'login/index.html'
       - 'startsida/index.html'
+      - 'wrangler.auth.production.toml'
+      - 'worker/production-entry.js'
       - '.github/workflows/team-authorization-tests.yml'
       - 'worker/team-authorization-policy.js'
       - 'worker/team-authorization-policy.test.mjs'
@@ -57,6 +61,8 @@ on:
       - 'worker/staging-session-identity.test.mjs'
       - 'worker/staging-auth-dispatch.js'
       - 'worker/staging-auth-dispatch.test.mjs'
+      - 'wrangler.auth.production.toml'
+      - 'worker/production-entry.js'
       - '.github/workflows/team-authorization-tests.yml'
 jobs:
   security-checks:
