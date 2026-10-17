@@ -35,3 +35,14 @@ The Cloudflare version API confirms the active v42 code exports a `ShiftLock` cl
 7. Run the release preflight and an approved rollout with monitored read and write smoke checks.
 
 **Do not deploy** until every item is verified. A previous version ID is a rollback reference, not proof of a successful rollback.
+
+## Rollback procedure (documented, not executed)
+
+Cloudflare's Workers deployment API supports creating a deployment with a `versions` array containing a previously uploaded `version_id` and traffic `percentage`. This confirms an API mechanism for redeploying an existing version, **not** that a rollback has been exercised successfully.
+
+1. Before rollout, read `GET /accounts/{account_id}/workers/scripts/nsk-api/deployments` and save the current 100% version.
+2. If rollback is needed, an authorized operator can use `POST /accounts/{account_id}/workers/scripts/nsk-api/deployments` with `versions: [{ "version_id": "95247668-0e10-4ba3-b6c5-469ed37a986c", "percentage": 100 }]` and the API's other required deployment fields. Validate the exact API request against current Cloudflare documentation before use.
+3. Read deployments again and verify that the target version receives 100% of traffic.
+4. Run read-only API smoke checks, then authorized application checks. If state migrations occurred, reverting Worker code alone may not revert Durable Object or D1 data.
+
+Do **not** run a rollback simply to test the procedure on live production. Migration history remains unverified.
