@@ -12,7 +12,7 @@ const req = (path, body = {}, method = 'POST') => new Request('https://nsk.test'
 test('shift save authorizes the server-resolved pool owner before mutation', async () => {
   let writes = 0;
   const response = await guardShiftRoute(req('/api/bytesschema/save', { pool_id: 10, lag_no: 1, match_no: 2 }), env, {
-    verifyIdentity, findPoolOwner: async ({ poolId }) => ({ teamId: poolId === 10 ? '18' : '2' }),
+    verifyIdentity, findPoolOwner: async ({ poolId, lagNo }) => ({ teamId: poolId === 10 && lagNo === 1 ? '18' : '2' }),
     mutate: async () => { writes++; return Response.json({ ok: true }); }
   });
   assert.equal(response.status, 200);

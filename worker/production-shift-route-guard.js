@@ -21,6 +21,7 @@ export async function guardShiftRoute(request, env, { findPoolOwner, mutate, ver
     if (new URL(request.url).pathname === '/api/bytesschema/save') {
       const body = await request.clone().json();
       poolId = body?.pool_id;
+      var lagNo = body?.lag_no;
       if (Object.hasOwn(body || {}, 'team_id') || Object.hasOwn(body || {}, 'teamId'))
         return Response.json({ ok: false, error: 'Lag får inte anges av klienten' }, { status: 400, headers: { 'Cache-Control': 'no-store' } });
     } else {
@@ -34,7 +35,7 @@ export async function guardShiftRoute(request, env, { findPoolOwner, mutate, ver
   }
   const result = await authorizeShiftWrite(actor, poolId, {
     findPoolOwner: async id => {
-      const owner = await findPoolOwner({ poolId: id, resolveOnly: true });
+      const owner = await findPoolOwner({ poolId: id, lagNo: typeof lagNo === 'number' ? lagNo : undefined, resolveOnly: true });
       return owner?.teamId ?? null;
     },
     mutate: () => mutate(actor, poolId)
