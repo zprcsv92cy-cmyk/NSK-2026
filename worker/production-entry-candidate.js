@@ -28,7 +28,7 @@ export default {
       }
       const mutation=/^\/api\/personal\/(spelare|tranare)(?:\/\d+)?$/.test(pathname);
       const staffMutation=pathname==='/api/personal/lagpersonal';
-      if(request.method==='OPTIONS' && (mutation || staffMutation) && origin==='https://zprcsv92cy-cmyk.github.io')
+      if(request.method==='OPTIONS' && (mutation || staffMutation || pathname==='/api/personal/lag') && origin==='https://zprcsv92cy-cmyk.github.io')
         return new Response(null,{status:204,headers:{
           'Access-Control-Allow-Origin':origin,
           'Access-Control-Allow-Methods':'GET,POST,PATCH,DELETE,OPTIONS',
