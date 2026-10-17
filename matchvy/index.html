@@ -85,6 +85,20 @@
       .matchview-wrap .compact-nav-row { display: flex; flex-wrap: wrap; }
       .matchview-wrap .compact-nav-row > button { flex: 1 1 130px; }
     }
+    .matchview-print-row { display:flex; justify-content:flex-end; margin:0 0 12px; }
+    .matchview-print-row button { width:auto; margin:0; }
+    @media print {
+      @page { margin: 10mm; }
+      body { background:#fff !important; color:#111 !important; padding:0 !important; }
+      .mainmenu, .matchview-print-row, .compact-nav-row, #appError { display:none !important; }
+      .wrap { max-width:none !important; margin:0 !important; padding:0 !important; }
+      .matchview-hero { margin:0 0 8mm !important; }
+      .matchview-hero-logo { display:none !important; }
+      .v726-coach-card, .coach-panel, .coach-byte-meta-box { background:#fff !important; color:#111 !important; border:1px solid #aaa !important; box-shadow:none !important; break-inside:avoid; }
+      .coach-big-title, .coach-panel-label, .coach-panel-main, .coach-panel-next, .coach-match-info, .coach-match-info p, .coach-byte-meta-box { color:#111 !important; }
+      .v726-now-panel .coach-panel-label, .v726-next-panel .coach-panel-label { color:#111 !important; }
+      button { display:none !important; }
+    }
     /* Endast textfärger för NU och NÄSTA. */
     .matchview-wrap .v726-now-panel .coach-panel-label { color: #008000 !important; }
     .matchview-wrap .v726-next-panel .coach-panel-label { color: #d00000 !important; }
@@ -108,6 +122,8 @@
         <h1 class="hero-title matchview-hero-title">Matchvy</h1>
       </div>
     </section>
+
+    <div class="matchview-print-row"><button id="matchviewPrintButton" type="button">Skriv ut matchvy / PDF</button></div>
 
     <section class="card coach-mode-card iphone-match-card v726-coach-card">
       <div id="shiftLabel" class="coach-big-title">Inget schema</div>
@@ -139,6 +155,7 @@
       document.write('<script src="../app.js?v=' + window.NSK_VERSION + '"><\/script>');
     </script>
   </div>
+<script>document.getElementById("matchviewPrintButton")?.addEventListener("click", () => { if (typeof window.print === "function") window.print(); });</script>
 <script src="../admin-mode.js?v=1"></script>
 </body>
 </html>
