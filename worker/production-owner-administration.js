@@ -28,7 +28,7 @@ export async function handleProductionOwnerAdministration(request,env){
         return reply(400,{error:'Bara namn och e-postadress kan anges'});
       const email=typeof body.email==='string'?body.email.trim().toLowerCase():'';
       const name=typeof body.name==='string'?body.name.trim():'';
-      if(email.length>254||!/^[^\\s@]+@[^\\s@]+\\.[^\\s@]+$/.test(email)||
+      if(email.length>254||!/^[^\s@]+@[^\s@]+\\.[^\s@]+$/.test(email)||
         !name||name.length>150)return reply(400,{error:'Ogiltigt namn eller e-postadress'});
       const existing=await env.AUTH_DB.prepare('SELECT id FROM auth_users WHERE email=?').bind(email).first();
       if(existing)return reply(409,{error:'E-postadressen används redan'});
