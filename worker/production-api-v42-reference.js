@@ -1,3 +1,4 @@
+import { handlePersonalLagpersonalWrite } from './production-lagpersonal-write-handler.js';
 var __defProp = Object.defineProperty;
 var __name = (target, value) => __defProp(target, "name", { value, configurable: true });
 
@@ -613,10 +614,26 @@ var worker_default = { async fetch(req, env) {
       return reply({ ok: false, error: "Kunde inte \xE4ndra byte", detail: String(e) }, 502);
     }
   }
-  // Personal lagpersonal writes must pass the D1-backed identity and team guard.
-  // Until that guard is wired into this Worker, reject these writes explicitly.
-  if (url.pathname === "/api/lagpersonal" && ["POST", "PATCH"].includes(req.method))
-    return reply({ ok: false, error: "Personlig behörighetskontroll är ännu inte aktiverad" }, 403);
+  // Personally authorized staff writes. Fail closed if D1, KV or Baserow is unavailable.
+  if (url.pathname === "/api/lagpersonal" && ["POST", "PATCH"].includes(req.method)) {
+    try {
+      const result = await handlePersonalLagpersonalWrite(req, env, {
+        listTeams: async () => {
+          if (!env.BASEROW_TOKEN || !env.BASEROW_DATABASE_ID) throw Error("Baserow credentials missing");
+          const response = await fetch("https://api.baserow.io/api/database/rows/table/" + TABLES.lag + "/?user_field_names=true&size=200", {
+            headers: { Authorization: "Token " + env.BASEROW_TOKEN }
+          });
+          if (!response.ok) throw Error("Trusted team list unavailable");
+          const data = await response.json();
+          if (!Array.isArray(data.results) || data.next) throw Error("Incomplete trusted team list");
+          return data.results;
+        }
+      });
+      return reply(result, result.status || 500);
+    } catch {
+      return reply({ ok: false, error: "Lagring eller laguppslag kunde inte verifieras" }, 503);
+    }
+  }
   if (req.method !== "GET") return reply({ ok: false, error: "Skrivning \xE4r avst\xE4ngd" }, 405);
   if (url.pathname === "/api/lagpersonal" && req.method === "GET") {
     const teamId = Number(url.searchParams.get("team_id"));
