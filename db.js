@@ -131,6 +131,7 @@ window.DB = (() => {
   async function saveLineup(configId,players,coaches){
     return serialWrite(async()=>{
       if(!positive(configId)||![...players,...coaches].every(positive))throw new Error('Ogiltiga ID:n i laguppställningen');
+      if(window.Auth?.getMode?.()==='production') return window.Auth.personalLineupWrite(Number(configId),players.map(Number),coaches.map(Number));
       return adminRequest(`/api/laguppstallningar/${Number(configId)}`,'POST',{players:players.map(Number),coaches:coaches.map(Number)});
     });
   }
