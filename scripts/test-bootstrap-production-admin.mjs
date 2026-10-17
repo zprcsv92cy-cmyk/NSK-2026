@@ -30,7 +30,8 @@ require('fs').writeFileSync(process.env.NSK_MOCK_ARGS,JSON.stringify(process.arg
  assert.deepEqual(args.slice(0,5),['wrangler','d1','execute','nsk-auth-production','--remote']);
  const sql=args[args.indexOf('--command')+1];
  assert.match(sql,/INSERT INTO auth_users/);
- assert.match(sql,/auth_team_memberships[\\s\\S]*'\\*','owner'/);
+ assert.match(sql,/auth_team_memberships/);
+ assert.ok(sql.includes(",'*','owner'"));
  assert.match(sql,/INSERT INTO auth_setup_tokens/);
  assert.match(sql,/[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}/);
  assert.match(r.stdout,/Production admin bootstrap succeeded/);
