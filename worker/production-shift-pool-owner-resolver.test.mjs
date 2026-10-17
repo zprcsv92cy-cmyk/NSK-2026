@@ -79,3 +79,25 @@ test('rejects squad beyond configured pool team count', async () => {
   await assert.rejects(createPoolOwnerResolver(env, db.fetchImpl)({ poolId: 12, lagNo: 3 }), /Ogiltigt lagnummer/);
   assert.equal(db.requested.length, 1);
 });
+
+
+test('uses only configured isolated Baserow tables for owner lookup', async () => {
+  const isolated = { ...env, BASEROW_TABLE_IDS: JSON.stringify({ lag: 991, poolspel: 992, bytesschema: 993 }) };
+  const db = fakeBaserow({
+    '993/31': { Poolspel: [{ id: 12 }], Lagnummer: 1 },
+    '992/12': { Lag: [{ id: 91 }], 'Antal lag': 1 },
+    '991/91': { id: 91, Namn: 'NSK Testlag 2' }
+  });
+  const owner = await createPoolOwnerResolver(isolated, db.fetchImpl)({ shiftRowId: 31 });
+  assert.equal(owner.teamId, 'NSK Testlag 2');
+  assert.deepEqual(db.requested.map(x => x.split('/').slice(0, 2).join('/')), ['993/31', '992/12', '991/91']);
+});
+
+test('rejects missing or invalid isolated table mapping without legacy fallback', async () => {
+  for (const mapping of ['{}', '{"lag":991,"poolspel":992}', '{"lag":991,"poolspel":992,"bytesschema":0}', 'not-json']) {
+    const db = fakeBaserow({});
+    const isolated = { ...env, BASEROW_TABLE_IDS: mapping };
+    await assert.rejects(createPoolOwnerResolver(isolated, db.fetchImpl)({ shiftRowId: 31 }));
+    assert.equal(db.requested.length, 0);
+  }
+});
