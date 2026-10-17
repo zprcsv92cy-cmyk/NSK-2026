@@ -6,6 +6,7 @@ import { productionRateLimitedLogin } from './production-login-guard.js';
 import { handlePersonalTeamList } from './production-personal-teams.js';
 import { authorizeTeamFeature } from './team-authorization-policy.js';
 import { handleProductionOwnerAdministration } from './production-owner-administration.js';
+import { handleProductionOwnerPermissions } from './production-owner-permissions.js';
 
 const ORIGIN='https://zprcsv92cy-cmyk.github.io';
 const METHODS=Object.freeze({
@@ -26,9 +27,10 @@ export async function handleProductionAuth(request, env) {
   if(origin && origin!==ORIGIN) return deny(403,'Origin not allowed');
   const pathname=new URL(request.url).pathname;
   const userMutation=/^\/api\/auth\/users\/[a-f0-9-]{36}$/.test(pathname);
-  if(!Object.prototype.hasOwnProperty.call(METHODS,pathname)&&!userMutation)
+  const permissionsMutation=/^\/api\/auth\/users\/[a-f0-9-]{36}\/permissions$/.test(pathname);
+  if(!Object.prototype.hasOwnProperty.call(METHODS,pathname)&&!userMutation&&!permissionsMutation)
     return deny(404,'Not found');
-  const allowedMethods=userMutation?'PATCH,DELETE':METHODS[pathname];
+  const allowedMethods=permissionsMutation?'PUT':userMutation?'PATCH,DELETE':METHODS[pathname];
   if(request.method==='OPTIONS'){
     if(origin!==ORIGIN) return deny(403,'Origin not allowed');
     return new Response(null,{status:204,headers:{
@@ -42,7 +44,8 @@ export async function handleProductionAuth(request, env) {
   if(!env?.AUTH_DB)return deny(503,'Production authentication is not configured');
   let result;
   try {
-    result=(pathname==='/api/auth/users'||pathname==='/api/auth/team-members'||userMutation)
+    result=permissionsMutation ? await handleProductionOwnerPermissions(request,env)
+      : (pathname==='/api/auth/users'||pathname==='/api/auth/team-members'||userMutation)
       ? await handleProductionOwnerAdministration(request,env)
       : pathname==='/api/auth/activate'
       ? await handleActivation(request,env)
