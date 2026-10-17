@@ -16,9 +16,14 @@ const env={BASEROW_TOKEN:'mock',
 };
 const teams=[{id:18,Namn:'NSK Team 18','Säsong':'2026'},
  {id:27,Namn:'NSK Testlag 2','Säsong':'2026'}];
+const players=[{id:41,Namn:'Tillåten spelare',Lag:[{id:18}]},{id:42,Namn:'Annan spelare',Lag:[{id:27}]}];
+const trainers=[{id:51,Namn:'Tillåten tränare',Lag:[{id:18}]},{id:52,Namn:'Annan tränare',Lag:[{id:27}]}];
 const oldFetch=globalThis.fetch;
 globalThis.fetch=async url=>{
  assert.match(String(url),/api\.baserow\.io/);
+ const url=String(url);
+ if(url.includes('/1255098/'))return Response.json({results:players,next:null});
+ if(url.includes('/1255100/'))return Response.json({results:trainers,next:null});
  return Response.json({results:teams,next:null});
 };
 const req=(path,auth=true,origin='https://zprcsv92cy-cmyk.github.io')=>
@@ -32,9 +37,22 @@ try {
  r=await candidate.fetch(req('/api/lagpersonal?team_id=18'),env,{});
  assert.equal(r.status,200);
  assert.deepEqual((await r.json()).results,[{id:'staff1',name:'Staff',role:'Lagledare'}]);
+ for(const [path,allowed] of [['/api/spelare?team_id=18',41],['/api/tranare?team_id=18',51]]){
+   r=await candidate.fetch(req(path),env,{});
+   assert.equal(r.status,200,path);
+   assert.deepEqual((await r.json()).results.map(p=>p.id),[allowed],path+' must filter foreign team rows');
+ }
+ for(const path of ['/api/spelare?team_id=27','/api/tranare?team_id=27']){
+   r=await candidate.fetch(req(path),env,{});
+   assert.equal(r.status,403,path+' must reject foreign-team scope');
+ }
+ for(const path of ['/api/spelare','/api/tranare','/api/spelare?team_id=18&team_id=27']){
+   r=await candidate.fetch(req(path),env,{});
+   assert.equal(r.status,400,path+' must require one verified team_id');
+ }
  r=await candidate.fetch(req('/api/lagpersonal?team_id=27'),env,{});
  assert.equal(r.status,403,'Staff from another team must not be exposed');
- for(const path of ['/api/lag','/api/lagpersonal?team_id=18']){
+ for(const path of ['/api/lag','/api/lagpersonal?team_id=18','/api/spelare?team_id=18','/api/tranare?team_id=18']){
    r=await candidate.fetch(req(path,false),env,{});
    assert.equal(r.status,401);
    r=await candidate.fetch(req(path,true,'https://hostile.invalid'),env,{});
@@ -44,5 +62,5 @@ try {
    r=await candidate.fetch(new Request(base+path,{method:'POST'}),env,{});
    assert.equal(r.status,503);
  }
- console.log('PASS team and staff legacy GET aliases enforce per-person scope; writes remain blocked');
+ console.log('PASS legacy team, staff, player and trainer GET aliases enforce personal team scope; writes remain blocked');
 }finally{globalThis.fetch=oldFetch;}
