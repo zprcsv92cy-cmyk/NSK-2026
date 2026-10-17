@@ -195,6 +195,7 @@ window.DB = (() => {
       const shifts=await listShiftSchema(poolId,lagNo,matchNo);
       const shift=shifts.find(s=>s.shift_no===Number(shiftNo));
       if(!shift)throw new Error('Bytet hittades inte');
+      if(window.Auth?.getMode?.()==='production') return window.Auth.personalShiftDone(shift.id,!!done);
       return matchRequest(`/api/bytesschema/${shift.id}/done`,{done:!!done});
     });
   }
