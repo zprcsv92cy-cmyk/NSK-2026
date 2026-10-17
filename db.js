@@ -107,7 +107,7 @@ window.DB = (() => {
   // Personal sessions take priority for shift writes. Legacy admin remains available
   // only when no personal session exists, until the API rollout is complete.
   async function shiftSaveRequest(payload){
-    const token=window.Auth?.getToken?.();
+    const token=(window.Auth?.getSession?.() ? window.Auth.getToken() : null);
     if(!token)return adminRequest('/api/bytesschema/save','POST',payload);
     const response=await fetch(`${API}/api/bytesschema/save`,{
       method:'POST',headers:{'Content-Type':'application/json',Authorization:'Bearer '+token},
@@ -143,7 +143,7 @@ window.DB = (() => {
       if(!response.ok||!data.ok)throw Object.assign(new Error(data.error||'Kunde inte spara byte'),{status:response.status});
       return data;
     }
-    const personalToken=window.Auth?.getToken?.();
+    const personalToken=(window.Auth?.getSession?.() ? window.Auth.getToken() : null);
     if(personalToken)return send(personalToken);
     let token=localStorage.getItem(key);
     if(token){try{return await send(token)}catch(error){if(error.status!==401)throw error;localStorage.removeItem(key)}}
