@@ -11,6 +11,22 @@
     document.write('<link rel="stylesheet" href="../app.css?v=' + window.NSK_VERSION + '">');
   </script>
   <style>
+    .lineup-print-row { display:flex; justify-content:flex-end; margin:0 0 12px; }
+    .lineup-print-row button { width:auto; margin:0; }
+    @media print {
+      @page { margin: 10mm; }
+      body { background:#fff !important; color:#111 !important; padding:0 !important; }
+      .mainmenu, .lineup-print-row, #laguppstallningTeamButtons, #matchButtons, .coach-picker, .lineup-messages, button { display:none !important; }
+      .lineup-page .wrap { max-width:none !important; margin:0 !important; padding:0 !important; }
+      .home-hero { margin:0 0 8mm !important; }
+      .home-hero-logo-box { display:none !important; }
+      .lineup-page .card { background:#fff !important; color:#111 !important; border:1px solid #bbb !important; box-shadow:none !important; break-inside:avoid; margin:0 0 5mm !important; }
+      .lineup-page h1, .lineup-page h2, .lineup-page label, .lineup-page .small { color:#111 !important; }
+      .lineup-page input, .lineup-page select { color:#111 !important; background:#fff !important; border:0 !important; box-shadow:none !important; padding:2px 0 !important; }
+      #lineupCoach { display:none !important; }
+      #lineupCoachNames { display:block !important; color:#111 !important; }
+      #lineupSelectors { color:#111 !important; }
+    }
     /* Endast Laguppställning – påverkar inga andra sidor. */
     body.lineup-page { padding-bottom:calc(90px + env(safe-area-inset-bottom, 0px)); }
     .lineup-page .wrap { max-width:1050px; }
@@ -98,6 +114,7 @@
         <div class="home-hero-sub">Välj lag, match, spelare och tränare</div>
       </div>
     </section>
+    <div class="lineup-print-row"><button id="lineupPrintButton" type="button">Skriv ut laguppställning / PDF</button></div>
     <div class="lineup-main">
       <section class="card">
         <h2>Laguppställning</h2>
@@ -125,7 +142,8 @@
     document.write('<script src="../db.js?v=' + window.NSK_VERSION + '"><\/script>');
     document.write('<script src="../app.js?v=' + window.NSK_VERSION + '"><\/script>');
   </script>
-  <script src="../admin-mode.js?v=1"></script>
+  <script>document.getElementById("lineupPrintButton")?.addEventListener("click", () => { if (typeof window.print === "function") window.print(); });</script>
+<script src="../admin-mode.js?v=1"></script>
   <script>
     // Tryckbara knappar fungerar likadant för val och bortval på iOS och dator.
     // Den dolda selecten är fortfarande datakällan för app.js.
