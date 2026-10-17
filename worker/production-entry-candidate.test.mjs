@@ -11,7 +11,7 @@ assert.equal(result.status,503,'Personal write routes fail closed without produc
 result=await candidate.fetch(request('/api/personal/unknown'),noPersonalBinding,{});
 assert.equal(result.status,404,'Unrecognized personal path is denied');
 
-for (const path of ['/api/spelare','/api/tranare','/api/poolspel','/api/bytesschema']) {
+for (const path of ['/api/poolspel','/api/bytesschema']) {
   for (const method of ['GET','POST']) {
     result=await candidate.fetch(request(path,method),noPersonalBinding,{});
     assert.equal(result.status,503,`${method} ${path} must fail closed until authorized`);
@@ -19,7 +19,7 @@ for (const path of ['/api/spelare','/api/tranare','/api/poolspel','/api/bytessch
   }
 }
 
-for(const path of ['/api/lag','/api/lagpersonal?team_id=18']){
+for(const path of ['/api/lag','/api/lagpersonal?team_id=18','/api/spelare?team_id=18','/api/tranare?team_id=18']){
   result=await candidate.fetch(request(path),noPersonalBinding,{});
   assert.equal(result.status,503,'Authorized legacy GET must fail closed without AUTH_DB: '+path);
   result=await candidate.fetch(request(path,'POST'),noPersonalBinding,{});
