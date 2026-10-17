@@ -106,3 +106,11 @@ test('shift writes execute once only for authorized Team 18 and never for Testla
   assert.equal((await requireTeamWrite(null, 'NSK Team 18', 'shifts', write)).status, 401);
   assert.equal(writes, 1);
 });
+
+test('team owner requires membership and explicit personal grant for shifts', () => {
+  const owner = { memberships: [{ team_id: 'NSK Team 18', role: 'owner' }], permissions: ['shifts:check'] };
+  assert.equal(authorizeTeamFeature(owner, 'NSK Team 18', 'shifts').allowed, true);
+  assert.equal(authorizeTeamFeature(owner, 'NSK Testlag 2', 'shifts').status, 403);
+  assert.equal(authorizeTeamFeature({ ...owner, permissions: [] }, 'NSK Team 18', 'shifts').status, 403);
+  assert.equal(authorizeTeamFeature({ ...owner, memberships: [] }, 'NSK Team 18', 'shifts').status, 403);
+});
