@@ -24,6 +24,12 @@ id = "f60b048621ea4aca8d67774f5c9db664"
 name = "SHIFT_LOCK"
 class_name = "ShiftLock"
 
+# Existing production namespace verified using a read-only SQLite query.
+# No migration or namespace replacement is performed.
+[exports.ShiftLock]
+type = "durable-object"
+storage = "sqlite"
+
 # REQUIRED BEFORE DEPLOYMENT:
 # - Confirm KV access using the verified live namespace IDs above.
 # - Preserve existing staff records in NSK_TRAINERS.
