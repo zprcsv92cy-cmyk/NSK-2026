@@ -7,6 +7,17 @@ var __name = (target, value) => __defProp(target, "name", { value, configurable:
 
 // src/worker.js
 var TABLES = { lag: 1255083, spelare: 1255098, tranare: 1255100, poolspel: 1255101, matcher: 1255109, laguppstallningar: 1255113, bytesschema: 1255115, malvaktsstatistik: 1255119, spelaretranare: 1255152, matchkonfiguration: 1255157 };
+function resolveBaserowTables(env) {
+  if (env?.BASEROW_TABLE_IDS === undefined) return TABLES;
+  let mapping;
+  try { mapping = typeof env.BASEROW_TABLE_IDS === "string" ? JSON.parse(env.BASEROW_TABLE_IDS) : env.BASEROW_TABLE_IDS; }
+  catch { throw new Error("Invalid Baserow table mapping"); }
+  if (!mapping || typeof mapping !== "object" || Array.isArray(mapping)) throw new Error("Invalid Baserow table mapping");
+  const keys = Object.keys(TABLES);
+  if (Object.keys(mapping).length !== keys.length || keys.some((key) => !Number.isSafeInteger(mapping[key]) || mapping[key] <= 0))
+    throw new Error("Invalid Baserow table mapping");
+  return mapping;
+}
 var ORIGIN = "https://zprcsv92cy-cmyk.github.io";
 var encoder = new TextEncoder();
 function hex(bytes) {
@@ -60,6 +71,8 @@ var ShiftLock = class {
   }
   async save(body) {
     const reply = json;
+    let TABLES;
+    try { TABLES = resolveBaserowTables(this.env); } catch { return reply({ ok: false, error: "Invalid Baserow table mapping" }, 503); }
     const pos = /* @__PURE__ */ __name((n) => Number.isSafeInteger(n) && n > 0, "pos");
     const { pool_id: poolId, lag_no: lagNo, match_no: matchNo, shifts } = body || {};
     if (!pos(poolId) || !pos(lagNo) || !pos(matchNo) || !Array.isArray(shifts) || shifts.length > 200)
@@ -136,6 +149,8 @@ var ShiftLock = class {
   }
   async done(body) {
     const reply = json;
+    let TABLES;
+    try { TABLES = resolveBaserowTables(this.env); } catch { return reply({ ok: false, error: "Invalid Baserow table mapping" }, 503); }
     const { id, pool_id: poolId, lag_no: lagNo, match_no: matchNo, done } = body;
     if (!Number.isSafeInteger(id) || id <= 0 || ![poolId, lagNo, matchNo].every((n) => Number.isSafeInteger(n) && n > 0) || typeof done !== "boolean")
       return reply({ ok: false, error: "Ogiltig beg\xE4ran" }, 400);
@@ -163,6 +178,8 @@ var ShiftLock = class {
   }
 };
 var worker_default = { async fetch(req, env) {
+  let TABLES;
+  try { TABLES = resolveBaserowTables(env); } catch { return json({ ok: false, error: "Invalid Baserow table mapping" }, 503); }
   const url = new URL(req.url), origin = req.headers.get("Origin");
   const cors = { "Vary": "Origin", ...origin === ORIGIN ? { "Access-Control-Allow-Origin": ORIGIN, "Access-Control-Allow-Headers": "Content-Type,Authorization", "Access-Control-Allow-Methods": "GET,POST,PATCH,OPTIONS" } : {} };
   const reply = /* @__PURE__ */ __name((obj, status = 200) => json(obj, status, cors), "reply");
@@ -231,7 +248,7 @@ var worker_default = { async fetch(req, env) {
   }
   if (url.pathname === "/health" && req.method === "GET") {
     try {
-      const r = await fetch("https://api.baserow.io/api/database/rows/table/1255083/?user_field_names=true&size=1", { headers: { Authorization: `Token ${env.BASEROW_TOKEN}` } });
+      const r = await fetch(`https://api.baserow.io/api/database/rows/table/${TABLES.lag}/?user_field_names=true&size=1", { headers: { Authorization: `Token ${env.BASEROW_TOKEN}` } });
       return reply({ ok: r.ok, database: "NSK", table: "Lag", status: r.status }, r.ok ? 200 : 502);
     } catch {
       return reply({ ok: false, error: "Baserow unavailable" }, 502);
@@ -312,7 +329,7 @@ var worker_default = { async fetch(req, env) {
     let payload = { Namn: name };
     let team = null;
     if (req.method === "POST") {
-      const teamResp = await fetch("https://api.baserow.io/api/database/rows/table/1255083/?user_field_names=true&size=100", { headers: { Authorization: `Token ${env.BASEROW_TOKEN}` } });
+      const teamResp = await fetch(`https://api.baserow.io/api/database/rows/table/${TABLES.lag}/?user_field_names=true&size=100", { headers: { Authorization: `Token ${env.BASEROW_TOKEN}` } });
       if (!teamResp.ok) return reply({ ok: false, error: "Kunde inte kontrollera lag" }, 502);
       const teams = (await teamResp.json()).results || [];
       team = teams.find((t) => t.Namn === "NSK Team 18" && String(t["S\xE4song"]) === "2026");
@@ -321,7 +338,7 @@ var worker_default = { async fetch(req, env) {
     }
     const rowId = req.method === "PATCH" ? url.pathname.split("/").pop() : null;
     if (rowId) {
-      const teamResp = await fetch("https://api.baserow.io/api/database/rows/table/1255083/?user_field_names=true&size=100", { headers: { Authorization: `Token ${env.BASEROW_TOKEN}` } });
+      const teamResp = await fetch(`https://api.baserow.io/api/database/rows/table/${TABLES.lag}/?user_field_names=true&size=100", { headers: { Authorization: `Token ${env.BASEROW_TOKEN}` } });
       if (!teamResp.ok) return reply({ ok: false, error: "Kunde inte kontrollera lag" }, 502);
       const teams = (await teamResp.json()).results || [];
       team = teams.find((t) => t.Namn === "NSK Team 18" && String(t["S\xE4song"]) === "2026");
