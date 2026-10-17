@@ -4,7 +4,7 @@ import { readPersonallyAuthorizedLegacyRoster as read } from './production-roste
 const request = path => new Request('https://nsk-api.invalid' + path, {
   headers: { Authorization: 'Bearer ' + 'x'.repeat(43) }
 });
-const admin = {user:{id:'user-admin'},memberships:[{team_id:'NSK Team 18',role:'team_admin'}],permissions:['roster:manage']};
+const admin = {user:{id:'user-admin'},memberships:[{team_id:'NSK Team 18',role:'team_admin'}],permissions:['read','roster:manage']};
 const viewer = {user:{id:'user-viewer'},memberships:[{team_id:'NSK Testlag 2',role:'viewer'}],permissions:['read']};
 const teams = [
   {id:18,Namn:'NSK Team 18','Säsong':'2026'},
