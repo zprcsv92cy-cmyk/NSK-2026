@@ -35,6 +35,7 @@ on:
       - 'scripts/check-api-production-release.mjs'
       - 'scripts/check-api-production-release.test.mjs'
       - 'worker/production-api-v42-reference.js'
+      - 'worker/production-api-staff-route.test.mjs'
       - 'worker/production-entry.js'
       - '.github/workflows/team-authorization-tests.yml'
       - 'docs/first-production-administrator.md'
@@ -52,6 +53,7 @@ on:
       - 'scripts/check-api-production-release.mjs'
       - 'scripts/check-api-production-release.test.mjs'
       - 'worker/production-api-v42-reference.js'
+      - 'worker/production-api-staff-route.test.mjs'
       - 'worker/production-entry.js'
       - '.github/workflows/team-authorization-tests.yml'
       - 'docs/first-production-administrator.md'
@@ -87,6 +89,7 @@ on:
       - 'scripts/check-api-production-release.mjs'
       - 'scripts/check-api-production-release.test.mjs'
       - 'worker/production-api-v42-reference.js'
+      - 'worker/production-api-staff-route.test.mjs'
       - 'worker/production-entry.js'
       - '.github/workflows/team-authorization-tests.yml'
       - 'docs/first-production-administrator.md'
@@ -104,6 +107,7 @@ jobs:
         run: |
           node --check auth.js
           node --check worker/production-api-v42-reference.js
+          node --test worker/production-api-staff-route.test.mjs
           node scripts/check-staging-imports.mjs
           node --test scripts/check-api-production-release.test.mjs
       - name: Confirm login page uses existing auth client without rewriting legacy data
