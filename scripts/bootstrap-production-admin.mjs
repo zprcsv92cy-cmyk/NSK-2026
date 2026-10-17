@@ -1,0 +1,46 @@
+#!/usr/bin/env node
+// One-time production administrator bootstrap.
+// Run only after reviewing the target D1 database ID and migration.
+// Never commit generated tokens or execute against staging by accident.
+import { randomBytes, createHash } from 'node:crypto';
+import { spawnSync } from 'node:child_process';
+
+const [emailArg, displayArg, teamIdArg] = process.argv.slice(2);
+const email=(emailArg||'').trim().toLowerCase();
+const display=(displayArg||'').trim();
+const teamId=(teamIdArg||'').trim();
+const expectedDb='9f937bcb-b0c0-4129-af5b-775cf284dfcb';
+if(!email||email.length>254||!/^\S+@\S+\.\S+$/.test(email)||
+   !display||display.length>120||!/^\d+$/.test(teamId)||Number(teamId)<=0){
+  console.error('Usage: node scripts/bootstrap-production-admin.mjs <admin-email> <display-name> <Baserow-team-row-id>');
+  process.exit(2);
+}
+if(process.env.NSK_PRODUCTION_BOOTSTRAP!=='CONFIRM_PRODUCTION'||
+   process.env.NSK_D1_DATABASE_ID!==expectedDb){
+  console.error('Refusing to run. Set NSК_PRODUCTION_BOOTSTRAP=CONFIRM_PRODUCTION and NSК_D1_DATABASE_ID to the verified production D1 UUID.');
+  process.exit(2);
+}
+const token=randomBytes(32).toString('base64url');
+const hash=createHash('sha256').update(token).digest('hex');
+const userId=randomBytes(16).toString('hex');
+const quote=s=>"'"+s.replaceAll("'","''")+"'";
+const sql=[
+  'PRAGMA foreign_keys=ON;',
+  `INSERT INTO auth_users(id,email,display_name,password_hash,disabled) VALUES(${quote(userId)},${quote(email)},${quote(display)},'!activation-required!',1);`,
+  `INSERT INTO auth_team_memberships(user_id,team_id,role) VALUES(${quote(userId)},${quote(teamId)},'team_admin');`,
+  ...['read','pool:create','lineup:edit','shifts:check','match:manage','pool:finish','pool:reopen','roster:manage','users:manage'].map(p=>
+    `INSERT INTO auth_user_permissions(user_id,permission) VALUES(${quote(userId)},${quote(p)});`),
+  `INSERT INTO auth_setup_tokens(token_hash,user_id,expires_at) VALUES(${quote(hash)},${quote(userId)},datetime('now','+120 minutes'));`
+].join('\n');
+const result=spawnSync('npx',['wrangler','d1','execute','nsk-auth-production','--remote','--command',sql],{
+  encoding:'utf8',stdio:['ignore','pipe','pipe']
+});
+if(result.status!==0){
+  console.error(result.stderr||result.stdout||'D1 bootstrap failed');
+  process.exit(result.status||1);
+}
+console.log('Production admin bootstrap succeeded.');
+console.log('Account:',email);
+console.log('Team row ID:',teamId);
+console.log('Activation token (shown once; send securely):',token);
+console.log('Activate within 120 minutes, then sign in and rotate credentials if required.');
