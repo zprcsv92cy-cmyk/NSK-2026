@@ -7,8 +7,8 @@ const req=(path, method='GET', origin='https://zprcsv92cy-cmyk.github.io')=>
   new Request(base+path,{method,headers:{...(origin?{Origin:origin}:{})}});
 const env={}; // Deliberately no production auth D1 bound.
 for (const path of ['/api/auth/staging/bootstrap-test','/api/auth/roster-staging',
-  '/api/auth/lineups-staging','/api/auth/integration/roster','/api/auth/team-members',
-  '/api/auth/users']) {
+  '/api/auth/lineups-staging','/api/auth/integration/roster',
+  '/api/auth/users/email-check']) {
   const response=await auth(req(path),env);
   assert.equal(response.status,404,path+' must be inaccessible');
   const viaCandidate=await candidate.fetch(req(path),env,{});
@@ -17,7 +17,8 @@ for (const path of ['/api/auth/staging/bootstrap-test','/api/auth/roster-staging
 for (const [path,method] of Object.entries({
   '/api/auth/login':'POST','/api/auth/me':'GET','/api/auth/logout':'POST',
   '/api/auth/feature-access':'GET','/api/auth/integration/access':'GET',
-  '/api/auth/activate':'POST'
+  '/api/auth/activate':'POST',
+  '/api/auth/users':'GET','/api/auth/team-members':'GET'
 })) {
   let response=await auth(req(path,method),env);
   assert.equal(response.status,503,path+' must fail closed without AUTH_DB');
