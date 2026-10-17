@@ -19,3 +19,8 @@ test('API reference retains explicit GET staff route and non-GET deny', () => {
   assert.match(source, /url\.pathname === "\/api\/lagpersonal" && req\.method === "GET"/);
   assert.doesNotMatch(source, /Personlig behörighetskontroll är ännu inte aktiverad/);
 });
+
+test('shift routes parse Bearer tokens using real whitespace boundaries', () => {
+  const expected = String.raw`const identityToken = /^Bearer ([^\s]+)$/`;
+  assert.equal(source.split(expected).length - 1, 2, 'save and done routes must both use the correct Bearer token regex');
+});

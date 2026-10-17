@@ -578,7 +578,7 @@ var worker_default = { async fetch(req, env) {
     const { pool_id: poolId, lag_no: lagNo, match_no: matchNo } = body || {};
     if (!pos(poolId) || !pos(lagNo) || !pos(matchNo)) return reply({ ok: false, error: "Ogiltigt bytesschema" }, 400);
     if (Object.hasOwn(body || {}, "team_id") || Object.hasOwn(body || {}, "teamId")) return reply({ ok: false, error: "Lag får inte anges av klienten" }, 400);
-    const identityToken = /^Bearer ([^\\s]+)$/.exec(req.headers.get("Authorization") || "")?.[1];
+    const identityToken = /^Bearer ([^\s]+)$/.exec(req.headers.get("Authorization") || "")?.[1];
     let actor = null;
     try { actor = identityToken ? await createPersonalRosterIdentityVerifier(env)(identityToken) : null; } catch { actor = null; }
     if (!actor) return reply({ ok: false, error: "Personlig inloggning krävs" }, 401);
@@ -617,7 +617,7 @@ var worker_default = { async fetch(req, env) {
       const poolId = Number((row.Poolspel || [])[0]?.id || (row.Poolspel || [])[0]);
       const lagNo = Number(row.Lagnummer), matchNo = Number(row.Matchnummer);
       if (![poolId, lagNo, matchNo].every((n) => Number.isSafeInteger(n) && n > 0)) return reply({ ok: false, error: "Ogiltig match" }, 400);
-      const identityToken = /^Bearer ([^\\s]+)$/.exec(req.headers.get("Authorization") || "")?.[1];
+      const identityToken = /^Bearer ([^\s]+)$/.exec(req.headers.get("Authorization") || "")?.[1];
       let actor = null;
       try { actor = identityToken ? await createPersonalRosterIdentityVerifier(env)(identityToken) : null; } catch { actor = null; }
       if (!actor) return reply({ ok: false, error: "Personlig inloggning krävs" }, 401);
