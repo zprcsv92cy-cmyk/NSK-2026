@@ -613,6 +613,10 @@ var worker_default = { async fetch(req, env) {
       return reply({ ok: false, error: "Kunde inte \xE4ndra byte", detail: String(e) }, 502);
     }
   }
+  // Personal lagpersonal writes must pass the D1-backed identity and team guard.
+  // Until that guard is wired into this Worker, reject these writes explicitly.
+  if (url.pathname === "/api/lagpersonal" && ["POST", "PATCH"].includes(req.method))
+    return reply({ ok: false, error: "Personlig behörighetskontroll är ännu inte aktiverad" }, 403);
   if (req.method !== "GET") return reply({ ok: false, error: "Skrivning \xE4r avst\xE4ngd" }, 405);
   if (url.pathname === "/api/lagpersonal" && ["GET","POST","PATCH"].includes(req.method)) {
     const teamId = Number(url.searchParams.get("team_id"));
