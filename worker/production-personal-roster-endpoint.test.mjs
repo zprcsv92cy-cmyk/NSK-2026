@@ -18,13 +18,14 @@ globalThis.fetch=async url=>{
     {id:8,Namn:'Other player',Lag:[{id:27}]}],next:null});
   throw Error('Unexpected Baserow table: '+text);
 };
+let personalPermissions=['read'];
 const mockDb={
   prepare(sql){
     return {
       bind(){
         if(sql.includes('auth_sessions'))return {first:async()=>({id:'u1',display_name:'Test'})};
         if(sql.includes('auth_team_memberships'))return {all:async()=>({results:[{team_id:'NSK Team 18',role:'viewer'}]})};
-        if(sql.includes('auth_user_permissions'))return {all:async()=>({results:['read'].map(permission=>({permission}))})};
+        if(sql.includes('auth_user_permissions'))return {all:async()=>({results:personalPermissions.map(permission=>({permission}))})};
         throw Error('Unknown identity query');
       }
     };
@@ -38,6 +39,13 @@ try {
   assert.equal(r.status,200);
   assert.deepEqual((await r.json()).results.map(x=>x.id),[7]);
   assert.equal(r.headers.get('access-control-allow-origin'),'https://zprcsv92cy-cmyk.github.io');
+
+  personalPermissions=[];
+  const deniedStart=baserowCalls;
+  r=await handle(req('/api/personal/spelare?team_id=18'),env);
+  assert.equal(r.status,403,'Team membership without personal read permission must be denied');
+  assert.equal(baserowCalls,deniedStart+2,'Denied personal read must not fetch roster rows');
+  personalPermissions=['read'];
 
   const previous=baserowCalls;
   r=await handle(req('/api/personal/spelare?team_id=27'),env);
