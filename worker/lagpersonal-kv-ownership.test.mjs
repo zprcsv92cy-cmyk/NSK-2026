@@ -38,3 +38,12 @@ test('PATCH fails closed when KV is unavailable', async () => {
 test('PATCH fails closed when body ID is missing', async () => {
   await assert.rejects(resolveLagpersonalKvOwnership(make('PATCH', 18, { role: 'Lagledare' }), sources));
 });
+
+test('rejects duplicate team_id even when both values match', async () => {
+  const req = new Request('https://example.test/api/lagpersonal?team_id=18&team_id=18', { method: 'POST' });
+  await assert.rejects(resolveLagpersonalKvOwnership(req, sources), /Ambiguous team ID/);
+});
+test('rejects conflicting team_id values', async () => {
+  const req = new Request('https://example.test/api/lagpersonal?team_id=18&team_id=2', { method: 'POST' });
+  await assert.rejects(resolveLagpersonalKvOwnership(req, sources), /Ambiguous team ID/);
+});
