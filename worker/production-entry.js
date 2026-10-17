@@ -1,7 +1,7 @@
 import { handleTeamAuth } from './team-auth.js';
 import { handleActivation } from './account-activation.js';
 
-const allowed = new Map([['/api/auth/login','POST'],['/api/auth/logout','POST'],['/api/auth/me','GET'],['/api/auth/feature-access','GET'],['/api/auth/integration/access','GET'],['/api/auth/activate','POST']]);
+const allowed = new Map([['/api/auth/login','POST'],['/api/auth/logout','POST'],['/api/auth/me','GET'],['/api/auth/feature-access','GET'],['/api/auth/integration/access','GET'],['/api/auth/activate','POST'],['/api/auth/users','GET']]);
 export default {
   async fetch(request, env) {
     const path = new URL(request.url).pathname;
