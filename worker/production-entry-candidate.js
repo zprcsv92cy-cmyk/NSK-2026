@@ -15,6 +15,15 @@ export default {
     if (pathname.startsWith(PERSONAL_PREFIX)) {
       return handlePersonalRosterRead(request, env);
     }
+    // The historical API has no per-person, per-team authorization. Never expose
+    // its routes from a production candidate with personal authentication enabled.
+    // Re-enable each route only after it has a server-enforced authorization guard.
+    if (pathname.startsWith('/api/')) {
+      return Response.json({ ok: false, error: 'Legacy API route not migrated' }, {
+        status: 503,
+        headers: { 'cache-control': 'no-store', 'x-content-type-options': 'nosniff' }
+      });
+    }
     return legacyWorker.fetch(request, env, context);
   }
 };
