@@ -5,6 +5,8 @@ on:
     paths:
       - 'worker/team-authorization-policy.js'
       - 'worker/team-authorization-policy.test.mjs'
+      - 'worker/shift-write-authorization.js'
+      - 'worker/shift-write-authorization.test.mjs'
       - 'worker/production-roster-team-resolver.js'
       - 'worker/production-roster-team-resolver.test.mjs'
       - 'worker/production-roster-integration.test.mjs'
@@ -61,6 +63,8 @@ on:
       - 'docs/api-production-rollback-baseline.md'
       - 'worker/team-authorization-policy.js'
       - 'worker/team-authorization-policy.test.mjs'
+      - 'worker/shift-write-authorization.js'
+      - 'worker/shift-write-authorization.test.mjs'
       - 'worker/production-roster-team-resolver.js'
       - 'worker/production-roster-team-resolver.test.mjs'
       - 'worker/production-roster-integration.test.mjs'
