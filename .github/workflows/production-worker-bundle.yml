@@ -48,6 +48,35 @@ jobs:
           {"main_module":"nsk-api-worker.mjs","bindings":[{"name":"ADMIN_KV","type":"inherit"},{"name":"ADMIN_PASSWORD","type":"inherit"},{"name":"AUTH_DB","type":"inherit"},{"name":"BASEROW_DATABASE_ID","type":"inherit"},{"name":"BASEROW_TOKEN","type":"inherit"},{"name":"MATCH_PASSWORD","type":"inherit"},{"name":"NSK_TRAINERS","type":"inherit"},{"name":"SHIFT_LOCK","type":"inherit"}]}
           JSON
           curl --fail-with-body --silent --show-error --request POST             --header "Authorization: Bearer $CF_API_TOKEN"             --form 'metadata=<dist/metadata.json;type=application/json'             --form 'nsk-api-worker.mjs=@dist/nsk-api-worker.mjs;type=application/javascript+module'             "https://api.cloudflare.com/client/v4/accounts/$CF_ACCOUNT_ID/workers/scripts/nsk-api/versions?bindings_inherit=strict"             | python3 -c 'import json,sys; d=json.load(sys.stdin); assert d.get("success"), d.get("errors"); print("Uploaded candidate version:", (d.get("result") or {}).get("id"))'
+      - name: Verify uploaded Worker version has a preview URL
+        if: github.event_name == 'workflow_dispatch'
+        env:
+          CF_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CF_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+        run: |
+          python3 - <<'PY'
+          import json, os, urllib.request
+          account = os.environ["CF_ACCOUNT_ID"]
+          base = f"https://api.cloudflare.com/client/v4/accounts/{account}/workers/scripts/nsk-api"
+          headers = {"Authorization": "Bearer " + os.environ["CF_API_TOKEN"]}
+          def get(url):
+              with urllib.request.urlopen(urllib.request.Request(url, headers=headers), timeout=30) as response:
+                  data = json.load(response)
+              if not data.get("success"):
+                  raise RuntimeError(f"Cloudflare API failed: {data.get('errors')}")
+              return data["result"]
+          versions = get(base + "/versions")
+          items = versions.get("items", [])
+          if not items:
+              raise RuntimeError("No uploaded Worker versions found")
+          version_id = items[0]["id"]
+          detail = get(base + "/versions/" + version_id)
+          preview = detail.get("metadata", {}).get("has_preview")
+          print("Latest uploaded Worker version:", version_id)
+          print("Version preview available:", preview)
+          if preview is not True:
+              raise SystemExit("Uploaded version has no preview URL; do not deploy to production")
+          PY
       - name: Store bundle for review (no deployment)
         uses: actions/upload-artifact@v4
         with:
