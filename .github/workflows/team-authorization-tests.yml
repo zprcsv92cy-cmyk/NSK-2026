@@ -30,6 +30,7 @@ on:
       - '.github/workflows/auth-production.yml'
       - 'wrangler.auth.production.toml'
       - 'wrangler.api.production.toml'
+      - 'worker/production-api-v42-reference.js'
       - 'worker/production-entry.js'
       - '.github/workflows/team-authorization-tests.yml'
       - 'docs/first-production-administrator.md'
@@ -44,6 +45,7 @@ on:
       - '.github/workflows/auth-production.yml'
       - 'wrangler.auth.production.toml'
       - 'wrangler.api.production.toml'
+      - 'worker/production-api-v42-reference.js'
       - 'worker/production-entry.js'
       - '.github/workflows/team-authorization-tests.yml'
       - 'docs/first-production-administrator.md'
@@ -74,6 +76,7 @@ on:
       - '.github/workflows/auth-production.yml'
       - 'wrangler.auth.production.toml'
       - 'wrangler.api.production.toml'
+      - 'worker/production-api-v42-reference.js'
       - 'worker/production-entry.js'
       - '.github/workflows/team-authorization-tests.yml'
       - 'docs/first-production-administrator.md'
@@ -90,6 +93,7 @@ jobs:
       - name: Verify browser auth and staging code syntax
         run: |
           node --check auth.js
+          node --check worker/production-api-v42-reference.js
           node scripts/check-staging-imports.mjs
       - name: Confirm login page uses existing auth client without rewriting legacy data
         run: |
