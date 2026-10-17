@@ -183,6 +183,35 @@
     }
     throw new Error('För många sidor matchuppgifter');
   }
+  async function personalMatchConfigWrite(method,rowId,payload,team=activeTeam()){
+    if(!productionMode||!base||!token()||!team||
+      !identity?.memberships?.some(m=>m.team_id===team))
+      throw new Error('Personlig produktionsinloggning och giltigt lag krävs');
+    if(!['POST','PATCH'].includes(method)||
+       (method==='PATCH'&&!Number.isSafeInteger(Number(rowId))))
+      throw new Error('Ogiltig matchändring');
+    if(!(await checkTeamFeature('matches',team)))
+      throw new Error('Saknar verifierad rätt att hantera matcher');
+    const response=await fetch(base+'/api/personal/lag',{
+      headers:{Authorization:'Bearer '+token()},cache:'no-store',credentials:'omit'
+    });
+    if(response.status===401)clear();
+    if(!response.ok)throw new Error('Laget kunde inte verifieras');
+    const teams=await response.json();
+    const matching=(teams.results||[]).filter(x=>x.Namn===team&&String(x['Säsong'])==='2026');
+    if(matching.length!==1)throw new Error('Laget kunde inte verifieras');
+    const target=base+'/api/personal/matchkonfiguration'+
+      (method==='PATCH'?'/'+encodeURIComponent(rowId):'');
+    const reply=await fetch(target,{method,
+      headers:{Authorization:'Bearer '+token(),'Content-Type':'application/json'},
+      body:JSON.stringify({...payload,team_id:String(matching[0].id)}),
+      cache:'no-store',credentials:'omit'
+    });
+    if(reply.status===401)clear();
+    const data=await reply.json().catch(()=>({}));
+    if(!reply.ok||!data.ok)throw new Error(data.error||'Matchkonfigurationen kunde inte sparas');
+    return data;
+  }
   async function personalRosterWrite(kind, method, rowId, name, team = activeTeam()) {
     if (!productionMode || !base || !token() || !team ||
         !identity?.memberships?.some(m => m.team_id === team)) {
@@ -287,7 +316,7 @@
     }
   }
   window.Auth = Object.freeze({
-    init, login, logout, can, checkTeamFeature, stagingRosterList, stagingRosterWrite, personalRosterList, personalPoolList, personalMatchRows, personalRosterWrite, personalStaffWrite, activeTeam, selectTeam,
+    init, login, logout, can, checkTeamFeature, stagingRosterList, stagingRosterWrite, personalRosterList, personalPoolList, personalMatchRows, personalMatchConfigWrite, personalRosterWrite, personalStaffWrite, activeTeam, selectTeam,
     getSession: () => identity, getToken: token, getMode: () => productionMode ? 'production' : 'staging', getClient: () => null
   });
 })();
