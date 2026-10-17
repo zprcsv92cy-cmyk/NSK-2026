@@ -2,7 +2,7 @@
 // One-time production administrator bootstrap.
 // Run only after reviewing the target D1 database ID and migration.
 // Never commit generated tokens or execute against staging by accident.
-import { randomBytes, createHash } from 'node:crypto';
+import { randomBytes, randomUUID, createHash } from 'node:crypto';
 import { spawnSync } from 'node:child_process';
 
 const [emailArg, displayArg, teamIdArg] = process.argv.slice(2);
@@ -11,7 +11,7 @@ const display=(displayArg||'').trim();
 const teamId=(teamIdArg||'').trim();
 const expectedDb='9f937bcb-b0c0-4129-af5b-775cf284dfcb';
 if(!email||email.length>254||!/^\S+@\S+\.\S+$/.test(email)||
-   !display||display.length>120||!/^\d+$/.test(teamId)||Number(teamId)<=0){
+   !display||display.length>120||!['NSK Team 18','NSK Testlag 2'].includes(teamId)){
   console.error('Usage: node scripts/bootstrap-production-admin.mjs <admin-email> <display-name> <exact-team-name>');
   process.exit(2);
 }
@@ -22,7 +22,7 @@ if(process.env.NSK_PRODUCTION_BOOTSTRAP!=='CONFIRM_PRODUCTION'||
 }
 const token=randomBytes(32).toString('base64url');
 const hash=createHash('sha256').update(token).digest('hex');
-const userId=randomBytes(16).toString('hex');
+const userId=randomUUID();
 const quote=s=>"'"+s.replaceAll("'","''")+"'";
 const sql=[
   'PRAGMA foreign_keys=ON;',
@@ -41,6 +41,6 @@ if(result.status!==0){
 }
 console.log('Production admin bootstrap succeeded.');
 console.log('Account:',email);
-console.log('Team row ID:',teamId);
+console.log('Team:',teamId);
 console.log('Activation token (shown once; send securely):',token);
 console.log('Activate within 120 minutes, then sign in and rotate credentials if required.');
