@@ -1,16 +1,17 @@
-# NSK API production migration CANDIDATE — do not deploy before AUTH_DB and
-# production account migration are provisioned and verified.
+# Production Worker migration candidate — NOT APPROVED FOR DEPLOYMENT.
+# The isolated production authentication database has been provisioned in EU.
+# Before deployment, preserve and verify every existing production KV,
+# Durable Object, secret, route, and custom-domain binding from live nsk-api.
 name = "nsk-api"
 main = "worker/production-entry-candidate.js"
 compatibility_date = "2026-10-10"
 workers_dev = true
 
-# Production binding names only. Wrangler deployment must preserve the
-# existing real ADMIN_KV, NSK_TRAINERS, SHIFT_LOCK and Baserow secrets.
-# Do not point AUTH_DB at nsk-auth-staging or use the staging D1 database ID.
-# Intentionally excludes all account-specific IDs and secrets; this file is
-# safe for Wrangler dry-run builds, NOT for actual deploy.
+[[d1_databases]]
+binding = "AUTH_DB"
+database_name = "nsk-auth-production"
+database_id = "9f937bcb-b0c0-4129-af5b-775cf284dfcb"
 
-[[migrations]]
-tag = "v1"
-new_classes = ["ShiftLock"]
+# This file intentionally does not define old production bindings or secrets.
+# DO NOT DEPLOY until live bindings are inventoried and restored here, account
+# setup/permissions are migrated, and frontend reads/writes use the new API.
