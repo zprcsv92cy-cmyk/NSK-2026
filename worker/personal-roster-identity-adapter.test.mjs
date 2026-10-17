@@ -6,14 +6,14 @@ import { guardLagpersonalMutation, resolveLagpersonalTeam } from './production-l
 
 const token = 'A'.repeat(40);
 const hash = createHash('sha256').update(token).digest('hex');
-function db({ disabled = false, membership = '18', role = 'team_admin', permission = 'roster:manage' } = {}) {
+function db({ disabled = false, membership = '18', role = 'team_admin', permission = 'roster:manage', globalAdmin = false } = {}) {
   return { prepare(sql) {
     return { bind(...args) {
       return {
         async first() {
           assert.match(sql, /auth_sessions/);
           assert.equal(args[0], hash);
-          return disabled ? null : { id: 'u1', display_name: 'Test Admin' };
+          return disabled ? null : { id: 'u1', display_name: 'Test Admin', is_global_admin: globalAdmin ? 1 : 0 };
         },
         async all() {
           if (sql.includes('auth_team_memberships')) return { results: [{ team_id: membership, role }] };
@@ -68,4 +68,15 @@ test('missing D1 binding cannot write', async () => {
 test('malformed personal token cannot write', async () => {
   const { result, writes } = await run(request('18', 'bad'));
   assert.equal(result.status, 401); assert.equal(writes, 0);
+});
+
+test('verified global administrator flag comes from D1', async () => {
+  const verifier = createPersonalRosterIdentityVerifier({ AUTH_DB: db({ globalAdmin: true }) });
+  const actor = await verifier(token);
+  assert.equal(actor.is_global_admin, true);
+});
+test('ordinary team administrator is not a global administrator', async () => {
+  const verifier = createPersonalRosterIdentityVerifier({ AUTH_DB: db() });
+  const actor = await verifier(token);
+  assert.equal(actor.is_global_admin, false);
 });
