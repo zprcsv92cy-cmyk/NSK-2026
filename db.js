@@ -156,7 +156,9 @@ window.DB = (() => {
       const payload={pool_id:Number(poolId),lag_no:Number(lagNo),match_no:Number(matchNo),shifts:shifts.map(s=>({period_no:Number(s.period_no),time_left:String(s.time_left),players:s.players.map(Number)}))};
       // Uppdatera ett byte per Worker-anrop; återuppta säkert efter avbrott.
       for(let attempt=0;attempt<100;attempt++){
-        const result=await adminRequest('/api/bytesschema/save','POST',payload);
+        const result=window.Auth?.getMode?.()==='production'
+          ? await window.Auth.personalShiftSave(payload.pool_id,payload.lag_no,payload.match_no,payload.shifts)
+          : await adminRequest('/api/bytesschema/save','POST',payload);
         if(!result.cleanup_pending){
           if(Number(result.count) !== shifts.length) throw new Error(`Workern rapporterade ${result.count} sparade byten, men ${shifts.length} förväntades. Kontrollera Baserow innan nytt försök.`);
           return result;
