@@ -618,24 +618,14 @@ var worker_default = { async fetch(req, env) {
   if (url.pathname === "/api/lagpersonal" && ["POST", "PATCH"].includes(req.method))
     return reply({ ok: false, error: "Personlig behörighetskontroll är ännu inte aktiverad" }, 403);
   if (req.method !== "GET") return reply({ ok: false, error: "Skrivning \xE4r avst\xE4ngd" }, 405);
-  if (url.pathname === "/api/lagpersonal" && ["GET","POST","PATCH"].includes(req.method)) {
+  if (url.pathname === "/api/lagpersonal" && req.method === "GET") {
     const teamId = Number(url.searchParams.get("team_id"));
     const allowed = ["Lagledare","Fysansvarig","Materialförvaltare"];
     if (!Number.isSafeInteger(teamId) || teamId <= 0) return reply({ok:false,error:"Ogiltigt lag"},400);
     if (!env.NSK_TRAINERS) return reply({ok:false,error:"Lagring saknas"},503);
     const key = "lagpersonal:team:" + teamId;
     if (req.method === "GET") return reply({ok:true,results:await env.NSK_TRAINERS.get(key,"json") || []});
-    if (!env.ADMIN_KV || !await session(req,env)) return reply({ok:false,error:"Adminläge krävs"},401);
-    let body;try{body=await req.json()}catch{return reply({ok:false,error:"Ogiltig JSON"},400)}
-    if (!body || typeof body.name !== "string" || !body.name.trim() || body.name.trim().length>150 || !allowed.includes(body.role)) return reply({ok:false,error:"Ogiltigt namn eller uppdrag"},400);
-    const items=await env.NSK_TRAINERS.get(key,"json") || [];
-    if(req.method === "POST") {
-      if(items.some(x=>x.role===body.role && x.name.toLocaleLowerCase("sv")===body.name.trim().toLocaleLowerCase("sv")))return reply({ok:false,error:"Personen finns redan"},409);
-      const row={id:crypto.randomUUID(),name:body.name.trim(),role:body.role};items.push(row);await env.NSK_TRAINERS.put(key,JSON.stringify(items));return reply({ok:true,row},201);
-    }
-    if(typeof body.id!=="string")return reply({ok:false,error:"Saknar ID"},400);
-    const row=items.find(x=>x.id===body.id && x.role===body.role);if(!row)return reply({ok:false,error:"Personen saknas"},404);
-    row.name=body.name.trim();await env.NSK_TRAINERS.put(key,JSON.stringify(items));return reply({ok:true,row});
+
   }
   const m = /^\/api\/([a-z]+)$/.exec(url.pathname);
   if (!m || !Object.hasOwn(TABLES, m[1])) return reply({ ok: false, error: "Not found" }, 404);
