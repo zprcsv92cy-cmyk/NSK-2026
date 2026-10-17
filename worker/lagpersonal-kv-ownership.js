@@ -11,7 +11,9 @@ export async function resolveLagpersonalKvOwnership(request, { listTeams, readTe
   const url = new URL(request.url);
   if (url.pathname !== '/api/lagpersonal' || !['POST', 'PATCH'].includes(request.method))
     throw new Error('Unsupported route');
-  const raw = url.searchParams.get('team_id');
+  const teamIds = url.searchParams.getAll('team_id');
+  if (teamIds.length !== 1) throw new Error('Ambiguous team ID');
+  const raw = teamIds[0];
   if (!raw || !/^[1-9]\d*$/.test(raw) || !Number.isSafeInteger(Number(raw)))
     throw new Error('Invalid team ID');
   const teams = await listTeams();
