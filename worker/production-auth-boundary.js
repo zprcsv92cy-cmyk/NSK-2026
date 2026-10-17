@@ -7,6 +7,7 @@ import { handlePersonalTeamList } from './production-personal-teams.js';
 import { authorizeTeamFeature } from './team-authorization-policy.js';
 import { handleProductionOwnerAdministration } from './production-owner-administration.js';
 import { handleProductionOwnerPermissions } from './production-owner-permissions.js';
+import { handleProductionOwnerTeamMembership } from './production-owner-team-membership.js';
 
 const ORIGIN='https://zprcsv92cy-cmyk.github.io';
 const METHODS=Object.freeze({
@@ -17,7 +18,7 @@ const METHODS=Object.freeze({
   '/api/auth/integration/access':'GET',
   '/api/auth/activate':'POST',
   '/api/auth/users':'GET,POST',
-  '/api/auth/team-members':'GET'
+  '/api/auth/team-members':'GET,PUT'
 });
 function deny(status, error) {
   return Response.json({ok:false,error},{status,headers:{'cache-control':'no-store'}});
@@ -44,7 +45,9 @@ export async function handleProductionAuth(request, env) {
   if(!env?.AUTH_DB)return deny(503,'Production authentication is not configured');
   let result;
   try {
-    result=permissionsMutation ? await handleProductionOwnerPermissions(request,env)
+    result=pathname==='/api/auth/team-members'&&request.method==='PUT'
+      ? await handleProductionOwnerTeamMembership(request,env)
+      : permissionsMutation ? await handleProductionOwnerPermissions(request,env)
       : (pathname==='/api/auth/users'||pathname==='/api/auth/team-members'||userMutation)
       ? await handleProductionOwnerAdministration(request,env)
       : pathname==='/api/auth/activate'
