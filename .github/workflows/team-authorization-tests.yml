@@ -30,6 +30,9 @@ on:
       - '.github/workflows/team-authorization-tests.yml'
   pull_request:
     paths:
+      - 'login/index.html'
+      - 'startsida/index.html'
+      - '.github/workflows/team-authorization-tests.yml'
       - 'worker/team-authorization-policy.js'
       - 'worker/team-authorization-policy.test.mjs'
       - 'worker/production-roster-team-resolver.js'
@@ -56,6 +59,22 @@ on:
       - 'worker/staging-auth-dispatch.test.mjs'
       - '.github/workflows/team-authorization-tests.yml'
 jobs:
+  security-checks:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Verify browser auth and staging code syntax
+        run: |
+          node --check auth.js
+          node scripts/check-staging-imports.mjs
+      - name: Confirm login page uses existing auth client without rewriting legacy data
+        run: |
+          node --input-type=module -e "import {readFileSync as read} from 'node:fs'; import assert from 'node:assert/strict'; const h=read('login/index.html','utf8'); assert.match(h,/Auth\\.login\\(/); assert.match(h,/\.\.\\/auth\\.js/); assert.doesNotMatch(h,/nsk_admin_token|nsk_match_token/); console.log('Login integration verified');"
   authorization:
     runs-on: ubuntu-latest
     permissions:
