@@ -19,6 +19,8 @@ on:
       - 'worker/lagpersonal-kv-ownership.test.mjs'
       - 'reference/legacy-nsk-api-worker-v42.snapshot.js'
       - 'scripts/audit-production-worker-snapshot.mjs'
+      - 'worker/production-personal-teams.js'
+      - 'worker/production-personal-teams.test.mjs'
       - 'worker/production-personal-staff-mutation.js'
       - 'worker/production-personal-staff-mutation.test.mjs'
       - 'worker/production-personal-roster-mutation.js'
@@ -75,6 +77,8 @@ on:
       - 'worker/lagpersonal-kv-ownership.test.mjs'
       - 'reference/legacy-nsk-api-worker-v42.snapshot.js'
       - 'scripts/audit-production-worker-snapshot.mjs'
+      - 'worker/production-personal-teams.js'
+      - 'worker/production-personal-teams.test.mjs'
       - 'worker/production-personal-staff-mutation.js'
       - 'worker/production-personal-staff-mutation.test.mjs'
       - 'worker/production-personal-roster-mutation.js'
@@ -139,6 +143,8 @@ jobs:
         run: node scripts/audit-production-worker-snapshot.mjs
       - name: Check trusted legacy team ID mapping
         run: node --test worker/production-team-id-map.test.mjs
+      - name: Check personal team enumeration cannot leak another team
+        run: node --experimental-default-type=module --test worker/production-personal-teams.test.mjs
       - name: Check personally authorized lagpersonal writes
         run: node --experimental-default-type=module --test worker/production-personal-staff-mutation.test.mjs
       - name: Check personally authorized roster mutations
