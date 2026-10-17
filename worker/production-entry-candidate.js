@@ -7,6 +7,7 @@ import { handlePersonalStaffMutation } from './production-personal-staff-mutatio
 import { handlePersonalTeamList } from './production-personal-teams.js';
 import { handlePersonalPoolList } from './production-personal-pools.js';
 import { handlePersonalMatchRead } from './production-personal-match-read.js';
+import { handlePersonalMatchConfigWrite } from './production-personal-match-write.js';
 import { handleProductionAuth } from './production-auth-boundary.js';
 
 const PERSONAL_PREFIX = '/api/personal/';
@@ -21,6 +22,15 @@ export default {
       const origin=request.headers.get('Origin');
       if(origin && origin!=='https://zprcsv92cy-cmyk.github.io')
         return Response.json({ok:false,error:'Origin not allowed'},{status:403});
+      if(/^\/api\/personal\/matchkonfiguration(?:\/\d+)?$/.test(pathname) &&
+          ['POST','PATCH'].includes(request.method)){
+        const response=await handlePersonalMatchConfigWrite(request,env);
+        const headers=new Headers(response.headers);
+        headers.set('Vary','Origin');
+        if(origin==='https://zprcsv92cy-cmyk.github.io')
+          headers.set('Access-Control-Allow-Origin',origin);
+        return new Response(response.body,{status:response.status,headers});
+      }
       if(/^\/api\/personal\/(matchkonfiguration|laguppstallningar|bytesschema)$/.test(pathname) &&
           request.method==='GET'){
         const response=await handlePersonalMatchRead(request,env);
