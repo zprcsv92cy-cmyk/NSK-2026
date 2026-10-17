@@ -66,3 +66,39 @@ test('duplicate team IDs fail closed', async () => {
   const result = await handlePersonalLagpersonalWrite(r, x.env, x);
   assert.equal(result.status, 502); assert.equal(x.writes, 0);
 });
+
+test('team administrator without personal roster grant cannot write', async () => {
+  const x = setup('team_admin', []);
+  const result = await handlePersonalLagpersonalWrite(request('POST'), x.env, x);
+  assert.equal(result.status, 403); assert.equal(x.writes, 0);
+});
+test('coach with personal roster grant cannot write staff', async () => {
+  const x = setup('coach', ['roster:manage']);
+  const result = await handlePersonalLagpersonalWrite(request('POST'), x.env, x);
+  assert.equal(result.status, 403); assert.equal(x.writes, 0);
+});
+test('PATCH cannot move a staff record to another team', async () => {
+  const x = setup();
+  const created = await handlePersonalLagpersonalWrite(request('POST'), x.env, x);
+  assert.equal(created.status, 201);
+  const result = await handlePersonalLagpersonalWrite(request('PATCH', '2', token,
+    { id: created.row.id, name: 'Moved', role: 'Lagledare' }), x.env, x);
+  assert.equal(result.status, 502);
+  assert.equal(x.writes, 1);
+  assert.equal(x.kv.has('lagpersonal:team:2'), false);
+});
+test('PATCH cannot change role without matching trusted KV identity', async () => {
+  const x = setup();
+  const created = await handlePersonalLagpersonalWrite(request('POST'), x.env, x);
+  assert.equal(created.status, 201);
+  const result = await handlePersonalLagpersonalWrite(request('PATCH', '18', token,
+    { id: created.row.id, name: 'Changed', role: 'Fysansvarig' }), x.env, x);
+  assert.equal(result.status, 502);
+  assert.equal(x.writes, 1);
+});
+test('invalid staff role is rejected without writes', async () => {
+  const x = setup();
+  const result = await handlePersonalLagpersonalWrite(request('POST', '18', token,
+    { name: 'Unknown', role: 'Administratör' }), x.env, x);
+  assert.equal(result.status, 400); assert.equal(x.writes, 0);
+});
