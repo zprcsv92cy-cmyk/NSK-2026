@@ -1,4 +1,4 @@
-// Global owner administration, read only until mutations receive separate audits.
+// Global owner administration. New accounts stay disabled until separate secure activation.
 // This production handler never trusts an email, browser role, or client-supplied user id.
 import {verifyStagingSession} from './staging-session-identity.js';
 
@@ -6,7 +6,8 @@ const reply=(status,body)=>Response.json(body,{status,headers:{'cache-control':'
 export async function handleProductionOwnerAdministration(request,env){
   const path=new URL(request.url).pathname;
   if(!['/api/auth/users','/api/auth/team-members'].includes(path))return reply(404,{error:'Okänd adress'});
-  if(request.method!=='GET')return reply(405,{error:'Metoden är inte tillåten'});
+  if(!(request.method==='GET'||(path==='/api/auth/users'&&request.method==='POST')))
+    return reply(405,{error:'Metoden är inte tillåten'});
   if(!env?.AUTH_DB)return reply(503,{error:'Databasen är inte tillgänglig'});
   const token=/^Bearer ([A-Za-z0-9_-]{32,256})$/.exec(request.headers.get('Authorization')||'')?.[1];
   if(!token)return reply(401,{error:'Personlig inloggning krävs'});
@@ -16,6 +17,34 @@ export async function handleProductionOwnerAdministration(request,env){
     if(!identity.memberships?.some(m=>m.team_id==='*'&&m.role==='owner')||
       !identity.permissions?.includes('users:manage'))
       return reply(403,{error:'Endast huvudadministratören kan läsa alla användare'});
+    if(path==='/api/auth/users'&&request.method==='POST'){
+      if(Number(request.headers.get('Content-Length'))>2048)
+        return reply(413,{error:'För stort underlag'});
+      let body;
+      try{const raw=await request.text();if(raw.length>2048)return reply(413,{error:'För stort underlag'});body=JSON.parse(raw);}
+      catch{return reply(400,{error:'Ogiltig JSON'});}
+      if(!body||typeof body!=='object'||Array.isArray(body)||
+        Object.keys(body).some(key=>!['email','name'].includes(key)))
+        return reply(400,{error:'Bara namn och e-postadress kan anges'});
+      const email=typeof body.email==='string'?body.email.trim().toLowerCase():'';
+      const name=typeof body.name==='string'?body.name.trim():'';
+      if(email.length>254||!/^[^\\s@]+@[^\\s@]+\\.[^\\s@]+$/.test(email)||
+        !name||name.length>150)return reply(400,{error:'Ogiltigt namn eller e-postadress'});
+      const existing=await env.AUTH_DB.prepare('SELECT id FROM auth_users WHERE email=?').bind(email).first();
+      if(existing)return reply(409,{error:'E-postadressen används redan'});
+      const id=crypto.randomUUID();
+      try{
+        const written=await env.AUTH_DB.prepare(
+          'INSERT INTO auth_users(id,email,display_name,password_hash,disabled) VALUES(?,?,?,?,1)'
+        ).bind(id,email,name,'pending-setup').run();
+        if(written?.success===false)throw Error('Database rejected insert');
+      }catch(e){
+        // Treat constraint failures as conflict without exposing database details.
+        if(/unique|constraint/i.test(String(e)))return reply(409,{error:'E-postadressen används redan'});
+        throw e;
+      }
+      return reply(201,{id,email,name,disabled:true,permissions:[],setup_required:true});
+    }
     if(path==='/api/auth/users'){
       const [users,grants]=await Promise.all([
         env.AUTH_DB.prepare('SELECT id,email,display_name,disabled FROM auth_users ORDER BY display_name').all(),
