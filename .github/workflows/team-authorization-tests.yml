@@ -43,11 +43,17 @@ on:
       - 'worker/staging-session-identity.test.mjs'
       - 'worker/staging-auth-dispatch.js'
       - 'worker/staging-auth-dispatch.test.mjs'
+      - 'auth.js'
+      - 'config.js'
+      - 'scripts/test-production-auth-client.mjs'
       - '.github/workflows/team-authorization-tests.yml'
   pull_request:
     paths:
       - 'login/index.html'
       - 'startsida/index.html'
+      - 'auth.js'
+      - 'config.js'
+      - 'scripts/test-production-auth-client.mjs'
       - '.github/workflows/team-authorization-tests.yml'
       - 'worker/team-authorization-policy.js'
       - 'worker/team-authorization-policy.test.mjs'
@@ -89,6 +95,9 @@ on:
       - 'worker/staging-session-identity.test.mjs'
       - 'worker/staging-auth-dispatch.js'
       - 'worker/staging-auth-dispatch.test.mjs'
+      - 'auth.js'
+      - 'config.js'
+      - 'scripts/test-production-auth-client.mjs'
       - '.github/workflows/team-authorization-tests.yml'
 jobs:
   security-checks:
@@ -116,6 +125,8 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: '22'
+      - name: Validate isolated browser production authentication
+        run: node scripts/test-production-auth-client.mjs
       - name: Audit historical production Worker source (no deployment)
         run: node scripts/audit-production-worker-snapshot.mjs
       - name: Check trusted legacy team ID mapping
