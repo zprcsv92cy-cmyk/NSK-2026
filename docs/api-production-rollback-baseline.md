@@ -16,6 +16,12 @@ Verified from the Cloudflare Workers API on 2026-10-17. This is a **read-only ba
 | Existing secret bindings | `ADMIN_PASSWORD`, `BASEROW_TOKEN`, `MATCH_PASSWORD` |
 | Existing plain-text binding | `BASEROW_DATABASE_ID` |
 
+Additional read-only Cloudflare verification (2026-10-17):
+- Durable Object namespace `27cd8685c58e4b8aa0aaa85a9d47f6ed` is named `nsk-api_ShiftLock`.
+- Namespace class is `ShiftLock` and its owning script is `nsk-api`.
+- The namespace object-list API returned at least one object (count 1 on a limited page).
+- This does not verify migration history or a rollback execution; preserve the existing namespace.
+
 The Cloudflare version API confirms the active v42 code exports a `ShiftLock` class. It does **not** establish migration history or prove that a new deployment will retain existing Durable Object state.
 
 ## Before release
