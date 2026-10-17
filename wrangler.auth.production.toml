@@ -1,0 +1,11 @@
+# Production authentication, isolated from staging and the existing nsk-api Worker.
+# Deployment is intentionally not enabled until production-entry.js is reviewed.
+name = "nsk-auth"
+main = "worker/production-entry.js"
+compatibility_date = "2026-10-01"
+workers_dev = true
+
+[[d1_databases]]
+binding = "AUTH_DB"
+database_name = "nsk-auth-production"
+database_id = "9f937bcb-b0c0-4129-af5b-775cf284dfcb"
