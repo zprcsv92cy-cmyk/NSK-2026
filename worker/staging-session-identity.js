@@ -19,9 +19,11 @@ export async function verifyStagingSession(token, env) {
   const grants = await db.prepare(
     'SELECT permission FROM auth_user_permissions WHERE user_id=?'
   ).bind(user.id).all();
+  const globalAdmin = await db.prepare("SELECT 1 AS enabled FROM auth_global_admins WHERE user_id=? AND enabled=1").bind(user.id).first();
   return {
     user: { id: user.id, name: user.display_name },
     memberships: memberships.results || [],
-    permissions: (grants.results || []).map(row => row.permission)
+    permissions: (grants.results || []).map(row => row.permission),
+    is_global_admin: !!globalAdmin
   };
 }
