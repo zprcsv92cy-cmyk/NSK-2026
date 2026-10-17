@@ -14,7 +14,7 @@ function resolveBaserowTables(env) {
   catch { throw new Error("Invalid Baserow table mapping"); }
   if (!mapping || typeof mapping !== "object" || Array.isArray(mapping)) throw new Error("Invalid Baserow table mapping");
   const keys = Object.keys(TABLES);
-  if (Object.keys(mapping).length !== keys.length || keys.some((key) => !Number.isSafeInteger(mapping[key]) || mapping[key] <= 0))
+  if (Object.keys(mapping).length !== keys.length || keys.some((key) => !Number.isSafeInteger(mapping[key]) || mapping[key] <= 0 || Object.values(TABLES).includes(mapping[key])) || new Set(Object.values(mapping)).size !== keys.length)
     throw new Error("Invalid Baserow table mapping");
   return mapping;
 }
