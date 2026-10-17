@@ -121,7 +121,10 @@ window.DB = (() => {
       if(![poolId,lagNo,matchNo,goalie,...players].every(positive))throw new Error('Ogiltiga ID:n i matchkonfiguration');
       const old=await getPoolTeamMatchConfig(poolId,lagNo,matchNo);
       const path=old?`/api/matchkonfiguration/${old.id}`:'/api/matchkonfiguration';
-      const data=await adminRequest(path,old?'PATCH':'POST',{...payload,pool_id:poolId,lag_no:lagNo,match_no:matchNo,goalie_player_id:goalie,players_on_field:players});
+      const outgoing={...payload,pool_id:poolId,lag_no:lagNo,match_no:matchNo,goalie_player_id:goalie,players_on_field:players};
+      const data=window.Auth?.getMode?.()==='production'
+        ? await window.Auth.personalMatchConfigWrite(old?'PATCH':'POST',old?.id||null,outgoing)
+        : await adminRequest(path,old?'PATCH':'POST',outgoing);
       return {id:data.row.id,...payload};
     });
   }
