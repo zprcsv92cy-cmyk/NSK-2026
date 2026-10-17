@@ -145,3 +145,15 @@ test('production membership key cannot modify foreign-team roster row', async ()
   assert.equal(result.status, 502);
   assert.equal(writes, 0);
 });
+
+
+test('lagpersonal POST is rejected without a verified personal session', async () => {
+  let writes = 0;
+  const result = await authorizePersonalWorkerWrite(req('POST', '/api/lagpersonal?team_id=18'), {}, {
+    listTeams: async () => teams,
+    readTeamStaff: async () => [],
+    mutateLagpersonal: async () => { writes++; return { ok: true }; }
+  });
+  assert.equal(result.status, 401);
+  assert.equal(writes, 0);
+});
