@@ -153,6 +153,36 @@
     }
     throw new Error('För många poolspelssidor');
   }
+  async function personalMatchRows(kind,poolId,team=activeTeam()){
+    if(!productionMode||!base||!token()||!team||
+      !identity?.memberships?.some(m=>m.team_id===team)||
+      !['matchkonfiguration','laguppstallningar','bytesschema'].includes(kind)||
+      !Number.isSafeInteger(Number(poolId))||Number(poolId)<=0)
+      throw new Error('Produktionsinloggning, giltigt lag och poolspel krävs');
+    const auth={Authorization:'Bearer '+token()};
+    const teamResponse=await fetch(base+'/api/personal/lag',{
+      headers:auth,cache:'no-store',credentials:'omit'
+    });
+    if(teamResponse.status===401)clear();
+    if(!teamResponse.ok)throw new Error('Laget kunde inte verifieras');
+    const teamData=await teamResponse.json();
+    const matches=(teamData.results||[]).filter(row=>row.Namn===team&&String(row['Säsong'])==='2026');
+    if(matches.length!==1)throw new Error('Laget kunde inte verifieras');
+    const teamId=String(matches[0].id),rows=[];
+    for(let page=1;page<=100;page++){
+      const query=new URLSearchParams({team_id:teamId,pool_id:String(poolId),page:String(page),size:'200'});
+      const response=await fetch(base+'/api/personal/'+kind+'?'+query,{
+        headers:auth,cache:'no-store',credentials:'omit'
+      });
+      if(response.status===401)clear();
+      const data=await response.json().catch(()=>({}));
+      if(!response.ok||!Array.isArray(data.results))
+        throw new Error(data.error||'Matchuppgifter kunde inte hämtas');
+      rows.push(...data.results);
+      if(!data.next)return rows;
+    }
+    throw new Error('För många sidor matchuppgifter');
+  }
   async function personalRosterWrite(kind, method, rowId, name, team = activeTeam()) {
     if (!productionMode || !base || !token() || !team ||
         !identity?.memberships?.some(m => m.team_id === team)) {
@@ -257,7 +287,7 @@
     }
   }
   window.Auth = Object.freeze({
-    init, login, logout, can, checkTeamFeature, stagingRosterList, stagingRosterWrite, personalRosterList, personalPoolList, personalRosterWrite, personalStaffWrite, activeTeam, selectTeam,
+    init, login, logout, can, checkTeamFeature, stagingRosterList, stagingRosterWrite, personalRosterList, personalPoolList, personalMatchRows, personalRosterWrite, personalStaffWrite, activeTeam, selectTeam,
     getSession: () => identity, getToken: token, getMode: () => productionMode ? 'production' : 'staging', getClient: () => null
   });
 })();
