@@ -39,6 +39,7 @@ on:
       - 'worker/production-entry.js'
       - '.github/workflows/team-authorization-tests.yml'
       - 'docs/first-production-administrator.md'
+      - 'docs/api-production-rollback-baseline.md'
   pull_request:
     paths:
       - 'worker/production-roster-integration.md'
@@ -57,6 +58,7 @@ on:
       - 'worker/production-entry.js'
       - '.github/workflows/team-authorization-tests.yml'
       - 'docs/first-production-administrator.md'
+      - 'docs/api-production-rollback-baseline.md'
       - 'worker/team-authorization-policy.js'
       - 'worker/team-authorization-policy.test.mjs'
       - 'worker/production-roster-team-resolver.js'
@@ -93,6 +95,7 @@ on:
       - 'worker/production-entry.js'
       - '.github/workflows/team-authorization-tests.yml'
       - 'docs/first-production-administrator.md'
+      - 'docs/api-production-rollback-baseline.md'
 jobs:
   security-checks:
     runs-on: ubuntu-latest
