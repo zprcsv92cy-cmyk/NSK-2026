@@ -17,6 +17,60 @@ on:
       - 'worker/personal-roster-worker-http.test.mjs'
       - 'worker/lagpersonal-kv-ownership.js'
       - 'worker/lagpersonal-kv-ownership.test.mjs'
+      - 'reference/legacy-nsk-api-worker-v42.snapshot.js'
+      - 'scripts/audit-production-worker-snapshot.mjs'
+      - 'worker/production-personal-shift-save.js'
+      - 'worker/production-personal-shift-lock.js'
+      - 'worker/production-personal-shift-lock-combined.test.mjs'
+      - 'worker/production-personal-shift-save.test.mjs'
+      - 'worker/production-personal-shift-done.js'
+      - 'worker/production-personal-shift-done.test.mjs'
+      - 'worker/production-personal-lineup-write.js'
+      - 'worker/production-personal-lineup-write.test.mjs'
+      - 'worker/production-personal-match-write.js'
+      - 'worker/production-personal-match-write.test.mjs'
+      - 'worker/production-personal-match-read.js'
+      - 'worker/production-personal-match-read.test.mjs'
+      - 'worker/production-personal-pools.js'
+      - 'worker/production-personal-pools.test.mjs'
+      - 'worker/production-personal-teams.js'
+      - 'worker/production-personal-teams.test.mjs'
+      - 'worker/production-personal-staff-mutation.js'
+      - 'worker/production-personal-staff-mutation.test.mjs'
+      - 'worker/production-personal-roster-mutation.js'
+      - 'worker/production-personal-roster-mutation.test.mjs'
+      - 'worker/production-login-guard.js'
+      - 'worker/production-login-guard.test.mjs'
+      - 'scripts/test-production-login-schema.py'
+      - 'migrations/production-auth/001_login_attempts.sql'
+      - 'worker/production-owner-administration.js'
+      - 'worker/production-owner-administration.test.mjs'
+      - 'worker/production-owner-create-user.test.mjs'
+      - 'worker/production-owner-edit-delete.test.mjs'
+      - 'worker/production-owner-permissions.js'
+      - 'worker/production-owner-permissions.test.mjs'
+      - 'worker/production-owner-team-membership.js'
+      - 'worker/production-owner-team-membership.test.mjs'
+      - 'worker/production-owner-team-membership-delete.test.mjs'
+      - 'worker/production-auth-boundary.js'
+      - 'worker/production-auth-boundary.test.mjs'
+      - 'worker/production-owner-activation.test.mjs'
+      - 'worker/production-owner-login-session.test.mjs'
+      - 'worker/account-activation.js'
+      - 'worker/production-global-owner-access.test.mjs'
+      - 'worker/production-personal-preflight.test.mjs'
+      - 'worker/production-entry-candidate.js'
+      - 'worker/production-entry-candidate.test.mjs'
+      - 'worker/production-personal-roster-endpoint.js'
+      - 'worker/production-personal-roster-endpoint.test.mjs'
+      - 'worker/production-roster-scoped-data.js'
+      - 'worker/production-roster-scoped-data.test.mjs'
+      - 'worker/production-roster-read-integration.js'
+      - 'worker/production-roster-read-integration.test.mjs'
+      - 'worker/production-team-id-map.js'
+      - 'worker/production-team-id-map.test.mjs'
+      - 'worker/production-roster-read-guard.js'
+      - 'worker/production-roster-read-guard.test.mjs'
       - 'worker/production-roster-route-guard.js'
       - 'worker/production-roster-route-guard.test.mjs'
       - 'worker/staging-roster.js'
@@ -27,11 +81,21 @@ on:
       - 'worker/staging-session-identity.test.mjs'
       - 'worker/staging-auth-dispatch.js'
       - 'worker/staging-auth-dispatch.test.mjs'
+      - 'auth.js'
+      - 'config.js'
+      - 'scripts/test-production-auth-client.mjs'
+      - 'scripts/bootstrap-production-admin.mjs'
+      - 'scripts/test-bootstrap-production-admin.mjs'
       - '.github/workflows/team-authorization-tests.yml'
   pull_request:
     paths:
       - 'login/index.html'
       - 'startsida/index.html'
+      - 'auth.js'
+      - 'config.js'
+      - 'scripts/test-production-auth-client.mjs'
+      - 'scripts/bootstrap-production-admin.mjs'
+      - 'scripts/test-bootstrap-production-admin.mjs'
       - '.github/workflows/team-authorization-tests.yml'
       - 'worker/team-authorization-policy.js'
       - 'worker/team-authorization-policy.test.mjs'
@@ -47,6 +111,60 @@ on:
       - 'worker/personal-roster-worker-http.test.mjs'
       - 'worker/lagpersonal-kv-ownership.js'
       - 'worker/lagpersonal-kv-ownership.test.mjs'
+      - 'reference/legacy-nsk-api-worker-v42.snapshot.js'
+      - 'scripts/audit-production-worker-snapshot.mjs'
+      - 'worker/production-personal-shift-save.js'
+      - 'worker/production-personal-shift-lock.js'
+      - 'worker/production-personal-shift-lock-combined.test.mjs'
+      - 'worker/production-personal-shift-save.test.mjs'
+      - 'worker/production-personal-shift-done.js'
+      - 'worker/production-personal-shift-done.test.mjs'
+      - 'worker/production-personal-lineup-write.js'
+      - 'worker/production-personal-lineup-write.test.mjs'
+      - 'worker/production-personal-match-write.js'
+      - 'worker/production-personal-match-write.test.mjs'
+      - 'worker/production-personal-match-read.js'
+      - 'worker/production-personal-match-read.test.mjs'
+      - 'worker/production-personal-pools.js'
+      - 'worker/production-personal-pools.test.mjs'
+      - 'worker/production-personal-teams.js'
+      - 'worker/production-personal-teams.test.mjs'
+      - 'worker/production-personal-staff-mutation.js'
+      - 'worker/production-personal-staff-mutation.test.mjs'
+      - 'worker/production-personal-roster-mutation.js'
+      - 'worker/production-personal-roster-mutation.test.mjs'
+      - 'worker/production-login-guard.js'
+      - 'worker/production-login-guard.test.mjs'
+      - 'scripts/test-production-login-schema.py'
+      - 'migrations/production-auth/001_login_attempts.sql'
+      - 'worker/production-owner-administration.js'
+      - 'worker/production-owner-administration.test.mjs'
+      - 'worker/production-owner-create-user.test.mjs'
+      - 'worker/production-owner-edit-delete.test.mjs'
+      - 'worker/production-owner-permissions.js'
+      - 'worker/production-owner-permissions.test.mjs'
+      - 'worker/production-owner-team-membership.js'
+      - 'worker/production-owner-team-membership.test.mjs'
+      - 'worker/production-owner-team-membership-delete.test.mjs'
+      - 'worker/production-auth-boundary.js'
+      - 'worker/production-auth-boundary.test.mjs'
+      - 'worker/production-owner-activation.test.mjs'
+      - 'worker/production-owner-login-session.test.mjs'
+      - 'worker/account-activation.js'
+      - 'worker/production-global-owner-access.test.mjs'
+      - 'worker/production-personal-preflight.test.mjs'
+      - 'worker/production-entry-candidate.js'
+      - 'worker/production-entry-candidate.test.mjs'
+      - 'worker/production-personal-roster-endpoint.js'
+      - 'worker/production-personal-roster-endpoint.test.mjs'
+      - 'worker/production-roster-scoped-data.js'
+      - 'worker/production-roster-scoped-data.test.mjs'
+      - 'worker/production-roster-read-integration.js'
+      - 'worker/production-roster-read-integration.test.mjs'
+      - 'worker/production-team-id-map.js'
+      - 'worker/production-team-id-map.test.mjs'
+      - 'worker/production-roster-read-guard.js'
+      - 'worker/production-roster-read-guard.test.mjs'
       - 'worker/production-roster-route-guard.js'
       - 'worker/production-roster-route-guard.test.mjs'
       - 'worker/staging-roster.js'
@@ -57,6 +175,11 @@ on:
       - 'worker/staging-session-identity.test.mjs'
       - 'worker/staging-auth-dispatch.js'
       - 'worker/staging-auth-dispatch.test.mjs'
+      - 'auth.js'
+      - 'config.js'
+      - 'scripts/test-production-auth-client.mjs'
+      - 'scripts/bootstrap-production-admin.mjs'
+      - 'scripts/test-bootstrap-production-admin.mjs'
       - '.github/workflows/team-authorization-tests.yml'
 jobs:
   security-checks:
@@ -84,4 +207,70 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: '22'
+      - name: Validate isolated browser production authentication
+        run: node scripts/test-production-auth-client.mjs
+      - name: Audit historical production Worker source (no deployment)
+        run: node scripts/audit-production-worker-snapshot.mjs
+      - name: Check trusted legacy team ID mapping
+        run: node --test worker/production-team-id-map.test.mjs
+      - name: Check production browser preflight for personal API writes
+        run: node --experimental-default-type=module --test worker/production-personal-preflight.test.mjs
+      - name: Check combined shift save/done serialization
+        run: node --experimental-default-type=module --test worker/production-personal-shift-lock-combined.test.mjs
+      - name: Check personally authorized multi-team shift saves
+        run: node --experimental-default-type=module --test worker/production-personal-shift-save.test.mjs
+      - name: Check personally authorized shift completion
+        run: node --experimental-default-type=module --test worker/production-personal-shift-done.test.mjs
+      - name: Check personally authorized lineup saves
+        run: node --experimental-default-type=module --test worker/production-personal-lineup-write.test.mjs
+      - name: Check personally authorized match configuration writes
+        run: node --experimental-default-type=module --test worker/production-personal-match-write.test.mjs
+      - name: Check personally scoped match, lineup and shift reads
+        run: node --experimental-default-type=module --test worker/production-personal-match-read.test.mjs
+      - name: Check personally scoped poolspel reads
+        run: node --experimental-default-type=module --test worker/production-personal-pools.test.mjs
+      - name: Check personal team enumeration cannot leak another team
+        run: node --experimental-default-type=module --test worker/production-personal-teams.test.mjs
+      - name: Check personally authorized lagpersonal writes
+        run: node --experimental-default-type=module --test worker/production-personal-staff-mutation.test.mjs
+      - name: Check personally authorized roster mutations
+        run: node --experimental-default-type=module --test worker/production-personal-roster-mutation.test.mjs
+      - name: Verify production login D1 schema
+        run: python3 scripts/test-production-login-schema.py
+      - name: Dry-run first production administrator activation
+        run: node scripts/test-bootstrap-production-admin.mjs
+      - name: Check owner login, session, team access and logout
+        run: node --experimental-default-type=module --test worker/production-owner-login-session.test.mjs
+      - name: Check secure production account activation
+        run: node --experimental-default-type=module --test worker/production-owner-activation.test.mjs
+      - name: Check production login throttling
+        run: node --experimental-default-type=module --test worker/production-login-guard.test.mjs
+      - name: Check protected team membership deletions
+        run: node --experimental-default-type=module --test worker/production-owner-team-membership-delete.test.mjs
+      - name: Check verified global owner team membership assignments
+        run: node --experimental-default-type=module --test worker/production-owner-team-membership.test.mjs
+      - name: Check protected per-person permission grants
+        run: node --experimental-default-type=module --test worker/production-owner-permissions.test.mjs
+      - name: Check protected owner edit and delete
+        run: node --experimental-default-type=module --test worker/production-owner-edit-delete.test.mjs
+      - name: Check global owner disabled user creation
+        run: node --experimental-default-type=module --test worker/production-owner-create-user.test.mjs
+      - name: Check owner-only production user administration reads
+        run: node --experimental-default-type=module --test worker/production-owner-administration.test.mjs
+      - name: Check verified global owner feature authorization
+        run: node --experimental-default-type=module --test worker/production-global-owner-access.test.mjs
+      - name: Check allowlisted production authentication endpoints
+        run: node --experimental-default-type=module --test worker/production-auth-boundary.test.mjs
+      - name: Check protected legacy team and staff read compatibility
+        run: node --experimental-default-type=module --test worker/production-legacy-safe-read-compat.test.mjs
+      - name: Check composited production Worker entrypoint
+        run: node --experimental-default-type=module --test worker/production-entry-candidate.test.mjs
+      - name: Check complete personal-auth read-only endpoint
+        run: node --test worker/production-personal-roster-endpoint.test.mjs
+      - name: Check server-scoped roster data output
+        run: node --test worker/production-roster-scoped-data.test.mjs
+      - name: Check personal identity-to-roster integration
+        run: node --test worker/production-roster-read-integration.test.mjs
+      - name: Check production read boundary
+        run: node --test worker/production-roster-read-guard.test.mjs
       - run: node --experimental-default-type=module --test worker/team-authorization-policy.test.mjs worker/production-roster-route-guard.test.mjs worker/production-roster-team-resolver.test.mjs worker/production-roster-integration.test.mjs worker/production-lagpersonal-auth-guard.test.mjs worker/personal-roster-identity-adapter.test.mjs worker/personal-roster-worker-adapter.test.mjs worker/personal-roster-worker-http.test.mjs worker/lagpersonal-kv-ownership.test.mjs worker/staging-roster.test.mjs worker/staging-roster-route.test.mjs worker/staging-session-identity.test.mjs worker/staging-auth-dispatch.test.mjs

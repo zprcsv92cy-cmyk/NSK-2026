@@ -1,0 +1,43 @@
+# NSK API production migration candidate — DRY RUN ONLY, DO NOT DEPLOY.
+# Binding IDs were verified against the currently deployed nsk-api settings.
+# This still lacks production account setup, rollback validation and a complete
+# personal authorization migration for ALL legacy read/write routes.
+name = "nsk-api"
+main = "worker/production-entry-candidate.js"
+compatibility_date = "2026-10-10"
+workers_dev = true
+
+[[d1_databases]]
+binding = "AUTH_DB"
+database_name = "nsk-auth-production"
+database_id = "9f937bcb-b0c0-4129-af5b-775cf284dfcb"
+
+[[kv_namespaces]]
+binding = "ADMIN_KV"
+id = "7f978e9bbcd04b888e5b0dfbc338ba5d"
+
+[[kv_namespaces]]
+binding = "NSK_TRAINERS"
+id = "f60b048621ea4aca8d67774f5c9db664"
+
+[[durable_objects.bindings]]
+name = "SHIFT_LOCK"
+class_name = "ShiftLock"
+
+[[durable_objects.bindings]]
+name = "SHIFT_SAVE_LOCK"
+class_name = "PersonalShiftSaveLock"
+
+[[migrations]]
+tag = "candidate-personal-shift-v1"
+new_classes = ["PersonalShiftSaveLock"]
+
+# Existing secret names in live nsk-api:
+# ADMIN_PASSWORD, BASEROW_TOKEN, MATCH_PASSWORD.
+# Existing plain-text binding: BASEROW_DATABASE_ID.
+# These secrets/values MUST remain in Cloudflare, never copied into GitHub.
+#
+# Danger: this file is NOT a complete deployable configuration. The previous
+# worker deployment's Durable Object migration, routes, secret preservation,
+# production account bootstrap and full legacy API authorization are not verified.
+# Do not use wrangler deploy without --dry-run.

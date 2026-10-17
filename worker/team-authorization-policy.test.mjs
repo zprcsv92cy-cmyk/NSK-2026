@@ -61,3 +61,13 @@ test('rejects malformed bearer header before identity verification', async () =>
   assert.equal(verified, 0);
   assert.equal(writes, 0);
 });
+
+test('global owner may manage each team only with explicitly granted permission',()=>{
+ const root={user:{id:'root'},memberships:[{team_id:'*',role:'owner'}],permissions:['roster:manage','users:manage']};
+ assert.equal(authorizeTeamFeature(root,'team-18','roster').allowed,true);
+ assert.equal(authorizeTeamFeature(root,'team-2','users').allowed,true);
+ assert.equal(authorizeTeamFeature(root,'team-2','pool').status,403);
+ assert.equal(authorizeTeamFeature({...root,memberships:[{team_id:'*',role:'viewer'}]},'team-2','roster').status,403);
+ assert.equal(authorizeTeamFeature({...root,memberships:[{team_id:'team-18',role:'owner'}]},'team-2','roster').status,403);
+ assert.equal(authorizeTeamFeature({...root,memberships:[{team_id:'team-18',role:'owner'}]},'team-18','roster').allowed,true);
+});

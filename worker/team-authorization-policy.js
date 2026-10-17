@@ -19,9 +19,11 @@ export function authorizeTeamFeature(actor, teamId, feature) {
   }
   const membership = Array.isArray(actor.memberships)
     ? actor.memberships.find(m => m && m.team_id === teamId) : null;
-  if (!membership) return { allowed: false, status: 403, reason: 'Ingen åtkomst till laget' };
+  const owner = Array.isArray(actor.memberships) && actor.memberships.some(m =>
+    m?.team_id === '*' && m.role === 'owner');
+  if (!membership && !owner) return { allowed: false, status: 403, reason: 'Ingen åtkomst till laget' };
   const permission = FEATURE_PERMISSIONS[feature];
-  const allowed = membership.role === 'team_admin' &&
+  const allowed = (owner || membership?.role === 'owner' || membership?.role === 'team_admin') &&
     Array.isArray(actor.permissions) && actor.permissions.includes(permission);
   return { allowed, status: allowed ? 200 : 403,
     reason: allowed ? 'Tillåtet' : 'Saknar behörighet', permission };

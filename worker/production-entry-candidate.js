@@ -1,0 +1,148 @@
+// Migration candidate for nsk-api, NOT deployed.
+// Keep all legacy routes intact. Personal routes require isolated AUTH_DB D1.
+import legacyWorker, { ShiftLock } from '../reference/legacy-nsk-api-worker-v42.snapshot.js';
+import { handlePersonalRosterRead } from './production-personal-roster-endpoint.js';
+import { handlePersonalRosterMutation } from './production-personal-roster-mutation.js';
+import { handlePersonalStaffMutation } from './production-personal-staff-mutation.js';
+import { handlePersonalTeamList } from './production-personal-teams.js';
+import { handlePersonalPoolList } from './production-personal-pools.js';
+import { handlePersonalMatchRead } from './production-personal-match-read.js';
+import { handlePersonalMatchConfigWrite } from './production-personal-match-write.js';
+import { handlePersonalLineupWrite } from './production-personal-lineup-write.js';
+import { handlePersonalShiftDone } from './production-personal-shift-done.js';
+import { handlePersonalShiftSave } from './production-personal-shift-save.js';
+import {PersonalShiftSaveLock} from './production-personal-shift-lock.js';
+import { handleProductionAuth } from './production-auth-boundary.js';
+
+const PERSONAL_PREFIX = '/api/personal/';
+export { ShiftLock, PersonalShiftSaveLock };
+export default {
+  async fetch(request, env, context) {
+    const { pathname } = new URL(request.url);
+    if (pathname.startsWith('/api/auth/')) {
+      return handleProductionAuth(request, env);
+    }
+    if (pathname.startsWith(PERSONAL_PREFIX)) {
+      const origin=request.headers.get('Origin');
+      if(origin && origin!=='https://zprcsv92cy-cmyk.github.io')
+        return Response.json({ok:false,error:'Origin not allowed'},{status:403});
+      if(pathname==='/api/personal/bytesschema/save'&&request.method==='POST'){
+        const response=await handlePersonalShiftSave(request,env);
+        const headers=new Headers(response.headers);
+        headers.set('Vary','Origin');
+        if(origin==='https://zprcsv92cy-cmyk.github.io')headers.set('Access-Control-Allow-Origin',origin);
+        return new Response(response.body,{status:response.status,headers});
+      }
+      if(/^\/api\/personal\/bytesschema\/\d+\/done$/.test(pathname) &&
+          request.method==='PATCH'){
+        const response=await handlePersonalShiftDone(request,env);
+        const headers=new Headers(response.headers);
+        headers.set('Vary','Origin');
+        if(origin==='https://zprcsv92cy-cmyk.github.io')
+          headers.set('Access-Control-Allow-Origin',origin);
+        return new Response(response.body,{status:response.status,headers});
+      }
+      if(/^\/api\/personal\/laguppstallningar\/\d+$/.test(pathname) &&
+          request.method==='POST'){
+        const response=await handlePersonalLineupWrite(request,env);
+        const headers=new Headers(response.headers);
+        headers.set('Vary','Origin');
+        if(origin==='https://zprcsv92cy-cmyk.github.io')
+          headers.set('Access-Control-Allow-Origin',origin);
+        return new Response(response.body,{status:response.status,headers});
+      }
+      if(/^\/api\/personal\/matchkonfiguration(?:\/\d+)?$/.test(pathname) &&
+          ['POST','PATCH'].includes(request.method)){
+        const response=await handlePersonalMatchConfigWrite(request,env);
+        const headers=new Headers(response.headers);
+        headers.set('Vary','Origin');
+        if(origin==='https://zprcsv92cy-cmyk.github.io')
+          headers.set('Access-Control-Allow-Origin',origin);
+        return new Response(response.body,{status:response.status,headers});
+      }
+      if(/^\/api\/personal\/(matchkonfiguration|laguppstallningar|bytesschema)$/.test(pathname) &&
+          request.method==='GET'){
+        const response=await handlePersonalMatchRead(request,env);
+        const headers=new Headers(response.headers);
+        headers.set('Vary','Origin');
+        if(origin==='https://zprcsv92cy-cmyk.github.io')
+          headers.set('Access-Control-Allow-Origin',origin);
+        return new Response(response.body,{status:response.status,headers});
+      }
+      if(pathname==='/api/personal/poolspel' && request.method==='GET'){
+        const response=await handlePersonalPoolList(request,env);
+        const headers=new Headers(response.headers);
+        headers.set('Vary','Origin');
+        if(origin==='https://zprcsv92cy-cmyk.github.io')headers.set('Access-Control-Allow-Origin',origin);
+        return new Response(response.body,{status:response.status,headers});
+      }
+      if(pathname==='/api/personal/lag' && request.method==='GET'){
+        const response=await handlePersonalTeamList(request,env);
+        const headers=new Headers(response.headers);
+        headers.set('Vary','Origin');
+        if(origin==='https://zprcsv92cy-cmyk.github.io')headers.set('Access-Control-Allow-Origin',origin);
+        return new Response(response.body,{status:response.status,headers});
+      }
+      const mutation=/^\/api\/personal\/(spelare|tranare)(?:\/\d+)?$/.test(pathname);
+      const staffMutation=pathname==='/api/personal/lagpersonal';
+      const shiftDoneRoute=/^\/api\/personal\/bytesschema\/\d+\/done$/.test(pathname);
+      const shiftSaveRoute=pathname==='/api/personal/bytesschema/save';
+      const lineupWriteRoute=/^\/api\/personal\/laguppstallningar\/\d+$/.test(pathname);
+      const matchWriteRoute=/^\/api\/personal\/matchkonfiguration\/\d+$/.test(pathname);
+      if(request.method==='OPTIONS' && (mutation || staffMutation || shiftDoneRoute || shiftSaveRoute || lineupWriteRoute || matchWriteRoute || pathname==='/api/personal/lag' || pathname==='/api/personal/poolspel' || /^\/api\/personal\/(matchkonfiguration|laguppstallningar|bytesschema)$/.test(pathname)) && origin==='https://zprcsv92cy-cmyk.github.io')
+        return new Response(null,{status:204,headers:{
+          'Access-Control-Allow-Origin':origin,
+          'Access-Control-Allow-Methods':'GET,POST,PATCH,DELETE,OPTIONS',
+          'Access-Control-Allow-Headers':'Authorization,Content-Type',
+          'Vary':'Origin'
+        }});
+      if(mutation && ['POST','PATCH','DELETE'].includes(request.method)){
+        const response=await handlePersonalRosterMutation(request,env);
+        const headers=new Headers(response.headers);
+        headers.set('Vary','Origin');
+        if(origin==='https://zprcsv92cy-cmyk.github.io')
+          headers.set('Access-Control-Allow-Origin',origin);
+        return new Response(response.body,{status:response.status,headers});
+      }
+      if(staffMutation && ['POST','PATCH'].includes(request.method)){
+        const response=await handlePersonalStaffMutation(request,env);
+        const headers=new Headers(response.headers);
+        headers.set('Vary','Origin');
+        if(origin==='https://zprcsv92cy-cmyk.github.io')headers.set('Access-Control-Allow-Origin',origin);
+        return new Response(response.body,{status:response.status,headers});
+      }
+      return handlePersonalRosterRead(request, env);
+    }
+    // Compatibility reads are deliberately routed through the personal auth
+    // boundary. They do not fall back to shared legacy admin sessions.
+    // Browser clients must send their verified personal bearer token.
+    if(request.method==='GET' &&
+       ['/api/lag','/api/lagpersonal','/api/spelare','/api/tranare'].includes(pathname)){
+      const origin=request.headers.get('Origin');
+      if(origin && origin!=='https://zprcsv92cy-cmyk.github.io')
+        return Response.json({ok:false,error:'Origin not allowed'},{status:403});
+      const forwarded=new URL(request.url);
+      forwarded.pathname='/api/personal/'+pathname.slice('/api/'.length);
+      const inner=new Request(forwarded,request);
+      const response=pathname==='/api/lag'
+        ? await handlePersonalTeamList(inner,env)
+        : await handlePersonalRosterRead(inner,env);
+      const headers=new Headers(response.headers);
+      headers.set('cache-control','no-store');
+      headers.set('vary','Origin');
+      if(origin==='https://zprcsv92cy-cmyk.github.io')
+        headers.set('access-control-allow-origin',origin);
+      return new Response(response.body,{status:response.status,headers});
+    }
+    // The historical API has no per-person, per-team authorization. Never expose
+    // its routes from a production candidate with personal authentication enabled.
+    // Re-enable each route only after it has a server-enforced authorization guard.
+    if (pathname.startsWith('/api/')) {
+      return Response.json({ ok: false, error: 'Legacy API route not migrated' }, {
+        status: 503,
+        headers: { 'cache-control': 'no-store', 'x-content-type-options': 'nosniff' }
+      });
+    }
+    return legacyWorker.fetch(request, env, context);
+  }
+};

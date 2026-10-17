@@ -72,7 +72,7 @@
     <section class="card roster-card" aria-label="Personlig lagbehörighet">
       <h2>Lagbehörighet</h2>
       <p id="rosterPersonalAccess" class="small" aria-live="polite">Kontrollerar inloggning…</p>
-      <p class="small">Personlig behörighet visas här. Redigering av den befintliga truppen använder tills vidare det äldre adminläget.</p>
+      <p class="small">Personlig lagbehörighet kontrolleras av servern. I testläget används fortfarande det äldre adminläget.</p>
     </section>
 
     <section class="card roster-card" id="stagingRosterPanel" hidden>
@@ -208,7 +208,7 @@
       if (current !== requestId) return;
       label.textContent = 'Aktivt lag: ' + team + '. Personlig rätt att hantera truppen: ' +
         (allowed ? 'Ja (verifierad av servern)' : 'Nej eller kunde inte verifieras') +
-        '. Befintlig trupp använder fortfarande äldre adminläge.';
+        (Auth.getMode?.()==='production' ? '. Den riktiga truppen använder personlig behörighet.' : '. Befintlig trupp använder fortfarande äldre adminläge.');
     } catch {
       if (current === requestId) label.textContent = 'Personlig lagbehörighet kunde inte kontrolleras.';
     }
@@ -225,7 +225,7 @@
   const list = document.getElementById('stagingRosterRows');
   const add = document.getElementById('stagingRosterAdd');
   const name = document.getElementById('stagingRosterName');
-  if (!window.Auth?.stagingRosterList) return;
+  if (!window.Auth?.stagingRosterList || window.Auth.getMode?.()==='production') return;
   const identity = await Auth.init();
   if (!identity || !Auth.activeTeam()) return;
   panel.hidden = false;
@@ -291,7 +291,7 @@
  document.head.appendChild(style);
  async function sync(){
   const token=localStorage.getItem('nsk_admin_token');let allowed=false;
-  if(token)try{const r=await fetch((window.APP_CONFIG?.API_URL||'https://nsk-api.peter-hasselberg.workers.dev')+'/api/admin/status',{headers:{Authorization:'Bearer '+token},cache:'no-store'});allowed=r.ok&&(await r.json()).admin===true}catch{}
+  if(window.Auth?.getMode?.()==='production'){allowed=await window.Auth.checkTeamFeature('roster').catch(()=>false)}else if(token)try{const r=await fetch((window.APP_CONFIG?.API_URL||'https://nsk-api.peter-hasselberg.workers.dev')+'/api/admin/status',{headers:{Authorization:'Bearer '+token},cache:'no-store'});allowed=r.ok&&(await r.json()).admin===true}catch{}
   document.body.classList.toggle('nsk-roster-admin',allowed);
   document.querySelectorAll('#playersList .inline-name-input').forEach(e=>e.readOnly=!allowed);
   document.querySelectorAll('#coachesList .inline-name-input').forEach(e=>e.readOnly=!allowed);
@@ -311,7 +311,7 @@
  const esc=s=>String(s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
  let allowed=false;
  async function render(role,id){const list=document.getElementById(id+'List');try{const rows=await DB.listStaff(role);list.innerHTML=rows.length?rows.map(r=>`<div class="person-row"><div class="person-main"><input class="inline-name-input" data-staff-id="${esc(r.id)}" value="${esc(r.full_name)}" ${allowed?'':'readonly'}></div></div>`).join(''):'<div class="muted-note">Inga registrerade ännu.</div>';list.querySelectorAll('[data-staff-id]').forEach(inp=>inp.addEventListener('change',async()=>{try{await DB.updateStaff(role,inp.dataset.staffId,inp.value.trim());await render(role,id)}catch(e){alert(e.message)}}))}catch(e){list.textContent=e.message}}
- async function sync(){const token=localStorage.getItem('nsk_admin_token');allowed=false;if(token)try{const r=await fetch((window.APP_CONFIG?.API_URL||'https://nsk-api.peter-hasselberg.workers.dev')+'/api/admin/status',{headers:{Authorization:'Bearer '+token},cache:'no-store'});allowed=r.ok&&(await r.json()).admin===true}catch{}for(const [role,id] of roles){document.getElementById(id+'Input').disabled=!allowed;document.getElementById(id+'Add').disabled=!allowed;document.querySelectorAll('#'+id+'List input').forEach(el=>el.readOnly=!allowed)}}
+ async function sync(){const token=localStorage.getItem('nsk_admin_token');allowed=false;if(window.Auth?.getMode?.()==='production'){allowed=await window.Auth.checkTeamFeature('roster').catch(()=>false)}else if(token)try{const r=await fetch((window.APP_CONFIG?.API_URL||'https://nsk-api.peter-hasselberg.workers.dev')+'/api/admin/status',{headers:{Authorization:'Bearer '+token},cache:'no-store'});allowed=r.ok&&(await r.json()).admin===true}catch{}for(const [role,id] of roles){document.getElementById(id+'Input').disabled=!allowed;document.getElementById(id+'Add').disabled=!allowed;document.querySelectorAll('#'+id+'List input').forEach(el=>el.readOnly=!allowed)}}
  document.addEventListener('DOMContentLoaded',async()=>{for(const [role,id] of roles){document.getElementById(id+'Add').addEventListener('click',async()=>{const inp=document.getElementById(id+'Input');if(!inp.value.trim())return;try{await DB.addStaff(role,inp.value.trim());inp.value='';await render(role,id)}catch(e){alert(e.message)}});await render(role,id)}await sync();window.addEventListener('focus',sync);window.addEventListener('storage',sync);setInterval(sync,15000)})
 })();
 </script>
