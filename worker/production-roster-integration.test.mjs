@@ -24,7 +24,7 @@ test('authorized player PATCH for Team 18 writes once', async () => {
   assert.equal(writes, 1);
 });
 test('authorized coach POST uses trusted Team 18 mapping', async () => {
-  const { result, writes } = await run(request('POST', '/api/tranare?team_id=2'));
+  const { result, writes } = await run(request('POST', '/api/tranare?team_id=18'));
   assert.equal(result.ok, true);
   assert.equal(writes, 1);
 });
