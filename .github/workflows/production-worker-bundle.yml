@@ -211,7 +211,7 @@ jobs:
             globalThis.fetch = async (url, init = {}) => {
               if (!String(url).startsWith(base)) throw Error('External network blocked');
               if (init.headers?.Authorization !== 'Token fake-baserow') throw Error('Unexpected token');
-              const path = String(url).slice(base.length).split('?')[0].replace(/\\/$/, '');
+              const path = String(url).slice(base.length).split('?')[0].replace(/\/$/, '');
               if (init.method === 'PATCH' && path === '1255115/31') {
                 active++; peak = Math.max(peak, active);
                 await new Promise(resolve => setTimeout(resolve, 20));
