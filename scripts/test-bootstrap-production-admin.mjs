@@ -8,7 +8,7 @@ const inputs=['coach@nsk.invalid','Coach'];
 function run(args,env={}) {
   return spawnSync(process.execPath,[script,...args],{
     encoding:'utf8',env:{...process.env,NSK_PRODUCTION_BOOTSTRAP:'',
-      NSK_D1_DATABASE_ID:'',...env}});
+      NSK_D1_DATABASE_ID:'',NSK_PRODUCTION_AUTH_READY:'',...env}});
 }
 let r=run(inputs);
 assert.equal(r.status,2,'No production confirmation must fail');
@@ -24,6 +24,7 @@ require('fs').writeFileSync(process.env.NSK_MOCK_ARGS,JSON.stringify(process.arg
  chmodSync(mock,0o755);
  r=run(inputs,{NSK_PRODUCTION_BOOTSTRAP:'CONFIRM_PRODUCTION',
     NSK_D1_DATABASE_ID:'9f937bcb-b0c0-4129-af5b-775cf284dfcb',
+    NSK_PRODUCTION_AUTH_READY:'CONFIRM_AUTH_ENDPOINTS_READY',
     NSK_MOCK_ARGS:output,PATH:dir+':'+process.env.PATH});
  assert.equal(r.status,0,r.stderr);
  const args=JSON.parse(readFileSync(output,'utf8'));
