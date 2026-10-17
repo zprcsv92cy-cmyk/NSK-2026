@@ -19,6 +19,8 @@ on:
       - 'worker/lagpersonal-kv-ownership.test.mjs'
       - 'reference/legacy-nsk-api-worker-v42.snapshot.js'
       - 'scripts/audit-production-worker-snapshot.mjs'
+      - 'worker/production-personal-match-write.js'
+      - 'worker/production-personal-match-write.test.mjs'
       - 'worker/production-personal-match-read.js'
       - 'worker/production-personal-match-read.test.mjs'
       - 'worker/production-personal-pools.js'
@@ -81,6 +83,8 @@ on:
       - 'worker/lagpersonal-kv-ownership.test.mjs'
       - 'reference/legacy-nsk-api-worker-v42.snapshot.js'
       - 'scripts/audit-production-worker-snapshot.mjs'
+      - 'worker/production-personal-match-write.js'
+      - 'worker/production-personal-match-write.test.mjs'
       - 'worker/production-personal-match-read.js'
       - 'worker/production-personal-match-read.test.mjs'
       - 'worker/production-personal-pools.js'
@@ -151,6 +155,8 @@ jobs:
         run: node scripts/audit-production-worker-snapshot.mjs
       - name: Check trusted legacy team ID mapping
         run: node --test worker/production-team-id-map.test.mjs
+      - name: Check personally authorized match configuration writes
+        run: node --experimental-default-type=module --test worker/production-personal-match-write.test.mjs
       - name: Check personally scoped match, lineup and shift reads
         run: node --experimental-default-type=module --test worker/production-personal-match-read.test.mjs
       - name: Check personally scoped poolspel reads
