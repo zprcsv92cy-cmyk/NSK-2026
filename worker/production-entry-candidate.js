@@ -117,13 +117,12 @@ export default {
     // boundary. They do not fall back to shared legacy admin sessions.
     // Browser clients must send their verified personal bearer token.
     if(request.method==='GET' &&
-       (pathname==='/api/lag'||pathname==='/api/lagpersonal')){
+       ['/api/lag','/api/lagpersonal','/api/spelare','/api/tranare'].includes(pathname)){
       const origin=request.headers.get('Origin');
       if(origin && origin!=='https://zprcsv92cy-cmyk.github.io')
         return Response.json({ok:false,error:'Origin not allowed'},{status:403});
       const forwarded=new URL(request.url);
-      forwarded.pathname=pathname==='/api/lag'
-        ?'/api/personal/lag':'/api/personal/lagpersonal';
+      forwarded.pathname='/api/personal/'+pathname.slice('/api/'.length);
       const inner=new Request(forwarded,request);
       const response=pathname==='/api/lag'
         ? await handlePersonalTeamList(inner,env)
