@@ -18,3 +18,9 @@ assert.throws(()=>map({...actor,memberships:[{team_id:'NSK Team 18',role:'team_a
 assert.throws(()=>map(null, teams), /required/);
 assert.throws(()=>map({...actor,memberships:[]}, null), /required/);
 console.log('PASS trusted legacy team ID mapping; ambiguous/missing teams denied');
+
+const globalOwner={user:{id:'root'},memberships:[{team_id:'*',role:'owner'}],permissions:['roster:manage','users:manage']};
+assert.deepEqual(map(globalOwner,teams).memberships,[
+ {team_id:'18',role:'owner'},{team_id:'27',role:'owner'}]);
+assert.throws(()=>map({...globalOwner,memberships:[{team_id:'*',role:'viewer'}]},teams),/Invalid global/);
+assert.throws(()=>map(globalOwner,[...teams,{...teams[0],id:55}]),/Ambiguous global/);
