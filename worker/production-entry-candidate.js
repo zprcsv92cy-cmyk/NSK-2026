@@ -10,10 +10,12 @@ import { handlePersonalMatchRead } from './production-personal-match-read.js';
 import { handlePersonalMatchConfigWrite } from './production-personal-match-write.js';
 import { handlePersonalLineupWrite } from './production-personal-lineup-write.js';
 import { handlePersonalShiftDone } from './production-personal-shift-done.js';
+import { handlePersonalShiftSave } from './production-personal-shift-save.js';
+import {PersonalShiftSaveLock} from './production-personal-shift-lock.js';
 import { handleProductionAuth } from './production-auth-boundary.js';
 
 const PERSONAL_PREFIX = '/api/personal/';
-export { ShiftLock };
+export { ShiftLock, PersonalShiftSaveLock };
 export default {
   async fetch(request, env, context) {
     const { pathname } = new URL(request.url);
@@ -24,6 +26,13 @@ export default {
       const origin=request.headers.get('Origin');
       if(origin && origin!=='https://zprcsv92cy-cmyk.github.io')
         return Response.json({ok:false,error:'Origin not allowed'},{status:403});
+      if(pathname==='/api/personal/bytesschema/save'&&request.method==='POST'){
+        const response=await handlePersonalShiftSave(request,env);
+        const headers=new Headers(response.headers);
+        headers.set('Vary','Origin');
+        if(origin==='https://zprcsv92cy-cmyk.github.io')headers.set('Access-Control-Allow-Origin',origin);
+        return new Response(response.body,{status:response.status,headers});
+      }
       if(/^\/api\/personal\/bytesschema\/\d+\/done$/.test(pathname) &&
           request.method==='PATCH'){
         const response=await handlePersonalShiftDone(request,env);
@@ -77,7 +86,8 @@ export default {
       const mutation=/^\/api\/personal\/(spelare|tranare)(?:\/\d+)?$/.test(pathname);
       const staffMutation=pathname==='/api/personal/lagpersonal';
       const shiftDoneRoute=/^\/api\/personal\/bytesschema\/\d+\/done$/.test(pathname);
-      if(request.method==='OPTIONS' && (mutation || staffMutation || shiftDoneRoute || pathname==='/api/personal/lag' || pathname==='/api/personal/poolspel' || /^\/api\/personal\/(matchkonfiguration|laguppstallningar|bytesschema)$/.test(pathname)) && origin==='https://zprcsv92cy-cmyk.github.io')
+      const shiftSaveRoute=pathname==='/api/personal/bytesschema/save';
+      if(request.method==='OPTIONS' && (mutation || staffMutation || shiftDoneRoute || shiftSaveRoute || pathname==='/api/personal/lag' || pathname==='/api/personal/poolspel' || /^\/api\/personal\/(matchkonfiguration|laguppstallningar|bytesschema)$/.test(pathname)) && origin==='https://zprcsv92cy-cmyk.github.io')
         return new Response(null,{status:204,headers:{
           'Access-Control-Allow-Origin':origin,
           'Access-Control-Allow-Methods':'GET,POST,PATCH,DELETE,OPTIONS',
