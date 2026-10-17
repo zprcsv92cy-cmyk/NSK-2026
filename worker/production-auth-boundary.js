@@ -2,6 +2,7 @@
 // This is a candidate module, not part of the deployed nsk-api.
 import { handleTeamAuth } from './team-auth.js';
 import { handleActivation } from './account-activation.js';
+import { productionRateLimitedLogin } from './production-login-guard.js';
 
 const ORIGIN='https://zprcsv92cy-cmyk.github.io';
 const METHODS=Object.freeze({
@@ -36,7 +37,9 @@ export async function handleProductionAuth(request, env) {
   try {
     result=pathname==='/api/auth/activate'
       ? await handleActivation(request,env)
-      : await handleTeamAuth(request,env);
+      : pathname==='/api/auth/login'
+        ? await productionRateLimitedLogin(request,env,handleTeamAuth)
+        : await handleTeamAuth(request,env);
   } catch {
     return deny(503,'Authentication is temporarily unavailable');
   }
