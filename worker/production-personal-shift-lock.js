@@ -41,17 +41,58 @@ export class PersonalShiftSaveLock {
   constructor(ctx,env){this.env=env;this.queue=Promise.resolve();}
   async fetch(req){
     if(req.method!=='POST')return fail(405,'Otillåten metod');
-    const work=()=>this.save(req);
+    const work=()=>this.handle(req);
     const result=this.queue.then(work);
     this.queue=result.then(()=>undefined,()=>undefined);
     return result;
   }
-  async save(req){
-    if(!this.env?.BASEROW_TOKEN)return fail(503,'Databas saknas');
+  async handle(req){
     let body;
     try{body=await req.json();}catch{return fail(400,'Ogiltig JSON');}
+    if(!body||typeof body!=='object'||Array.isArray(body))
+      return fail(400,'Ogiltiga uppgifter');
+    if(body.action==='done')return this.done(body);
+    if(body.action==='save')return this.save(body);
+    // Compatibility with the candidate's earlier shift save messages.
+    if(!Object.hasOwn(body,'action'))return this.save(body);
+    return fail(400,'Otillåten åtgärd');
+  }
+  async done(body){
+    if(!this.env?.BASEROW_TOKEN)return fail(503,'Databas saknas');
+    if(Object.keys(body).some(k=>!['action','team_id','id','pool_id','lag_no','match_no','done'].includes(k))||
+      ![body.team_id,body.id,body.pool_id,body.lag_no,body.match_no].every(positive)||
+      body.action!=='done'||typeof body.done!=='boolean')
+      return fail(400,'Ogiltiga byteuppgifter');
+    try{
+      const row=await one(this.env,'bytesschema',body.id);
+      if(!row)return fail(404,'Bytet saknas');
+      if(links(row.Poolspel).length!==1||links(row.Poolspel)[0]!==body.pool_id||
+        Number(row.Lagnummer)!==body.lag_no||
+        Number(row.Matchnummer)!==body.match_no)
+        return fail(409,'Bytet tillhör inte den valda matchen');
+      const pool=await one(this.env,'poolspel',body.pool_id);
+      if(!pool||!links(pool.Lag).includes(body.team_id))
+        return fail(403,'Bytet tillhör ett annat lag');
+      if(body.lag_no>Number(pool['Antal lag'])||
+         body.match_no>Number(pool['Antal matcher']))
+        return fail(409,'Ogiltig match');
+      const teams=await all(this.env,'lag');
+      if(teams.filter(x=>Number(x.id)===body.team_id).length!==1)
+        return fail(403,'Laget kunde inte verifieras');
+      if(row['Genomfört']===body.done)return respond(200,{ok:true,row});
+      const result=await fetch(base('bytesschema')+body.id+'/?user_field_names=true',{
+        method:'PATCH',headers:{...auth(this.env),'Content-Type':'application/json'},
+        body:JSON.stringify({'Genomfört':body.done})
+      });
+      if(!result.ok)return fail(502,'Kunde inte ändra byte');
+      return respond(200,{ok:true,row:await result.json()});
+    }catch{return fail(503,'Bytet kunde inte verifieras eller uppdateras');}
+  }
+  async save(body){
+    if(!this.env?.BASEROW_TOKEN)return fail(503,'Databas saknas');
     if(!body||typeof body!=='object'||Array.isArray(body)||
-      Object.keys(body).some(k=>!['team_id','pool_id','lag_no','match_no','shifts'].includes(k))||
+      Object.keys(body).some(k=>!['team_id','pool_id','lag_no','match_no','shifts','action'].includes(k))||
+      (body.action!==undefined&&body.action!=='save')||
       ![body.team_id,body.pool_id,body.lag_no,body.match_no].every(positive)||
       !Array.isArray(body.shifts)||body.shifts.length>200||
       body.shifts.some(s=>!validShift(s)))
