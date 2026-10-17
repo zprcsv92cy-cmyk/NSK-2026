@@ -55,6 +55,7 @@ on:
       - 'worker/production-auth-boundary.js'
       - 'worker/production-auth-boundary.test.mjs'
       - 'worker/production-owner-activation.test.mjs'
+      - 'worker/production-owner-login-session.test.mjs'
       - 'worker/account-activation.js'
       - 'worker/production-global-owner-access.test.mjs'
       - 'worker/production-personal-preflight.test.mjs'
@@ -148,6 +149,7 @@ on:
       - 'worker/production-auth-boundary.js'
       - 'worker/production-auth-boundary.test.mjs'
       - 'worker/production-owner-activation.test.mjs'
+      - 'worker/production-owner-login-session.test.mjs'
       - 'worker/account-activation.js'
       - 'worker/production-global-owner-access.test.mjs'
       - 'worker/production-personal-preflight.test.mjs'
@@ -237,6 +239,8 @@ jobs:
         run: python3 scripts/test-production-login-schema.py
       - name: Dry-run first production administrator activation
         run: node scripts/test-bootstrap-production-admin.mjs
+      - name: Check owner login, session, team access and logout
+        run: node --experimental-default-type=module --test worker/production-owner-login-session.test.mjs
       - name: Check secure production account activation
         run: node --experimental-default-type=module --test worker/production-owner-activation.test.mjs
       - name: Check production login throttling
