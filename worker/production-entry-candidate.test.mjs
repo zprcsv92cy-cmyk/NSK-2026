@@ -1,0 +1,16 @@
+import assert from 'node:assert/strict';
+import candidate from './production-entry-candidate.js';
+const url='https://nsk-api.invalid';
+const request = (path,method='GET') => new Request(url+path,{method});
+const noPersonalBinding={};
+let result=await candidate.fetch(request('/api/personal/spelare?team_id=18'),noPersonalBinding,{});
+assert.equal(result.status,503,'Personal reads fail closed without AUTH_DB');
+result=await candidate.fetch(request('/api/personal/spelare?team_id=18','POST'),noPersonalBinding,{});
+assert.equal(result.status,405,'Personal write routes are disabled');
+result=await candidate.fetch(request('/api/personal/unknown'),noPersonalBinding,{});
+assert.equal(result.status,404,'Unrecognized personal path is denied');
+result=await candidate.fetch(request('/health'),noPersonalBinding,{});
+assert.equal(result.status,200,'Existing health route remains available');
+const health=await result.json();
+assert.equal(health.ok,true,'Existing health shape retained');
+console.log('PASS migration entrypoint: legacy health preserved, personal endpoint fail closed');
