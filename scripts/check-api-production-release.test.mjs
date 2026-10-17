@@ -7,6 +7,7 @@ test('incomplete production API manifest cannot pass deployment preflight', () =
   assert.match(result.stderr, /deployment BLOCKED/);
   assert.doesNotMatch(result.stderr, /Missing Worker main entrypoint/);
   assert.match(result.stderr, /ADMIN_KV/);
+  assert.match(result.stderr, /AUTH_DB|SHIFT_LOCK/);
   assert.match(result.stderr, /NSK_TRAINERS/);
   assert.match(result.stderr, /SHIFT_LOCK/);
 });
