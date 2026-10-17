@@ -31,9 +31,12 @@ export async function handleActivation(request, env) {
     const claim=claimResult.results?.[0];
     if (!claim) return json({error:'Koden har redan använts'},400);
     stage='update-user';
-    await db.prepare('UPDATE auth_users SET password_hash=?,disabled=0 WHERE id=? AND disabled=1').bind(passwordHash,claim.user_id).run();
+    const updated=await db.prepare('UPDATE auth_users SET password_hash=?,disabled=0 WHERE id=? AND disabled=1').bind(passwordHash,claim.user_id).run();
+    if(updated?.success!==true || updated?.meta?.changes!==1)
+      throw Error('Activation user update was not applied');
     stage='cleanup-token';
-    await db.prepare('DELETE FROM auth_setup_tokens WHERE user_id=?').bind(claim.user_id).run();
+    const cleaned=await db.prepare('DELETE FROM auth_setup_tokens WHERE user_id=?').bind(claim.user_id).run();
+    if(cleaned?.success!==true)throw Error('Activation token cleanup failed');
     return json({ok:true});
     } catch (err) {
       console.error('Activation stage',stage,err);
