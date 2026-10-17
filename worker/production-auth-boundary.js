@@ -47,7 +47,7 @@ export async function handleProductionAuth(request, env) {
   }
   // Global owners still need the same server-verified team scoping as all
   // other users. Never grant a feature for an arbitrary query team_id.
-  if((pathname==='/api/auth/feature-access'||pathname==='/api/auth/integration/access') && result.ok){
+  if((pathname==='/api/auth/feature-access'||pathname==='/api/auth/integration/access') && (result.ok||result.status===403)){
     const raw=await result.json();
       const me=await handleTeamAuth(new Request(new URL('/api/auth/me',request.url),{
         headers:{Authorization:request.headers.get('Authorization')||''}
