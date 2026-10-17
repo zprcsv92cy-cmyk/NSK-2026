@@ -124,6 +124,44 @@
     ]);
     return { team_id: team, players, coaches, staff };
   }
+  async function personalRosterWrite(kind, method, rowId, name, team = activeTeam()) {
+    if (!productionMode || !base || !token() || !team ||
+        !identity?.memberships?.some(m => m.team_id === team)) {
+      throw new Error('Produktionsinloggning och valt lag krävs');
+    }
+    if (!['spelare','tranare'].includes(kind) ||
+        !['POST','PATCH','DELETE'].includes(method) ||
+        (method === 'POST' ? rowId != null : !/^[1-9]\\d*$/.test(String(rowId)))) {
+      throw new Error('Ogiltig truppändring');
+    }
+    if (!(await checkTeamFeature('roster', team))) {
+      throw new Error('Saknar verifierad rätt att ändra truppen');
+    }
+    const legacyBase = String(window.APP_CONFIG?.API_URL || '').replace(/\\/$/, '');
+    const teamsResponse = await fetch(legacyBase + '/api/lag?size=200', {
+      cache:'no-store',credentials:'omit'
+    });
+    if (!teamsResponse.ok) throw new Error('Kunde inte verifiera laget');
+    const teams = await teamsResponse.json();
+    const mapped = (teams.results || []).filter(row =>
+      row.Namn === team && String(row['Säsong']) === '2026');
+    if (mapped.length !== 1 || !Number.isSafeInteger(Number(mapped[0].id)) ||
+        Number(mapped[0].id) <= 0) throw new Error('Laget kan inte kopplas till produktionsdata');
+    const payload = {team_id:String(mapped[0].id)};
+    if (method !== 'DELETE') payload.name = String(name || '').trim();
+    const url = base + '/api/personal/' + kind +
+      (method === 'POST' ? '' : '/' + encodeURIComponent(rowId));
+    const response = await fetch(url, {
+      method,
+      headers:{Authorization:'Bearer '+token(),'Content-Type':'application/json'},
+      body:JSON.stringify(payload),
+      cache:'no-store',credentials:'omit'
+    });
+    if (response.status === 401) clear();
+    const data = await response.json().catch(() => ({}));
+    if (!response.ok || !data.ok) throw new Error(data.error || 'Kunde inte spara truppen');
+    return data;
+  }
   const stagingRosterList = () => stagingRosterRequest('GET');
   const stagingRosterWrite = (method, rowId, payload) => {
     if (!['POST', 'PATCH', 'DELETE'].includes(method)) throw new Error('Otillåten åtgärd');
@@ -155,7 +193,7 @@
     }
   }
   window.Auth = Object.freeze({
-    init, login, logout, can, checkTeamFeature, stagingRosterList, stagingRosterWrite, personalRosterList, activeTeam, selectTeam,
+    init, login, logout, can, checkTeamFeature, stagingRosterList, stagingRosterWrite, personalRosterList, personalRosterWrite, activeTeam, selectTeam,
     getSession: () => identity, getToken: token, getMode: () => productionMode ? 'production' : 'staging', getClient: () => null
   });
 })();
