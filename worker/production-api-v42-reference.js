@@ -1,4 +1,7 @@
 import { handlePersonalLagpersonalWrite } from './production-lagpersonal-write-handler.js';
+import { createPersonalRosterIdentityVerifier } from './personal-roster-identity-adapter.js';
+import { createPoolOwnerResolver } from './production-shift-pool-owner-resolver.js';
+import { authorizeTeamFeature } from './team-authorization-policy.js';
 var __defProp = Object.defineProperty;
 var __name = (target, value) => __defProp(target, "name", { value, configurable: true });
 
@@ -562,8 +565,8 @@ var worker_default = { async fetch(req, env) {
     }
   }
   if (url.pathname === "/api/bytesschema/save" && req.method === "POST") {
-    if (!env.ADMIN_KV || !await session(req, env)) return reply({ ok: false, error: "Adminl\xE4ge kr\xE4vs" }, 401);
-    if (!(req.headers.get("Content-Type") || "").startsWith("application/json")) return reply({ ok: false, error: "JSON kr\xE4vs" }, 415);
+    if (!env.AUTH_DB || !env.BASEROW_TOKEN) return reply({ ok: false, error: "Personlig behörighetskontroll saknas" }, 503);
+    if (!(req.headers.get("Content-Type") || "").startsWith("application/json")) return reply({ ok: false, error: "JSON krävs" }, 415);
     if (Number(req.headers.get("Content-Length") || 0) > 65536) return reply({ ok: false, error: "F\xF6r stor beg\xE4ran" }, 413);
     let body;
     try {
@@ -574,6 +577,16 @@ var worker_default = { async fetch(req, env) {
     const pos = /* @__PURE__ */ __name((n) => Number.isSafeInteger(n) && n > 0, "pos");
     const { pool_id: poolId, lag_no: lagNo, match_no: matchNo } = body || {};
     if (!pos(poolId) || !pos(lagNo) || !pos(matchNo)) return reply({ ok: false, error: "Ogiltigt bytesschema" }, 400);
+    if (Object.hasOwn(body || {}, "team_id") || Object.hasOwn(body || {}, "teamId")) return reply({ ok: false, error: "Lag får inte anges av klienten" }, 400);
+    const identityToken = /^Bearer ([^\\s]+)$/.exec(req.headers.get("Authorization") || "")?.[1];
+    let actor = null;
+    try { actor = identityToken ? await createPersonalRosterIdentityVerifier(env)(identityToken) : null; } catch { actor = null; }
+    if (!actor) return reply({ ok: false, error: "Personlig inloggning krävs" }, 401);
+    try {
+      const owner = await createPoolOwnerResolver(env)({ poolId, lagNo });
+      const access = authorizeTeamFeature(actor, owner.teamId, "shifts");
+      if (!access.allowed) return reply({ ok: false, error: access.reason }, access.status);
+    } catch { return reply({ ok: false, error: "Lag och behörighet kunde inte verifieras" }, 503); }
     if (!env.SHIFT_LOCK) return reply({ ok: false, error: "SHIFT_LOCK saknas" }, 503);
     const stub = env.SHIFT_LOCK.get(env.SHIFT_LOCK.idFromName(`${poolId}:${lagNo}:${matchNo}`));
     try {
@@ -584,10 +597,7 @@ var worker_default = { async fetch(req, env) {
     }
   }
   if (/^\/api\/bytesschema\/\d+\/done$/.test(url.pathname) && req.method === "PATCH") {
-    const token = tokenFrom(req);
-    const isAdmin = !!(env.ADMIN_KV && await session(req, env));
-    const isMatch = !!(env.ADMIN_KV && token && await env.ADMIN_KV.get("match-session:" + await sha(token)));
-    if (!isAdmin && !isMatch) return reply({ ok: false, error: "Matchkod kr\xE4vs" }, 401);
+    if (!env.AUTH_DB || !env.BASEROW_TOKEN) return reply({ ok: false, error: "Personlig behörighetskontroll saknas" }, 503);
     if (!(req.headers.get("Content-Type") || "").startsWith("application/json")) return reply({ ok: false, error: "JSON kr\xE4vs" }, 415);
     if (Number(req.headers.get("Content-Length") || 0) > 2048) return reply({ ok: false, error: "F\xF6r stor beg\xE4ran" }, 413);
     let body;
@@ -607,6 +617,13 @@ var worker_default = { async fetch(req, env) {
       const poolId = Number((row.Poolspel || [])[0]?.id || (row.Poolspel || [])[0]);
       const lagNo = Number(row.Lagnummer), matchNo = Number(row.Matchnummer);
       if (![poolId, lagNo, matchNo].every((n) => Number.isSafeInteger(n) && n > 0)) return reply({ ok: false, error: "Ogiltig match" }, 400);
+      const identityToken = /^Bearer ([^\\s]+)$/.exec(req.headers.get("Authorization") || "")?.[1];
+      let actor = null;
+      try { actor = identityToken ? await createPersonalRosterIdentityVerifier(env)(identityToken) : null; } catch { actor = null; }
+      if (!actor) return reply({ ok: false, error: "Personlig inloggning krävs" }, 401);
+      const owner = await createPoolOwnerResolver(env)({ shiftRowId: id });
+      const access = authorizeTeamFeature(actor, owner.teamId, "shifts");
+      if (!access.allowed) return reply({ ok: false, error: access.reason }, access.status);
       const stub = env.SHIFT_LOCK.get(env.SHIFT_LOCK.idFromName(`${poolId}:${lagNo}:${matchNo}`));
       const result = await stub.fetch("https://shift-lock.internal/", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ action: "done", id, pool_id: poolId, lag_no: lagNo, match_no: matchNo, done: body.done }) });
       return new Response(result.body, { status: result.status, headers: { ...cors, "Content-Type": "application/json", "Cache-Control": "no-store" } });
