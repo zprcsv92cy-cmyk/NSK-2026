@@ -26,7 +26,7 @@ async function run(request, identity = env(), row = { Lag: [{ id: 18 }] }) {
   return { result, rosterWrites, staffWrites };
 }
 test('personal admin may add player to trusted team', async () => {
-  const x = await run(req('POST', '/api/spelare?team_id=2'));
+  const x = await run(req('POST', '/api/spelare?team_id=18'));
   assert.equal(x.result.ok, true); assert.equal(x.rosterWrites, 1);
 });
 test('personal admin may update own team player', async () => {
@@ -156,4 +156,11 @@ test('lagpersonal POST is rejected without a verified personal session', async (
   });
   assert.equal(result.status, 401);
   assert.equal(writes, 0);
+});
+
+
+test('worker adapter rejects foreign team query before roster mutation', async () => {
+  const x = await run(req('POST', '/api/spelare?team_id=2'));
+  assert.equal(x.result.status, 502);
+  assert.equal(x.rosterWrites, 0);
 });

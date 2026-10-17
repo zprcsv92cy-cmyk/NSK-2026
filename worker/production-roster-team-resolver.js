@@ -18,6 +18,13 @@ export async function resolveLegacyRosterTeam(request, { listTeams, readRow, tea
   const team = matches[0];
   if (!Number.isSafeInteger(Number(team.id)) || Number(team.id) <= 0 ||
       !/^[1-9]\d*$/.test(String(team.id))) throw new Error('Trusted team missing');
+  // A downstream legacy handler may read team selectors from the URL.
+  // Reject duplicates and foreign selectors before invoking any mutation.
+  for (const key of ['team_id', 'teamId']) {
+    const values = url.searchParams.getAll(key);
+    if (values.length > 1 || (values.length === 1 && values[0] !== String(team.id)))
+      throw new Error('Conflicting team override');
+  }
   if (['PATCH', 'DELETE'].includes(request.method)) {
     const rowId = Number(match[2]);
     if (!Number.isSafeInteger(rowId) || rowId <= 0) throw new Error('Invalid roster row ID');
