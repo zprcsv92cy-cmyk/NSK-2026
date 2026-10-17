@@ -25,22 +25,24 @@ export async function handleProductionAuth(request, env) {
   const origin=request.headers.get('Origin');
   if(origin && origin!==ORIGIN) return deny(403,'Origin not allowed');
   const pathname=new URL(request.url).pathname;
-  if(!Object.prototype.hasOwnProperty.call(METHODS,pathname))
+  const userMutation=/^\/api\/auth\/users\/[a-f0-9-]{36}$/.test(pathname);
+  if(!Object.prototype.hasOwnProperty.call(METHODS,pathname)&&!userMutation)
     return deny(404,'Not found');
+  const allowedMethods=userMutation?'PATCH,DELETE':METHODS[pathname];
   if(request.method==='OPTIONS'){
     if(origin!==ORIGIN) return deny(403,'Origin not allowed');
     return new Response(null,{status:204,headers:{
       'Access-Control-Allow-Origin':ORIGIN,
-      'Access-Control-Allow-Methods':METHODS[pathname]+',OPTIONS',
+      'Access-Control-Allow-Methods':allowedMethods+',OPTIONS',
       'Access-Control-Allow-Headers':'Authorization,Content-Type',
       'Access-Control-Max-Age':'600','Vary':'Origin'
     }});
   }
-  if(!METHODS[pathname].split(',').includes(request.method))return deny(405,'Method not allowed');
+  if(!allowedMethods.split(',').includes(request.method))return deny(405,'Method not allowed');
   if(!env?.AUTH_DB)return deny(503,'Production authentication is not configured');
   let result;
   try {
-    result=(pathname==='/api/auth/users'||pathname==='/api/auth/team-members')
+    result=(pathname==='/api/auth/users'||pathname==='/api/auth/team-members'||userMutation)
       ? await handleProductionOwnerAdministration(request,env)
       : pathname==='/api/auth/activate'
       ? await handleActivation(request,env)
