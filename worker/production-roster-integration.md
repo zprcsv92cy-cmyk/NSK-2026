@@ -74,3 +74,7 @@ Ingen produktionsendpoint aktiveras genom detta dokument.
 - I den bevarade koden ligger `if (req.method !== "GET") return ...405` **före** grenen för `/api/lagpersonal` med `GET,POST,PATCH`. Detta gör att lagpersonalens POST och PATCH är oåtkomliga via den grenen. Att enbart ändra frontendknappar löser inte problemet.
 - Åtgärdsordning: återställ versionshanterad källa och jämför mot aktiv Worker, skapa isolerade regressionstester för lagpersonalens metoder, integrera serververifierad personlig behörighet och gör först därefter en kontrollerad produktionsrelease med återställningsmöjlighet.
 - Ingen produktionsdeployment eller ändring i Baserow utfördes vid denna granskning.
+
+## Bindningskontroll 2026-10-17
+
+Direkt kontroll via Cloudflare visar att `nsk-api` saknar `AUTH_DB`, medan `nsk-auth` har en D1-bindning med detta namn. Innan den personliga truppintegrationen kan aktiveras måste `nsk-api` få en uttryckligt verifierad D1-koppling och nya skrivvägar nekas om bindningen saknas. Produktions-Worker v42 är fortfarande aktiv; ingen omkoppling eller datamigrering har genomförts.
