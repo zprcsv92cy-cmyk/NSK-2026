@@ -24,6 +24,8 @@ export function createPoolOwnerResolver(env, fetchImpl = fetch) {
     const links = Array.isArray(pool.Lag) ? pool.Lag : [];
     const ids = links.map(x => Number(typeof x === 'object' ? x?.id : x));
     if (!Number.isSafeInteger(lagNo) || lagNo <= 0) throw new Error('Ogiltigt lagnummer');
+    const count = Number(pool['Antal lag']);
+    if (!Number.isSafeInteger(count) || count < 1 || lagNo > count) throw new Error('Ogiltigt lagnummer för poolspelet');
     const teamId = ids.length === 1 ? ids[0] : ids[lagNo - 1];
     if (!Number.isSafeInteger(teamId) || teamId <= 0 || ids.some(id => !Number.isSafeInteger(id) || id <= 0))
       throw new Error('Poolspel saknar angivet lag');
