@@ -131,7 +131,7 @@
     }
     if (!['spelare','tranare'].includes(kind) ||
         !['POST','PATCH','DELETE'].includes(method) ||
-        (method === 'POST' ? rowId != null : !/^[1-9]\\d*$/.test(String(rowId)))) {
+        (method === 'POST' ? rowId != null : !/^[1-9]\d*$/.test(String(rowId)))) {
       throw new Error('Ogiltig truppändring');
     }
     if (!(await checkTeamFeature('roster', team))) {
