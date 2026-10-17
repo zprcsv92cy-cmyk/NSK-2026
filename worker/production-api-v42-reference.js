@@ -620,7 +620,6 @@ var worker_default = { async fetch(req, env) {
   if (req.method !== "GET") return reply({ ok: false, error: "Skrivning \xE4r avst\xE4ngd" }, 405);
   if (url.pathname === "/api/lagpersonal" && req.method === "GET") {
     const teamId = Number(url.searchParams.get("team_id"));
-    const allowed = ["Lagledare","Fysansvarig","Materialförvaltare"];
     if (!Number.isSafeInteger(teamId) || teamId <= 0) return reply({ok:false,error:"Ogiltigt lag"},400);
     if (!env.NSK_TRAINERS) return reply({ok:false,error:"Lagring saknas"},503);
     const key = "lagpersonal:team:" + teamId;
