@@ -32,10 +32,11 @@ require('fs').writeFileSync(process.env.NSK_MOCK_ARGS,JSON.stringify(process.arg
  assert.match(sql,/INSERT INTO auth_users/);
  assert.match(sql,/auth_team_memberships/);
  assert.ok(sql.includes(",'*','owner'"));
- assert.match(sql,/INSERT INTO auth_setup_tokens/);
+ assert.doesNotMatch(sql,/INSERT INTO auth_setup_tokens/);
+ assert.match(sql,/!activation-required!/);
  assert.match(sql,/[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}/);
  assert.match(r.stdout,/Production admin bootstrap succeeded/);
- assert.match(r.stdout,/Activation token/);
- assert.doesNotMatch(sql,/coach@nsk.invalid.*Activation token/);
+ assert.match(r.stdout,/No activation token was issued/);
+ assert.doesNotMatch(sql,/token_hash/);
 }finally{rmSync(dir,{recursive:true,force:true});}
-console.log('PASS bootstrap requires confirmation, team name, UUID and generates activation SQL without contacting Cloudflare');
+console.log('PASS bootstrap requires explicit confirmation, correct D1 UUID, creates disabled owner without token or Cloudflare access');
