@@ -1,0 +1,16 @@
+# NSK API production migration CANDIDATE — do not deploy before AUTH_DB and
+# production account migration are provisioned and verified.
+name = "nsk-api"
+main = "worker/production-entry-candidate.js"
+compatibility_date = "2026-10-10"
+workers_dev = true
+
+# Production binding names only. Wrangler deployment must preserve the
+# existing real ADMIN_KV, NSK_TRAINERS, SHIFT_LOCK and Baserow secrets.
+# Do not point AUTH_DB at nsk-auth-staging or use the staging D1 database ID.
+# Intentionally excludes all account-specific IDs and secrets; this file is
+# safe for Wrangler dry-run builds, NOT for actual deploy.
+
+[[migrations]]
+tag = "v1"
+new_classes = ["ShiftLock"]
