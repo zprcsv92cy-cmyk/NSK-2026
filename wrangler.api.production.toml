@@ -10,10 +10,24 @@ binding = "AUTH_DB"
 database_name = "nsk-auth-production"
 database_id = "9f937bcb-b0c0-4129-af5b-775cf284dfcb"
 
+# Verified against Cloudflare deployed version 95247668-0e10-4ba3-b6c5-469ed37a986c.
+[[kv_namespaces]]
+binding = "ADMIN_KV"
+id = "7f978e9bbcd04b888e5b0dfbc338ba5d"
+
+[[kv_namespaces]]
+binding = "NSK_TRAINERS"
+id = "f60b048621ea4aca8d67774f5c9db664"
+
+[durable_objects]
+[[durable_objects.bindings]]
+name = "SHIFT_LOCK"
+class_name = "ShiftLock"
+
 # REQUIRED BEFORE DEPLOYMENT:
-# - Copy the live ADMIN_KV namespace ID (never create a new empty namespace).
-# - Copy the live NSK_TRAINERS namespace ID (existing staff data).
-# - Restore SHIFT_LOCK Durable Object binding, migration history and class ownership.
+# - Confirm KV access using the verified live namespace IDs above.
+# - Preserve existing staff records in NSK_TRAINERS.
+# - Verify SHIFT_LOCK migration history and existing object ownership before deployment.
 # - Verify BASEROW_TOKEN, BASEROW_DATABASE_ID, ADMIN_PASSWORD, MATCH_PASSWORD secrets.
 # - Verify a rollback to the currently deployed Worker v42.
 # This file remains intentionally incomplete and is NOT a deployable manifest.
