@@ -6,8 +6,8 @@ const teams = [{ id: 18, Namn: 'NSK Team 18', 'Säsong': '2026' }, { id: 2, Namn
 const req = (path, method) => new Request('https://nsk.example' + path, { method });
 const dependencies = { listTeams: async () => teams, readRow: async () => ({ Lag: [{ id: 18 }] }) };
 
-test('POST resolves team from server-owned mapping, not browser query', async () => {
-  assert.equal(await resolveLegacyRosterTeam(req('/api/spelare?team_id=2', 'POST'), dependencies), '18');
+test('POST resolves team from server-owned mapping', async () => {
+  assert.equal(await resolveLegacyRosterTeam(req('/api/spelare?team_id=18', 'POST'), dependencies), '18');
 });
 test('PATCH resolves persisted player team', async () => {
   assert.equal(await resolveLegacyRosterTeam(req('/api/spelare/41', 'PATCH'), dependencies), '18');
@@ -66,7 +66,7 @@ test('accepts matching persisted team link without consuming original body', asy
 });
 
 test('DELETE resolves the persisted player or coach team, not the browser query', async () => {
-  for (const path of ['/api/spelare/41?team_id=2', '/api/tranare/5?team_id=2']) {
+  for (const path of ['/api/spelare/41?team_id=18', '/api/tranare/5?team_id=18']) {
     assert.equal(await resolveLegacyRosterTeam(req(path, 'DELETE'), dependencies), '18');
   }
 });
@@ -169,7 +169,7 @@ test('accepts canonical numeric team IDs and rejects ambiguous team references',
 
 
 test('trusted auth team mapping uses membership key after verifying Baserow ownership', async () => {
-  const team = await resolveLegacyRosterTeam(req('/api/spelare/41?team_id=2', 'PATCH'), {
+  const team = await resolveLegacyRosterTeam(req('/api/spelare/41?team_id=18', 'PATCH'), {
     ...dependencies, authorizationTeamId: 'NSK Team 18'
   });
   assert.equal(team, 'NSK Team 18');
@@ -182,4 +182,15 @@ test('trusted auth team mapping rejects invalid keys and foreign persisted rows'
   await assert.rejects(resolveLegacyRosterTeam(req('/api/spelare/41', 'PATCH'), {
     ...dependencies, authorizationTeamId: 'NSK Team 18', readRow: async () => ({ Lag: [{ id: 2 }] })
   }), /another team/);
+});
+
+
+test('rejects foreign and duplicate query team selectors before reading rows', async () => {
+  for (const query of ['team_id=2', 'teamId=2', 'team_id=18&team_id=18', 'team_id=18&teamId=2', 'team_id=', 'team_id=018']) {
+    let reads = 0;
+    await assert.rejects(resolveLegacyRosterTeam(req('/api/spelare/41?' + query, 'PATCH'), {
+      ...dependencies, readRow: async () => { reads++; return { Lag: [{ id: 18 }] }; }
+    }), /Conflicting team override/, query);
+    assert.equal(reads, 0);
+  }
 });
