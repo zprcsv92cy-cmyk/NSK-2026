@@ -9,10 +9,10 @@ export function createPoolOwnerResolver(env, fetchImpl = fetch) {
       throw new Error('Pool owner resolver is not configured');
     const headers = { Authorization: 'Token ' + env.BASEROW_TOKEN };
     const base = 'https://api.baserow.io/api/database/rows/table/';
-    const ids = env?.BASEROW_TABLE_IDS ? JSON.parse(env.BASEROW_TABLE_IDS) : null;
+    const configuredTables = env?.BASEROW_TABLE_IDS ? JSON.parse(env.BASEROW_TABLE_IDS) : null;
     const tableId = (name, legacy) => {
-      if (!ids) return legacy;
-      const id = ids[name];
+      if (!configuredTables) return legacy;
+      const id = configuredTables[name];
       if (!Number.isSafeInteger(id) || id <= 0) throw new Error('Invalid Baserow table mapping');
       return id;
     };
