@@ -4,7 +4,7 @@ import {mkdtempSync,readFileSync,writeFileSync,chmodSync,rmSync} from 'node:fs';
 import {tmpdir} from 'node:os';
 import {join,resolve} from 'node:path';
 const script=resolve('scripts/bootstrap-production-admin.mjs');
-const inputs=['coach@nsk.invalid','Coach','NSK Team 18'];
+const inputs=['coach@nsk.invalid','Coach'];
 function run(args,env={}) {
   return spawnSync(process.execPath,[script,...args],{
     encoding:'utf8',env:{...process.env,NSK_PRODUCTION_BOOTSTRAP:'',
@@ -12,10 +12,8 @@ function run(args,env={}) {
 }
 let r=run(inputs);
 assert.equal(r.status,2,'No production confirmation must fail');
-r=run(['coach@nsk.invalid','Coach','18']);
-assert.equal(r.status,2,'Numeric team must fail');
-r=run(['coach@nsk.invalid','Coach','NSK Testlag 2']);
-assert.equal(r.status,2,'Even valid test team requires production confirmation');
+r=run([...inputs,'NSK Team 18']);
+assert.equal(r.status,2,'Explicit team scope must fail for global owner');
 const dir=mkdtempSync(join(tmpdir(),'nsk-admin-bootstrap-'));
 try{
  const mock=join(dir,'npx');
@@ -32,7 +30,7 @@ require('fs').writeFileSync(process.env.NSK_MOCK_ARGS,JSON.stringify(process.arg
  assert.deepEqual(args.slice(0,5),['wrangler','d1','execute','nsk-auth-production','--remote']);
  const sql=args[args.indexOf('--command')+1];
  assert.match(sql,/INSERT INTO auth_users/);
- assert.match(sql,/NSK Team 18/);
+ assert.match(sql,/auth_team_memberships[\\s\\S]*'\\*','owner'/);
  assert.match(sql,/INSERT INTO auth_setup_tokens/);
  assert.match(sql,/[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}/);
  assert.match(r.stdout,/Production admin bootstrap succeeded/);
