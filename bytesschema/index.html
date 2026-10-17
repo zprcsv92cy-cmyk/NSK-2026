@@ -19,6 +19,9 @@
     #shiftMatchList { display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); gap:10px; margin-bottom:0; }
     #shiftMatchList > * { min-width:0; width:100%; margin:0; }
     #shiftMatchList button { width:100%; min-width:0; }
+    .shift-print-row { display:flex; align-items:center; justify-content:space-between; gap:12px; margin-bottom:12px; }
+    .shift-print-row h2 { margin:0; }
+    .shift-print-row button { width:auto; margin:0; }
     /* Klick på texten ska träffa knappen som app.js lyssnar på. */
     #shiftMatchList button * { pointer-events:none; }
     #shiftTeamButtons button * { pointer-events:none; }
@@ -29,6 +32,20 @@
     .shift-info-grid { display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); gap:12px 18px; }
     .shift-info-grid > div { min-width:0; overflow-wrap:anywhere; }
     .shift-info-grid .shift-info-name { display:block; font-size:.88em; opacity:.75; margin-bottom:3px; }
+    @media print {
+      @page { margin: 10mm; }
+      body { background:#fff !important; color:#111 !important; padding:0 !important; }
+      .mainmenu, #shiftPrintButton, #shiftTeamButtons, #shiftMatchList, .shift-match-select, #shiftMsg, #appError { display:none !important; }
+      .wrap { max-width:none !important; margin:0 !important; padding:0 !important; }
+      .home-hero { margin:0 0 10mm !important; }
+      .home-hero-logo-box { display:none !important; }
+      .card { background:#fff !important; color:#111 !important; border:1px solid #bbb !important; box-shadow:none !important; break-inside:avoid; margin:0 0 6mm !important; }
+      .shift-info-name, .small, .sub, label { color:#333 !important; }
+      #shiftTableWrap, #shiftAllMatchesWrap { color:#111 !important; overflow:visible !important; }
+      table { width:100% !important; border-collapse:collapse !important; }
+      th, td { color:#111 !important; background:#fff !important; border:1px solid #999 !important; }
+      button { display:none !important; }
+    }
     @media(max-width:720px) {
       .shift-top-grid { grid-template-columns:1fr; gap:12px; }
       #shiftMatchList { grid-template-columns:repeat(3,minmax(0,1fr)); gap:7px; }
@@ -90,7 +107,7 @@
     </section>
 
     <section class="card">
-      <h2>Byten</h2>
+      <div class="shift-print-row"><h2>Byten</h2><button id="shiftPrintButton" type="button">Skriv ut / PDF</button></div>
       <div id="shiftTableWrap"></div>
       <div id="shiftAllMatchesWrap"></div>
       <div id="shiftMsg" class="small"></div>
@@ -104,6 +121,11 @@
       document.write('<script src="../app.js?v=' + window.NSK_VERSION + '"><\/script>');
     </script>
   </div>
-  <script src="../admin-mode.js?v=1"></script>
+<script>
+    document.getElementById('shiftPrintButton')?.addEventListener('click', () => {
+      if (typeof window.print === 'function') window.print();
+    });
+  </script>
+    <script src="../admin-mode.js?v=1"></script>
 </body>
 </html>
