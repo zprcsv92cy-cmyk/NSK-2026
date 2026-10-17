@@ -8,6 +8,7 @@ var __name = (target, value) => __defProp(target, "name", { value, configurable:
 // src/worker.js
 var TABLES = { lag: 1255083, spelare: 1255098, tranare: 1255100, poolspel: 1255101, matcher: 1255109, laguppstallningar: 1255113, bytesschema: 1255115, malvaktsstatistik: 1255119, spelaretranare: 1255152, matchkonfiguration: 1255157 };
 function resolveBaserowTables(env) {
+  if (env?.NSK_ISOLATED_MODE === 'true' && (!env.BASEROW_TABLE_IDS || !env.BASEROW_TOKEN || !env.BASEROW_DATABASE_ID)) throw new Error('Invalid Baserow table mapping');
   if (env?.BASEROW_TABLE_IDS === undefined) return TABLES;
   let mapping;
   try { mapping = typeof env.BASEROW_TABLE_IDS === "string" ? JSON.parse(env.BASEROW_TABLE_IDS) : env.BASEROW_TABLE_IDS; }
