@@ -7,7 +7,7 @@ const noPersonalBinding={};
 let result=await candidate.fetch(request('/api/personal/spelare?team_id=18'),noPersonalBinding,{});
 assert.equal(result.status,503,'Personal reads fail closed without AUTH_DB');
 result=await candidate.fetch(request('/api/personal/spelare?team_id=18','POST'),noPersonalBinding,{});
-assert.equal(result.status,405,'Personal write routes are disabled');
+assert.equal(result.status,503,'Personal write routes fail closed without production AUTH_DB');
 result=await candidate.fetch(request('/api/personal/unknown'),noPersonalBinding,{});
 assert.equal(result.status,404,'Unrecognized personal path is denied');
 
