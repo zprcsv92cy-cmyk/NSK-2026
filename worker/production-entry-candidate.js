@@ -113,6 +113,28 @@ export default {
       }
       return handlePersonalRosterRead(request, env);
     }
+    // Compatibility reads are deliberately routed through the personal auth
+    // boundary. They do not fall back to shared legacy admin sessions.
+    // Browser clients must send their verified personal bearer token.
+    if(request.method==='GET' &&
+       (pathname==='/api/lag'||pathname==='/api/lagpersonal')){
+      const origin=request.headers.get('Origin');
+      if(origin && origin!=='https://zprcsv92cy-cmyk.github.io')
+        return Response.json({ok:false,error:'Origin not allowed'},{status:403});
+      const forwarded=new URL(request.url);
+      forwarded.pathname=pathname==='/api/lag'
+        ?'/api/personal/lag':'/api/personal/lagpersonal';
+      const inner=new Request(forwarded,request);
+      const response=pathname==='/api/lag'
+        ? await handlePersonalTeamList(inner,env)
+        : await handlePersonalRosterRead(inner,env);
+      const headers=new Headers(response.headers);
+      headers.set('cache-control','no-store');
+      headers.set('vary','Origin');
+      if(origin==='https://zprcsv92cy-cmyk.github.io')
+        headers.set('access-control-allow-origin',origin);
+      return new Response(response.body,{status:response.status,headers});
+    }
     // The historical API has no per-person, per-team authorization. Never expose
     // its routes from a production candidate with personal authentication enabled.
     // Re-enable each route only after it has a server-enforced authorization guard.
