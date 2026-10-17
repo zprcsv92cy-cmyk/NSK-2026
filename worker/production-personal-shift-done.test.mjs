@@ -9,10 +9,10 @@ const req=(id,team='18',auth=bearer)=>new Request('https://nsk-api.invalid/api/p
 });
 let calls=0,writes=0;
 const env={BASEROW_TOKEN:'test',
- SHIFT_LOCK:{idFromName:key=>{assert.equal(key,'100:1:1');return key;},
+ SHIFT_SAVE_LOCK:{idFromName:key=>{assert.equal(key,'100:1:1');return key;},
  get:()=>({fetch:async (url,opts)=>{calls++;
    const body=JSON.parse(opts.body);
-   assert.deepEqual(body,{action:'done',id:7,pool_id:100,lag_no:1,match_no:1,done:true});
+   assert.deepEqual(body,{action:'done',id:7,team_id:18,pool_id:100,lag_no:1,match_no:1,done:true});
    return Response.json({ok:true});}})},
  AUTH_DB:{prepare:sql=>({bind:()=>({
    first:async()=>({id:'u',display_name:'Editor'}),
