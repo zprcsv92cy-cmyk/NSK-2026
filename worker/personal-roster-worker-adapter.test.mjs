@@ -111,3 +111,37 @@ test('mapped team key requires matching membership', async () => {
   });
   assert.equal(result.status, 403);
 });
+
+
+test('production membership key permits own-team roster write', async () => {
+  let writes = 0;
+  const mapped = env();
+  const originalPrepare = mapped.AUTH_DB.prepare;
+  mapped.AUTH_DB.prepare = function(sql) {
+    const statement = originalPrepare(sql);
+    if (!sql.includes('auth_team_memberships')) return statement;
+    return { bind() { return { async all() {
+      return { results: [{ team_id: 'NSK Team 18', role: 'team_admin' }] };
+    } }; } };
+  };
+  const result = await authorizePersonalWorkerWrite(req('PATCH', '/api/spelare/17'), mapped, {
+    listTeams: async () => teams,
+    readRow: async () => ({ Lag: [{ id: 18 }] }),
+    authorizationTeamId: 'NSK Team 18',
+    mutateRoster: async () => { writes++; return { ok: true }; }
+  });
+  assert.equal(result.ok, true);
+  assert.equal(writes, 1);
+});
+
+test('production membership key cannot modify foreign-team roster row', async () => {
+  let writes = 0;
+  const result = await authorizePersonalWorkerWrite(req('PATCH', '/api/spelare/17'), env(), {
+    listTeams: async () => teams,
+    readRow: async () => ({ Lag: [{ id: 2 }] }),
+    authorizationTeamId: '18',
+    mutateRoster: async () => { writes++; return { ok: true }; }
+  });
+  assert.equal(result.status, 502);
+  assert.equal(writes, 0);
+});
