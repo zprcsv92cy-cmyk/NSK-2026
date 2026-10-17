@@ -7,6 +7,9 @@ on:
       - 'reference/legacy-nsk-api-worker-v42.snapshot.js'
       - 'worker/staging-session-identity.js'
       - 'wrangler.production.candidate.toml'
+      - 'config.js'
+      - 'db.js'
+      - 'scripts/check-production-rollout-gate.mjs'
       - '.github/workflows/production-candidate-build.yml'
 permissions:
   contents: read
@@ -18,6 +21,8 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: '22'
+      - name: Enforce explicit production rollout safety gate
+        run: node scripts/check-production-rollout-gate.mjs
       - name: Check candidate is not configured with staging auth DB
         run: |
           node -e "const f=require('fs').readFileSync('wrangler.production.candidate.toml','utf8'); if(/b5a439d1-9e94-42eb-a8c4-5d3a0e7416f8|nsk-auth-staging|nsk-auth-staging\.peter-hasselberg\.workers\.dev/.test(f.replace(/^#.*$/gm,'')))process.exit(1);"
