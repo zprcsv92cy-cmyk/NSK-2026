@@ -8,7 +8,7 @@ export async function authorizeShiftWrite(actor, poolId, { findPoolOwner, mutate
   let teamId;
   try { teamId = await findPoolOwner(poolId); }
   catch { return { ok: false, status: 503, error: 'Laget kunde inte verifieras' }; }
-  if (typeof teamId !== 'string' || !teamId)
+  if (typeof teamId !== 'string' || !teamId || teamId.length > 100)
     return { ok: false, status: 403, error: 'Poolspel saknar verifierat lag' };
   const access = authorizeTeamFeature(actor, teamId, 'shifts');
   if (!access.allowed) return { ok: false, status: access.status, error: access.reason };
