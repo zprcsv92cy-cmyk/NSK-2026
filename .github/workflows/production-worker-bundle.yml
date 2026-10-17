@@ -35,6 +35,24 @@ jobs:
             const response = await worker.fetch(request, env, {});
             if (response.status !== 401) throw new Error(method + ' ' + path + ' returned ' + response.status + ', expected 401');
           }
+          // A forged bearer token must never grant shift-write access.
+          // No external network or production database is used in this test.
+          for (const [method, path, body] of [
+            ['POST', '/api/bytesschema/save', { pool_id: 1, lag_no: 1, match_no: 1 }],
+            ['PATCH', '/api/bytesschema/1/done', { done: true }]
+          ]) {
+            const request = new Request('https://nsk-api.example' + path, {
+              method,
+              headers: {
+                'Content-Type': 'application/json',
+                Origin: 'https://zprcsv92cy-cmyk.github.io',
+                Authorization: 'Bearer forged-session-token'
+              },
+              body: JSON.stringify(body)
+            });
+            const response = await worker.fetch(request, env, {});
+            if (response.status !== 401) throw new Error('Forged token accepted for ' + method + ' ' + path + ': ' + response.status);
+          }
           NODE
       - name: Upload candidate to Cloudflare (manual only, no deployment)
         id: upload
