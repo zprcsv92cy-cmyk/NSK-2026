@@ -43,7 +43,7 @@ test('derives both pool and team position from trusted shift row', async () => {
 
 test('fails closed when requested team position is not linked to a multi-team pool', async () => {
   const db = fakeBaserow({ '1255101/12': { Lag: [{ id: 91 }, { id: 92 }], 'Antal lag': 2 } });
-  await assert.rejects(createPoolOwnerResolver(env, db.fetchImpl)({ poolId: 12, lagNo: 3 }), /Poolspel saknar angivet lag/);
+  await assert.rejects(createPoolOwnerResolver(env, db.fetchImpl)({ poolId: 12, lagNo: 3 }), /Ogiltigt lagnummer för poolspelet/);
   assert.equal(db.requested.length, 1);
 });
 
