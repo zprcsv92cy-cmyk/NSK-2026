@@ -680,6 +680,7 @@ var worker_default = { async fetch(req, env) {
       if (!response.ok) throw Error("Trusted teams unavailable");
       const data = await response.json();
       if (!Array.isArray(data.results) || data.next) throw Error("Incomplete trusted teams");
+      if (data.results.length > 200) throw Error("Invalid trusted team page");
       return data.results;
     };
     const fetchAllRosterRows = async table => {
