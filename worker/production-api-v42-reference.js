@@ -673,8 +673,9 @@ var worker_default = { async fetch(req, env) {
   if (env.NSK_REQUIRE_SCOPED_ROSTER_READS === "true" && req.method === "GET" &&
       /^\/api\/(?:spelare|tranare|lagpersonal)(?:\/\d+)?$/.test(url.pathname)) {
     const listTrustedTeams = async () => {
-      if (!env.BASEROW_TOKEN || !TABLES.lag) throw Error("Trusted teams unavailable");
-      const response = await fetch("https://api.baserow.io/api/database/rows/table/" + TABLES.lag + "/?user_field_names=true&size=200", {
+      if (!env.BASEROW_TOKEN) throw Error("Trusted teams unavailable");
+      const teamTableId = resolveBaserowTables(env).lag;
+      const response = await fetch("https://api.baserow.io/api/database/rows/table/" + teamTableId + "/?user_field_names=true&size=200", {
         headers: { Authorization: "Token " + env.BASEROW_TOKEN }
       });
       if (!response.ok) throw Error("Trusted teams unavailable");
