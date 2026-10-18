@@ -31,6 +31,7 @@ await check('/api/spelare', 401, { verifyIdentity: async () => null });
 await check('/api/spelare', 503, { readTeamData: async () => { throw Error('read failure'); } });
 await check('/api/spelare', 503, { readTeamData: async () => ({ ok: true }) });
 await check('/api/spelare', 503, { readTeamData: undefined });
+await check('/api/lag', 404);
 await check('/api/poolspel', 404);
 await check('/api/spelare', 405, {}, true, 'POST');
 assert.equal(reads, 1, 'Denied requests must never read team data');
