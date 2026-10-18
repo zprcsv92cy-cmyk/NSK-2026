@@ -39,10 +39,10 @@
 
 This sequence is a deployment plan, not authorization to deploy. The existing secret, Durable Object SQLite, binding, rollback, and release-approval checks above remain mandatory.
 
-## Frontend publishing verification (pending)
+## Frontend publishing verification
 
-- The connected Cloudflare account returned no Pages projects. This does not establish where the frontend is hosted.
-- No `.github/workflows/deploy.yml`, `.github/workflows/pages.yml`, or root `CNAME` was found at the checked paths. Other deployment mechanisms may exist.
-- Before release, record the exact public frontend URL, hosting provider, deployment mechanism, current version and rollback target.
-- Confirm the frontend reads `config.js` with `REQUIRE_SCOPED_ROSTER_READS=true` after publication, and that authenticated roster requests carry a personal Bearer token and selected team.
-- Do not assume GitHub PR merge automatically deploys the frontend.
+- The repository owner confirmed GitHub Pages uses `Deploy from a branch`, source `main` and `/(root)`. A merge to `main` may therefore publish frontend files immediately; do not merge PR #173 before the API compatibility release is live and verified.
+- The connected Cloudflare account has no Pages projects; frontend is served separately through GitHub Pages.
+- Before release, record the exact public Pages URL, currently served `config.js` contents, and the prior frontend commit for rollback. GitHub Pages publishing may take time after merge.
+- After publication, verify that `config.js` has `REQUIRE_SCOPED_ROSTER_READS=true` and authenticated roster requests carry a personal Bearer token and selected team.
+- Rollback frontend by restoring the previous known-good `config.js` through the protected `main` PR process; verify Pages finishes publishing. Do not assume a GitHub revert instantly restores the live site.
