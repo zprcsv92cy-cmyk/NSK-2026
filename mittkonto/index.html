@@ -1,0 +1,60 @@
+<!doctype html>
+<html lang="sv">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Mitt konto – NSK</title>
+<meta name="theme-color" content="#b11226">
+<script src="../version.js?v=872"></script>
+<script>
+document.write('<link rel="stylesheet" href="../app.css?v=' + window.NSK_VERSION + '">');
+document.write('<script src="../config.js?v=' + window.NSK_VERSION + '"><\\/script>');
+document.write('<script src="../auth.js?v=' + window.NSK_VERSION + '"><\\/script>');
+</script>
+</head>
+<body>
+<div class="wrap">
+<nav class="mainmenu"><a href="../startsida/">Startsida</a><a href="../truppen/">Truppen</a><a href="../skapapoolspel/">Skapa poolspel</a><a href="../lag/">Lag</a><a href="./" class="active">Mitt konto</a></nav>
+<section class="card">
+<h1>Mitt konto</h1>
+<p id="accountStatus" aria-live="polite">Kontrollerar inloggning…</p>
+<div id="accountDetails" hidden>
+<p id="accountName"></p>
+<h2>Mina lag</h2>
+<ul id="accountTeams"></ul>
+<p class="small">Rättigheter visas på Startsidan när du väljer lag. Servern kontrollerar alltid behörighet innan ändringar.</p>
+</div>
+<p><a href="../login/" id="accountLogin" hidden>Logga in</a></p>
+</section>
+</div>
+<script>
+(async () => {
+ const status=document.getElementById('accountStatus');
+ try {
+  const identity=await Auth.init();
+  if (!identity) {
+   status.textContent='Du är inte inloggad.';
+   document.getElementById('accountLogin').hidden=false;
+   return;
+  }
+  status.textContent='Inloggad';
+  document.getElementById('accountName').textContent='Namn: '+(identity.user?.name||identity.user?.email||'Användare');
+  const list=document.getElementById('accountTeams');
+  for (const membership of identity.memberships) {
+   const item=document.createElement('li');
+   item.textContent=(membership.team_name||membership.team_id)+(membership.team_id===Auth.activeTeam()?' (aktivt lag)':'');
+   list.append(item);
+  }
+  if (!identity.memberships.length) {
+   const item=document.createElement('li');
+   item.textContent='Inga lag kopplade till kontot.';
+   list.append(item);
+  }
+  document.getElementById('accountDetails').hidden=false;
+ } catch {
+  status.textContent='Kontot kunde inte kontrolleras just nu.';
+ }
+})();
+</script>
+</body>
+</html>
