@@ -1,0 +1,22 @@
+name: Production API bundle dry-run
+
+on:
+  pull_request:
+    paths:
+      - 'worker/**'
+      - 'wrangler.api.production.toml'
+      - '.github/workflows/production-api-bundle-dry-run.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  bundle:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Validate Worker bundle without deploying
+        run: npx --yes wrangler@4 deploy --config wrangler.api.production.toml --dry-run --outdir /tmp/nsk-api-dry-run
+      - name: Verify generated bundle exists
+        run: test -n "$(find /tmp/nsk-api-dry-run -type f -name '*.js' -print -quit)"
