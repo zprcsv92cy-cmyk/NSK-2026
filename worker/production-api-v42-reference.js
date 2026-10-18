@@ -694,7 +694,8 @@ var worker_default = { async fetch(req, env) {
         const data = await response.json();
         if (!Array.isArray(data.results) || data.results.length > 200) throw Error("Incomplete roster page");
         if (data.next !== null && data.next !== undefined &&
-            (typeof data.next !== "string" || !data.next.includes("page=" + (page + 1))))
+            (typeof data.next !== "string" || !/^https:\/\/api\.baserow\.io\/api\/database\/rows\/table\/\d+\//.test(data.next) ||
+             new URL(data.next).searchParams.get("page") !== String(page + 1)))
           throw Error("Invalid roster pagination cursor");
         rows.push(...data.results);
         if (!data.next) return rows;
