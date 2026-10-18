@@ -6,6 +6,9 @@ workers_dev = true
 
 [vars]
 BASEROW_DATABASE_ID = "589073"
+# Enforce server-side team-scoped roster reads when this candidate is deployed.
+# Coordinate with the Pages APP_CONFIG flag before rollout.
+NSK_REQUIRE_SCOPED_ROSTER_READS = "true"
 
 # Validate that existing secrets are present; do not store their values here.
 [secrets]
@@ -43,4 +46,5 @@ storage = "sqlite"
 # - Verify SHIFT_LOCK migration history and existing object ownership before deployment.
 # - Verify BASEROW_TOKEN, BASEROW_DATABASE_ID, ADMIN_PASSWORD, MATCH_PASSWORD secrets.
 # - Verify a rollback to the currently deployed Worker v42.
+# - Coordinate Pages REQUIRE_SCOPED_ROSTER_READS=true with this Worker flag.
 # This file remains intentionally incomplete and is NOT a deployable manifest.
