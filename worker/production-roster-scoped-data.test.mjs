@@ -36,5 +36,6 @@ for(const path of ['/api/spelare?page=0','/api/spelare?page=1&page=2','/api/spel
 }
 await assert.rejects(()=>read(req('/api/spelare'),'team-18',deps),/trusted team/);
 await assert.rejects(()=>read(req('/api/lagpersonal'),'18',{}),/Trusted staff/);
+await assert.rejects(()=>read(req('/api/lagpersonal'),'18',{fetchTeamStaff:async()=>({results:[]})}),/Incomplete team staff/);
 await assert.rejects(()=>read(req('/api/poolspel'),'18',deps),/Unsupported/);
 console.log('PASS server-scoped legacy roster response and paging');
