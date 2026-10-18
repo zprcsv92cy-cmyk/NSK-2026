@@ -1,0 +1,39 @@
+name: Verify production API release candidate
+
+on:
+  workflow_dispatch:
+  pull_request:
+    paths:
+      - 'worker/**'
+      - 'wrangler.api.production.toml'
+      - '.github/workflows/verify-production-api-candidate.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Check source syntax
+        run: node --check worker/production-api-v42-reference.js
+      - name: Build release candidate from this exact commit
+        run: npx --yes esbuild@0.25.12 worker/production-api-v42-reference.js --bundle --format=esm --platform=browser --target=es2022 --outfile=dist/nsk-api-worker.mjs
+      - name: Verify phased roster authorization exists in built code
+        run: |
+          node --input-type=module <<'NODE'
+          import fs from 'node:fs';
+          import assert from 'node:assert/strict';
+          const bundle = fs.readFileSync('dist/nsk-api-worker.mjs', 'utf8');
+          assert.match(bundle, /NSK_REQUIRE_SCOPED_ROSTER_READS/);
+          assert.match(bundle, /Authorization/);
+          assert.match(bundle, /spelare\|tranare\|lagpersonal/);
+          console.log('Scoped roster rollout logic present in release bundle');
+          NODE
+      - name: Upload candidate for manual verification only
+        uses: actions/upload-artifact@v4
+        with:
+          name: nsk-api-scoped-candidate
+          path: dist/nsk-api-worker.mjs
+          retention-days: 14
