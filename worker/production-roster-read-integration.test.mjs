@@ -61,4 +61,28 @@ assert.equal(untrustedReads, 0, 'Denied authentication must not access roster da
 assert.equal(untrustedReads, 0, 'No unscoped data callback may run for denied sessions');
 
 
+// End-to-end scoped adapter: rows belonging to a foreign team must never appear.
+const { readPersonallyAuthorizedScopedRoster } = await import('./production-roster-read-integration.js');
+const scopedRows = [
+  { id: 101, Namn: 'Own team', Lag: [{ id: 18 }] },
+  { id: 202, Namn: 'Foreign team', Lag: [{ id: 27 }] },
+  { id: 303, Namn: 'Unassigned', Lag: [] }
+];
+const scoped = await readPersonallyAuthorizedScopedRoster(request('/api/spelare?team_id=18'), {
+  verifyPersonalSession: async () => admin,
+  listTrustedTeams: async () => teams,
+  resolveOwnerTeam: async () => '18',
+  fetchAllRosterRows: async () => scopedRows
+});
+assert.equal(scoped.status, 200);
+const scopedBody = await scoped.json();
+assert.deepEqual(scopedBody.results.map(row => row.id), [101]);
+const foreign = await readPersonallyAuthorizedScopedRoster(request('/api/spelare?team_id=27'), {
+  verifyPersonalSession: async () => admin,
+  listTrustedTeams: async () => teams,
+  resolveOwnerTeam: async () => '27',
+  fetchAllRosterRows: async () => { throw Error('Must not read foreign roster'); }
+});
+assert.equal(foreign.status, 403, 'Foreign team must be rejected before any data fetch');
+
 console.log('PASS personal identity to trusted legacy team read integration (isolated)');
