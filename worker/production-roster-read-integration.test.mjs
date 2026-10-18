@@ -58,5 +58,7 @@ const malformedBearer = await productionRead(new Request('https://nsk-api.invali
 }));
 assert.equal(malformedBearer.status, 401, 'Malformed bearer token must be denied');
 assert.equal(untrustedReads, 0, 'Denied authentication must not access roster data');
+assert.equal(untrustedReads, 0, 'No unscoped data callback may run for denied sessions');
+
 
 console.log('PASS personal identity to trusted legacy team read integration (isolated)');
