@@ -38,3 +38,11 @@
 4. Verify the production endpoints and UI after each phase. Do not proceed if the authorized team cannot be resolved or roster/staff data is incomplete.
 
 This sequence is a deployment plan, not authorization to deploy. The existing secret, Durable Object SQLite, binding, rollback, and release-approval checks above remain mandatory.
+
+## Frontend publishing verification (pending)
+
+- The connected Cloudflare account returned no Pages projects. This does not establish where the frontend is hosted.
+- No `.github/workflows/deploy.yml`, `.github/workflows/pages.yml`, or root `CNAME` was found at the checked paths. Other deployment mechanisms may exist.
+- Before release, record the exact public frontend URL, hosting provider, deployment mechanism, current version and rollback target.
+- Confirm the frontend reads `config.js` with `REQUIRE_SCOPED_ROSTER_READS=true` after publication, and that authenticated roster requests carry a personal Bearer token and selected team.
+- Do not assume GitHub PR merge automatically deploys the frontend.
