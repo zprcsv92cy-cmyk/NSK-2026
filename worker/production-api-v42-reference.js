@@ -675,14 +675,26 @@ var worker_default = { async fetch(req, env) {
     const listTrustedTeams = async () => {
       if (!env.BASEROW_TOKEN) throw Error("Trusted teams unavailable");
       const teamTableId = resolveBaserowTables(env).lag;
-      const response = await fetch("https://api.baserow.io/api/database/rows/table/" + teamTableId + "/?user_field_names=true&size=200", {
-        headers: { Authorization: "Token " + env.BASEROW_TOKEN }
-      });
-      if (!response.ok) throw Error("Trusted teams unavailable");
-      const data = await response.json();
-      if (!Array.isArray(data.results) || data.next) throw Error("Incomplete trusted teams");
-      if (data.results.length > 200) throw Error("Invalid trusted team page");
-      return data.results;
+      const teams = [];
+      for (let page = 1; page <= 100; page++) {
+        const response = await fetch("https://api.baserow.io/api/database/rows/table/" + teamTableId + "/?user_field_names=true&size=200&page=" + page, {
+          headers: { Authorization: "Token " + env.BASEROW_TOKEN }
+        });
+        if (!response.ok) throw Error("Trusted teams unavailable");
+        const data = await response.json();
+        if (!Array.isArray(data.results) || data.results.length > 200) throw Error("Invalid trusted team page");
+        if (data.next != null) {
+          const cursor = new URL(data.next);
+          if (cursor.origin !== "https://api.baserow.io" ||
+              cursor.pathname !== "/api/database/rows/table/" + teamTableId + "/" ||
+              cursor.searchParams.getAll("page").length !== 1 ||
+              cursor.searchParams.get("page") !== String(page + 1))
+            throw Error("Invalid trusted team pagination cursor");
+        }
+        teams.push(...data.results);
+        if (!data.next) return teams;
+      }
+      throw Error("Trusted team pagination limit exceeded");
     };
     const fetchAllRosterRows = async table => {
       if (!["spelare", "tranare"].includes(table) || !env.BASEROW_TOKEN) throw Error("Invalid roster source");
