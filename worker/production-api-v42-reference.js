@@ -1,3 +1,4 @@
+import { createProductionRosterReadHandler } from './production-roster-read-integration.js';
 import { handlePersonalLagpersonalWrite } from './production-lagpersonal-write-handler.js';
 import { createPersonalRosterIdentityVerifier } from './personal-roster-identity-adapter.js';
 import { createPoolOwnerResolver } from './production-shift-pool-owner-resolver.js';
@@ -667,12 +668,51 @@ var worker_default = { async fetch(req, env) {
       return reply({ ok: false, error: "Lagring eller laguppslag kunde inte verifieras" }, 503);
     }
   }
-  // Optional rollout gate: do not serve legacy unscoped roster reads while
-  // a personal-only deployment is being prepared. The scoped handler must be
-  // wired and verified before this flag can be enabled for production traffic.
+  // Opt-in scoped roster reads. The requested team is only a selector: the
+  // verified personal session and trusted Baserow team mapping grant access.
   if (env.NSK_REQUIRE_SCOPED_ROSTER_READS === "true" && req.method === "GET" &&
       /^\/api\/(?:spelare|tranare|lagpersonal)(?:\/\d+)?$/.test(url.pathname)) {
-    return reply({ ok: false, error: "Personlig lagbegränsad läsning är inte inkopplad" }, 503);
+    const listTrustedTeams = async () => {
+      if (!env.BASEROW_TOKEN || !TABLES.lag) throw Error("Trusted teams unavailable");
+      const response = await fetch("https://api.baserow.io/api/database/rows/table/" + TABLES.lag + "/?user_field_names=true&size=200", {
+        headers: { Authorization: "Token " + env.BASEROW_TOKEN }
+      });
+      if (!response.ok) throw Error("Trusted teams unavailable");
+      const data = await response.json();
+      if (!Array.isArray(data.results) || data.next) throw Error("Incomplete trusted teams");
+      return data.results;
+    };
+    const fetchAllRosterRows = async table => {
+      if (!["spelare", "tranare"].includes(table) || !env.BASEROW_TOKEN) throw Error("Invalid roster source");
+      const rows = [];
+      for (let page = 1; page <= 100; page++) {
+        const response = await fetch("https://api.baserow.io/api/database/rows/table/" + TABLES[table] + "/?user_field_names=true&page=" + page + "&size=200", {
+          headers: { Authorization: "Token " + env.BASEROW_TOKEN }
+        });
+        if (!response.ok) throw Error("Roster source unavailable");
+        const data = await response.json();
+        if (!Array.isArray(data.results)) throw Error("Incomplete roster page");
+        rows.push(...data.results);
+        if (!data.next) return rows;
+      }
+      throw Error("Roster pagination limit exceeded");
+    };
+    const handler = createProductionRosterReadHandler(env, {
+      listTrustedTeams,
+      resolveOwnerTeam: async request => {
+        const ids = new URL(request.url).searchParams.getAll("team_id");
+        if (ids.length !== 1 || !/^[1-9]\d*$/.test(ids[0]) || !Number.isSafeInteger(Number(ids[0]))) throw Error("Missing trusted team selection");
+        const teams = await listTrustedTeams();
+        if (!teams.some(team => String(team.id) === ids[0])) throw Error("Unknown team");
+        return ids[0];
+      },
+      fetchAllRosterRows,
+      fetchTeamStaff: async teamId => {
+        if (!env.NSK_TRAINERS) throw Error("Staff store unavailable");
+        return await env.NSK_TRAINERS.get("lagpersonal:team:" + teamId, "json") || [];
+      }
+    });
+    return handler(req);
   }
   if (req.method !== "GET") return reply({ ok: false, error: "Skrivning \xE4r avst\xE4ngd" }, 405);
   if (url.pathname === "/api/lagpersonal" && req.method === "GET") {
