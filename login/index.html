@@ -32,13 +32,17 @@ input{width:100%;box-sizing:border-box}
   document.write('<script src="../auth.js?v=' + window.NSK_VERSION + '"><\/script>');
 </script>
 <script>
+let loginBusy = false;
 document.getElementById('productionButton').addEventListener('click',async()=>{
+ if (loginBusy) return;
+ loginBusy = true;
  const button=document.getElementById('productionButton');
  const message=document.getElementById('message');
  const email=document.getElementById('email').value.trim();
  const password=document.getElementById('password').value;
- if(!email||!password){message.textContent='Fyll i e-postadress och lösenord.';return;}
+ if(!email||!password){message.textContent='Fyll i e-postadress och lösenord.';loginBusy=false;return;}
  button.disabled=true;
+ document.getElementById('submitButton').disabled=true;
  let token;
  try {
   const base='https://nsk-auth.peter-hasselberg.workers.dev';
@@ -55,13 +59,18 @@ document.getElementById('productionButton').addEventListener('click',async()=>{
   document.getElementById('password').value='';
   if(token)await fetch('https://nsk-auth.peter-hasselberg.workers.dev/api/auth/logout',{method:'POST',headers:{Authorization:'Bearer '+token},credentials:'omit'}).catch(()=>{});
   button.disabled=false;
+  document.getElementById('submitButton').disabled=false;
+  loginBusy=false;
  }
 });
 document.getElementById('loginForm').addEventListener('submit',async function(event){
  event.preventDefault();
+ if (loginBusy) return;
+ loginBusy=true;
  const button=document.getElementById('submitButton');
  const message=document.getElementById('message');
  button.disabled=true;
+ document.getElementById('productionButton').disabled=true;
  message.textContent='Kontrollerar inloggningen…';
  try{
    const email=document.getElementById('email').value.trim();
@@ -74,6 +83,8 @@ document.getElementById('loginForm').addEventListener('submit',async function(ev
  }finally{
    document.getElementById('password').value='';
    button.disabled=false;
+   document.getElementById('productionButton').disabled=false;
+   loginBusy=false;
  }
 });
 </script>
