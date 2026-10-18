@@ -36,7 +36,7 @@
   }
   function can(permission, team = activeTeam()) {
     return !!team && !!identity?.memberships?.some(m => m.team_id === team && (permission === 'read' || m.role === 'team_admin'))
-      && (permission === 'read' || identity.permissions.includes(permission));
+      && identity.permissions.includes(permission);
   }
   // Confirm each team-specific edit against the server; browser role flags are only UI hints.
   async function checkTeamFeature(feature, team = activeTeam()) {
