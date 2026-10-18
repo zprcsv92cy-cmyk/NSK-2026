@@ -9,12 +9,15 @@ const field = (section, name) => new RegExp('^\\s*' + name + '\\s*=\\s*"([^"]+)"
 const hasKV = name => kv.some(s => field(s, 'binding') === name && /^[a-f0-9]{32}$/i.test(field(s, 'id') || ''));
 const hasD1 = d1.some(s => field(s, 'binding') === 'AUTH_DB' && /^[a-f0-9-]{36}$/i.test(field(s, 'database_id') || ''));
 const hasDO = objects.some(s => field(s, 'name') === 'SHIFT_LOCK' && field(s, 'class_name') === 'ShiftLock');
+const migrations = [...config.matchAll(/\[\[migrations\]\]([\s\S]*?)(?=\n\s*\[|$)/g)].map(m => m[1]);
+const hasShiftLockMigration = migrations.some(s => field(s, 'tag') === 'v1-shift-lock' && /^\s*new_sqlite_classes\s*=\s*\[\s*"ShiftLock"\s*\]/m.test(s));
 const issues = [];
 if (!source || !source.startsWith('worker/') || !existsSync(source)) issues.push('Worker entrypoint missing or invalid');
 if (!hasD1) issues.push('AUTH_DB D1 binding missing');
 if (!hasKV('ADMIN_KV')) issues.push('ADMIN_KV KV namespace missing');
 if (!hasKV('NSK_TRAINERS')) issues.push('NSK_TRAINERS KV namespace missing');
 if (!hasDO) issues.push('SHIFT_LOCK Durable Object binding missing');
+if (!hasShiftLockMigration) issues.push('Existing SHIFT_LOCK migration tag or SQLite class missing');
 if (/intentionally incomplete|not a deployable/i.test(config)) issues.push('Manifest explicitly marked incomplete');
 if (process.env.NSK_API_PRODUCTION_RELEASE_APPROVED !== 'yes') issues.push('Explicit production release approval missing');
 if (issues.length) {
