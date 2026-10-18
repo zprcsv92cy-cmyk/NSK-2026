@@ -19,7 +19,7 @@ export function mapTrustedMembershipsToLegacyTeams(actor, teams, {
       throw new Error('Invalid membership');
     const name = member.team_id.trim();
     if (name === '*') {
-      if (member.role !== 'owner') throw new Error('Invalid global membership');
+      if (actor.is_global_admin !== true || member.role !== 'owner') throw new Error('Invalid global membership');
       for (const row of teams) {
         if (String(row?.['Säsong']) !== season) continue;
         const id = String(row.id);
