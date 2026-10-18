@@ -39,4 +39,17 @@ const unavailable = await read(request('/api/spelare?team_id=18'), {
   readTeamData: async () => { throw Error('This must not be reached'); }
 });
 assert.equal(unavailable.status, 503, 'Untrusted mapping must fail closed');
+// The production adapter must pass a bearer token to the existing AUTH_DB verifier.
+// Missing AUTH_DB must fail closed and never call the trusted roster data source.
+const { createProductionRosterReadHandler } = await import('./production-roster-read-integration.js');
+let untrustedReads = 0;
+const productionRead = createProductionRosterReadHandler({}, {
+  listTrustedTeams: async () => teams,
+  resolveOwnerTeam: async () => '18',
+  readTeamData: async () => { untrustedReads++; return Response.json({ok:true}); }
+});
+const rejected = await productionRead(request('/api/spelare?team_id=18'));
+assert.equal(rejected.status, 401, 'Missing AUTH_DB must deny personal roster access');
+assert.equal(untrustedReads, 0, 'Missing session must never access roster data');
+
 console.log('PASS personal identity to trusted legacy team read integration (isolated)');
