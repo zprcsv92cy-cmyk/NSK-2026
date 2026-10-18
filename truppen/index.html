@@ -329,7 +329,6 @@
 <script>
 (function(){
  const roles=[["Lagledare","leader"],["Fysansvarig","fitness"],["Materialförvaltare","equipment"]];
- const css=document.createElement('style');css.textContent=roles.map(([r,id])=>`.roster-page #${id}List{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px}@media(max-width:700px){.roster-page #${id}List{grid-template-columns:minmax(0,1fr)}}`).join('');document.head.appendChild(css);
  const esc=s=>String(s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
  let allowed=false;
  async function render(role,id){const list=document.getElementById(id+'List');try{const rows=await DB.listStaff(role);list.innerHTML=rows.length?rows.map(r=>`<div class="person-row"><div class="person-main"><input class="inline-name-input" data-staff-id="${esc(r.id)}" value="${esc(r.full_name)}" ${allowed?'':'readonly'}></div></div>`).join(''):'<div class="muted-note">Inga registrerade ännu.</div>';list.querySelectorAll('[data-staff-id]').forEach(inp=>inp.addEventListener('change',async()=>{try{await DB.updateStaff(role,inp.dataset.staffId,inp.value.trim());await render(role,id)}catch(e){alert(e.message)}}))}catch(e){list.textContent=e.message}}
