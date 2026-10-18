@@ -667,6 +667,13 @@ var worker_default = { async fetch(req, env) {
       return reply({ ok: false, error: "Lagring eller laguppslag kunde inte verifieras" }, 503);
     }
   }
+  // Optional rollout gate: do not serve legacy unscoped roster reads while
+  // a personal-only deployment is being prepared. The scoped handler must be
+  // wired and verified before this flag can be enabled for production traffic.
+  if (env.NSK_REQUIRE_SCOPED_ROSTER_READS === "true" && req.method === "GET" &&
+      /^\\/api\\/(?:spelare|tranare|lagpersonal)(?:\\/\\d+)?$/.test(url.pathname)) {
+    return reply({ ok: false, error: "Personlig lagbegränsad läsning är inte inkopplad" }, 503);
+  }
   if (req.method !== "GET") return reply({ ok: false, error: "Skrivning \xE4r avst\xE4ngd" }, 405);
   if (url.pathname === "/api/lagpersonal" && req.method === "GET") {
     const teamId = Number(url.searchParams.get("team_id"));
