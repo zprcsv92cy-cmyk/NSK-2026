@@ -11,7 +11,7 @@ export async function guardProductionRosterRead(request, {
   if (!(request instanceof Request)) return deny(400, 'Ogiltig begäran');
   const url = new URL(request.url);
   if (request.method !== 'GET') return deny(405, 'Metoden stöds inte');
-  if (!/^\/api\/(?:lag|spelare|tranare|lagpersonal)(?:\/\d+)?$/.test(url.pathname)) {
+  if (!/^\/api\/(?:spelare|tranare|lagpersonal)(?:\/\d+)?$/.test(url.pathname)) {
     return deny(404, 'Okänd läsväg');
   }
   if (typeof verifyIdentity !== 'function' ||
