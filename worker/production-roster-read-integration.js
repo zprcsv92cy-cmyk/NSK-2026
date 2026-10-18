@@ -55,7 +55,7 @@ export function createProductionRosterReadHandler(env, trusted = {}) {
   return request => readPersonallyAuthorizedLegacyRoster(request, {
     ...trusted,
     verifyPersonalSession: async req => {
-      const match = /^Bearer ([^\\s]+)$/.exec(req.headers.get('Authorization') || '');
+      const match = /^Bearer ([^\s]+)$/.exec(req.headers.get('Authorization') || '');
       return match ? verifyToken(match[1]) : null;
     }
   });
