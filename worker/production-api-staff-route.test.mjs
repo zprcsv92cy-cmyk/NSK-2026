@@ -31,7 +31,9 @@ test('opt-in scoped roster handler precedes legacy reads and uses trusted source
   assert.match(source, /req\.method === "GET"/);
   assert.match(source, /spelare\|tranare\|lagpersonal/);
   assert.match(source, /createProductionRosterReadHandler\(env,/);
-  assert.match(source, /return handler\(req\)/);
+  assert.match(source, /const scopedResponse = await handler\(req\)/);
+  assert.match(source, /for \(const \[name, value\] of Object\.entries\(cors\)\) scopedHeaders\.set\(name, value\)/);
+  assert.match(source, /return new Response\(scopedResponse\.body, \{status: scopedResponse\.status, headers: scopedHeaders\}\)/);
   assert.match(source, /createProductionRosterReadHandler\(env, \{/);
   assert.match(source, /fetchAllRosterRows,/);
   assert.match(source, /fetchTeamStaff: async teamId/);
