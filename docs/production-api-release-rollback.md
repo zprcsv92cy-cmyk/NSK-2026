@@ -12,6 +12,25 @@ This is a runbook, **not** authorization to deploy. The production release gate 
 - D1 `AUTH_DB` and KV `ADMIN_KV`, `NSK_TRAINERS` identifiers are declared in `wrangler.api.production.toml`.
 - Existing secret bindings include `ADMIN_PASSWORD`, `BASEROW_TOKEN`, `MATCH_PASSWORD`; `BASEROW_DATABASE_ID` is plain text. Do not expose values.
 
+## Read-only live verification (2026-10-18)
+
+Cloudflare Deployments API confirms that deployment `a9cea50b-3c5b-4b1f-93db-8a613410b366` still directs 100% of traffic to version `1eb31da3-dfa4-49d0-a502-b61573feb032`. The immediately preceding known deployment uses `f36b8b66-a334-4bb5-88e6-b49071b41c8e` at 100%; it has **not** been tested as a rollback.
+
+Both the deployed version's resource bindings and the live Worker settings API report the same eight binding names and types:
+
+| Binding | Type | Verified identifier (where applicable) |
+| --- | --- | --- |
+| `ADMIN_KV` | KV | `7f978e9bbcd04b888e5b0dfbc338ba5d` |
+| `NSK_TRAINERS` | KV | `f60b048621ea4aca8d67774f5c9db664` |
+| `AUTH_DB` | D1 | `9f937bcb-b0c0-4129-af5b-775cf284dfcb` |
+| `SHIFT_LOCK` | Durable Object / `ShiftLock` | `27cd8685c58e4b8aa0aaa85a9d47f6ed` |
+| `ADMIN_PASSWORD` | secret_text | Value not read |
+| `BASEROW_TOKEN` | secret_text | Value not read |
+| `MATCH_PASSWORD` | secret_text | Value not read |
+| `BASEROW_DATABASE_ID` | plain_text | Value not read |
+
+**Scope:** read-only API checks only. This confirms existing configuration, **not** preservation across a new Worker upload, integrity of stored records, migration compatibility of a new bundle, rollback execution, or approval to deploy. The release gate remains blocked.
+
 ## Before release
 
 1. Re-read live deployments and versions; capture the **current** 100% production version as rollback target. Do not assume the baseline above remains current.
