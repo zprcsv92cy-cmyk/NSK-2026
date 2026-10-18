@@ -23,6 +23,7 @@
       <a href="../bytesschema/">Bytesschema</a>
       <a href="../matchvy/">Matchvy</a>
       <a href="../lag/">Lag</a>
+      <a href="../anvandare/" id="usersMenuLink" hidden>Användare</a>
       <a href="../mittkonto/">Mitt konto</a>
     </nav>
 
@@ -101,6 +102,8 @@
   }
   async function refresh() {
     const identity = await Auth.init();
+    document.getElementById('usersMenuLink').hidden =
+      !identity?.permissions?.includes('users:manage');
     form.hidden = !!identity;
     signedIn.hidden = !identity;
     if (!identity) {
