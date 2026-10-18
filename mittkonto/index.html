@@ -22,6 +22,8 @@ document.write('<script src="../auth.js?v=' + window.NSK_VERSION + '"><\/script>
 <p id="accountName"></p>
 <h2>Mina lag</h2>
 <ul id="accountTeams"></ul>
+<label>Välj aktivt lag <select id="accountTeamSelect"></select></label>
+<button type="button" id="accountLogout">Logga ut</button>
 <p class="small">Rättigheter visas på Startsidan när du väljer lag. Servern kontrollerar alltid behörighet innan ändringar.</p>
 </div>
 <p><a href="../login/" id="accountLogin" hidden>Logga in</a></p>
@@ -40,16 +42,35 @@ document.write('<script src="../auth.js?v=' + window.NSK_VERSION + '"><\/script>
   status.textContent='Inloggad';
   document.getElementById('accountName').textContent='Namn: '+(identity.user?.name||identity.user?.email||'Användare');
   const list=document.getElementById('accountTeams');
-  for (const membership of identity.memberships) {
-   const item=document.createElement('li');
-   item.textContent=(membership.team_name||membership.team_id)+(membership.team_id===Auth.activeTeam()?' (aktivt lag)':'');
-   list.append(item);
+  const select=document.getElementById('accountTeamSelect');
+  const renderTeams=()=>{
+   list.replaceChildren();
+   for(const membership of identity.memberships){
+    const item=document.createElement('li');
+    item.textContent=(membership.team_name||membership.team_id)+(membership.team_id===Auth.activeTeam()?' (aktivt lag)':'');
+    list.append(item);
+   }
+   if(!identity.memberships.length){const item=document.createElement('li');item.textContent='Inga lag kopplade till kontot.';list.append(item);}
+  };
+  for(const membership of identity.memberships){
+   const option=document.createElement('option');
+   option.value=membership.team_id;
+   option.textContent=membership.team_name||membership.team_id;
+   select.append(option);
   }
-  if (!identity.memberships.length) {
-   const item=document.createElement('li');
-   item.textContent='Inga lag kopplade till kontot.';
-   list.append(item);
-  }
+  select.disabled=!identity.memberships.length;
+  select.value=Auth.activeTeam()||'';
+  select.addEventListener('change',()=>{
+   try { Auth.selectTeam(select.value); renderTeams(); status.textContent='Aktivt lag uppdaterat.'; }
+   catch(error){status.textContent=error.message||'Kunde inte byta lag';select.value=Auth.activeTeam()||'';}
+  });
+  document.getElementById('accountLogout').addEventListener('click',async()=>{
+   await Auth.logout();
+   document.getElementById('accountDetails').hidden=true;
+   document.getElementById('accountLogin').hidden=false;
+   status.textContent='Du är utloggad.';
+  });
+  renderTeams();
   document.getElementById('accountDetails').hidden=false;
  } catch {
   status.textContent='Kontot kunde inte kontrolleras just nu.';
