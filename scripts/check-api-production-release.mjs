@@ -30,6 +30,12 @@ if (!d1.some(section => field(section, 'binding') === 'AUTH_DB' && field(section
   issues.push('AUTH_DB does not match verified production database');
 }
 
+const secretsSection = /^\[secrets\]([\s\S]*?)(?=\n\s*\[|$)/m.exec(config)?.[1] || '';
+const requiredSecrets = /^\s*required\s*=\s*\[([^\]]*)\]/m.exec(secretsSection)?.[1] || '';
+const declaredSecretNames = [...requiredSecrets.matchAll(/"([^"]+)"/g)].map(m => m[1]);
+for (const name of ['ADMIN_PASSWORD', 'BASEROW_TOKEN', 'MATCH_PASSWORD']) {
+  if (!declaredSecretNames.includes(name)) issues.push(name + ' required secret declaration missing');
+}
 if (!hasShiftLockMigration) issues.push('Existing SHIFT_LOCK migration tag or SQLite class missing');
 if (/intentionally incomplete|not a deployable/i.test(config)) issues.push('Manifest explicitly marked incomplete');
 if (process.env.NSK_API_PRODUCTION_RELEASE_APPROVED !== 'yes') issues.push('Explicit production release approval missing');
