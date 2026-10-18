@@ -1,13 +1,14 @@
 import { handleTeamAuth } from './team-auth.js';
 import { handleActivation } from './account-activation.js';
 
-const allowed = new Map([['/api/auth/login','POST'],['/api/auth/logout','POST'],['/api/auth/me','GET'],['/api/auth/feature-access','GET'],['/api/auth/integration/access','GET'],['/api/auth/activate','POST'],['/api/auth/users','GET,POST'],['/api/auth/team-members','GET,PUT']]);
+const allowed = new Map([['/api/auth/login','POST'],['/api/auth/logout','POST'],['/api/auth/me','GET'],['/api/auth/feature-access','GET'],['/api/auth/integration/access','GET'],['/api/auth/activate','POST'],['/api/auth/users','GET,POST'],['/api/auth/users/email-check','POST'],['/api/auth/team-members','GET,PUT']]);
 export default {
   async fetch(request, env) {
     const path = new URL(request.url).pathname;
+    const userRecord = /^\/api\/auth\/users\/[a-f0-9-]{36}$/.test(path);
     const userAction = /^\/api\/auth\/users\/[a-f0-9-]{36}\/(?:permissions|setup-token|status)$/.test(path);
     const actionMethod = path.endsWith('/permissions') ? 'PUT' : (path.endsWith('/status') ? 'PATCH' : 'POST');
-    const methods = allowed.get(path) || (userAction ? actionMethod : null);
+    const methods = allowed.get(path) || (userRecord ? 'PATCH,DELETE' : (userAction ? actionMethod : null));
     if (!methods) return new Response('Not found', {status:404});
     const origin = request.headers.get('Origin');
     const site = 'https://zprcsv92cy-cmyk.github.io';
