@@ -24,3 +24,11 @@ assert.deepEqual(map(globalOwner,teams).memberships,[
  {team_id:'18',role:'owner'},{team_id:'27',role:'owner'}]);
 assert.throws(()=>map({...globalOwner,memberships:[{team_id:'*',role:'viewer'}]},teams),/Invalid global/);
 assert.throws(()=>map(globalOwner,[...teams,{...teams[0],id:55}]),/Ambiguous global/);
+
+// Only the server-verified global admin flag grants all-team read access.
+const verifiedAdmin={user:{id:'root'},is_global_admin:true,memberships:[],permissions:[]};
+const adminMapped=map(verifiedAdmin,teams);
+assert.deepEqual(adminMapped.memberships,[{team_id:'18',role:'owner'},{team_id:'27',role:'owner'}]);
+assert.ok(adminMapped.permissions.includes('read'));
+assert.deepEqual(map({...verifiedAdmin,is_global_admin:false},teams).memberships,[]);
+assert.ok(!map({...verifiedAdmin,is_global_admin:false},teams).permissions.includes('read'));
