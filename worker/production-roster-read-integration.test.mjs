@@ -51,5 +51,12 @@ const productionRead = createProductionRosterReadHandler({}, {
 const rejected = await productionRead(request('/api/spelare?team_id=18'));
 assert.equal(rejected.status, 401, 'Missing AUTH_DB must deny personal roster access');
 assert.equal(untrustedReads, 0, 'Missing session must never access roster data');
+const missingBearer = await productionRead(new Request('https://nsk-api.invalid/api/spelare?team_id=18'));
+assert.equal(missingBearer.status, 401, 'Missing bearer token must be denied');
+const malformedBearer = await productionRead(new Request('https://nsk-api.invalid/api/spelare?team_id=18', {
+  headers: { Authorization: 'Bearer malformed' }
+}));
+assert.equal(malformedBearer.status, 401, 'Malformed bearer token must be denied');
+assert.equal(untrustedReads, 0, 'Denied authentication must not access roster data');
 
 console.log('PASS personal identity to trusted legacy team read integration (isolated)');
