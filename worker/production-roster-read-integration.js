@@ -52,7 +52,7 @@ export function readPersonallyAuthorizedScopedRoster(request, {
  */
 export function createProductionRosterReadHandler(env, trusted = {}) {
   const verifyToken = createPersonalRosterIdentityVerifier(env);
-  return request => readPersonallyAuthorizedLegacyRoster(request, {
+  return request => readPersonallyAuthorizedScopedRoster(request, {
     ...trusted,
     verifyPersonalSession: async req => {
       const match = /^Bearer ([^\s]+)$/.exec(req.headers.get('Authorization') || '');
