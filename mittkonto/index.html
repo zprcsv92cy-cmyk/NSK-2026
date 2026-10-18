@@ -59,6 +59,7 @@ document.write('<script src="../auth.js?v=' + window.NSK_VERSION + '"><\/script>
    select.append(option);
   }
   select.disabled=!identity.memberships.length;
+  if (identity.memberships.length && !Auth.activeTeam()) Auth.selectTeam(identity.memberships[0].team_id);
   select.value=Auth.activeTeam()||'';
   select.addEventListener('change',()=>{
    try { Auth.selectTeam(select.value); renderTeams(); status.textContent='Aktivt lag uppdaterat.'; }
