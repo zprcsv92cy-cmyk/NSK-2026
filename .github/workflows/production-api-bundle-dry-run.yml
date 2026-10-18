@@ -1,6 +1,12 @@
 name: Production API bundle dry-run
 
 on:
+  push:
+    branches: [main]
+    paths:
+      - 'worker/**'
+      - 'wrangler.api.production.toml'
+      - '.github/workflows/production-api-bundle-dry-run.yml'
   pull_request:
     paths:
       - 'worker/**'
