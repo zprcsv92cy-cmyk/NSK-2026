@@ -21,7 +21,9 @@ export async function handlePersonalLagpersonalWrite(request, env, { listTeams }
     mutateLagpersonal: async authorizedRequest => {
       const url = new URL(authorizedRequest.url);
       const teamId = url.searchParams.get('team_id');
-      if (!/^[1-9]\d*$/.test(teamId || '') || (!Number.isSafeInteger(Number(teamId)) || url.searchParams.getAll('team_id').length !== 1))
+      if (url.searchParams.getAll('team_id').length !== 1 ||
+          !/^[1-9]\d*$/.test(teamId || '') ||
+          !Number.isSafeInteger(Number(teamId)))
         return { ok: false, status: 400, error: 'Ogiltigt lag' };
       let body;
       try { body = await authorizedRequest.clone().json(); }
