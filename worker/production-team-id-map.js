@@ -11,7 +11,10 @@ export function mapTrustedMembershipsToLegacyTeams(actor, teams, {
     throw new Error('Trusted identity and team records required');
   }
   const resolved = [];
-  for (const member of actor.memberships) {
+  const memberships = actor.is_global_admin === true
+    ? [{team_id:'*',role:'owner'}]
+    : actor.memberships;
+  for (const member of memberships) {
     if (!member || typeof member.team_id !== 'string' || !member.team_id.trim())
       throw new Error('Invalid membership');
     const name = member.team_id.trim();
@@ -45,6 +48,8 @@ export function mapTrustedMembershipsToLegacyTeams(actor, teams, {
   return {
     user: { id: String(actor.user.id) },
     memberships: resolved,
-    permissions: actor.permissions.slice()
+    permissions: actor.is_global_admin === true
+      ? [...new Set([...actor.permissions, 'read'])]
+      : actor.permissions.slice()
   };
 }
