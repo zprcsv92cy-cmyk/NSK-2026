@@ -28,8 +28,8 @@ export async function guardProductionRosterRead(request, {
     return deny(401, 'Giltig session krävs');
   }
 
-  // The team must be determined from server-owned records or an approved
-  // server-side mapping. Client team_id cannot establish record ownership.
+  // Team ownership must come from server-controlled data, never a client-provided team_id.
+  // A missing or untrusted owner resolver is rejected below.
   let ownerTeam;
   try { ownerTeam = await resolveOwnerTeam(request); }
   catch { return deny(503, 'Lagtillhörighet kunde inte verifieras'); }
