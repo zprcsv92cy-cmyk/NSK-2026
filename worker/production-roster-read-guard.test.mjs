@@ -19,6 +19,8 @@ async function check(path, status, overrides = {}, auth = true, method = 'GET') 
 await check('/api/spelare?team_id=18', 200);
 assert.equal(reads, 1);
 await check('/api/spelare?team_id=19', 403);
+await check('/api/spelare?team_id=18&teamId=19', 403);
+await check('/api/spelare?teamId=18', 403);
 await check('/api/spelare?team_id=18', 403, { verifyIdentity: async () => ({ ...actor, permissions: [] }) });
 await check('/api/spelare?team_id=18', 403, { verifyIdentity: async () => ({ ...actor, permissions: undefined }) });
 await check('/api/spelare?team_id=18&team_id=19', 403);
