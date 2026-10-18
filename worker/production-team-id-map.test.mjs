@@ -19,7 +19,7 @@ assert.throws(()=>map(null, teams), /required/);
 assert.throws(()=>map({...actor,memberships:[]}, null), /required/);
 console.log('PASS trusted legacy team ID mapping; ambiguous/missing teams denied');
 
-const globalOwner={user:{id:'root'},memberships:[{team_id:'*',role:'owner'}],permissions:['roster:manage','users:manage']};
+const globalOwner={user:{id:'root'},is_global_admin:true,memberships:[{team_id:'*',role:'owner'}],permissions:['roster:manage','users:manage']};
 assert.deepEqual(map(globalOwner,teams).memberships,[
  {team_id:'18',role:'owner'},{team_id:'27',role:'owner'}]);
 assert.throws(()=>map({...globalOwner,memberships:[{team_id:'*',role:'viewer'}]},teams),/Invalid global/);
@@ -32,3 +32,5 @@ assert.deepEqual(adminMapped.memberships,[{team_id:'18',role:'owner'},{team_id:'
 assert.ok(adminMapped.permissions.includes('read'));
 assert.deepEqual(map({...verifiedAdmin,is_global_admin:false},teams).memberships,[]);
 assert.ok(!map({...verifiedAdmin,is_global_admin:false},teams).permissions.includes('read'));
+
+assert.throws(()=>map({...globalOwner,is_global_admin:false},teams),/Invalid global/);
