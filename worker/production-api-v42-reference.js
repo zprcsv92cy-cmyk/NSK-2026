@@ -654,13 +654,18 @@ var worker_default = { async fetch(req, env) {
       const result = await handlePersonalLagpersonalWrite(req, env, {
         listTeams: async () => {
           if (!env.BASEROW_TOKEN || !env.BASEROW_DATABASE_ID) throw Error("Baserow credentials missing");
-          const response = await fetch("https://api.baserow.io/api/database/rows/table/" + TABLES.lag + "/?user_field_names=true&size=200", {
-            headers: { Authorization: "Token " + env.BASEROW_TOKEN }
-          });
-          if (!response.ok) throw Error("Trusted team list unavailable");
-          const data = await response.json();
-          if (!Array.isArray(data.results) || data.next) throw Error("Incomplete trusted team list");
-          return data.results;
+          const teams = [];
+          for (let page = 1; page <= 100; page++) {
+            const response = await fetch("https://api.baserow.io/api/database/rows/table/" + TABLES.lag + "/?user_field_names=true&size=200&page=" + page, {
+              headers: { Authorization: "Token " + env.BASEROW_TOKEN }
+            });
+            if (!response.ok) throw Error("Trusted team list unavailable");
+            const data = await response.json();
+            if (!Array.isArray(data.results)) throw Error("Invalid trusted team list");
+            teams.push(...data.results);
+            if (!data.next) return teams;
+          }
+          throw Error("Trusted team list exceeded pagination limit");
         }
       });
       return reply(result, result.status || 500);
