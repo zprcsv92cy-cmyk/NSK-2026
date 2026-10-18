@@ -11,7 +11,7 @@ const hasD1 = d1.some(s => field(s, 'binding') === 'AUTH_DB' && /^[a-f0-9-]{36}$
 const hasDO = objects.some(s => field(s, 'name') === 'SHIFT_LOCK' && field(s, 'class_name') === 'ShiftLock');
 const migrations = [...config.matchAll(/\[\[migrations\]\]([\s\S]*?)(?=\n\s*\[|$)/g)].map(m => m[1]);
 const hasShiftLockMigration = migrations.some(s => field(s, 'tag') === 'v1-shift-lock' && /^\s*new_sqlite_classes\s*=\s*\[\s*"ShiftLock"\s*\]/m.test(s));
-const shiftLockExport = /^\\[exports\\.ShiftLock\\]([\\s\\S]*?)(?=\\n\\s*\\[|(?![\\s\\S]))/m.exec(config)?.[1] || '';
+const shiftLockExport = /^\[exports\.ShiftLock\]([\s\S]*?)(?=\n\s*\[|(?![\s\S]))/m.exec(config)?.[1] || '';
 const hasShiftLockSQLiteExport = field(shiftLockExport, 'type') === 'durable-object' && field(shiftLockExport, 'storage') === 'sqlite';
 const issues = [];
 if (!source || !source.startsWith('worker/') || !existsSync(source)) issues.push('Worker entrypoint missing or invalid');
