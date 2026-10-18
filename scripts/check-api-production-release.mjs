@@ -30,13 +30,13 @@ if (!d1.some(section => field(section, 'binding') === 'AUTH_DB' && field(section
   issues.push('AUTH_DB does not match verified production database');
 }
 
-const secretsSection = /^\[secrets\]([\s\S]*?)(?=\n\s*\[|$)/m.exec(config)?.[1] || '';
+const secretsSection = /^\[secrets\]([\s\S]*?)(?=\n\s*\[|(?![\s\S]))/m.exec(config)?.[1] || '';
 const requiredSecrets = /^\s*required\s*=\s*\[([^\]]*)\]/m.exec(secretsSection)?.[1] || '';
 const declaredSecretNames = [...requiredSecrets.matchAll(/"([^"]+)"/g)].map(m => m[1]);
 for (const name of ['ADMIN_PASSWORD', 'BASEROW_TOKEN', 'MATCH_PASSWORD']) {
   if (!declaredSecretNames.includes(name)) issues.push(name + ' required secret declaration missing');
 }
-const varsSection = /^\[vars\]([\s\S]*?)(?=\n\s*\[|$)/m.exec(config)?.[1] || '';
+const varsSection = /^\[vars\]([\s\S]*?)(?=\n\s*\[|(?![\s\S]))/m.exec(config)?.[1] || '';
 const hasBaserowDatabaseId = /^\s*BASEROW_DATABASE_ID\s*=\s*(?:"[^"]+"|'[^']+')\s*$/m.test(varsSection);
 if (!hasBaserowDatabaseId) issues.push('BASEROW_DATABASE_ID declaration missing');
 if (!hasShiftLockMigration) issues.push('Existing SHIFT_LOCK migration tag or SQLite class missing');
