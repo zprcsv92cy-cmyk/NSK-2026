@@ -1,3 +1,4 @@
+import { createProductionRosterReadHandler } from './production-roster-read-integration.js';
 import { handlePersonalLagpersonalWrite } from './production-lagpersonal-write-handler.js';
 import { createPersonalRosterIdentityVerifier } from './personal-roster-identity-adapter.js';
 import { createPoolOwnerResolver } from './production-shift-pool-owner-resolver.js';
@@ -666,6 +667,76 @@ var worker_default = { async fetch(req, env) {
     } catch {
       return reply({ ok: false, error: "Lagring eller laguppslag kunde inte verifieras" }, 503);
     }
+  }
+  // Opt-in scoped roster reads. The requested team is only a selector: the
+  // verified personal session and trusted Baserow team mapping grant access.
+  if (env.NSK_REQUIRE_SCOPED_ROSTER_READS === "true" && req.method === "GET" &&
+      /^\/api\/(?:spelare|tranare|lagpersonal)(?:\/\d+)?$/.test(url.pathname)) {
+    const listTrustedTeams = async () => {
+      if (!env.BASEROW_TOKEN) throw Error("Trusted teams unavailable");
+      const teamTableId = resolveBaserowTables(env).lag;
+      const teams = [];
+      for (let page = 1; page <= 100; page++) {
+        const response = await fetch("https://api.baserow.io/api/database/rows/table/" + teamTableId + "/?user_field_names=true&size=200&page=" + page, {
+          headers: { Authorization: "Token " + env.BASEROW_TOKEN }
+        });
+        if (!response.ok) throw Error("Trusted teams unavailable");
+        const data = await response.json();
+        if (!Array.isArray(data.results) || data.results.length > 200) throw Error("Invalid trusted team page");
+        if (data.next != null) {
+          const cursor = new URL(data.next);
+          if (cursor.origin !== "https://api.baserow.io" ||
+              cursor.pathname !== "/api/database/rows/table/" + teamTableId + "/" ||
+              cursor.searchParams.getAll("page").length !== 1 ||
+              cursor.searchParams.get("page") !== String(page + 1))
+            throw Error("Invalid trusted team pagination cursor");
+        }
+        teams.push(...data.results);
+        if (!data.next) return teams;
+      }
+      throw Error("Trusted team pagination limit exceeded");
+    };
+    const fetchAllRosterRows = async table => {
+      if (!["spelare", "tranare"].includes(table) || !env.BASEROW_TOKEN) throw Error("Invalid roster source");
+      const rosterTableId = resolveBaserowTables(env)[table];
+      const rows = [];
+      for (let page = 1; page <= 100; page++) {
+        const response = await fetch("https://api.baserow.io/api/database/rows/table/" + rosterTableId + "/?user_field_names=true&page=" + page + "&size=200", {
+          headers: { Authorization: "Token " + env.BASEROW_TOKEN }
+        });
+        if (!response.ok) throw Error("Roster source unavailable");
+        const data = await response.json();
+        if (!Array.isArray(data.results) || data.results.length > 200) throw Error("Incomplete roster page");
+        if (data.next !== null && data.next !== undefined &&
+            (typeof data.next !== "string" || new URL(data.next).origin !== "https://api.baserow.io" ||
+             new URL(data.next).pathname !== "/api/database/rows/table/" + rosterTableId + "/" ||
+             new URL(data.next).searchParams.getAll("page").length !== 1 ||
+             new URL(data.next).searchParams.get("page") !== String(page + 1)))
+          throw Error("Invalid roster pagination cursor");
+        rows.push(...data.results);
+        if (!data.next) return rows;
+      }
+      throw Error("Roster pagination limit exceeded");
+    };
+    const handler = createProductionRosterReadHandler(env, {
+      listTrustedTeams,
+      resolveOwnerTeam: async request => {
+        const ids = new URL(request.url).searchParams.getAll("team_id");
+        if (ids.length !== 1 || !/^[1-9]\d*$/.test(ids[0]) || !Number.isSafeInteger(Number(ids[0]))) throw Error("Missing trusted team selection");
+        const teams = await listTrustedTeams();
+        if (!teams.some(team => String(team.id) === ids[0])) throw Error("Unknown team");
+        return ids[0];
+      },
+      fetchAllRosterRows,
+      fetchTeamStaff: async teamId => {
+        if (!env.NSK_TRAINERS) throw Error("Staff store unavailable");
+        return await env.NSK_TRAINERS.get("lagpersonal:team:" + teamId, "json") || [];
+      }
+    });
+    const scopedResponse = await handler(req);
+    const scopedHeaders = new Headers(scopedResponse.headers);
+    for (const [name, value] of Object.entries(cors)) scopedHeaders.set(name, value);
+    return new Response(scopedResponse.body, {status: scopedResponse.status, headers: scopedHeaders});
   }
   if (req.method !== "GET") return reply({ ok: false, error: "Skrivning \xE4r avst\xE4ngd" }, 405);
   if (url.pathname === "/api/lagpersonal" && req.method === "GET") {

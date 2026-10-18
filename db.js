@@ -7,10 +7,19 @@ window.DB = (() => {
   const first = x => linked(x)[0] ?? null;
   const num = (x,d=0) => Number.isFinite(Number(x)) && x !== '' && x != null ? Number(x) : d;
   const positive = x => Number.isSafeInteger(Number(x)) && Number(x) > 0;
-  async function rows(table) {
+  // Enabled only after the Worker and personal login are verified together.
+  const scopedRosterEnabled = () => window.APP_CONFIG?.REQUIRE_SCOPED_ROSTER_READS === true;
+  function rosterReadOptions(team) {
+    if (!scopedRosterEnabled()) return { suffix: '', headers: {} };
+    const token = window.Auth?.getToken?.();
+    if (!token || !positive(team)) throw new Error('Personlig inloggning och lagval krävs för Truppen');
+    return { suffix: '&team_id=' + encodeURIComponent(team), headers: { Authorization: 'Bearer ' + token } };
+  }
+  async function rows(table, team = null) {
     let all=[],page=1;
+    const scoped = ['spelare','tranare'].includes(table) ? rosterReadOptions(team) : { suffix: '', headers: {} };
     while (true) {
-      const response=await fetch(`${API}/api/${table}?page=${page}&size=200`,{cache:'no-store'});
+      const response=await fetch(`${API}/api/${table}?page=${page}&size=200${scoped.suffix}`,{cache:'no-store',headers:scoped.headers});
       if (!response.ok) throw new Error(`API-fel för ${table}: ${response.status}`);
       const data=await response.json();
       if (!data.ok || !Array.isArray(data.results)) throw new Error(`Ogiltigt API-svar för ${table}`);
@@ -20,9 +29,9 @@ window.DB = (() => {
     }
   }
   const teamId=async()=>{const team=(await rows('lag')).find(r=>r.Namn==='NSK Team 18' && String(r['Säsong'])==='2026');if(!team)throw new Error('NSK Team 18 (2026) saknas');return team.id};
-  async function listPlayers(){const t=await teamId();return (await rows('spelare')).filter(r=>linked(r.Lag).includes(t)).map(r=>({id:r.id,full_name:r.Namn,team_id:t})).sort((a,b)=>a.full_name.localeCompare(b.full_name,'sv'))}
-  async function listCoaches(){const t=await teamId();return (await rows('tranare')).filter(r=>linked(r.Lag).includes(t)).map(r=>({id:r.id,full_name:r.Namn,team_id:t})).sort((a,b)=>a.full_name.localeCompare(b.full_name,'sv'))}
-  async function listStaff(role){const t=await teamId();const response=await fetch(`${API}/api/lagpersonal?team_id=${t}`,{cache:'no-store'});const data=await response.json();if(!response.ok||!data.ok)throw new Error(data.error||'Kunde inte hämta lagpersonal');return (data.results||[]).filter(r=>r.role===role).map(r=>({id:r.id,full_name:r.name,team_id:t})).sort((a,b)=>a.full_name.localeCompare(b.full_name,'sv'))}
+  async function listPlayers(){const t=await teamId();return (await rows('spelare',t)).filter(r=>linked(r.Lag).includes(t)).map(r=>({id:r.id,full_name:r.Namn,team_id:t})).sort((a,b)=>a.full_name.localeCompare(b.full_name,'sv'))}
+  async function listCoaches(){const t=await teamId();return (await rows('tranare',t)).filter(r=>linked(r.Lag).includes(t)).map(r=>({id:r.id,full_name:r.Namn,team_id:t})).sort((a,b)=>a.full_name.localeCompare(b.full_name,'sv'))}
+  async function listStaff(role){const t=await teamId();const scoped=rosterReadOptions(t);const response=await fetch(`${API}/api/lagpersonal?team_id=${t}`,{cache:'no-store',headers:scoped.headers});const data=await response.json();if(!response.ok||!data.ok)throw new Error(data.error||'Kunde inte hämta lagpersonal');return (data.results||[]).filter(r=>r.role===role).map(r=>({id:r.id,full_name:r.name,team_id:t})).sort((a,b)=>a.full_name.localeCompare(b.full_name,'sv'))}
   async function writeStaff(method,role,rowId,name){const t=await teamId();const data=await adminRequest(`/api/lagpersonal?team_id=${t}`,method,{id:rowId||undefined,role,name:String(name||'').trim()});return data.row}
   async function listPools(){const t=await teamId();return (await rows('poolspel')).filter(r=>linked(r.Lag).includes(t)).map(r=>({id:r.id,team_id:t,title:r.Namn,place:r.Plats,hall:r.Ishall||"",pool_date:r.Datum,active:(typeof r.Status === 'object' ? r.Status?.value : r.Status) !== 'Avslutat',status:(typeof r.Status === 'object' ? r.Status?.value : r.Status) || 'Planerat',teams:num(r['Antal lag']),matches:num(r['Antal matcher']),players_on_field:num(r['Spelare på plan']),periods:num(r.Perioder),period_time:num(r.Periodtid),sub_time:num(r.Bytestid)})).sort((a,b)=>String(b.pool_date||'').localeCompare(String(a.pool_date||'')))}
   async function getPool(poolId){return (await listPools()).find(r=>String(r.id)===String(poolId))||null}

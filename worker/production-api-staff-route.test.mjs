@@ -24,3 +24,23 @@ test('shift routes parse Bearer tokens using real whitespace boundaries', () => 
   const expected = String.raw`const identityToken = /^Bearer ([^\s]+)$/`;
   assert.equal(source.split(expected).length - 1, 2, 'save and done routes must both use the correct Bearer token regex');
 });
+
+
+test('opt-in scoped roster handler precedes legacy reads and uses trusted sources', () => {
+  assert.match(source, /env\.NSK_REQUIRE_SCOPED_ROSTER_READS === "true"/);
+  assert.match(source, /req\.method === "GET"/);
+  assert.match(source, /spelare\|tranare\|lagpersonal/);
+  assert.match(source, /createProductionRosterReadHandler\(env,/);
+  assert.match(source, /const scopedResponse = await handler\(req\)/);
+  assert.match(source, /for \(const \[name, value\] of Object\.entries\(cors\)\) scopedHeaders\.set\(name, value\)/);
+  assert.match(source, /return new Response\(scopedResponse\.body, \{status: scopedResponse\.status, headers: scopedHeaders\}\)/);
+  assert.match(source, /createProductionRosterReadHandler\(env, \{/);
+  assert.match(source, /fetchAllRosterRows,/);
+  assert.match(source, /fetchTeamStaff: async teamId/);
+  assert.match(source, /listTrustedTeams,/);
+  assert.match(source, /data\.results\.length > 200/);
+  assert.match(source, /Incomplete roster page/);
+  const gate = source.indexOf('if (env.NSK_REQUIRE_SCOPED_ROSTER_READS === "true"');
+  const legacyRead = source.indexOf('if (url.pathname === "/api/lagpersonal" && req.method === "GET")');
+  assert.ok(gate >= 0 && legacyRead > gate, 'scoped handler must precede legacy roster read');
+});
