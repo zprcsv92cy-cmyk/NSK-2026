@@ -1,3 +1,4 @@
+import { authorizePersonalWorkerWrite } from './personal-roster-worker-adapter.js';
 import { createProductionRosterReadHandler } from './production-roster-read-integration.js';
 import { handlePersonalLagpersonalWrite } from './production-lagpersonal-write-handler.js';
 import { createPersonalRosterIdentityVerifier } from './personal-roster-identity-adapter.js';
@@ -179,6 +180,33 @@ var ShiftLock = class {
     }
   }
 };
+async function listTrustedRosterTeams(env) {
+  if (!env.BASEROW_TOKEN) throw new Error("Baserow credentials missing");
+  const teamTableId = resolveBaserowTables(env).lag;
+  const teams = [];
+  for (let page = 1; page <= 100; page++) {
+    const response = await fetch(
+      `https://api.baserow.io/api/database/rows/table/${teamTableId}/?user_field_names=true&size=200&page=${page}`,
+      { headers: { Authorization: `Token ${env.BASEROW_TOKEN}` } }
+    );
+    if (!response.ok) throw new Error("Trusted teams unavailable");
+    const data = await response.json();
+    if (!Array.isArray(data.results) || data.results.length > 200)
+      throw new Error("Invalid trusted team page");
+    if (data.next != null) {
+      const cursor = new URL(data.next);
+      if (cursor.origin !== "https://api.baserow.io" ||
+          cursor.pathname !== `/api/database/rows/table/${teamTableId}/` ||
+          cursor.searchParams.getAll("page").length !== 1 ||
+          cursor.searchParams.get("page") !== String(page + 1))
+        throw new Error("Invalid trusted team pagination cursor");
+    }
+    teams.push(...data.results);
+    if (!data.next) return teams;
+  }
+  throw new Error("Trusted team pagination limit exceeded");
+}
+
 var worker_default = { async fetch(req, env) {
   let TABLES;
   try { TABLES = resolveBaserowTables(env); } catch { return json({ ok: false, error: "Invalid Baserow table mapping" }, 503); }
@@ -316,7 +344,8 @@ var worker_default = { async fetch(req, env) {
     return reply({ ok: false, error: "Not found" }, 404);
   }
   if (/^\/api\/(spelare|tranare)$/.test(url.pathname) && req.method === "POST" || /^\/api\/(spelare|tranare)\/\d+$/.test(url.pathname) && req.method === "PATCH") {
-    if (!env.ADMIN_KV || !await session(req, env)) return reply({ ok: false, error: "Adminl\xE4ge kr\xE4vs" }, 401);
+
+    const saveRoster = async () => {
     if (!(req.headers.get("Content-Type") || "").startsWith("application/json")) return reply({ ok: false, error: "JSON kr\xE4vs" }, 415);    if (Number(req.headers.get("Content-Length") || 0) > 2048) return reply({ ok: false, error: "F\xF6r stor beg\xE4ran" }, 413);
     let body;
     try {
@@ -361,6 +390,21 @@ var worker_default = { async fetch(req, env) {
     } catch {
       return reply({ ok: false, error: "Baserow kunde inte n\xE5s" }, 502);
     }
+    };
+    const result = await authorizePersonalWorkerWrite(req, env, {
+      authorizationTeamId: "NSK Team 18",
+      listTeams: () => listTrustedRosterTeams(env),
+      readRow: async (table, id) => {
+        const r = await fetch(`https://api.baserow.io/api/database/rows/table/${TABLES[table]}/${id}/?user_field_names=true`, {
+          headers: { Authorization: `Token ${env.BASEROW_TOKEN}` }
+        });
+        if (!r.ok) throw new Error("Row lookup failed");
+        return r.json();
+      },
+      mutateRoster: saveRoster
+    });
+    if (result instanceof Response) return result;
+    return reply(result, result.status || 500);
   }
   if (/^\/api\/poolspel\/\d+\/aktiv$/.test(url.pathname) && req.method === "PATCH") {
     if (!env.ADMIN_KV || !await session(req, env)) return reply({ok:false,error:"Adminläge krävs"},401);
