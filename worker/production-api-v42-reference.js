@@ -673,9 +673,13 @@ var worker_default = { async fetch(req, env) {
       return reply({ ok: false, error: "Lagring eller laguppslag kunde inte verifieras" }, 503);
     }
   }
-  // Opt-in scoped roster reads. The requested team is only a selector: the
-  // verified personal session and trusted Baserow team mapping grant access.
-  if (env.NSK_REQUIRE_SCOPED_ROSTER_READS === "true" && req.method === "GET" &&
+  // Scoped rollout supports a safe two-phase deployment: authenticated new
+  // clients are scoped immediately, while the global flag later forces legacy
+  // clients through the same authorization boundary (and denies missing sessions).
+  // Any Authorization header triggers the scoped path so malformed credentials
+  // cannot fall through to the legacy, unscoped roster read.
+  if ((env.NSK_REQUIRE_SCOPED_ROSTER_READS === "true" || req.headers.has("Authorization")) &&
+      req.method === "GET" &&
       /^\/api\/(?:spelare|tranare|lagpersonal)(?:\/\d+)?$/.test(url.pathname)) {
     const listTrustedTeams = async () => {
       if (!env.BASEROW_TOKEN) throw Error("Trusted teams unavailable");
