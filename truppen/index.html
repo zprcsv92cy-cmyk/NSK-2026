@@ -19,7 +19,7 @@
     .roster-page .roster-add-row { display: flex; align-items: stretch; gap: 10px; flex-wrap: nowrap; margin-bottom: 14px; }
     .roster-page .roster-add-row input { flex: 1 1 auto; min-width: 0; width: auto; margin: 0; }
     .roster-page .roster-add-row button { flex: 0 0 auto; width: auto; margin: 0; white-space: nowrap; }
-    .roster-page #playersList, .roster-page #coachesList {
+    .roster-page #playersList, .roster-page #coachesList, .roster-page #leaderList, .roster-page #fitnessList, .roster-page #equipmentList {
       display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px 12px;
     }
     .roster-page #playersList > *, .roster-page #coachesList > * {
@@ -46,13 +46,13 @@
       .home-hero-sub, .small, .muted-note { color:#333 !important; }
       .roster-page .roster-card { background:#fff !important; color:#111 !important; border:1px solid #bbb !important; box-shadow:none !important; padding:12px !important; margin:0 0 5mm !important; break-inside:avoid; }
       .roster-page .roster-card h2 { color:#111 !important; margin:0 0 8px !important; }
-      .roster-page #playersList, .roster-page #coachesList, .roster-page #leaderList, .roster-page #fitnessList, .roster-page #equipmentList { display:grid !important; grid-template-columns:repeat(2,minmax(0,1fr)) !important; gap:5px 12px !important; }
+      .roster-page #playersList, .roster-page #coachesList, .roster-page #leaderList, .roster-page #fitnessList, .roster-page #equipmentList, .roster-page #leaderList, .roster-page #fitnessList, .roster-page #equipmentList { display:grid !important; grid-template-columns:repeat(2,minmax(0,1fr)) !important; gap:5px 12px !important; }
       .person-row, .person-main, .inline-name-input { color:#111 !important; background:#fff !important; border-color:#ddd !important; }
       .inline-name-input { border:0 !important; padding:2px 0 !important; margin:0 !important; width:100% !important; }
       button { display:none !important; }
     }
     @media (max-width: 700px) {
-      .roster-page #playersList, .roster-page #coachesList { grid-template-columns: minmax(0, 1fr); }
+      .roster-page #playersList, .roster-page #coachesList, .roster-page #leaderList, .roster-page #fitnessList, .roster-page #equipmentList { grid-template-columns: minmax(0, 1fr); }
       .roster-page .roster-add-row { flex-wrap: wrap; }
       .roster-page .roster-add-row input { flex-basis: 100%; }
       .roster-page .roster-add-row button { width: auto; }
