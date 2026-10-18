@@ -9,6 +9,13 @@ test('API reference routes staff writes through personal authorization', () => {
   assert.match(source, /await handlePersonalLagpersonalWrite\(req, env,/);
   assert.match(source, /return reply\(result, result\.status \|\| 500\)/);
 });
+test('personal roster DELETE is routed through the authorization guard before Baserow deletion', () => {
+  assert.match(source, /\["PATCH", "DELETE"\]\.includes\(req\.method\)/);
+  assert.match(source, /if \(req\.method === "DELETE"\)/);
+  assert.match(source, /method: "DELETE"/);
+  assert.match(source, /mutateRoster: saveRoster/);
+});
+
 test('trusted team lookup paginates and fails closed on invalid or excessive pages', () => {
   assert.match(source, /if \(!response\.ok\) throw Error\("Trusted team list unavailable"\)/);
   assert.match(source, /for \(let page = 1; page <= 100; page\+\+\)/);
