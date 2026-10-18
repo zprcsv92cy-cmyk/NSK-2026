@@ -46,6 +46,7 @@
       </form>
       <div id="personalAuthSignedIn" hidden>
         <label>Aktivt lag <select id="personalAuthTeam"></select></label>
+        <p id="personalAuthAccess" class="small" aria-live="polite"></p>
         <button type="button" id="personalAuthLogout">Logga ut</button>
       </div>
     </section>
@@ -79,6 +80,19 @@
   const form = document.getElementById('personalAuthForm');
   const signedIn = document.getElementById('personalAuthSignedIn');
   const teams = document.getElementById('personalAuthTeam');
+  const access = document.getElementById('personalAuthAccess');
+  const permissionLabels = [
+    ['read', 'Läsa'], ['pool', 'Skapa poolspel'], ['lineup', 'Ändra laguppställning'],
+    ['shifts', 'Checka byten'], ['matches', 'Hantera matchvy'],
+    ['pool_finish', 'Avsluta poolspel'], ['pool_reopen', 'Återöppna poolspel'],
+    ['roster', 'Hantera truppen'], ['users', 'Hantera användare']
+  ];
+  function renderAccess() {
+    const team = Auth.activeTeam();
+    if (!team) { access.textContent = 'Inget aktivt lag valt.'; return; }
+    const available = permissionLabels.filter(([key]) => Auth.can(key, team)).map(([, label]) => label);
+    access.textContent = 'Behörigheter för valt lag: ' + (available.length ? available.join(', ') : 'Inga visade rättigheter') + '. Ändringar kontrolleras alltid av servern.';
+  }
   const configured = !!window.APP_CONFIG?.AUTH_URL;
   if (!configured) {
     status.textContent = 'Personlig inloggning är under införande. Befintliga funktioner påverkas inte.';
@@ -102,6 +116,7 @@
     }
     if (identity.memberships.length && !Auth.activeTeam()) Auth.selectTeam(identity.memberships[0].team_id);
     teams.value = Auth.activeTeam() || '';
+    renderAccess();
   }
   form.addEventListener('submit', async event => {
     event.preventDefault();
@@ -120,7 +135,7 @@
       submit.disabled = false;
     }
   });
-  teams.addEventListener('change', () => { try { Auth.selectTeam(teams.value); } catch (error) { status.textContent = error.message; } });
+  teams.addEventListener('change', () => { try { Auth.selectTeam(teams.value); renderAccess(); } catch (error) { status.textContent = error.message; } });
   document.getElementById('personalAuthLogout').addEventListener('click', async () => { await Auth.logout(); await refresh(); });
   refresh().catch(() => { status.textContent = 'Inloggningen kunde inte kontrolleras'; });
 })();
