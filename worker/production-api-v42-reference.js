@@ -671,7 +671,7 @@ var worker_default = { async fetch(req, env) {
   // a personal-only deployment is being prepared. The scoped handler must be
   // wired and verified before this flag can be enabled for production traffic.
   if (env.NSK_REQUIRE_SCOPED_ROSTER_READS === "true" && req.method === "GET" &&
-      /^\\/api\\/(?:spelare|tranare|lagpersonal)(?:\\/\\d+)?$/.test(url.pathname)) {
+      /^\/api\/(?:spelare|tranare|lagpersonal)(?:\/\d+)?$/.test(url.pathname)) {
     return reply({ ok: false, error: "Personlig lagbegränsad läsning är inte inkopplad" }, 503);
   }
   if (req.method !== "GET") return reply({ ok: false, error: "Skrivning \xE4r avst\xE4ngd" }, 405);
