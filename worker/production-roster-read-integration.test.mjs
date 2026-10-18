@@ -86,3 +86,10 @@ const foreign = await readPersonallyAuthorizedScopedRoster(request('/api/spelare
 assert.equal(foreign.status, 403, 'Foreign team must be rejected before any data fetch');
 
 console.log('PASS personal identity to trusted legacy team read integration (isolated)');
+
+// Server-verified global administrators may read every trusted team;
+// an unverified client-side claim must not confer that privilege.
+const verifiedGlobal = {user:{id:'root'},is_global_admin:true,memberships:[],permissions:[]};
+await check(verifiedGlobal, '/api/spelare?team_id=18', 200);
+await check(verifiedGlobal, '/api/spelare?team_id=27', 200, '27');
+await check({...verifiedGlobal,is_global_admin:false}, '/api/spelare?team_id=18', 403);
