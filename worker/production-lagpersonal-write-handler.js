@@ -47,6 +47,9 @@ export async function handlePersonalLagpersonalWrite(request, env, { listTeams }
       if (typeof body.id !== 'string') return { ok: false, status: 400, error: 'Saknar ID' };
       const row = rows.find(item => item.id === body.id && item.role === body.role);
       if (!row) return { ok: false, status: 404, error: 'Personen saknas' };
+      if (rows.some(item => item.id !== row.id && item.role === row.role &&
+          item.name?.toLocaleLowerCase('sv') === body.name.trim().toLocaleLowerCase('sv')))
+        return { ok: false, status: 409, error: 'Personen finns redan' };
       row.name = body.name.trim();
       await env.NSK_TRAINERS.put(key, JSON.stringify(rows));
       return { ok: true, status: 200, row };
