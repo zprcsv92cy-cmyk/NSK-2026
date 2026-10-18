@@ -24,3 +24,14 @@ test('shift routes parse Bearer tokens using real whitespace boundaries', () => 
   const expected = String.raw`const identityToken = /^Bearer ([^\s]+)$/`;
   assert.equal(source.split(expected).length - 1, 2, 'save and done routes must both use the correct Bearer token regex');
 });
+
+
+test('opt-in scoped roster rollout gate denies legacy reads before Baserow fetch', () => {
+  assert.match(source, /env\.NSK_REQUIRE_SCOPED_ROSTER_READS === "true"/);
+  assert.match(source, /req\.method === "GET"/);
+  assert.match(source, /spelare\|tranare\|lagpersonal/);
+  assert.match(source, /Personlig lagbegränsad läsning är inte inkopplad/);
+  const gate = source.indexOf('if (env.NSK_REQUIRE_SCOPED_ROSTER_READS === "true"');
+  const legacyRead = source.indexOf('if (url.pathname === "/api/lagpersonal" && req.method === "GET")');
+  assert.ok(gate >= 0 && legacyRead > gate, 'deny gate must precede legacy roster read');
+});
