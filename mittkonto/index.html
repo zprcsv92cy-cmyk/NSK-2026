@@ -23,8 +23,10 @@ document.write('<script src="../auth.js?v=' + window.NSK_VERSION + '"><\/script>
 <h2>Mina lag</h2>
 <ul id="accountTeams"></ul>
 <label>Välj aktivt lag <select id="accountTeamSelect"></select></label>
+<h2>Mina behörigheter</h2>
+<ul id="accountPermissions"></ul>
+<p class="small">Detta är en översikt utifrån kontots uppgifter. Servern kontrollerar alltid behörighet innan ändringar.</p>
 <button type="button" id="accountLogout">Logga ut</button>
-<p class="small">Rättigheter visas på Startsidan när du väljer lag. Servern kontrollerar alltid behörighet innan ändringar.</p>
 </div>
 <p><a href="../login/" id="accountLogin" hidden>Logga in</a></p>
 </section>
@@ -43,6 +45,28 @@ document.write('<script src="../auth.js?v=' + window.NSK_VERSION + '"><\/script>
   document.getElementById('accountName').textContent='Namn: '+(identity.user?.name||identity.user?.email||'Användare');
   const list=document.getElementById('accountTeams');
   const select=document.getElementById('accountTeamSelect');
+  const permissions=document.getElementById('accountPermissions');
+  const permissionLabels=[
+   ['read','Läsa'],['pool','Skapa poolspel'],['lineup','Ändra laguppställning'],
+   ['shifts','Checka byten'],['matches','Hantera matchvy'],
+   ['pool_finish','Avsluta poolspel'],['pool_reopen','Återöppna poolspel'],
+   ['roster','Hantera truppen'],['users','Hantera användare']
+  ];
+  const renderPermissions=()=>{
+   permissions.replaceChildren();
+   const team=Auth.activeTeam();
+   const allowed=team?permissionLabels.filter(([key])=>Auth.can(key,team)):[];
+   for(const [,label] of allowed){
+    const item=document.createElement('li');
+    item.textContent=label;
+    permissions.append(item);
+   }
+   if(!allowed.length){
+    const item=document.createElement('li');
+    item.textContent=team?'Inga visade behörigheter för valt lag.':'Välj ett lag för att visa behörigheter.';
+    permissions.append(item);
+   }
+  };
   const renderTeams=()=>{
    list.replaceChildren();
    for(const membership of identity.memberships){
@@ -62,7 +86,7 @@ document.write('<script src="../auth.js?v=' + window.NSK_VERSION + '"><\/script>
   if (identity.memberships.length && !Auth.activeTeam()) Auth.selectTeam(identity.memberships[0].team_id);
   select.value=Auth.activeTeam()||'';
   select.addEventListener('change',()=>{
-   try { Auth.selectTeam(select.value); renderTeams(); status.textContent='Aktivt lag uppdaterat.'; }
+   try { Auth.selectTeam(select.value); renderTeams(); renderPermissions(); status.textContent='Aktivt lag uppdaterat.'; }
    catch(error){status.textContent=error.message||'Kunde inte byta lag';select.value=Auth.activeTeam()||'';}
   });
   document.getElementById('accountLogout').addEventListener('click',async()=>{
@@ -72,6 +96,7 @@ document.write('<script src="../auth.js?v=' + window.NSK_VERSION + '"><\/script>
    status.textContent='Du är utloggad.';
   });
   renderTeams();
+  renderPermissions();
   document.getElementById('accountDetails').hidden=false;
  } catch {
   status.textContent='Kontot kunde inte kontrolleras just nu.';
