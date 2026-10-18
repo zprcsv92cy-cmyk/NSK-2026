@@ -16,17 +16,17 @@ input{width:100%;box-sizing:border-box}
 <body>
 <main class="card">
 <h1>Logga in</h1>
-<p>Den här inloggningen använder fortfarande testmiljön (staging). Den verifierar inte ditt produktionskonto. Befintliga funktioner är oförändrade under införandet.</p>
+<p>Logga in med ditt personliga NSK-konto. Du kan även kontrollera produktionskontot utan att spara en inloggningssession.</p>
 <form id="loginForm">
 <label>E-postadress<input id="email" type="email" autocomplete="username" required></label>
 <label>Lösenord<input id="password" type="password" autocomplete="current-password" required></label>
-<button id="submitButton" type="submit">Logga in (testmiljö)</button>
+<button id="submitButton" type="submit">Logga in</button>
 <button id="productionButton" type="button">Kontrollera produktionskonto</button>
 <p id="message" role="status" aria-live="polite"></p>
 </form>
 <a href="../startsida/">Till startsidan</a>
 </main>
-<script src="../version.js"></script>
+<script src="../version.js?v=872"></script>
 <script>
   document.write('<script src="../config.js?v=' + window.NSK_VERSION + '"><\/script>');
   document.write('<script src="../auth.js?v=' + window.NSK_VERSION + '"><\/script>');
