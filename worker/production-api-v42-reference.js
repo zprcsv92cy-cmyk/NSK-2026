@@ -685,9 +685,10 @@ var worker_default = { async fetch(req, env) {
     };
     const fetchAllRosterRows = async table => {
       if (!["spelare", "tranare"].includes(table) || !env.BASEROW_TOKEN) throw Error("Invalid roster source");
+      const rosterTableId = resolveBaserowTables(env)[table];
       const rows = [];
       for (let page = 1; page <= 100; page++) {
-        const response = await fetch("https://api.baserow.io/api/database/rows/table/" + TABLES[table] + "/?user_field_names=true&page=" + page + "&size=200", {
+        const response = await fetch("https://api.baserow.io/api/database/rows/table/" + rosterTableId + "/?user_field_names=true&page=" + page + "&size=200", {
           headers: { Authorization: "Token " + env.BASEROW_TOKEN }
         });
         if (!response.ok) throw Error("Roster source unavailable");
@@ -695,7 +696,7 @@ var worker_default = { async fetch(req, env) {
         if (!Array.isArray(data.results) || data.results.length > 200) throw Error("Incomplete roster page");
         if (data.next !== null && data.next !== undefined &&
             (typeof data.next !== "string" || new URL(data.next).origin !== "https://api.baserow.io" ||
-             new URL(data.next).pathname !== "/api/database/rows/table/" + TABLES[table] + "/" ||
+             new URL(data.next).pathname !== "/api/database/rows/table/" + rosterTableId + "/" ||
              new URL(data.next).searchParams.getAll("page").length !== 1 ||
              new URL(data.next).searchParams.get("page") !== String(page + 1)))
           throw Error("Invalid roster pagination cursor");
