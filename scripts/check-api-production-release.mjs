@@ -11,6 +11,8 @@ const hasD1 = d1.some(s => field(s, 'binding') === 'AUTH_DB' && /^[a-f0-9-]{36}$
 const hasDO = objects.some(s => field(s, 'name') === 'SHIFT_LOCK' && field(s, 'class_name') === 'ShiftLock');
 const migrations = [...config.matchAll(/\[\[migrations\]\]([\s\S]*?)(?=\n\s*\[|$)/g)].map(m => m[1]);
 const hasShiftLockMigration = migrations.some(s => field(s, 'tag') === 'v1-shift-lock' && /^\s*new_sqlite_classes\s*=\s*\[\s*"ShiftLock"\s*\]/m.test(s));
+const shiftLockExport = /^\[exports\.ShiftLock\]([\s\S]*?)(?=\n\s*\[|(?![\s\S]))/m.exec(config)?.[1] || '';
+const hasShiftLockSQLiteExport = field(shiftLockExport, 'type') === 'durable-object' && field(shiftLockExport, 'storage') === 'sqlite';
 const issues = [];
 if (!source || !source.startsWith('worker/') || !existsSync(source)) issues.push('Worker entrypoint missing or invalid');
 if (!hasD1) issues.push('AUTH_DB D1 binding missing');
@@ -39,7 +41,7 @@ for (const name of ['ADMIN_PASSWORD', 'BASEROW_TOKEN', 'MATCH_PASSWORD']) {
 const varsSection = /^\[vars\]([\s\S]*?)(?=\n\s*\[|(?![\s\S]))/m.exec(config)?.[1] || '';
 const hasBaserowDatabaseId = /^\s*BASEROW_DATABASE_ID\s*=\s*(?:"[^"]+"|'[^']+')\s*$/m.test(varsSection);
 if (!hasBaserowDatabaseId) issues.push('BASEROW_DATABASE_ID declaration missing');
-if (!hasShiftLockMigration) issues.push('Existing SHIFT_LOCK migration tag or SQLite class missing');
+if (!hasShiftLockMigration && !hasShiftLockSQLiteExport) issues.push('Existing SHIFT_LOCK migration or SQLite export declaration missing');
 if (/intentionally incomplete|not a deployable/i.test(config)) issues.push('Manifest explicitly marked incomplete');
 if (process.env.NSK_API_PRODUCTION_RELEASE_APPROVED !== 'yes') issues.push('Explicit production release approval missing');
 if (issues.length) {
