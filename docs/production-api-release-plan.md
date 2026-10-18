@@ -28,3 +28,13 @@
 - Do not deploy or roll back while any release requirement remains unverified.
 - Do not create a new Durable Object migration or replace existing storage.
 - Keep production unchanged until all release requirements are satisfied.
+
+
+## Coordinated scoped-roster rollout
+
+1. Deploy the API candidate with `NSK_REQUIRE_SCOPED_ROSTER_READS=false`. The Worker scopes requests that carry an Authorization header; legacy clients without one retain existing behavior during this compatibility phase.
+2. Publish the frontend with `REQUIRE_SCOPED_ROSTER_READS=true`. Verify the new frontend sends the personal Bearer token and selected team for roster reads, and that Team 18/Testlag 2 isolation works.
+3. Only after frontend publication and verification, deploy the Worker with `NSK_REQUIRE_SCOPED_ROSTER_READS=true`. This forces all roster GETs through the scoped authorization handler, so old clients without a personal session fail closed.
+4. Verify the production endpoints and UI after each phase. Do not proceed if the authorized team cannot be resolved or roster/staff data is incomplete.
+
+This sequence is a deployment plan, not authorization to deploy. The existing secret, Durable Object SQLite, binding, rollback, and release-approval checks above remain mandatory.
