@@ -18,6 +18,7 @@ jobs:
         run: |
           node --check auth.js
           node --check db.js
+          node --test scripts/scoped-roster-client.test.mjs
           node --test scripts/shift-client-auth.test.mjs
           node --check worker/production-api-v42-reference.js
           node --test worker/production-api-staff-route.test.mjs
