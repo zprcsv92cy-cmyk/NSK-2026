@@ -17,6 +17,19 @@ if (!hasD1) issues.push('AUTH_DB D1 binding missing');
 if (!hasKV('ADMIN_KV')) issues.push('ADMIN_KV KV namespace missing');
 if (!hasKV('NSK_TRAINERS')) issues.push('NSK_TRAINERS KV namespace missing');
 if (!hasDO) issues.push('SHIFT_LOCK Durable Object binding missing');
+const expectedBindings = {
+  ADMIN_KV: '7f978e9bbcd04b888e5b0dfbc338ba5d',
+  NSK_TRAINERS: 'f60b048621ea4aca8d67774f5c9db664',
+};
+for (const [name, expectedId] of Object.entries(expectedBindings)) {
+  if (!kv.some(section => field(section, 'binding') === name && field(section, 'id') === expectedId)) {
+    issues.push(name + ' does not match verified production namespace');
+  }
+}
+if (!d1.some(section => field(section, 'binding') === 'AUTH_DB' && field(section, 'database_id') === '9f937bcb-b0c0-4129-af5b-775cf284dfcb')) {
+  issues.push('AUTH_DB does not match verified production database');
+}
+
 if (!hasShiftLockMigration) issues.push('Existing SHIFT_LOCK migration tag or SQLite class missing');
 if (/intentionally incomplete|not a deployable/i.test(config)) issues.push('Manifest explicitly marked incomplete');
 if (process.env.NSK_API_PRODUCTION_RELEASE_APPROVED !== 'yes') issues.push('Explicit production release approval missing');
