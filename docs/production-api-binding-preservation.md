@@ -15,9 +15,21 @@ This document is **not** permission to deploy. A successful Wrangler `--dry-run`
 | MATCH_PASSWORD | secret_text | Present; value not accessed |
 | BASEROW_DATABASE_ID | plain_text | Present; value not reproduced |
 
+## Verified Wrangler preservation behavior
+
+Cloudflare's Wrangler command documentation states that existing secrets are not deleted by deployments and that `--keep-vars` preserves variables configured outside the Wrangler manifest. The production manifest now declares `[secrets].required` for `ADMIN_PASSWORD`, `BASEROW_TOKEN`, and `MATCH_PASSWORD`; it does not include their values. The existing plain-text `BASEROW_DATABASE_ID` is absent from the manifest, so an approved deploy must use `--keep-vars` and verify the value remains configured, without printing it.
+
+**Candidate command for a separately approved release only** (do not execute while the gate remains active):
+
+```sh
+npx --yes wrangler@4 deploy --config wrangler.api.production.toml --keep-vars
+```
+
+Cloudflare reference: https://developers.cloudflare.com/workers/wrangler/commands/workers/ and https://developers.cloudflare.com/workers/wrangler/configuration/ . This is a preservation method, **not** a complete release authorization or proof that the uploaded version is safe.
+
 ## Blocking gap
 
-`wrangler.api.production.toml` declares KV, D1, and Durable Object bindings, but does **not** declare `BASEROW_DATABASE_ID` or any of the three secret bindings. Do not assume that a Wrangler upload retains omitted bindings or that `--dry-run` validates retention. Do not copy live secret values into GitHub, workflow logs, or TOML.
+`wrangler.api.production.toml` declares KV, D1, and Durable Object bindings, does **not** declare the plain-text `BASEROW_DATABASE_ID`; it now declares the three required secret **names** but not their values. Do not assume that a Wrangler upload retains omitted bindings or that `--dry-run` validates retention. Do not copy live secret values into GitHub, workflow logs, or TOML.
 
 ## Required before enabling release
 
