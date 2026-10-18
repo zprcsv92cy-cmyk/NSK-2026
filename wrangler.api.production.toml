@@ -6,9 +6,10 @@ workers_dev = true
 
 [vars]
 BASEROW_DATABASE_ID = "589073"
-# Enforce server-side team-scoped roster reads when this candidate is deployed.
-# Coordinate with the Pages APP_CONFIG flag before rollout.
-NSK_REQUIRE_SCOPED_ROSTER_READS = "true"
+# Phase 1: leave legacy unauthenticated clients compatible while the Worker
+# scopes every request carrying Authorization. Enable "true" only after the
+# frontend with REQUIRE_SCOPED_ROSTER_READS=true is published and verified.
+NSK_REQUIRE_SCOPED_ROSTER_READS = "false"
 
 # Validate that existing secrets are present; do not store their values here.
 [secrets]
