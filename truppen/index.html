@@ -39,7 +39,7 @@
       @page { margin: 10mm; }
       body { background:#fff !important; color:#111 !important; padding:0 !important; }
       .mainmenu, .roster-print-row, .roster-backup, #stagingRosterPanel, #appError,
-      .roster-add-row, #rosterPersonalAccess { display:none !important; }
+      .roster-add-row, #rosterAccessCard { display:none !important; }
       .wrap { max-width:none !important; margin:0 !important; padding:0 !important; }
       .home-hero { margin:0 0 8mm !important; }
       .home-hero-logo-box { display:none !important; }
@@ -88,7 +88,7 @@
 
     <div class="roster-print-row"><button id="rosterPrintButton" type="button">Skriv ut truppen / PDF</button></div>
 
-    <section class="card roster-card" aria-label="Personlig lagbehörighet">
+    <section class="card roster-card" id="rosterAccessCard" aria-label="Personlig lagbehörighet">
       <h2>Lagbehörighet</h2>
       <p id="rosterPersonalAccess" class="small" aria-live="polite">Kontrollerar inloggning…</p>
       <p class="small">Personlig behörighet visas här. Redigering av den befintliga truppen använder tills vidare det äldre adminläget.</p>
