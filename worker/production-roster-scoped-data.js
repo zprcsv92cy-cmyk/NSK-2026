@@ -19,6 +19,7 @@ export async function readScopedLegacyRoster(request, teamId, {
     if (typeof fetchTeamStaff !== 'function') throw new Error('Trusted staff store missing');
     // KV key is derived from validated teamId by this server-owned callback.
     rows = await fetchTeamStaff(teamId);
+    if (!Array.isArray(rows)) throw new Error('Incomplete team staff source');
   } else {
     if (typeof fetchAllRosterRows !== 'function') throw new Error('Trusted roster store missing');
     const all = await fetchAllRosterRows(table);
