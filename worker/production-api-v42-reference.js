@@ -692,7 +692,7 @@ var worker_default = { async fetch(req, env) {
         });
         if (!response.ok) throw Error("Roster source unavailable");
         const data = await response.json();
-        if (!Array.isArray(data.results)) throw Error("Incomplete roster page");
+        if (!Array.isArray(data.results) || data.results.length > 200) throw Error("Incomplete roster page");
         rows.push(...data.results);
         if (!data.next) return rows;
       }
