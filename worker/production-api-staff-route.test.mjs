@@ -9,9 +9,13 @@ test('API reference routes staff writes through personal authorization', () => {
   assert.match(source, /await handlePersonalLagpersonalWrite\(req, env,/);
   assert.match(source, /return reply\(result, result\.status \|\| 500\)/);
 });
-test('trusted team lookup fails closed on incomplete Baserow pages', () => {
+test('trusted team lookup paginates and fails closed on invalid or excessive pages', () => {
   assert.match(source, /if \(!response\.ok\) throw Error\("Trusted team list unavailable"\)/);
-  assert.match(source, /!Array\.isArray\(data\.results\) \|\| data\.next/);
+  assert.match(source, /for \(let page = 1; page <= 100; page\+\+\)/);
+  assert.match(source, /if \(!Array\.isArray\(data\.results\)\) throw Error\("Invalid trusted team list"\)/);
+  assert.match(source, /teams\.push\(\.\.\.data\.results\)/);
+  assert.match(source, /if \(!data\.next\) return teams/);
+  assert.match(source, /throw Error\("Trusted team list exceeded pagination limit"\)/);
   assert.match(source, /if \(!env\.BASEROW_TOKEN \|\| !env\.BASEROW_DATABASE_ID\)/);
 });
 test('API reference retains explicit GET staff route and non-GET deny', () => {
