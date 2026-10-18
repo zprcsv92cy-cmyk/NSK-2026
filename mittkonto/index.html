@@ -25,7 +25,7 @@ document.write('<script src="../auth.js?v=' + window.NSK_VERSION + '"><\/script>
 <label>Välj aktivt lag <select id="accountTeamSelect"></select></label>
 <h2>Mina behörigheter</h2>
 <ul id="accountPermissions"></ul>
-<p class="small">Detta är en översikt utifrån kontots uppgifter. Servern kontrollerar alltid behörighet innan ändringar.</p>
+<p class="small">Behörigheterna kontrolleras mot servern för valt lag. ”Nej” kan också visas om servern inte går att nå.</p>
 <button type="button" id="accountLogout">Logga ut</button>
 </div>
 <p><a href="../login/" id="accountLogin" hidden>Logga in</a></p>
@@ -52,18 +52,28 @@ document.write('<script src="../auth.js?v=' + window.NSK_VERSION + '"><\/script>
    ['pool_finish','Avsluta poolspel'],['pool_reopen','Återöppna poolspel'],
    ['roster','Hantera truppen'],['users','Hantera användare']
   ];
-  const renderPermissions=()=>{
+  let permissionRequest=0;
+  const renderPermissions=async()=>{
+   const request=++permissionRequest;
    permissions.replaceChildren();
    const team=Auth.activeTeam();
-   const allowed=team?permissionLabels.filter(([key])=>Auth.can(key,team)):[];
-   for(const [,label] of allowed){
+   if(!team){
     const item=document.createElement('li');
-    item.textContent=label;
+    item.textContent='Välj ett lag för att visa behörigheter.';
     permissions.append(item);
+    return;
    }
-   if(!allowed.length){
+   const pending=document.createElement('li');
+   pending.textContent='Kontrollerar behörigheter mot servern…';
+   permissions.append(pending);
+   const results=await Promise.all(permissionLabels.map(async ([key,label])=>({
+    label, allowed:await Auth.checkTeamFeature(key,team)
+   })));
+   if(request!==permissionRequest || Auth.activeTeam()!==team)return;
+   permissions.replaceChildren();
+   for(const result of results){
     const item=document.createElement('li');
-    item.textContent=team?'Inga visade behörigheter för valt lag.':'Välj ett lag för att visa behörigheter.';
+    item.textContent=(result.allowed?'Ja – ':'Nej – ')+result.label;
     permissions.append(item);
    }
   };
