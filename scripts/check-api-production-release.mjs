@@ -36,6 +36,8 @@ const declaredSecretNames = [...requiredSecrets.matchAll(/"([^"]+)"/g)].map(m =>
 for (const name of ['ADMIN_PASSWORD', 'BASEROW_TOKEN', 'MATCH_PASSWORD']) {
   if (!declaredSecretNames.includes(name)) issues.push(name + ' required secret declaration missing');
 }
+const hasBaserowDatabaseId = /^\s*BASEROW_DATABASE_ID\s*=\s*"[^"]+"\s*$/m.test(config) || /^\s*BASEROW_DATABASE_ID\s*=\s*'[^']+'\s*$/m.test(config);
+if (!hasBaserowDatabaseId) issues.push('BASEROW_DATABASE_ID declaration missing');
 if (!hasShiftLockMigration) issues.push('Existing SHIFT_LOCK migration tag or SQLite class missing');
 if (/intentionally incomplete|not a deployable/i.test(config)) issues.push('Manifest explicitly marked incomplete');
 if (process.env.NSK_API_PRODUCTION_RELEASE_APPROVED !== 'yes') issues.push('Explicit production release approval missing');
