@@ -713,7 +713,10 @@ var worker_default = { async fetch(req, env) {
         return await env.NSK_TRAINERS.get("lagpersonal:team:" + teamId, "json") || [];
       }
     });
-    return handler(req);
+    const scopedResponse = await handler(req);
+    const scopedHeaders = new Headers(scopedResponse.headers);
+    for (const [name, value] of Object.entries(cors)) scopedHeaders.set(name, value);
+    return new Response(scopedResponse.body, {status: scopedResponse.status, headers: scopedHeaders});
   }
   if (req.method !== "GET") return reply({ ok: false, error: "Skrivning \xE4r avst\xE4ngd" }, 405);
   if (url.pathname === "/api/lagpersonal" && req.method === "GET") {
