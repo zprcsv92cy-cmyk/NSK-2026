@@ -30,7 +30,8 @@ test('opt-in scoped roster rollout gate denies legacy reads before Baserow fetch
   assert.match(source, /env\.NSK_REQUIRE_SCOPED_ROSTER_READS === "true"/);
   assert.match(source, /req\.method === "GET"/);
   assert.match(source, /spelare\|tranare\|lagpersonal/);
-  assert.match(source, /Personlig lagbegränsad läsning är inte inkopplad/);
+  assert.match(source, /createProductionRosterReadHandler\(env,/);
+  assert.match(source, /return handler\(req\)/);
   const gate = source.indexOf('if (env.NSK_REQUIRE_SCOPED_ROSTER_READS === "true"');
   const legacyRead = source.indexOf('if (url.pathname === "/api/lagpersonal" && req.method === "GET")');
   assert.ok(gate >= 0 && legacyRead > gate, 'deny gate must precede legacy roster read');
