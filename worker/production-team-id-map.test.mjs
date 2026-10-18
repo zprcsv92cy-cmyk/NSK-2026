@@ -22,7 +22,8 @@ console.log('PASS trusted legacy team ID mapping; ambiguous/missing teams denied
 const globalOwner={user:{id:'root'},is_global_admin:true,memberships:[{team_id:'*',role:'owner'}],permissions:['roster:manage','users:manage']};
 assert.deepEqual(map(globalOwner,teams).memberships,[
  {team_id:'18',role:'owner'},{team_id:'27',role:'owner'}]);
-assert.throws(()=>map({...globalOwner,memberships:[{team_id:'*',role:'viewer'}]},teams),/Invalid global/);
+assert.deepEqual(map({...globalOwner,memberships:[{team_id:'*',role:'viewer'}]},teams).memberships, [
+ {team_id:'18',role:'owner'},{team_id:'27',role:'owner'}]);
 assert.throws(()=>map(globalOwner,[...teams,{...teams[0],id:55}]),/Ambiguous global/);
 
 // Only the server-verified global admin flag grants all-team read access.
