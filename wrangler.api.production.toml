@@ -4,6 +4,10 @@ main = "worker/production-api-v42-reference.js"
 compatibility_date = "2026-10-10"
 workers_dev = true
 
+# Validate that existing secrets are present; do not store their values here.
+[secrets]
+required = ["ADMIN_PASSWORD", "BASEROW_TOKEN", "MATCH_PASSWORD"]
+
 # Production authentication database; existing nsk-auth D1 instance.
 [[d1_databases]]
 binding = "AUTH_DB"
