@@ -46,6 +46,8 @@ export async function guardProductionRosterRead(request, {
   }
   // Never let a user swap another team into a query parameter after ownership resolution.
   const suppliedTeams = url.searchParams.getAll('team_id');
+  const alternateTeams = url.searchParams.getAll('teamId');
+  if (alternateTeams.length > 0) return deny(403, 'Fel lag');
   if (suppliedTeams.length > 1 ||
       (suppliedTeams.length === 1 && suppliedTeams[0] !== ownerTeam)) {
     return deny(403, 'Fel lag');
