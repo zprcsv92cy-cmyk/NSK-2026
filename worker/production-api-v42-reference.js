@@ -343,9 +343,24 @@ var worker_default = { async fetch(req, env) {
     }
     return reply({ ok: false, error: "Not found" }, 404);
   }
-  if (/^\/api\/(spelare|tranare)$/.test(url.pathname) && req.method === "POST" || /^\/api\/(spelare|tranare)\/\d+$/.test(url.pathname) && req.method === "PATCH") {
+  if ((/^\/api\/(spelare|tranare)$/.test(url.pathname) && req.method === "POST") || (/^\/api\/(spelare|tranare)\/\d+$/.test(url.pathname) && ["PATCH", "DELETE"].includes(req.method))) {
 
     const saveRoster = async () => {
+    const table = url.pathname.split("/")[2];
+    const tableId = TABLES[table];
+    if (req.method === "DELETE") {
+      const rowId = url.pathname.split("/").pop();
+      try {
+        const r = await fetch(`https://api.baserow.io/api/database/rows/table/${tableId}/${rowId}/`, {
+          method: "DELETE",
+          headers: { Authorization: `Token ${env.BASEROW_TOKEN}` }
+        });
+        if (!r.ok) return reply({ ok: false, error: "Baserow kunde inte ta bort posten", status: r.status }, 502);
+        return reply({ ok: true, deleted: true });
+      } catch {
+        return reply({ ok: false, error: "Baserow kunde inte nås" }, 502);
+      }
+    }
     if (!(req.headers.get("Content-Type") || "").startsWith("application/json")) return reply({ ok: false, error: "JSON kr\xE4vs" }, 415);    if (Number(req.headers.get("Content-Length") || 0) > 2048) return reply({ ok: false, error: "F\xF6r stor beg\xE4ran" }, 413);
     let body;
     try {
@@ -355,8 +370,6 @@ var worker_default = { async fetch(req, env) {
     }
     const name = typeof body?.name === "string" ? body.name.trim() : "";
     if (!name || name.length > 120 || /[\x00-\x1f\x7f]/.test(name)) return reply({ ok: false, error: "Ange ett giltigt namn (max 120 tecken)" }, 400);
-    const table = url.pathname.split("/")[2];
-    const tableId = TABLES[table];
     let payload = { Namn: name };
     let team = null;
     if (req.method === "POST") {
