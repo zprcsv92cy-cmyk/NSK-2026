@@ -91,9 +91,15 @@ window.DB = (() => {
     const personalPoolWrite = window.APP_CONFIG?.REQUIRE_PERSONAL_POOL_WRITES === true &&
       /^\/api\/poolspel(?:\/\d+(?:\/aktiv)?)?$/.test(path) &&
       ['POST','PATCH'].includes(method);
-    const personalToken = personalPoolWrite ? window.Auth?.getToken?.() : null;
-    const token = personalPoolWrite ? personalToken : localStorage.getItem('nsk_admin_token');
-    if(!token)throw new Error(personalPoolWrite ? 'Personlig inloggning krävs för att ändra poolspel.' : 'Aktivera Adminläge först.');
+    const personalMatchWrite = window.APP_CONFIG?.REQUIRE_PERSONAL_MATCH_WRITES === true &&
+      (/^\/api\/matchkonfiguration(?:\/\d+)?$/.test(path) ||
+       /^\/api\/laguppstallningar\/\d+$/.test(path)) &&
+      ['POST','PATCH'].includes(method);
+    const personalWrite = personalPoolWrite || personalMatchWrite;
+    const personalToken = personalWrite ? window.Auth?.getToken?.() : null;
+    const token = personalWrite ? personalToken : localStorage.getItem('nsk_admin_token');
+    if(!token)throw new Error(personalPoolWrite ? 'Personlig inloggning krävs för att ändra poolspel.' :
+      personalMatchWrite ? 'Personlig inloggning krävs för match och laguppställning.' : 'Aktivera Adminläge först.');
     const response=await fetch(`${API}${path}`,{method,headers:{'Content-Type':'application/json',Authorization:'Bearer '+token},body:JSON.stringify(payload)});
     let data;try{data=await response.json()}catch{throw new Error('Ogiltigt svar från servern')}
     if(!response.ok||!data.ok)throw new Error(data.error||'Kunde inte spara');
