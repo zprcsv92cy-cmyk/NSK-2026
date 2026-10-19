@@ -1,5 +1,5 @@
-// Isolated, fail-closed guard for team-owned Baserow collection reads.
-// Not wired into the production Worker until frontend and ownership tests pass.
+// Fail-closed guard for team-owned Baserow collection reads.
+// Wired behind a rollout flag; shared-pool ownership still requires further work.
 import { createPersonalRosterIdentityVerifier } from './personal-roster-identity-adapter.js';
 import { mapTrustedMembershipsToLegacyTeams } from './production-team-id-map.js';
 
@@ -68,15 +68,18 @@ export async function readPersonallyAuthorizedTeamCollection(request, env, {
       const values = linkedIds(links);
       return values.length === 1 && allowed.has(values[0]);
     };
-    const configIds = new Set(configs.filter(c =>
-      belongsToOne(c.Poolspel, poolIds)).map(rowId));
+    const configPoolById = new Map(configs.filter(c =>
+      belongsToOne(c.Poolspel, poolIds)).map(c => [rowId(c), linkedIds(c.Poolspel)[0]]));
     const results = {
       poolspel: pools.filter(p => poolIds.has(rowId(p))),
       matchkonfiguration: configs.filter(c =>
         belongsToOne(c.Poolspel, poolIds)),
-      laguppstallningar: lineups.filter(l =>
-        belongsToOne(l.Matchkonfiguration, configIds) &&
-        belongsToOne(l.Poolspel, poolIds)),
+      laguppstallningar: lineups.filter(l => {
+        const configLinks = linkedIds(l.Matchkonfiguration);
+        const poolLinks = linkedIds(l.Poolspel);
+        return configLinks.length === 1 && poolLinks.length === 1 &&
+          configPoolById.get(configLinks[0]) === poolLinks[0];
+      }),
       bytesschema: shifts.filter(s =>
         belongsToOne(s.Poolspel, poolIds))
     }[match[1]];
