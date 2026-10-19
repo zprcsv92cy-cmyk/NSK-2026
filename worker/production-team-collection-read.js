@@ -57,7 +57,13 @@ export async function readPersonallyAuthorizedTeamCollection(request, env, {
     ]);
     if (![pools, configs, lineups, shifts].every(Array.isArray))
       throw Error('Incomplete table snapshot');
-    const poolIds = new Set(pools.filter(p => linkedIds(p.Lag).includes(teams[0])).map(rowId));
+    // A shared pool can contain match records for multiple teams. Until each
+    // match is mapped to its actual owner, exclude shared pools entirely.
+    // This sacrifices availability rather than exposing another team's data.
+    const poolIds = new Set(pools.filter(p => {
+      const owners = linkedIds(p.Lag);
+      return owners.length === 1 && owners[0] === teams[0];
+    }).map(rowId));
     const configIds = new Set(configs.filter(c =>
       linkedIds(c.Poolspel).some(id => poolIds.has(id))).map(rowId));
     const results = {
