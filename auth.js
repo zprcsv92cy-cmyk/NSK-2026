@@ -34,9 +34,25 @@
     sessionStorage.setItem(teamKey, team);
     return team;
   }
+  // UI permission names are normalized to the canonical keys stored for each user.
+  // This is only a display hint; write operations must still be authorized by the server.
+  const permissionKeys = Object.freeze({
+    read: 'read',
+    pool: 'pool:create',
+    lineup: 'lineup:edit',
+    shifts: 'shifts:check',
+    matches: 'match:manage',
+    pool_finish: 'pool:finish',
+    pool_reopen: 'pool:reopen',
+    roster: 'roster:manage',
+    users: 'users:manage'
+  });
   function can(permission, team = activeTeam()) {
-    return !!team && !!identity?.memberships?.some(m => m.team_id === team && (permission === 'read' || m.role === 'team_admin'))
-      && identity.permissions.includes(permission);
+    const required = permissionKeys[permission] || permission;
+    return !!team
+      && !!identity?.memberships?.some(m => m.team_id === team)
+      && Array.isArray(identity?.permissions)
+      && identity.permissions.includes(required);
   }
   // Confirm each team-specific edit against the server; browser role flags are only UI hints.
   async function checkTeamFeature(feature, team = activeTeam()) {
