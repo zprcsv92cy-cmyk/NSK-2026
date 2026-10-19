@@ -6,6 +6,7 @@ import { handlePersonalLagpersonalWrite } from './production-lagpersonal-write-h
 import { createPersonalRosterIdentityVerifier } from './personal-roster-identity-adapter.js';
 import { createPoolOwnerResolver } from './production-shift-pool-owner-resolver.js';
 import { authorizeTeamFeature } from './team-authorization-policy.js';
+import { authorizePersonalPoolWrite } from './production-pool-write-authorization.js';
 var __defProp = Object.defineProperty;
 var __name = (target, value) => __defProp(target, "name", { value, configurable: true });
 
@@ -215,6 +216,19 @@ var worker_default = { async fetch(req, env) {
   const url = new URL(req.url), origin = req.headers.get("Origin");
   const cors = { "Vary": "Origin", ...origin === ORIGIN ? { "Access-Control-Allow-Origin": ORIGIN, "Access-Control-Allow-Headers": "Content-Type,Authorization", "Access-Control-Allow-Methods": "GET,POST,PATCH,OPTIONS" } : {} };
   const reply = /* @__PURE__ */ __name((obj, status = 200) => json(obj, status, cors), "reply");
+  const personalPoolWritesEnabled = env.NSK_REQUIRE_PERSONAL_POOL_WRITES === "true";
+  const checkPersonalPoolWrite = async request => authorizePersonalPoolWrite(request, env, {
+    listTeams: () => listTrustedRosterTeams(env),
+    readPool: async poolId => {
+      if (!env.BASEROW_TOKEN) throw new Error("Baserow credentials missing");
+      const tableId = resolveBaserowTables(env).poolspel;
+      const response = await fetch(`https://api.baserow.io/api/database/rows/table/${tableId}/${poolId}/?user_field_names=true`, {
+        headers: { Authorization: `Token ${env.BASEROW_TOKEN}` }
+      });
+      if (!response.ok) return null;
+      return response.json();
+    }
+  });
   if (req.method === "OPTIONS") return new Response(null, { status: origin === ORIGIN ? 204 : 403, headers: cors });
   if (origin && origin !== ORIGIN) return reply({ ok: false, error: "Origin not allowed" }, 403);
   if (url.pathname === "/api/coach-selection" && (req.method === "GET" || req.method === "POST")) {
@@ -422,7 +436,10 @@ var worker_default = { async fetch(req, env) {
     return reply(result, result.status || 500);
   }
   if (/^\/api\/poolspel\/\d+\/aktiv$/.test(url.pathname) && req.method === "PATCH") {
-    if (!env.ADMIN_KV || !await session(req, env)) return reply({ok:false,error:"Adminläge krävs"},401);
+    if (personalPoolWritesEnabled) {
+      const access = await checkPersonalPoolWrite(req);
+      if (!access.allowed) return reply({ ok: false, error: access.error }, access.status);
+    } else if (!env.ADMIN_KV || !await session(req, env)) return reply({ok:false,error:"Adminläge krävs"},401);
     let data;
     try { data = await req.json(); } catch { return reply({ok:false,error:"Ogiltig JSON"},400); }
     if (!data || Object.keys(data).length !== 1 || typeof data.active !== "boolean") return reply({ok:false,error:"Ogiltigt Aktiv-värde"},400);
@@ -444,7 +461,10 @@ var worker_default = { async fetch(req, env) {
     } catch { return reply({ok:false,error:"Databasfel"},502); }
   }
   if (url.pathname === "/api/poolspel" && req.method === "POST" || /^\/api\/poolspel\/\d+$/.test(url.pathname) && req.method === "PATCH") {
-    if (!env.ADMIN_KV || !await session(req, env)) return reply({ ok: false, error: "Adminl\xE4ge kr\xE4vs" }, 401);
+    if (personalPoolWritesEnabled) {
+      const access = await checkPersonalPoolWrite(req);
+      if (!access.allowed) return reply({ ok: false, error: access.error }, access.status);
+    } else if (!env.ADMIN_KV || !await session(req, env)) return reply({ ok: false, error: "Adminl\xE4ge kr\xE4vs" }, 401);
     if (!(req.headers.get("Content-Type") || "").startsWith("application/json")) return reply({ ok: false, error: "JSON kr\xE4vs" }, 415);
     if (Number(req.headers.get("Content-Length") || 0) > 4096) return reply({ ok: false, error: "F\xF6r stor beg\xE4ran" }, 413);
     let body;

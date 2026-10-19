@@ -6,5 +6,7 @@ window.APP_CONFIG = {
   REQUIRE_SCOPED_ROSTER_READS: true,
   REQUIRE_SCOPED_TEAM_READS: true,
   REQUIRE_SCOPED_COLLECTION_READS: true,
+  // Enable only after the production API's personal pool-write guard is deployed and verified.
+  REQUIRE_PERSONAL_POOL_WRITES: false,
   APP_VERSION: "baserow-readonly-1"
 };

@@ -88,8 +88,12 @@ window.DB = (() => {
   }
   async function listPlayerCoachMap(){const [map,players,coaches]=await Promise.all([rows('spelaretranare',await teamId()),listPlayers(),listCoaches()]);return map.map(r=>({id:r.id,player_name:players.find(p=>p.id===first(r.Spelare))?.full_name||'',coach_name:coaches.find(c=>c.id===first(r.Tränare))?.full_name||''})).filter(r=>r.player_name)}
   async function adminRequest(path,method,payload){
-    const token=localStorage.getItem('nsk_admin_token');
-    if(!token)throw new Error('Aktivera Adminläge först.');
+    const personalPoolWrite = window.APP_CONFIG?.REQUIRE_PERSONAL_POOL_WRITES === true &&
+      /^\/api\/poolspel(?:\/\d+(?:\/aktiv)?)?$/.test(path) &&
+      ['POST','PATCH'].includes(method);
+    const personalToken = personalPoolWrite ? window.Auth?.getToken?.() : null;
+    const token = personalPoolWrite ? personalToken : localStorage.getItem('nsk_admin_token');
+    if(!token)throw new Error(personalPoolWrite ? 'Personlig inloggning krävs för att ändra poolspel.' : 'Aktivera Adminläge först.');
     const response=await fetch(`${API}${path}`,{method,headers:{'Content-Type':'application/json',Authorization:'Bearer '+token},body:JSON.stringify(payload)});
     let data;try{data=await response.json()}catch{throw new Error('Ogiltigt svar från servern')}
     if(!response.ok||!data.ok)throw new Error(data.error||'Kunde inte spara');
