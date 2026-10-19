@@ -1,5 +1,6 @@
 import { authorizePersonalWorkerWrite } from './personal-roster-worker-adapter.js';
 import { createProductionRosterReadHandler } from './production-roster-read-integration.js';
+import { readPersonallyAuthorizedTeamCollection } from './production-team-collection-read.js';
 import { handlePersonalLagpersonalWrite } from './production-lagpersonal-write-handler.js';
 import { createPersonalRosterIdentityVerifier } from './personal-roster-identity-adapter.js';
 import { createPoolOwnerResolver } from './production-shift-pool-owner-resolver.js';
@@ -803,6 +804,49 @@ var worker_default = { async fetch(req, env) {
     const scopedHeaders = new Headers(scopedResponse.headers);
     for (const [name, value] of Object.entries(cors)) scopedHeaders.set(name, value);
     return new Response(scopedResponse.body, {status: scopedResponse.status, headers: scopedHeaders});
+  }
+  // Opt-in collection authorization. An Authorization header always routes to
+  // the guarded path, preventing credential-bearing requests from falling back
+  // to the unscoped legacy collection API.
+  if (req.method === "GET" &&
+      /^\\/api\\/(?:poolspel|matchkonfiguration|laguppstallningar|bytesschema)$/.test(url.pathname) &&
+      (env.NSK_REQUIRE_SCOPED_COLLECTION_READS === "true" || req.headers.has("Authorization"))) {
+    const tableIds = resolveBaserowTables(env);
+    const readRows = async table => {
+      if (!Object.hasOwn(tableIds, table) || !env.BASEROW_TOKEN)
+        throw Error("Baserow collection unavailable");
+      const id = tableIds[table];
+      const rows = [];
+      for (let page = 1; page <= 100; page++) {
+        const endpoint = "https://api.baserow.io/api/database/rows/table/" + id + "/";
+        const result = await fetch(endpoint + "?user_field_names=true&size=200&page=" + page, {
+          headers: { Authorization: "Token " + env.BASEROW_TOKEN }
+        });
+        if (!result.ok) throw Error("Collection unavailable");
+        const body = await result.json();
+        if (!Array.isArray(body.results) || body.results.length > 200)
+          throw Error("Invalid collection page");
+        if (body.next != null) {
+          if (typeof body.next !== "string") throw Error("Invalid collection cursor");
+          const next = new URL(body.next);
+          if (next.origin !== "https://api.baserow.io" || next.pathname !==
+              "/api/database/rows/table/" + id + "/" ||
+              next.searchParams.getAll("page").length !== 1 ||
+              next.searchParams.get("page") !== String(page + 1))
+            throw Error("Invalid collection cursor");
+        }
+        rows.push(...body.results);
+        if (!body.next) return rows;
+      }
+      throw Error("Collection pagination exceeded");
+    };
+    const scoped = await readPersonallyAuthorizedTeamCollection(req, env, {
+      readRows,
+      listTrustedTeams: () => readRows("lag")
+    });
+    const headers = new Headers(scoped.headers);
+    for (const [name, value] of Object.entries(cors)) headers.set(name, value);
+    return new Response(scoped.body, { status: scoped.status, headers });
   }
   if (req.method !== "GET") return reply({ ok: false, error: "Skrivning \xE4r avst\xE4ngd" }, 405);
   if (url.pathname === "/api/lagpersonal" && req.method === "GET") {
