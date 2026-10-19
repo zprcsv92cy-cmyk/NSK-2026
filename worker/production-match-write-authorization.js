@@ -53,6 +53,12 @@ export async function authorizePersonalMatchWrite(request, env, {
       if (poolIds.length !== 1 || !Number.isSafeInteger(poolIds[0]) || poolIds[0] <= 0)
         return deny(503, 'Poolspel för matchen kunde inte verifieras');
       poolId = poolIds[0];
+      if (matchUpdate) {
+        let body;
+        try { body = await request.clone().json(); } catch { return deny(400, 'Ogiltig JSON'); }
+        if (!Number.isSafeInteger(body?.pool_id) || body.pool_id !== poolId)
+          return deny(403, 'Poolspel stämmer inte med matchkonfigurationen');
+      }
     }
     const pool = await readPool(poolId);
     if (!pool || Number(pool.id) !== poolId) return deny(404, 'Poolspel saknas');
