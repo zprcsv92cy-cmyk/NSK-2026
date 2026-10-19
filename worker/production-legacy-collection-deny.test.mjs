@@ -55,3 +55,18 @@ for (const headers of [{}, {Authorization:'Bearer malformed'}]) {
     } finally {globalThis.fetch=original;}
   });
 }
+
+for (const table of ['lag','matcher','malvaktsstatistik','spelaretranare','poolspel']) {
+  test('mandatory rollout never exposes unauthenticated '+table,async()=>{
+    const original=globalThis.fetch;
+    let calls=0;
+    globalThis.fetch=async()=>{calls++;throw Error('unexpected network request');};
+    try {
+      const response=await worker.fetch(new Request('https://nsk-api.example/api/'+table),
+        {NSK_REQUIRE_SCOPED_TEAM_READS:'true',NSK_REQUIRE_SCOPED_COLLECTION_READS:'true',
+         NSK_REQUIRE_SCOPED_ROSTER_READS:'true'},{});
+      assert.ok([400,401,403].includes(response.status),table+' returned '+response.status);
+      assert.equal(calls,0);
+    } finally {globalThis.fetch=original;}
+  });
+}
