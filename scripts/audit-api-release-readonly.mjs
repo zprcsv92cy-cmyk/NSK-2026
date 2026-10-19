@@ -14,9 +14,26 @@ console.log('=== NSK non-destructive release audit ===');
 run('Worker syntax', ['--check', 'worker/production-api-v42-reference.js']);
 run('Frontend syntax', ['--check', 'db.js']);
 run('All Worker tests', ['--test', ...readdirSync('worker').filter(name => name.endsWith('.test.mjs')).map(name => 'worker/' + name)]);
-const tables = ['lag','spelare','tranare','poolspel','matcher','laguppstallningar','bytesschema','malvaktsstatistik','spelaretranare','matchkonfiguration'];
-if (source.includes('Object.hasOwn(TABLES, m[1])') && source.includes('if (req.method !== "GET")'))
-  blockers.push('Legacy generic GET fallback remains for tables: ' + tables.join(', ') + '; verify each table is protected before mandatory rollout');
+// Report effective rollout coverage, not merely the presence of the legacy router.
+const hasRosterGuard = source.includes('NSK_REQUIRE_SCOPED_ROSTER_READS === "true"') &&
+  source.includes('createProductionRosterReadHandler(env');
+const hasCollectionGuard = source.includes('NSK_REQUIRE_SCOPED_COLLECTION_READS === "true"') &&
+  source.includes('readPersonallyAuthorizedTeamCollection(req, env');
+const hasLegacyDenial = source.includes('["matcher", "malvaktsstatistik", "spelaretranare"].includes(m[1])') &&
+  source.includes('Behörighetskontrollerad läsning krävs');
+const legacyFallback = source.includes('Object.hasOwn(TABLES, m[1])');
+if (!hasRosterGuard) blockers.push('Roster GET authorization guard is missing');
+if (!hasCollectionGuard) blockers.push('Four scoped collection GET authorization guards are missing');
+if (!hasLegacyDenial) blockers.push('Remaining three sensitive collections are not denied under mandatory rollout');
+if (legacyFallback) {
+  console.log('Legacy GET router: present; verify effective routing per table and rollout flag');
+  console.log('  Roster: ' + (hasRosterGuard ? 'guarded when roster flag is true' : 'NOT GUARDED'));
+  console.log('  Pool/config/lineups/shifts: ' + (hasCollectionGuard ? 'guarded when collection flag is true' : 'NOT GUARDED'));
+  console.log('  Matches/goalkeeper/player-coach: ' + (hasLegacyDenial ? 'denied when collection flag is true' : 'UNPROTECTED'));
+  blockers.push('Generic GET fallback remains for /api/lag; team-list disclosure and authorization policy need explicit review');
+  if (!/NSK_REQUIRE_SCOPED_COLLECTION_READS\\s*=\\s*"true"/.test(config))
+    blockers.push('With collection flag disabled, legacy unauthenticated GET can still expose pool, match configuration, lineup, shift and other table data');
+}
 if (!/NSK_REQUIRE_SCOPED_COLLECTION_READS\s*=\s*"true"/.test(config))
   blockers.push('Production manifest does not force scoped collection reads');
 if (!/REQUIRE_SCOPED_COLLECTION_READS/.test(frontend))
