@@ -35,7 +35,13 @@ jobs:
           const manifest = JSON.parse(fs.readFileSync('manifest.webmanifest','utf8'));
           assert.equal(String(manifest.version), version);
           assert.ok(manifest.start_url.includes('v=' + version));
-          console.log('Versionsfiler matchar:', version);
+          const sw = fs.readFileSync('sw.js','utf8');
+          const cacheVersion = sw.match(/nsk-team18-v(\\d+)/)?.[1];
+          assert.equal(cacheVersion, version, 'service worker cacheversion skiljer sig från appversionen');
+          const assetVersions = [...sw.matchAll(/[?&]v=(\\d+)/g)].map(match => match[1]);
+          assert.ok(assetVersions.length > 0, 'service worker saknar versionsmärkta resurser');
+          assert.ok(assetVersions.every(value => value === version), 'service worker innehåller olika versionsnummer');
+          console.log('Versionsfiler och service worker matchar:', version);
           NODE
       - name: Testa versionshöjning utan publicering
         run: |
