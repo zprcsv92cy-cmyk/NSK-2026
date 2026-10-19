@@ -20,7 +20,7 @@ async function exercise(enabled, authenticated) {
   vm.runInNewContext(source, sandbox);
   if (enabled && !authenticated) {
     await assert.rejects(() => sandbox.window.DB.listPlayers(), /Personlig inloggning/);
-    assert.equal(requests.length, 1);
+    assert.equal(requests.length, 0);
   } else {
     await sandbox.window.DB.listPlayers();
     const roster = requests.find(r => r.url.includes('/api/spelare?'));
