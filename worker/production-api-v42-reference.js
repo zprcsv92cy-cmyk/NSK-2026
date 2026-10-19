@@ -862,7 +862,7 @@ var worker_default = { async fetch(req, env) {
   // Mandatory scoped-collection rollout must never silently expose other
   // sensitive tables through the generic legacy Baserow collection reader.
   // Dedicated authorized readers are required before enabling these features.
-  if (env.NSK_REQUIRE_SCOPED_COLLECTION_READS === "true" &&
+  if ((env.NSK_REQUIRE_SCOPED_COLLECTION_READS === "true" || req.headers.has("Authorization")) &&
       ["matcher", "malvaktsstatistik", "spelaretranare"].includes(m[1])) {
     return reply({ ok: false, error: "Behörighetskontrollerad läsning krävs" }, 403);
   }
