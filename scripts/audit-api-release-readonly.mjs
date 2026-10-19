@@ -31,7 +31,7 @@ if (legacyFallback) {
   console.log('  Pool/config/lineups/shifts: ' + (hasCollectionGuard ? 'guarded when collection flag is true' : 'NOT GUARDED'));
   console.log('  Matches/goalkeeper/player-coach: ' + (hasLegacyDenial ? 'denied when collection flag is true' : 'UNPROTECTED'));
   blockers.push('Generic GET fallback remains for /api/lag; team-list disclosure and authorization policy need explicit review');
-  if (!/NSK_REQUIRE_SCOPED_COLLECTION_READS\\s*=\\s*"true"/.test(config))
+  if (!/NSK_REQUIRE_SCOPED_COLLECTION_READS\s*=\s*"true"/.test(config))
     blockers.push('With collection flag disabled, legacy unauthenticated GET can still expose pool, match configuration, lineup, shift and other table data');
 }
 if (!/NSK_REQUIRE_SCOPED_COLLECTION_READS\s*=\s*"true"/.test(config))
