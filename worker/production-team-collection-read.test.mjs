@@ -186,3 +186,39 @@ test('shared pool exposes only matching Lagnummer records for each team', async 
     }
   }
 });
+
+
+const associationRows = {
+  ...data,
+  spelare:[{id:601,Lag:[{id:11}]},{id:602,Lag:[{id:22}]}],
+  tranare:[{id:701,Lag:[{id:11}]},{id:702,Lag:[{id:22}]}],
+  spelaretranare:[
+    {id:801,Spelare:[{id:601}],Tränare:[{id:701}]},
+    {id:802,Spelare:[{id:602}],Tränare:[{id:702}]},
+    {id:803,Spelare:[{id:601}],Tränare:[{id:702}]}
+  ]
+};
+const assocDeps = rows => ({...deps(),readRows:async name=>(rows || associationRows)[name]});
+test('associations return only same-team player and coach links',async()=>{
+  const res=await readPersonallyAuthorizedTeamCollection(req('spelaretranare'),{},assocDeps());
+  assert.equal(res.status,200);
+  assert.deepEqual((await res.json()).results.map(x=>x.id),[801]);
+});
+test('associations deny cross-team membership',async()=>{
+  const res=await readPersonallyAuthorizedTeamCollection(req('spelaretranare','22'),{},assocDeps());
+  assert.equal(res.status,403);
+});
+test('associations reject missing session',async()=>{
+  const res=await readPersonallyAuthorizedTeamCollection(req('spelaretranare','11',null),{},assocDeps());
+  assert.equal(res.status,401);
+});
+test('associations reject malformed links',async()=>{
+  const rows={...associationRows,spelaretranare:[{id:804,Spelare:'bad',Tränare:[{id:701}]}]};
+  const res=await readPersonallyAuthorizedTeamCollection(req('spelaretranare'),{},assocDeps(rows));
+  assert.equal(res.status,503);
+});
+test('associations reject invalid roster ownership',async()=>{
+  const rows={...associationRows,spelare:[{id:601,Lag:'11'}]};
+  const res=await readPersonallyAuthorizedTeamCollection(req('spelaretranare'),{},assocDeps(rows));
+  assert.equal(res.status,503);
+});
