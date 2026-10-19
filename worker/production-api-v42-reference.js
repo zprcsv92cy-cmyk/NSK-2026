@@ -898,24 +898,9 @@ var worker_default = { async fetch(req, env) {
       headers
     });
   }
-  const m = /^\/api\/([a-z]+)$/.exec(url.pathname);
-  if (!m || !Object.hasOwn(TABLES, m[1])) return reply({ ok: false, error: "Not found" }, 404);
-  // Mandatory scoped-collection rollout must never silently expose other
-  // sensitive tables through the generic legacy Baserow collection reader.
-  // Dedicated authorized readers are required before enabling these features.
-  if ((env.NSK_REQUIRE_SCOPED_COLLECTION_READS === "true" || req.headers.has("Authorization")) &&
-      ["matcher", "malvaktsstatistik"].includes(m[1])) {
-    return reply({ ok: false, error: "Behörighetskontrollerad läsning krävs" }, 403);
-  }
-  const page = Math.max(1, Math.min(1e5, parseInt(url.searchParams.get("page") || "1", 10) || 1));
-  const size = Math.max(1, Math.min(200, parseInt(url.searchParams.get("size") || "100", 10) || 100));
-  try {
-    const r = await fetch(`https://api.baserow.io/api/database/rows/table/${TABLES[m[1]]}/?user_field_names=true&page=${page}&size=${size}`, { headers: { Authorization: `Token ${env.BASEROW_TOKEN}` } });
-    if (!r.ok) return reply({ ok: false, error: "Database request failed", status: r.status }, 502);
-    return reply({ ok: true, table: m[1], ...await r.json() });
-  } catch {
-    return reply({ ok: false, error: "Database unavailable" }, 502);
-  }
+  // Never expose arbitrary Baserow tables via the legacy generic GET route.
+  // All supported collections must pass an explicit authorization boundary.
+  return reply({ ok: false, error: "Behörighetskontrollerad läsning krävs" }, 403);
 } };
 export {
   ShiftLock,
