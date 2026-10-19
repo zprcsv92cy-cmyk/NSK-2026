@@ -89,7 +89,7 @@ window.DB = (() => {
   async function listPlayerCoachMap(){const [map,players,coaches]=await Promise.all([rows('spelaretranare',await teamId()),listPlayers(),listCoaches()]);return map.map(r=>({id:r.id,player_name:players.find(p=>p.id===first(r.Spelare))?.full_name||'',coach_name:coaches.find(c=>c.id===first(r.Tränare))?.full_name||''})).filter(r=>r.player_name)}
   async function adminRequest(path,method,payload){
     const personalPoolWrite = window.APP_CONFIG?.REQUIRE_PERSONAL_POOL_WRITES === true &&
-      /^\\/api\\/poolspel(?:\\/\\d+(?:\\/aktiv)?)?$/.test(path) &&
+      /^\/api\/poolspel(?:\/\d+(?:\/aktiv)?)?$/.test(path) &&
       ['POST','PATCH'].includes(method);
     const personalToken = personalPoolWrite ? window.Auth?.getToken?.() : null;
     const token = personalPoolWrite ? personalToken : localStorage.getItem('nsk_admin_token');
