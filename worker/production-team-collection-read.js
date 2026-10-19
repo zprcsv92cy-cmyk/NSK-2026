@@ -3,7 +3,7 @@
 import { createPersonalRosterIdentityVerifier } from './personal-roster-identity-adapter.js';
 import { mapTrustedMembershipsToLegacyTeams } from './production-team-id-map.js';
 
-const ALLOWED = new Set(['poolspel', 'matchkonfiguration', 'laguppstallningar', 'bytesschema', 'spelaretranare']);
+const ALLOWED = new Set(['poolspel', 'matchkonfiguration', 'laguppstallningar', 'bytesschema']);
 const deny = (status, error) => Response.json({ ok: false, error }, {
   status, headers: { 'cache-control': 'no-store', 'x-content-type-options': 'nosniff' }
 });
