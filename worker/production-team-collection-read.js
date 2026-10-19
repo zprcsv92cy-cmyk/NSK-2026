@@ -1,5 +1,5 @@
 // Fail-closed guard for team-owned Baserow collection reads.
-// Wired behind a rollout flag; shared-pool ownership still requires further work.
+// Wired behind a rollout flag; shared-pool records require a verified Lagnummer owner.
 import { createPersonalRosterIdentityVerifier } from './personal-roster-identity-adapter.js';
 import { mapTrustedMembershipsToLegacyTeams } from './production-team-id-map.js';
 
@@ -57,31 +57,48 @@ export async function readPersonallyAuthorizedTeamCollection(request, env, {
     ]);
     if (![pools, configs, lineups, shifts].every(Array.isArray))
       throw Error('Incomplete table snapshot');
-    // A shared pool can contain match records for multiple teams. Until each
-    // match is mapped to its actual owner, exclude shared pools entirely.
-    // This sacrifices availability rather than exposing another team's data.
-    const poolIds = new Set(pools.filter(p => {
-      const owners = linkedIds(p.Lag);
-      return owners.length === 1 && owners[0] === teams[0];
-    }).map(rowId));
-    const belongsToOne = (links, allowed) => {
-      const values = linkedIds(links);
-      return values.length === 1 && allowed.has(values[0]);
+    // Pool membership permits reading shared pool metadata, but individual
+    // match records must belong to the requested team via Lagnummer.
+    const poolById = new Map(pools.map(p => [rowId(p), p]));
+    const permittedPools = new Set(pools.filter(p =>
+      linkedIds(p.Lag).includes(teams[0])).map(rowId));
+    const oneLink = value => {
+      const links = linkedIds(value);
+      return links.length === 1 ? links[0] : null;
     };
-    const configPoolById = new Map(configs.filter(c =>
-      belongsToOne(c.Poolspel, poolIds)).map(c => [rowId(c), linkedIds(c.Poolspel)[0]]));
+    const ownsMatch = (poolId, lagNo) => {
+      const pool = poolById.get(poolId);
+      if (!pool || !permittedPools.has(poolId)) return false;
+      const owners = linkedIds(pool.Lag);
+      const count = Number(pool['Antal lag']);
+      const index = Number(lagNo);
+      if (!Number.isSafeInteger(index) || index < 1 ||
+          !Number.isSafeInteger(count) || count < 1 || index > count)
+        return false;
+      // The existing shift owner resolver maps single-link pools to that
+      // team for all valid Lagnummer values. Shared pools use link order.
+      if (owners.length === 1) return owners[0] === teams[0];
+      return owners.length === count && owners[index - 1] === teams[0];
+    };
+    const configPoolById = new Map(configs.flatMap(c => {
+      const poolId = oneLink(c.Poolspel);
+      return poolId && ownsMatch(poolId, c.Lagnummer)
+        ? [[rowId(c), poolId]] : [];
+    }));
     const results = {
-      poolspel: pools.filter(p => poolIds.has(rowId(p))),
+      poolspel: pools.filter(p => permittedPools.has(rowId(p))),
       matchkonfiguration: configs.filter(c =>
-        belongsToOne(c.Poolspel, poolIds)),
+        configPoolById.has(rowId(c))),
       laguppstallningar: lineups.filter(l => {
-        const configLinks = linkedIds(l.Matchkonfiguration);
-        const poolLinks = linkedIds(l.Poolspel);
-        return configLinks.length === 1 && poolLinks.length === 1 &&
-          configPoolById.get(configLinks[0]) === poolLinks[0];
+        const configId = oneLink(l.Matchkonfiguration);
+        const poolId = oneLink(l.Poolspel);
+        return configId !== null && poolId !== null &&
+          configPoolById.get(configId) === poolId;
       }),
-      bytesschema: shifts.filter(s =>
-        belongsToOne(s.Poolspel, poolIds))
+      bytesschema: shifts.filter(s => {
+        const poolId = oneLink(s.Poolspel);
+        return poolId !== null && ownsMatch(poolId, s.Lagnummer);
+      })
     }[match[1]];
     return Response.json({
       ok: true, table: match[1], results, count: results.length, next: null, previous: null
