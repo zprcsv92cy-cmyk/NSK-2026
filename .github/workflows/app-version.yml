@@ -22,6 +22,7 @@ jobs:
       - name: Kontrollera JavaScript
         run: |
           node --check app.js
+          node --test worker/browser-auth-permissions.test.mjs
           node --check sw.js
           node --check scripts/bump-version.cjs
       - name: Verifiera konsekvent publicerad version
