@@ -21,8 +21,9 @@ export function authorizeTeamFeature(actor, teamId, feature) {
     ? actor.memberships.find(m => m && m.team_id === teamId) : null;
   if (!membership) return { allowed: false, status: 403, reason: 'Ingen åtkomst till laget' };
   const permission = FEATURE_PERMISSIONS[feature];
-  const allowed = ((membership.role === 'team_admin' || membership.role === 'owner') || (actor.is_global_admin === true && membership.role !== 'viewer') || (membership.role === 'coach' && feature === 'lineup')) &&
-    Array.isArray(actor.permissions) && actor.permissions.includes(permission);
+  // Membership scopes the team; the explicit per-user grant controls the feature.
+  // Roles and the global-admin flag must never silently add or remove feature grants.
+  const allowed = Array.isArray(actor.permissions) && actor.permissions.includes(permission);
   return { allowed, status: allowed ? 200 : 403,
     reason: allowed ? 'Tillåtet' : 'Saknar behörighet', permission };
 }
