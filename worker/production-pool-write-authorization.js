@@ -22,8 +22,8 @@ export async function authorizePersonalPoolWrite(request, env, {
   if (url.pathname === '/api/poolspel' && request.method === 'POST') {
     feature = 'pool';
   } else {
-    const active = /^\\/api\\/poolspel\\/(\\d+)\\/aktiv$/.exec(url.pathname);
-    const pool = /^\\/api\\/poolspel\\/(\\d+)$/.exec(url.pathname);
+    const active = /^\/api\/poolspel\/(\d+)\/aktiv$/.exec(url.pathname);
+    const pool = /^\/api\/poolspel\/(\d+)$/.exec(url.pathname);
     if (request.method !== 'PATCH' || (!active && !pool)) return deny(404, 'Okänd skrivväg');
     poolId = Number((active || pool)[1]);
     if (!Number.isSafeInteger(poolId) || poolId <= 0) return deny(400, 'Ogiltigt poolspel');
@@ -54,7 +54,7 @@ export async function authorizePersonalPoolWrite(request, env, {
     if (!Array.isArray(teams)) throw new Error('Invalid trusted team list');
     if (poolId === null) {
       const matches = teams.filter(team => team?.Namn === 'NSK Team 18' &&
-        String(team['Säsong']) === '2026' && /^[1-9]\\d*$/.test(String(team.id)));
+        String(team['Säsong']) === '2026' && /^[1-9]\d*$/.test(String(team.id)));
       if (matches.length !== 1) throw new Error('Trusted target team missing or ambiguous');
       target = matches[0];
     } else {
