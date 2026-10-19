@@ -1,3 +1,4 @@
+import { readPersonallyAuthorizedTeams } from './production-team-read.js';
 import { authorizePersonalWorkerWrite } from './personal-roster-worker-adapter.js';
 import { createProductionRosterReadHandler } from './production-roster-read-integration.js';
 import { readPersonallyAuthorizedTeamCollection } from './production-team-collection-read.js';
@@ -856,6 +857,46 @@ var worker_default = { async fetch(req, env) {
     const key = "lagpersonal:team:" + teamId;
     if (req.method === "GET") return reply({ok:true,results:await env.NSK_TRAINERS.get(key,"json") || []});
 
+  }
+  // Personally authorized team discovery.
+  if (req.method === "GET" && url.pathname === "/api/lag" &&
+      (env.NSK_REQUIRE_SCOPED_TEAM_READS === "true" ||
+       req.headers.has("Authorization"))) {
+    const readRows = async () => {
+      const results = [];
+      const tableId = resolveBaserowTables(env).lag;
+      for (let page = 1; page <= 100; page++) {
+        const endpoint = `https://api.baserow.io/api/database/rows/table/${tableId}/`;
+        const r = await fetch(
+          `${endpoint}?user_field_names=true&page=${page}&size=200`,
+          { headers: { Authorization: `Token ${env.BASEROW_TOKEN}` } }
+        );
+        if (!r.ok) throw Error("Trusted team source unavailable");
+        const body = await r.json();
+        if (!Array.isArray(body.results) || body.results.length > 200)
+          throw Error("Invalid team page");
+        results.push(...body.results);
+        if (!body.next) return results;
+        if (page === 100) throw Error("Team pagination exceeded");
+        const next = new URL(body.next);
+        if (next.origin !== "https://api.baserow.io" ||
+            next.pathname !== endpoint.replace("https://api.baserow.io", "") ||
+            next.searchParams.getAll("page").length !== 1 ||
+            next.searchParams.get("page") !== String(page + 1))
+          throw Error("Invalid team cursor");
+      }
+      throw Error("Team pagination exceeded");
+    };
+    const scoped = await readPersonallyAuthorizedTeams(req, env, {
+      listTrustedTeams: readRows
+    });
+    const headers = new Headers(scoped.headers);
+    for (const [name, value] of Object.entries(cors))
+      headers.set(name, value);
+    return new Response(scoped.body, {
+      status: scoped.status,
+      headers
+    });
   }
   const m = /^\/api\/([a-z]+)$/.exec(url.pathname);
   if (!m || !Object.hasOwn(TABLES, m[1])) return reply({ ok: false, error: "Not found" }, 404);

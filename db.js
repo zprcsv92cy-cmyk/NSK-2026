@@ -28,9 +28,20 @@ window.DB = (() => {
     return { suffix: '&team_id=' + encodeURIComponent(team),
       headers: { Authorization: 'Bearer ' + token } };
   }
-  async function rows(table, team = null) {
+  async function rows(table, team = null, personalTeamRead = false) {
     let all=[],page=1;
-    const scoped = ['spelare','tranare'].includes(table) ? rosterReadOptions(team) : collectionReadOptions(table, team);
+    const scoped = personalTeamRead && (
+      scopedRosterEnabled() || scopedCollectionsEnabled() ||
+      window.APP_CONFIG?.REQUIRE_SCOPED_TEAM_READS === true
+    )
+      ? (() => {
+          const token = window.Auth?.getToken?.();
+          if (!token) throw new Error('Personlig inloggning krävs för laghämtning');
+          return { suffix: '', headers: { Authorization: 'Bearer ' + token } };
+        })()
+      : ['spelare','tranare'].includes(table)
+        ? rosterReadOptions(team)
+        : collectionReadOptions(table, team);
     while (true) {
       const response=await fetch(`${API}/api/${table}?page=${page}&size=200${scoped.suffix}`,{cache:'no-store',headers:scoped.headers});
       if (!response.ok) throw new Error(`API-fel för ${table}: ${response.status}`);
@@ -41,7 +52,7 @@ window.DB = (() => {
       if (++page > 100) throw new Error('För många sidor i API-svaret');
     }
   }
-  const teamId=async()=>{const selected=scopedRosterEnabled()?window.Auth?.activeTeam?.():'NSK Team 18';if(!selected)throw new Error('Välj ett lag i din personliga inloggning');const matches=(await rows('lag')).filter(r=>r.Namn===selected && String(r['Säsong'])==='2026');if(matches.length!==1)throw new Error('Lagkopplingen kunde inte verifieras');return matches[0].id};
+  const teamId=async()=>{const selected=scopedRosterEnabled()?window.Auth?.activeTeam?.():'NSK Team 18';if(!selected)throw new Error('Välj ett lag i din personliga inloggning');const matches=(await rows('lag', null, true)).filter(r=>r.Namn===selected && String(r['Säsong'])==='2026');if(matches.length!==1)throw new Error('Lagkopplingen kunde inte verifieras');return matches[0].id};
   async function listPlayers(){const t=await teamId();return (await rows('spelare',t)).filter(r=>linked(r.Lag).includes(t)).map(r=>({id:r.id,full_name:r.Namn,team_id:t})).sort((a,b)=>a.full_name.localeCompare(b.full_name,'sv'))}
   async function listCoaches(){const t=await teamId();return (await rows('tranare',t)).filter(r=>linked(r.Lag).includes(t)).map(r=>({id:r.id,full_name:r.Namn,team_id:t})).sort((a,b)=>a.full_name.localeCompare(b.full_name,'sv'))}
   async function listStaff(role){const t=await teamId();const scoped=rosterReadOptions(t);const response=await fetch(`${API}/api/lagpersonal?team_id=${t}`,{cache:'no-store',headers:scoped.headers});const data=await response.json();if(!response.ok||!data.ok)throw new Error(data.error||'Kunde inte hämta lagpersonal');return (data.results||[]).filter(r=>r.role===role).map(r=>({id:r.id,full_name:r.name,team_id:t})).sort((a,b)=>a.full_name.localeCompare(b.full_name,'sv'))}
