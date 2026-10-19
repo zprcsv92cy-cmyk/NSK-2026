@@ -31,6 +31,10 @@ if (legacyFallback) {
   console.log('  Pool/config/lineups/shifts: ' + (hasCollectionGuard ? 'guarded when collection flag is true' : 'NOT GUARDED'));
   console.log('  Matches/goalkeeper/player-coach: ' + (hasLegacyDenial ? 'denied when collection flag is true' : 'UNPROTECTED'));
   blockers.push('Generic GET fallback remains for /api/lag; team-list disclosure and authorization policy need explicit review');
+  // A mandatory /api/lag lock cannot be enabled safely until teamId() can
+  // resolve the selected team through a personally authorized endpoint.
+  if (frontend.includes("rows('lag')") && frontend.includes('const teamId='))
+    blockers.push('Frontend teamId() still depends on legacy /api/lag; provide an authenticated team resolver before locking this route');
   if (!/NSK_REQUIRE_SCOPED_COLLECTION_READS\s*=\s*"true"/.test(config))
     blockers.push('With collection flag disabled, legacy unauthenticated GET can still expose pool, match configuration, lineup, shift and other table data');
 }
