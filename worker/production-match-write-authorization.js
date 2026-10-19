@@ -19,7 +19,8 @@ export async function authorizePersonalMatchWrite(request, env, {
   let feature, poolId;
   const matchCreate = url.pathname === '/api/matchkonfiguration' && request.method === 'POST';
   const matchUpdate = /^\/api\/matchkonfiguration\/(\d+)$/.exec(url.pathname);
-  const lineupCreate = /^\/api\/laguppstallningar\/(\d+)$/.exec(url.pathname) && request.method === 'POST';
+  const lineupMatch = /^\/api\/laguppstallningar\/(\d+)$/.exec(url.pathname);
+  const lineupCreate = !!lineupMatch && request.method === 'POST';
   if (matchCreate) {
     feature = 'matches';
     let body;
@@ -43,7 +44,7 @@ export async function authorizePersonalMatchWrite(request, env, {
 
   try {
     if (matchUpdate || lineupCreate) {
-      const configId = Number((matchUpdate || lineupCreate)[1]);
+      const configId = Number((matchUpdate || lineupMatch)[1]);
       if (!Number.isSafeInteger(configId) || configId <= 0) return deny(400, 'Ogiltig matchkonfiguration');
       const config = await readMatchConfig(configId);
       if (!config || Number(config.id) !== configId) return deny(404, 'Matchkonfiguration saknas');
