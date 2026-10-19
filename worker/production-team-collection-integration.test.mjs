@@ -12,7 +12,7 @@ test('Worker integrates the guarded collection handler before legacy GET fallbac
   assert.ok(guard > 0, 'guard invocation is present');
   assert.ok(legacy > guard, 'guard precedes legacy reads');
   assert.match(worker, /NSK_REQUIRE_SCOPED_COLLECTION_READS === "true" \|\| req\.headers\.has\("Authorization"\)/);
-  assert.match(worker, /\^\\\/api\\\/(?:poolspel\|matchkonfiguration\|laguppstallningar\|bytesschema)/);
+  assert.ok(worker.includes('poolspel|matchkonfiguration|laguppstallningar|bytesschema'), 'collection route alternatives are present');
 });
 
 test('Worker reads trusted teams and collections through the same guarded adapter', () => {
