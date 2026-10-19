@@ -1,4 +1,5 @@
 import { authorizeTeamFeature } from './team-authorization-policy.js';
+import { createPersonalRosterIdentityVerifier } from './personal-roster-identity-adapter.js';
 
 /**
  * Authorize pool writes using a server-verified personal session and the
@@ -77,5 +78,3 @@ export async function authorizePersonalPoolWrite(request, env, {
   return { allowed: true, status: 200, teamId: target.Namn, feature, actor };
 }
 
-// Late-bound import keeps this module easy to test with an injected verifier.
-import { createPersonalRosterIdentityVerifier } from './personal-roster-identity-adapter.js';
