@@ -18,7 +18,7 @@ window.DB = (() => {
   // Separate rollout flag: requires the matching Worker routes to be deployed first.
   // Disabled by default to preserve current production behavior.
   const scopedCollectionsEnabled = () => window.APP_CONFIG?.REQUIRE_SCOPED_COLLECTION_READS === true;
-  const scopedCollectionTables = new Set(['poolspel','matchkonfiguration','laguppstallningar','bytesschema']);
+  const scopedCollectionTables = new Set(['poolspel','matchkonfiguration','laguppstallningar','bytesschema','spelaretranare']);
   function collectionReadOptions(table, team) {
     if (!scopedCollectionsEnabled() || !scopedCollectionTables.has(table))
       return { suffix: '', headers: {} };
@@ -86,7 +86,7 @@ window.DB = (() => {
     }
     return [...matches.values()];
   }
-  async function listPlayerCoachMap(){const [map,players,coaches]=await Promise.all([rows('spelaretranare'),listPlayers(),listCoaches()]);return map.map(r=>({id:r.id,player_name:players.find(p=>p.id===first(r.Spelare))?.full_name||'',coach_name:coaches.find(c=>c.id===first(r.Tränare))?.full_name||''})).filter(r=>r.player_name)}
+  async function listPlayerCoachMap(){const [map,players,coaches]=await Promise.all([rows('spelaretranare',await teamId()),listPlayers(),listCoaches()]);return map.map(r=>({id:r.id,player_name:players.find(p=>p.id===first(r.Spelare))?.full_name||'',coach_name:coaches.find(c=>c.id===first(r.Tränare))?.full_name||''})).filter(r=>r.player_name)}
   async function adminRequest(path,method,payload){
     const token=localStorage.getItem('nsk_admin_token');
     if(!token)throw new Error('Aktivera Adminläge först.');
