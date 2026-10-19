@@ -810,7 +810,7 @@ var worker_default = { async fetch(req, env) {
   // the guarded path, preventing credential-bearing requests from falling back
   // to the unscoped legacy collection API.
   if (req.method === "GET" &&
-      /^\/api\/(?:poolspel|matchkonfiguration|laguppstallningar|bytesschema)$/.test(url.pathname) &&
+      /^\/api\/(?:poolspel|matchkonfiguration|laguppstallningar|bytesschema|spelaretranare)$/.test(url.pathname) &&
       (env.NSK_REQUIRE_SCOPED_COLLECTION_READS === "true" || req.headers.has("Authorization"))) {
     const tableIds = resolveBaserowTables(env);
     const readRows = async table => {
@@ -904,7 +904,7 @@ var worker_default = { async fetch(req, env) {
   // sensitive tables through the generic legacy Baserow collection reader.
   // Dedicated authorized readers are required before enabling these features.
   if ((env.NSK_REQUIRE_SCOPED_COLLECTION_READS === "true" || req.headers.has("Authorization")) &&
-      ["matcher", "malvaktsstatistik", "spelaretranare"].includes(m[1])) {
+      ["matcher", "malvaktsstatistik"].includes(m[1])) {
     return reply({ ok: false, error: "Behörighetskontrollerad läsning krävs" }, 403);
   }
   const page = Math.max(1, Math.min(1e5, parseInt(url.searchParams.get("page") || "1", 10) || 1));
