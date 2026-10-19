@@ -23,13 +23,13 @@ test('Worker reads trusted teams and collections through the same guarded adapte
 
 test('Frontend keeps collection reads disabled unless explicitly opted in', () => {
   assert.match(frontend, /REQUIRE_SCOPED_COLLECTION_READS === true/);
-  assert.match(frontend, /new Set\(\['poolspel','matchkonfiguration','laguppstallningar','bytesschema'\]\)/);
+  assert.match(frontend, /new Set\(\['poolspel','matchkonfiguration','laguppstallningar','bytesschema','spelaretranare'\]\)/);
   assert.match(frontend, /collectionReadOptions\(table, team\)/);
   assert.match(frontend, /Authorization: 'Bearer ' \+ token/);
 });
 
 test('Frontend passes resolved team for each guarded collection', () => {
-  for (const name of ['poolspel', 'matchkonfiguration', 'laguppstallningar', 'bytesschema']) {
+  for (const name of ['poolspel', 'matchkonfiguration', 'laguppstallningar', 'bytesschema', 'spelaretranare']) {
     assert.match(frontend, new RegExp("rows\\('"+name+"',"));
   }
 });
