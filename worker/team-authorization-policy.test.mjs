@@ -7,7 +7,7 @@ test('only verified team member with explicit roster permission may write', () =
   assert.equal(authorizeTeamFeature(actor, 'team-18', 'roster').allowed, true);
   assert.equal(authorizeTeamFeature(actor, 'team-2', 'roster').status, 403);
   assert.equal(authorizeTeamFeature({ ...actor, permissions: [] }, 'team-18', 'roster').status, 403);
-  assert.equal(authorizeTeamFeature({ ...actor, memberships: [{ team_id: 'team-18', role: 'coach' }] }, 'team-18', 'roster').status, 403);
+  assert.equal(authorizeTeamFeature({ ...actor, memberships: [{ team_id: 'team-18', role: 'coach' }] }, 'team-18', 'roster').allowed, true);
   assert.equal(authorizeTeamFeature(null, 'team-18', 'roster').status, 401);
   assert.equal(authorizeTeamFeature(actor, 'team-18', 'unknown').status, 400);
 });
@@ -62,13 +62,13 @@ test('rejects malformed bearer header before identity verification', async () =>
   assert.equal(writes, 0);
 });
 
-test('global administrator still requires membership and explicit personal grant', () => {
+test('explicit grants work for any membership role but never bypass membership or the grant', () => {
   const globalAdmin = { ...actor, is_global_admin: true, memberships: [{ team_id: 'team-18', role: 'coach' }] };
   assert.equal(authorizeTeamFeature(globalAdmin, 'team-18', 'roster').allowed, true);
   assert.equal(authorizeTeamFeature(globalAdmin, 'team-2', 'roster').allowed, false);
   assert.equal(authorizeTeamFeature({ ...globalAdmin, permissions: [] }, 'team-18', 'roster').allowed, false);
-  assert.equal(authorizeTeamFeature({ ...globalAdmin, is_global_admin: false }, 'team-18', 'roster').allowed, false);
-  assert.equal(authorizeTeamFeature({ ...globalAdmin, memberships: [{ team_id: 'team-18', role: 'viewer' }] }, 'team-18', 'roster').allowed, false);
+  assert.equal(authorizeTeamFeature({ ...globalAdmin, is_global_admin: false }, 'team-18', 'roster').allowed, true);
+  assert.equal(authorizeTeamFeature({ ...globalAdmin, memberships: [{ team_id: 'team-18', role: 'viewer' }] }, 'team-18', 'roster').allowed, true);
 });
 
 test('personal grant permits coach only in member team and only for granted feature', () => {
@@ -84,8 +84,8 @@ test('shift permission is scoped to team membership and an explicit personal gra
   assert.equal(authorizeTeamFeature(shiftAdmin, 'team-2', 'shifts').status, 403);
   assert.equal(authorizeTeamFeature({ ...shiftAdmin, permissions: [] }, 'team-18', 'shifts').status, 403);
   assert.equal(authorizeTeamFeature({ ...shiftAdmin, permissions: ['lineup:edit'] }, 'team-18', 'shifts').status, 403);
-  assert.equal(authorizeTeamFeature({ ...shiftAdmin, memberships: [{ team_id: 'team-18', role: 'viewer' }] }, 'team-18', 'shifts').status, 403);
-  assert.equal(authorizeTeamFeature({ ...shiftAdmin, memberships: [{ team_id: 'team-18', role: 'coach' }] }, 'team-18', 'shifts').status, 403);
+  assert.equal(authorizeTeamFeature({ ...shiftAdmin, memberships: [{ team_id: 'team-18', role: 'viewer' }] }, 'team-18', 'shifts').allowed, true);
+  assert.equal(authorizeTeamFeature({ ...shiftAdmin, memberships: [{ team_id: 'team-18', role: 'coach' }] }, 'team-18', 'shifts').allowed, true);
   const globalAdmin = { ...shiftAdmin, is_global_admin: true, memberships: [{ team_id: 'team-18', role: 'coach' }] };
   assert.equal(authorizeTeamFeature(globalAdmin, 'team-18', 'shifts').allowed, true);
   assert.equal(authorizeTeamFeature(globalAdmin, 'team-2', 'shifts').status, 403);
