@@ -1,0 +1,72 @@
+import test from 'node:test';
+import assert from 'node:assert/strict';
+import worker from './production-api-v42-reference.js';
+
+for (const table of ['matcher', 'malvaktsstatistik']) {
+  test('scoped rollout denies legacy ' + table + ' without Baserow access', async () => {
+    const original = globalThis.fetch;
+    let calls = 0;
+    globalThis.fetch = async () => { calls++; throw new Error('unexpected network request'); };
+    try {
+      const response = await worker.fetch(
+        new Request('https://nsk-api.example/api/' + table),
+        { NSK_REQUIRE_SCOPED_COLLECTION_READS: 'true' },
+        {}
+      );
+      assert.equal(response.status, 403);
+      assert.equal(calls, 0);
+    } finally {
+      globalThis.fetch = original;
+    }
+  });
+}
+
+for (const table of ['matcher', 'malvaktsstatistik']) {
+  test('credential-bearing legacy ' + table + ' never bypasses scoped authorization', async () => {
+    const original = globalThis.fetch;
+    let calls = 0;
+    globalThis.fetch = async () => { calls++; throw new Error('unexpected network request'); };
+    try {
+      const response = await worker.fetch(
+        new Request('https://nsk-api.example/api/' + table, {
+          headers: { Authorization: 'Bearer malformed' }
+        }),
+        { NSK_REQUIRE_SCOPED_COLLECTION_READS: 'false' },
+        {}
+      );
+      assert.equal(response.status, 403);
+      assert.equal(calls, 0);
+    } finally {
+      globalThis.fetch = original;
+    }
+  });
+}
+
+for (const headers of [{}, {Authorization:'Bearer malformed'}]) {
+  test('association route rejects missing team selector before any network access',async()=>{
+    const original=globalThis.fetch;
+    let calls=0;
+    globalThis.fetch=async()=>{calls++;throw Error('unexpected network request');};
+    try {
+      const response=await worker.fetch(new Request('https://nsk-api.example/api/spelaretranare',{headers}),
+        {NSK_REQUIRE_SCOPED_COLLECTION_READS:'true'},{});
+      assert.equal(response.status,400);
+      assert.equal(calls,0);
+    } finally {globalThis.fetch=original;}
+  });
+}
+
+for (const table of ['lag','matcher','malvaktsstatistik','spelaretranare','poolspel']) {
+  test('mandatory rollout never exposes unauthenticated '+table,async()=>{
+    const original=globalThis.fetch;
+    let calls=0;
+    globalThis.fetch=async()=>{calls++;throw Error('unexpected network request');};
+    try {
+      const response=await worker.fetch(new Request('https://nsk-api.example/api/'+table),
+        {NSK_REQUIRE_SCOPED_TEAM_READS:'true',NSK_REQUIRE_SCOPED_COLLECTION_READS:'true',
+         NSK_REQUIRE_SCOPED_ROSTER_READS:'true'},{});
+      assert.ok([400,401,403].includes(response.status),table+' returned '+response.status);
+      assert.equal(calls,0);
+    } finally {globalThis.fetch=original;}
+  });
+}

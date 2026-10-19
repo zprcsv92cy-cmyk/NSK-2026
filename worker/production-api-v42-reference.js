@@ -1,5 +1,7 @@
+import { readPersonallyAuthorizedTeams } from './production-team-read.js';
 import { authorizePersonalWorkerWrite } from './personal-roster-worker-adapter.js';
 import { createProductionRosterReadHandler } from './production-roster-read-integration.js';
+import { readPersonallyAuthorizedTeamCollection } from './production-team-collection-read.js';
 import { handlePersonalLagpersonalWrite } from './production-lagpersonal-write-handler.js';
 import { createPersonalRosterIdentityVerifier } from './personal-roster-identity-adapter.js';
 import { createPoolOwnerResolver } from './production-shift-pool-owner-resolver.js';
@@ -735,8 +737,8 @@ var worker_default = { async fetch(req, env) {
   // clients through the same authorization boundary (and denies missing sessions).
   // Any Authorization header triggers the scoped path so malformed credentials
   // cannot fall through to the legacy, unscoped roster read.
-  if ((env.NSK_REQUIRE_SCOPED_ROSTER_READS === "true" || req.headers.has("Authorization")) &&
-      req.method === "GET" &&
+  if (req.method === "GET" &&
+      (url.pathname === "/api/lagpersonal" || env.NSK_REQUIRE_SCOPED_ROSTER_READS === "true" || req.headers.has("Authorization")) &&
       /^\/api\/(?:spelare|tranare|lagpersonal)(?:\/\d+)?$/.test(url.pathname)) {
     const listTrustedTeams = async () => {
       if (!env.BASEROW_TOKEN) throw Error("Trusted teams unavailable");
@@ -804,6 +806,49 @@ var worker_default = { async fetch(req, env) {
     for (const [name, value] of Object.entries(cors)) scopedHeaders.set(name, value);
     return new Response(scopedResponse.body, {status: scopedResponse.status, headers: scopedHeaders});
   }
+  // Opt-in collection authorization. An Authorization header always routes to
+  // the guarded path, preventing credential-bearing requests from falling back
+  // to the unscoped legacy collection API.
+  if (req.method === "GET" &&
+      /^\/api\/(?:poolspel|matchkonfiguration|laguppstallningar|bytesschema|spelaretranare)$/.test(url.pathname) &&
+      (env.NSK_REQUIRE_SCOPED_COLLECTION_READS === "true" || req.headers.has("Authorization"))) {
+    const tableIds = resolveBaserowTables(env);
+    const readRows = async table => {
+      if (!Object.hasOwn(tableIds, table) || !env.BASEROW_TOKEN)
+        throw Error("Baserow collection unavailable");
+      const id = tableIds[table];
+      const rows = [];
+      for (let page = 1; page <= 100; page++) {
+        const endpoint = "https://api.baserow.io/api/database/rows/table/" + id + "/";
+        const result = await fetch(endpoint + "?user_field_names=true&size=200&page=" + page, {
+          headers: { Authorization: "Token " + env.BASEROW_TOKEN }
+        });
+        if (!result.ok) throw Error("Collection unavailable");
+        const body = await result.json();
+        if (!Array.isArray(body.results) || body.results.length > 200)
+          throw Error("Invalid collection page");
+        if (body.next != null) {
+          if (typeof body.next !== "string") throw Error("Invalid collection cursor");
+          const next = new URL(body.next);
+          if (next.origin !== "https://api.baserow.io" || next.pathname !==
+              "/api/database/rows/table/" + id + "/" ||
+              next.searchParams.getAll("page").length !== 1 ||
+              next.searchParams.get("page") !== String(page + 1))
+            throw Error("Invalid collection cursor");
+        }
+        rows.push(...body.results);
+        if (!body.next) return rows;
+      }
+      throw Error("Collection pagination exceeded");
+    };
+    const scoped = await readPersonallyAuthorizedTeamCollection(req, env, {
+      readRows,
+      listTrustedTeams: () => readRows("lag")
+    });
+    const headers = new Headers(scoped.headers);
+    for (const [name, value] of Object.entries(cors)) headers.set(name, value);
+    return new Response(scoped.body, { status: scoped.status, headers });
+  }
   if (req.method !== "GET") return reply({ ok: false, error: "Skrivning \xE4r avst\xE4ngd" }, 405);
   if (url.pathname === "/api/lagpersonal" && req.method === "GET") {
     const teamId = Number(url.searchParams.get("team_id"));
@@ -813,17 +858,49 @@ var worker_default = { async fetch(req, env) {
     if (req.method === "GET") return reply({ok:true,results:await env.NSK_TRAINERS.get(key,"json") || []});
 
   }
-  const m = /^\/api\/([a-z]+)$/.exec(url.pathname);
-  if (!m || !Object.hasOwn(TABLES, m[1])) return reply({ ok: false, error: "Not found" }, 404);
-  const page = Math.max(1, Math.min(1e5, parseInt(url.searchParams.get("page") || "1", 10) || 1));
-  const size = Math.max(1, Math.min(200, parseInt(url.searchParams.get("size") || "100", 10) || 100));
-  try {
-    const r = await fetch(`https://api.baserow.io/api/database/rows/table/${TABLES[m[1]]}/?user_field_names=true&page=${page}&size=${size}`, { headers: { Authorization: `Token ${env.BASEROW_TOKEN}` } });
-    if (!r.ok) return reply({ ok: false, error: "Database request failed", status: r.status }, 502);
-    return reply({ ok: true, table: m[1], ...await r.json() });
-  } catch {
-    return reply({ ok: false, error: "Database unavailable" }, 502);
+  // Personally authorized team discovery.
+  if (req.method === "GET" && url.pathname === "/api/lag" &&
+      (env.NSK_REQUIRE_SCOPED_TEAM_READS === "true" ||
+       req.headers.has("Authorization"))) {
+    const readRows = async () => {
+      const results = [];
+      const tableId = resolveBaserowTables(env).lag;
+      for (let page = 1; page <= 100; page++) {
+        const endpoint = `https://api.baserow.io/api/database/rows/table/${tableId}/`;
+        const r = await fetch(
+          `${endpoint}?user_field_names=true&page=${page}&size=200`,
+          { headers: { Authorization: `Token ${env.BASEROW_TOKEN}` } }
+        );
+        if (!r.ok) throw Error("Trusted team source unavailable");
+        const body = await r.json();
+        if (!Array.isArray(body.results) || body.results.length > 200)
+          throw Error("Invalid team page");
+        results.push(...body.results);
+        if (!body.next) return results;
+        if (page === 100) throw Error("Team pagination exceeded");
+        const next = new URL(body.next);
+        if (next.origin !== "https://api.baserow.io" ||
+            next.pathname !== endpoint.replace("https://api.baserow.io", "") ||
+            next.searchParams.getAll("page").length !== 1 ||
+            next.searchParams.get("page") !== String(page + 1))
+          throw Error("Invalid team cursor");
+      }
+      throw Error("Team pagination exceeded");
+    };
+    const scoped = await readPersonallyAuthorizedTeams(req, env, {
+      listTrustedTeams: readRows
+    });
+    const headers = new Headers(scoped.headers);
+    for (const [name, value] of Object.entries(cors))
+      headers.set(name, value);
+    return new Response(scoped.body, {
+      status: scoped.status,
+      headers
+    });
   }
+  // Never expose arbitrary Baserow tables via the legacy generic GET route.
+  // All supported collections must pass an explicit authorization boundary.
+  return reply({ ok: false, error: "Behörighetskontrollerad läsning krävs" }, 403);
 } };
 export {
   ShiftLock,

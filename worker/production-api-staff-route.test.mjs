@@ -52,7 +52,7 @@ test('opt-in scoped roster handler precedes legacy reads and uses trusted source
   assert.match(source, /listTrustedTeams,/);
   assert.match(source, /data\.results\.length > 200/);
   assert.match(source, /Incomplete roster page/);
-  const gate = source.indexOf('if ((env.NSK_REQUIRE_SCOPED_ROSTER_READS === "true"');
+  const gate = source.indexOf('(url.pathname === "/api/lagpersonal" || env.NSK_REQUIRE_SCOPED_ROSTER_READS === "true"');
   const legacyRead = source.indexOf('if (url.pathname === "/api/lagpersonal" && req.method === "GET")');
   assert.ok(gate >= 0 && legacyRead > gate, 'scoped handler must precede legacy roster read');
 });

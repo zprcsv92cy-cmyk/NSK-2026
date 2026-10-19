@@ -15,7 +15,7 @@ test('rejects incomplete isolated Baserow configuration before any network reque
   }
 });
 
-test('isolated Baserow read uses configured Lag table, never production table', async () => {
+test('isolated Baserow GET cannot bypass personal team authorization', async () => {
   const original = globalThis.fetch;
   const calls = [];
   globalThis.fetch = async (url) => {
@@ -24,10 +24,8 @@ test('isolated Baserow read uses configured Lag table, never production table', 
   };
   try {
     const response = await get({ BASEROW_TABLE_IDS: JSON.stringify(isolated), BASEROW_TOKEN: 'fake' });
-    assert.equal(response.status, 200);
-    assert.equal(calls.length, 1);
-    assert.match(calls[0], /table\/990001\//);
-    for (const id of legacy) assert.doesNotMatch(calls[0], new RegExp('table/' + id + '/'));
+    assert.equal(response.status, 403);
+    assert.equal(calls.length, 0);
   } finally { globalThis.fetch = original; }
 });
 

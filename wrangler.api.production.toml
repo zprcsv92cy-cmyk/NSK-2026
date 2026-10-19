@@ -9,6 +9,8 @@ BASEROW_DATABASE_ID = "589073"
 # Current scoped-roster production mode. All roster GETs must use a personal
 # Bearer token and selected team; legacy unauthenticated roster reads fail closed.
 NSK_REQUIRE_SCOPED_ROSTER_READS = "true"
+NSK_REQUIRE_SCOPED_TEAM_READS = "true"
+NSK_REQUIRE_SCOPED_COLLECTION_READS = "true"
 
 # Validate that existing secrets are present; do not store their values here.
 [secrets]

@@ -10,6 +10,15 @@ export function createPoolOwnerResolver(env, fetchImpl = fetch) {
     const headers = { Authorization: 'Token ' + env.BASEROW_TOKEN };
     const base = 'https://api.baserow.io/api/database/rows/table/';
     const configuredTables = env?.BASEROW_TABLE_IDS ? JSON.parse(env.BASEROW_TABLE_IDS) : null;
+    if (configuredTables) {
+      // Validate the complete required mapping before making any network request.
+      for (const name of ['lag', 'poolspel', 'bytesschema']) {
+        const id = configuredTables[name];
+        if (!Number.isSafeInteger(id) || id <= 0 ||
+            [1255083,1255098,1255100,1255101,1255109,1255113,1255115,1255119,1255152,1255157].includes(id))
+          throw new Error('Invalid Baserow table mapping');
+      }
+    }
     const tableId = (name, legacy) => {
       if (!configuredTables) return legacy;
       const id = configuredTables[name];

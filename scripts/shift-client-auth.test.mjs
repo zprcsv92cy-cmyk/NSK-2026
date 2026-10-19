@@ -11,7 +11,7 @@ function client({ session, requests, shiftRows = null }) {
     localStorage: { getItem: key => key === 'nsk_admin_token' ? 'legacy-admin' : null },
     fetch: async (url, init) => {
       requests.push({ url, init });
-      return { ok: true, status: 200, json: async () => url.includes('/api/bytesschema?') ? ({ ok: true, results: shiftRows ?? [], next: null }) : ({ ok: true, count: 1, verified: true }) };
+      return { ok: true, status: 200, json: async () => url.includes('/api/lag?') ? ({ ok: true, results: [{ id: 18, Namn: 'NSK Team 18', 'Säsong': '2026' }], next: null }) : url.includes('/api/bytesschema?') ? ({ ok: true, results: shiftRows ?? [], next: null }) : ({ ok: true, count: 1, verified: true }) };
     },
     console, setTimeout, clearTimeout
   };
