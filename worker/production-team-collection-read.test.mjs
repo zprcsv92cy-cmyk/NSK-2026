@@ -110,3 +110,46 @@ test('ambiguous multi-pool links never authorize a row', async()=>{
     assert.deepEqual((await res.json()).results,[]);
   }
 });
+
+test('invalid session is rejected without reading collections', async () => {
+  let reads = 0;
+  const res = await readPersonallyAuthorizedTeamCollection(req('poolspel'), {}, {
+    ...deps(),
+    verifyPersonalSession: async () => null,
+    readRows: async name => { reads++; return data[name]; }
+  });
+  assert.equal(res.status, 401);
+  assert.equal(reads, 0);
+});
+
+test('failed trusted team lookup returns 503 without reading collections', async () => {
+  let reads = 0;
+  const res = await readPersonallyAuthorizedTeamCollection(req('poolspel'), {}, {
+    ...deps(),
+    listTrustedTeams: async () => { throw Error('Baserow unavailable'); },
+    readRows: async name => { reads++; return data[name]; }
+  });
+  assert.equal(res.status, 503);
+  assert.equal(reads, 0);
+});
+
+test('incomplete collection snapshot returns 503 instead of partial data', async () => {
+  const res = await readPersonallyAuthorizedTeamCollection(req('poolspel'), {}, {
+    ...deps(),
+    readRows: async name => name === 'bytesschema' ? null : data[name]
+  });
+  assert.equal(res.status, 503);
+});
+
+test('a lineup linked to a different pool than its configuration is rejected', async () => {
+  const altered = {
+    ...data,
+    poolspel: [{id:101,Lag:[{id:11}]},{id:102,Lag:[{id:11}]}],
+    laguppstallningar: [{id:401,Matchkonfiguration:[{id:301}],Poolspel:[{id:102}]}]
+  };
+  const res = await readPersonallyAuthorizedTeamCollection(req('laguppstallningar'), {}, {
+    ...deps(), readRows: async name => altered[name]
+  });
+  assert.equal(res.status, 200);
+  assert.deepEqual((await res.json()).results, []);
+});
