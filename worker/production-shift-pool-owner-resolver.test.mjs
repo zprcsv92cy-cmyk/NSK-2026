@@ -90,7 +90,7 @@ test('uses only configured isolated Baserow tables for owner lookup', async () =
   });
   const owner = await createPoolOwnerResolver(isolated, db.fetchImpl)({ shiftRowId: 31 });
   assert.equal(owner.teamId, 'NSK Testlag 2');
-  assert.deepEqual(db.requested.map(x => x.split('/').slice(0, 2).join('/')), ['993/31', '992/12', '991/91']);
+  assert.deepEqual(db.requested.map(x => { const m = new URL(x).pathname.match(/\/table\/(\d+)\/(\d+)\//); return m[1] + '/' + m[2]; }), ['993/31', '992/12', '991/91']);
 });
 
 test('rejects missing or invalid isolated table mapping without legacy fallback', async () => {
