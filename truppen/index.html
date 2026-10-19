@@ -230,7 +230,7 @@
       if (current !== requestId) return;
       label.textContent = 'Aktivt lag: ' + team + '. Personlig rätt att hantera truppen: ' +
         (allowed ? 'Ja (verifierad av servern)' : 'Nej eller kunde inte verifieras') +
-        '. Befintlig trupp använder fortfarande äldre adminläge.';
+        (window.APP_CONFIG?.REQUIRE_PERSONAL_ROSTER_WRITES === true ? '. Skrivåtkomst styrs av personlig behörighet.' : '. Befintlig trupp använder fortfarande äldre adminläge.');
     } catch {
       if (current === requestId) label.textContent = 'Personlig lagbehörighet kunde inte kontrolleras.';
     }
@@ -307,13 +307,32 @@
 </script>
 <script src="../admin-mode.js?v=1"></script>
 <script>
+window.NSKRosterCanEdit = async function () {
+  if (window.APP_CONFIG?.REQUIRE_PERSONAL_ROSTER_WRITES === true) {
+    const team = window.Auth?.activeTeam?.();
+    // Current roster mutations are mapped to Team 18 by trusted server records.
+    if (team !== 'NSK Team 18' || !window.Auth?.getToken?.()) return false;
+    try { return await window.Auth.checkTeamFeature('roster', team); }
+    catch { return false; }
+  }
+  const token = localStorage.getItem('nsk_admin_token');
+  if (!token) return false;
+  try {
+    const response = await fetch(
+      (window.APP_CONFIG?.API_URL || 'https://nsk-api.peter-hasselberg.workers.dev') + '/api/admin/status',
+      { headers: { Authorization: 'Bearer ' + token }, cache: 'no-store' }
+    );
+    return response.ok && (await response.json()).admin === true;
+  } catch { return false; }
+};
+</script>
+<script>
 (function(){
  const style=document.createElement('style');
  style.textContent=`body:not(.nsk-roster-admin) #playerInput,body:not(.nsk-roster-admin) #addPlayerBtn,body:not(.nsk-roster-admin) .inline-name-input{pointer-events:none}body:not(.nsk-roster-admin) .inline-name-input{border:0;background:transparent}body:not(.nsk-roster-admin) #coachInput,body:not(.nsk-roster-admin) #addCoachBtn,body:not(.nsk-roster-admin) #coachesList .inline-name-input{pointer-events:none}body:not(.nsk-roster-admin) #coachesList .inline-name-input{border:0;background:transparent}#coachesList [data-delete-coach],#playersList [data-delete-player],#importBackupBtn{display:none!important}`;
  document.head.appendChild(style);
  async function sync(){
-  const token=localStorage.getItem('nsk_admin_token');let allowed=false;
-  if(token)try{const r=await fetch((window.APP_CONFIG?.API_URL||'https://nsk-api.peter-hasselberg.workers.dev')+'/api/admin/status',{headers:{Authorization:'Bearer '+token},cache:'no-store'});allowed=r.ok&&(await r.json()).admin===true}catch{}
+  const allowed=await window.NSKRosterCanEdit();
   document.body.classList.toggle('nsk-roster-admin',allowed);
   document.querySelectorAll('#playersList .inline-name-input').forEach(e=>e.readOnly=!allowed);
   document.querySelectorAll('#coachesList .inline-name-input').forEach(e=>e.readOnly=!allowed);
@@ -336,7 +355,7 @@
  const renderVersions=new Map();
  async function render(role,id){const version=(renderVersions.get(id)||0)+1;renderVersions.set(id,version);const list=document.getElementById(id+'List');try{const rows=await DB.listStaff(role);if(renderVersions.get(id)!==version)return;list.innerHTML=rows.length?rows.map(r=>`<div class="person-row"><div class="person-main"><input class="inline-name-input" aria-label="Redigera ${esc(role)}: ${esc(r.full_name)}" data-staff-id="${esc(r.id)}" value="${esc(r.full_name)}" ${allowed?'':'readonly'}></div></div>`).join(''):'<div class="muted-note">Inga registrerade ännu.</div>';list.querySelectorAll('[data-staff-id]').forEach(inp=>{inp.addEventListener('keydown',e=>{if(e.key==='Escape'){inp.value=inp.defaultValue;inp.blur()}else if(e.key==='Enter'){e.preventDefault();inp.blur()}});inp.addEventListener('change',async()=>{const key=role+':'+inp.dataset.staffId;if(pendingEdits.has(key))return;pendingEdits.add(key);inp.readOnly=true;try{if(!allowed){await render(role,id);return}const newName=inp.value.trim();if(!newName){alert('Namn får inte vara tomt.');await render(role,id);return}if(newName===inp.defaultValue.trim()){await render(role,id);return}await DB.updateStaff(role,inp.dataset.staffId,newName);await render(role,id)}catch(e){alert(e.message);await render(role,id)}finally{pendingEdits.delete(key);if(inp.isConnected)inp.readOnly=!allowed}})})}catch(e){if(renderVersions.get(id)===version)list.textContent=e.message}}
  let syncSequence=0;
- async function sync(){const sequence=++syncSequence;const token=localStorage.getItem('nsk_admin_token');allowed=false;for(const [role,id] of roles){document.getElementById(id+'Input').disabled=true;document.getElementById(id+'Add').disabled=true;document.querySelectorAll('#'+id+'List input').forEach(el=>el.readOnly=true)}let verified=false;if(token)try{const r=await fetch((window.APP_CONFIG?.API_URL||'https://nsk-api.peter-hasselberg.workers.dev')+'/api/admin/status',{headers:{Authorization:'Bearer '+token},cache:'no-store'});verified=r.ok&&(await r.json()).admin===true}catch{}if(sequence!==syncSequence||token!==localStorage.getItem('nsk_admin_token'))return;allowed=verified;for(const [role,id] of roles){document.getElementById(id+'Input').disabled=!allowed;document.getElementById(id+'Add').disabled=!allowed||pendingAdds.has(id);document.querySelectorAll('#'+id+'List input').forEach(el=>el.readOnly=!allowed||pendingEdits.has(role+':'+el.dataset.staffId))}}
+ async function sync(){const sequence=++syncSequence;allowed=false;for(const [role,id] of roles){document.getElementById(id+'Input').disabled=true;document.getElementById(id+'Add').disabled=true;document.querySelectorAll('#'+id+'List input').forEach(el=>el.readOnly=true)}const verified=await window.NSKRosterCanEdit();if(sequence!==syncSequence)return;allowed=verified;for(const [role,id] of roles){document.getElementById(id+'Input').disabled=!allowed;document.getElementById(id+'Add').disabled=!allowed||pendingAdds.has(id);document.querySelectorAll('#'+id+'List input').forEach(el=>el.readOnly=!allowed||pendingEdits.has(role+':'+el.dataset.staffId))}}
  document.addEventListener('DOMContentLoaded',async()=>{for(const [role,id] of roles){document.getElementById(id+'Input').addEventListener('keydown',e=>{if(e.key==='Enter'){e.preventDefault();document.getElementById(id+'Add').click()}});document.getElementById(id+'Add').addEventListener('click',async()=>{const inp=document.getElementById(id+'Input');if(!allowed)return;if(!inp.value.trim()){alert('Ange ett namn innan du lägger till en person.');inp.focus();return}const button=document.getElementById(id+'Add');if(pendingAdds.has(id))return;pendingAdds.add(id);button.disabled=true;try{await DB.addStaff(role,inp.value.trim());inp.value='';await render(role,id)}catch(e){alert(e.message)}finally{pendingAdds.delete(id);button.disabled=!allowed}});await render(role,id)}await sync();window.addEventListener('focus',sync);window.addEventListener('storage',sync);setInterval(sync,15000)})
 })();
 </script>
