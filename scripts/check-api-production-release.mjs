@@ -43,6 +43,7 @@ const hasBaserowDatabaseId = /^\s*BASEROW_DATABASE_ID\s*=\s*(?:"[^"]+"|'[^']+')\
 if (!hasBaserowDatabaseId) issues.push('BASEROW_DATABASE_ID declaration missing');
 if (!hasShiftLockMigration && !hasShiftLockSQLiteExport) issues.push('Existing SHIFT_LOCK migration or SQLite export declaration missing');
 if (/intentionally incomplete|not a deployable/i.test(config)) issues.push('Manifest explicitly marked incomplete');
+if (process.env.NSK_API_PRODUCTION_LIVE_CHECKS_VERIFIED !== 'yes') issues.push('Live production checks and rollback verification missing');
 if (process.env.NSK_API_PRODUCTION_RELEASE_APPROVED !== 'yes') issues.push('Explicit production release approval missing');
 if (issues.length) {
   console.error('API production deployment BLOCKED: incomplete verified configuration.');
