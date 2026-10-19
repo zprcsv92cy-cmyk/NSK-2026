@@ -809,7 +809,7 @@ var worker_default = { async fetch(req, env) {
   // the guarded path, preventing credential-bearing requests from falling back
   // to the unscoped legacy collection API.
   if (req.method === "GET" &&
-      /^\\/api\\/(?:poolspel|matchkonfiguration|laguppstallningar|bytesschema)$/.test(url.pathname) &&
+      /^\/api\/(?:poolspel|matchkonfiguration|laguppstallningar|bytesschema)$/.test(url.pathname) &&
       (env.NSK_REQUIRE_SCOPED_COLLECTION_READS === "true" || req.headers.has("Authorization"))) {
     const tableIds = resolveBaserowTables(env);
     const readRows = async table => {
