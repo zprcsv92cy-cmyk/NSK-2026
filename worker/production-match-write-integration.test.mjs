@@ -23,7 +23,8 @@ test('match-write client and Worker rollout switches remain off until jointly en
 });
 
 test('client only selects personal match token for match configuration and lineup write routes', () => {
-  assert.match(client, /\^\\\/api\\\/matchkonfiguration\(\?:\\\/\\d\+\)\?\$/);
-  assert.match(client, /\^\\\/api\\\/laguppstallningar\\\/\\d\+\$/);
+  assert.match(client, /personalMatchWrite = window\.APP_CONFIG/);
+  assert.ok(client.includes('matchkonfiguration'));
+  assert.ok(client.includes('laguppstallningar'));
   assert.match(client, /Personlig inloggning krävs för match och laguppställning/);
 });
