@@ -65,3 +65,23 @@ test('duplicate team selector rejected',async()=>{
   const res=await readPersonallyAuthorizedTeamCollection(request,{},deps());
   assert.equal(res.status,400);
 });
+
+test('shared pool and its match data are excluded until ownership is verified', async()=>{
+  const shared={
+    ...data,
+    poolspel:[...data.poolspel,{id:103,Lag:[{id:11},{id:22}]}],
+    matchkonfiguration:[...data.matchkonfiguration,{id:303,Poolspel:[{id:103}]}],
+    laguppstallningar:[...data.laguppstallningar,{id:403,Matchkonfiguration:[{id:303}],Poolspel:[{id:103}]}],
+    bytesschema:[...data.bytesschema,{id:503,Poolspel:[{id:103}]}]
+  };
+  for (const [table, excluded] of [
+    ['poolspel',103],['matchkonfiguration',303],
+    ['laguppstallningar',403],['bytesschema',503]
+  ]) {
+    const res=await readPersonallyAuthorizedTeamCollection(req(table),{},{
+      ...deps(),readRows:async name=>shared[name]
+    });
+    assert.equal(res.status,200);
+    assert.equal((await res.json()).results.some(row=>row.id===excluded),false);
+  }
+});
