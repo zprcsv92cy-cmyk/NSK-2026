@@ -47,11 +47,20 @@ test('new match configuration requires a personal session, membership and match:
 test('match configuration update resolves its pool from the persisted row', async () => {
   const x = setup();
   const result = await authorizePersonalMatchWrite(request('PATCH', '/api/matchkonfiguration/7', {
-    pool_id: 999, team_id: 'NSK Testlag 2'
+    pool_id: 42, team_id: 'NSK Testlag 2'
   }), { AUTH_DB: {} }, x.options);
   assert.equal(result.allowed, true);
   assert.deepEqual(x.calls.configs, [7]);
   assert.deepEqual(x.calls.pools, [42]);
+});
+
+test('match update cannot switch to a different pool in the request body', async () => {
+  const x = setup();
+  const result = await authorizePersonalMatchWrite(request('PATCH', '/api/matchkonfiguration/7', {
+    pool_id: 999, lag_no: 1, match_no: 1
+  }), { AUTH_DB: {} }, x.options);
+  assert.equal(result.allowed, false);
+  assert.equal(result.status, 403);
 });
 
 test('lineup write requires lineup:edit and derives ownership from stored match configuration', async () => {
