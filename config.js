@@ -9,5 +9,7 @@ window.APP_CONFIG = {
   // Enable only after the production API's personal pool-write guard is deployed and verified.
   REQUIRE_PERSONAL_POOL_WRITES: false,
   REQUIRE_PERSONAL_MATCH_WRITES: false,
+  // Prepared client flow. Turn on only after live team-specific write checks pass.
+  REQUIRE_PERSONAL_ROSTER_WRITES: false,
   APP_VERSION: "baserow-readonly-1"
 };
