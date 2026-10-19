@@ -185,6 +185,16 @@
 (function(){
  const btn=document.getElementById('savePool');
  async function refresh(){
+  if(window.APP_CONFIG?.REQUIRE_PERSONAL_POOL_WRITES===true){
+   btn.hidden=true;btn.disabled=true;
+   try{
+    if(!window.Auth?.getSession?.())await window.Auth?.init?.();
+    const team=window.Auth?.activeTeam?.();
+    const allowed=!!team && await window.Auth?.checkTeamFeature?.('pool',team);
+    btn.hidden=!allowed;btn.disabled=!allowed;
+   }catch{btn.hidden=true;btn.disabled=true;}
+   return;
+  }
   const token=localStorage.getItem('nsk_admin_token');
   if(!token){btn.hidden=true;btn.disabled=true;return;}
   try{const r=await fetch('https://nsk-api.peter-hasselberg.workers.dev/api/admin/status',{headers:{Authorization:'Bearer '+token},cache:'no-store'});const data=await r.json();btn.hidden=!data.admin;btn.disabled=!data.admin;}catch{btn.hidden=true;btn.disabled=true;}
