@@ -5,10 +5,10 @@ import { readPersonallyAuthorizedTeamCollection } from './production-team-collec
 const team = [{id:11,Namn:'NSK Team 18','Säsong':'2026'},{id:22,Namn:'NSK Testlag 2','Säsong':'2026'}];
 const actor = {user:{id:'u1'},memberships:[{team_id:'NSK Team 18',role:'coach'}],permissions:['read']};
 const data = {
-  poolspel:[{id:101,Lag:[{id:11}]},{id:202,Lag:[{id:22}]}],
-  matchkonfiguration:[{id:301,Poolspel:[{id:101}]},{id:302,Poolspel:[{id:202}]}],
-  laguppstallningar:[{id:401,Matchkonfiguration:[{id:301}],Poolspel:[{id:101}]},{id:402,Matchkonfiguration:[{id:302}],Poolspel:[{id:202}]}],
-  bytesschema:[{id:501,Poolspel:[{id:101}]},{id:502,Poolspel:[{id:202}]}]
+  poolspel:[{id:101,Lag:[{id:11}],'Antal lag':1},{id:202,Lag:[{id:22}],'Antal lag':1}],
+  matchkonfiguration:[{id:301,Poolspel:[{id:101}],Lagnummer:1},{id:302,Poolspel:[{id:202}],Lagnummer:1}],
+  laguppstallningar:[{id:401,Matchkonfiguration:[{id:301}],Poolspel:[{id:101}],Lagnummer:1},{id:402,Matchkonfiguration:[{id:302}],Poolspel:[{id:202}],Lagnummer:1}],
+  bytesschema:[{id:501,Poolspel:[{id:101}],Lagnummer:1},{id:502,Poolspel:[{id:202}],Lagnummer:1}]
 };
 const deps = (a=actor) => ({
   listTrustedTeams:async()=>team,
@@ -66,16 +66,16 @@ test('duplicate team selector rejected',async()=>{
   assert.equal(res.status,400);
 });
 
-test('shared pool and its match data are excluded until ownership is verified', async()=>{
+test('shared pool metadata is visible but unowned match data is excluded', async()=>{
   const shared={
     ...data,
-    poolspel:[...data.poolspel,{id:103,Lag:[{id:11},{id:22}]}],
+    poolspel:[...data.poolspel,{id:103,Lag:[{id:11},{id:22}],'Antal lag':2}],
     matchkonfiguration:[...data.matchkonfiguration,{id:303,Poolspel:[{id:103}]}],
     laguppstallningar:[...data.laguppstallningar,{id:403,Matchkonfiguration:[{id:303}],Poolspel:[{id:103}]}],
     bytesschema:[...data.bytesschema,{id:503,Poolspel:[{id:103}]}]
   };
   for (const [table, excluded] of [
-    ['poolspel',103],['matchkonfiguration',303],
+    ['matchkonfiguration',303],
     ['laguppstallningar',403],['bytesschema',503]
   ]) {
     const res=await readPersonallyAuthorizedTeamCollection(req(table),{},{
@@ -89,7 +89,7 @@ test('shared pool and its match data are excluded until ownership is verified', 
 test('missing pool link on lineup is never treated as authorization', async()=>{
   const modified={...data,laguppstallningar:[
     {id:401,Matchkonfiguration:[{id:301}],Poolspel:[]},
-    {id:402,Matchkonfiguration:[{id:302}],Poolspel:[{id:202}]}
+    {id:402,Matchkonfiguration:[{id:302}],Poolspel:[{id:202}],Lagnummer:1}
   ]};
   const res=await readPersonallyAuthorizedTeamCollection(req('laguppstallningar'),{},{
     ...deps(),readRows:async name=>modified[name]
@@ -144,7 +144,7 @@ test('incomplete collection snapshot returns 503 instead of partial data', async
 test('a lineup linked to a different pool than its configuration is rejected', async () => {
   const altered = {
     ...data,
-    poolspel: [{id:101,Lag:[{id:11}]},{id:102,Lag:[{id:11}]}],
+    poolspel: [{id:101,Lag:[{id:11}],'Antal lag':1},{id:102,Lag:[{id:11}],'Antal lag':1}],
     laguppstallningar: [{id:401,Matchkonfiguration:[{id:301}],Poolspel:[{id:102}]}]
   };
   const res = await readPersonallyAuthorizedTeamCollection(req('laguppstallningar'), {}, {
@@ -152,4 +152,37 @@ test('a lineup linked to a different pool than its configuration is rejected', a
   });
   assert.equal(res.status, 200);
   assert.deepEqual((await res.json()).results, []);
+});
+
+test('shared pool exposes only matching Lagnummer records for each team', async () => {
+  const shared = {
+    poolspel: [{id:103,Lag:[{id:11},{id:22}],'Antal lag':2}],
+    matchkonfiguration: [
+      {id:303,Poolspel:[{id:103}],Lagnummer:1},
+      {id:304,Poolspel:[{id:103}],Lagnummer:2},
+      {id:305,Poolspel:[{id:103}],Lagnummer:3}
+    ],
+    laguppstallningar: [
+      {id:403,Matchkonfiguration:[{id:303}],Poolspel:[{id:103}]},
+      {id:404,Matchkonfiguration:[{id:304}],Poolspel:[{id:103}]}
+    ],
+    bytesschema: [
+      {id:503,Poolspel:[{id:103}],Lagnummer:1},
+      {id:504,Poolspel:[{id:103}],Lagnummer:2},
+      {id:505,Poolspel:[{id:103}],Lagnummer:0}
+    ]
+  };
+  for (const [selected, identity, expected] of [
+    ['11',actor,{poolspel:[103],matchkonfiguration:[303],laguppstallningar:[403],bytesschema:[503]}],
+    ['22',{...actor,memberships:[{team_id:'NSK Testlag 2',role:'coach'}]},
+      {poolspel:[103],matchkonfiguration:[304],laguppstallningar:[404],bytesschema:[504]}]
+  ]) {
+    for (const [table, ids] of Object.entries(expected)) {
+      const response = await readPersonallyAuthorizedTeamCollection(req(table,selected),{},{
+        ...deps(identity),readRows:async name=>shared[name]
+      });
+      assert.equal(response.status,200);
+      assert.deepEqual((await response.json()).results.map(r=>r.id),ids);
+    }
+  }
 });
