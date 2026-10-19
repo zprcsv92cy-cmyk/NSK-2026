@@ -64,17 +64,21 @@ export async function readPersonallyAuthorizedTeamCollection(request, env, {
       const owners = linkedIds(p.Lag);
       return owners.length === 1 && owners[0] === teams[0];
     }).map(rowId));
+    const belongsToOne = (links, allowed) => {
+      const values = linkedIds(links);
+      return values.length === 1 && allowed.has(values[0]);
+    };
     const configIds = new Set(configs.filter(c =>
-      linkedIds(c.Poolspel).some(id => poolIds.has(id))).map(rowId));
+      belongsToOne(c.Poolspel, poolIds)).map(rowId));
     const results = {
       poolspel: pools.filter(p => poolIds.has(rowId(p))),
       matchkonfiguration: configs.filter(c =>
-        linkedIds(c.Poolspel).some(id => poolIds.has(id))),
+        belongsToOne(c.Poolspel, poolIds)),
       laguppstallningar: lineups.filter(l =>
-        linkedIds(l.Matchkonfiguration).some(id => configIds.has(id)) &&
-        linkedIds(l.Poolspel).every(id => poolIds.has(id))),
+        belongsToOne(l.Matchkonfiguration, configIds) &&
+        belongsToOne(l.Poolspel, poolIds)),
       bytesschema: shifts.filter(s =>
-        linkedIds(s.Poolspel).some(id => poolIds.has(id)))
+        belongsToOne(s.Poolspel, poolIds))
     }[match[1]];
     return Response.json({
       ok: true, table: match[1], results, count: results.length, next: null, previous: null
