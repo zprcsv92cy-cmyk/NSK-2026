@@ -7,6 +7,7 @@ import { createPersonalRosterIdentityVerifier } from './personal-roster-identity
 import { createPoolOwnerResolver } from './production-shift-pool-owner-resolver.js';
 import { authorizeTeamFeature } from './team-authorization-policy.js';
 import { authorizePersonalPoolWrite } from './production-pool-write-authorization.js';
+import { authorizePersonalMatchWrite } from './production-match-write-authorization.js';
 var __defProp = Object.defineProperty;
 var __name = (target, value) => __defProp(target, "name", { value, configurable: true });
 
@@ -217,6 +218,24 @@ var worker_default = { async fetch(req, env) {
   const cors = { "Vary": "Origin", ...origin === ORIGIN ? { "Access-Control-Allow-Origin": ORIGIN, "Access-Control-Allow-Headers": "Content-Type,Authorization", "Access-Control-Allow-Methods": "GET,POST,PATCH,OPTIONS" } : {} };
   const reply = /* @__PURE__ */ __name((obj, status = 200) => json(obj, status, cors), "reply");
   const personalPoolWritesEnabled = env.NSK_REQUIRE_PERSONAL_POOL_WRITES === "true";
+  const personalMatchWritesEnabled = env.NSK_REQUIRE_PERSONAL_MATCH_WRITES === "true";
+  const checkPersonalMatchWrite = async request => {
+    const base = "https://api.baserow.io/api/database/rows/table/";
+    const tableIds = resolveBaserowTables(env);
+    const readRow = async (table, rowId) => {
+      if (!env.BASEROW_TOKEN) throw new Error("Baserow credentials missing");
+      const response = await fetch(`${base}${tableIds[table]}/${rowId}/?user_field_names=true`, {
+        headers: { Authorization: `Token ${env.BASEROW_TOKEN}` }
+      });
+      if (!response.ok) return null;
+      return response.json();
+    };
+    return authorizePersonalMatchWrite(request, env, {
+      listTeams: () => listTrustedRosterTeams(env),
+      readPool: poolId => readRow("poolspel", poolId),
+      readMatchConfig: configId => readRow("matchkonfiguration", configId)
+    });
+  };
   const checkPersonalPoolWrite = async request => authorizePersonalPoolWrite(request, env, {
     listTeams: () => listTrustedRosterTeams(env),
     readPool: async poolId => {
@@ -523,7 +542,10 @@ var worker_default = { async fetch(req, env) {
     }
   }
   if (url.pathname === "/api/matchkonfiguration" && req.method === "POST" || /^\/api\/matchkonfiguration\/\d+$/.test(url.pathname) && req.method === "PATCH" || /^\/api\/laguppstallningar\/\d+$/.test(url.pathname) && req.method === "POST") {
-    if (!env.ADMIN_KV || !await session(req, env)) return reply({ ok: false, error: "Adminl\xE4ge kr\xE4vs" }, 401);
+    if (personalMatchWritesEnabled) {
+      const access = await checkPersonalMatchWrite(req);
+      if (!access.allowed) return reply({ ok: false, error: access.error }, access.status);
+    } else if (!env.ADMIN_KV || !await session(req, env)) return reply({ ok: false, error: "Adminl\xE4ge kr\xE4vs" }, 401);
     if (!(req.headers.get("Content-Type") || "").startsWith("application/json")) return reply({ ok: false, error: "JSON kr\xE4vs" }, 415);
     if (Number(req.headers.get("Content-Length") || 0) > 16384) return reply({ ok: false, error: "F\xF6r stor beg\xE4ran" }, 413);
     let body;
