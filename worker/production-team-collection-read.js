@@ -51,6 +51,22 @@ export async function readPersonallyAuthorizedTeamCollection(request, env, {
         !mapped.permissions.includes('read'))
       return deny(403, 'Saknar läsbehörighet');
     // Fail closed if any referenced table cannot be fully loaded or resolved.
+    if (match[1] === 'spelaretranare') {
+      const [players, coaches, mappings] = await Promise.all([
+        readRows('spelare'), readRows('tranare'), readRows('spelaretranare')
+      ]);
+      if (![players, coaches, mappings].every(Array.isArray)) throw Error('Incomplete association snapshot');
+      const owned = rows => new Set(rows.filter(row => linkedIds(row.Lag).includes(teams[0])).map(rowId));
+      const playerIds = owned(players);
+      const coachIds = owned(coaches);
+      const results = mappings.filter(row => {
+        rowId(row);
+        const p = linkedIds(row.Spelare), c = linkedIds(row['Tränare']);
+        return p.length === 1 && c.length === 1 && playerIds.has(p[0]) && coachIds.has(c[0]);
+      });
+      return Response.json({ok:true,table:'spelaretranare',results,count:results.length,next:null,previous:null},
+        {headers:{'cache-control':'no-store','x-content-type-options':'nosniff'}});
+    }
     const [pools, configs, lineups, shifts] = await Promise.all([
       readRows('poolspel'), readRows('matchkonfiguration'),
       readRows('laguppstallningar'), readRows('bytesschema')
