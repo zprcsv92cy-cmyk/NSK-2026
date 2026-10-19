@@ -6,10 +6,9 @@ workers_dev = true
 
 [vars]
 BASEROW_DATABASE_ID = "589073"
-# Phase 1: leave legacy unauthenticated clients compatible while the Worker
-# scopes every request carrying Authorization. Enable "true" only after the
-# frontend with REQUIRE_SCOPED_ROSTER_READS=true is published and verified.
-NSK_REQUIRE_SCOPED_ROSTER_READS = "false"
+# Current scoped-roster production mode. All roster GETs must use a personal
+# Bearer token and selected team; legacy unauthenticated roster reads fail closed.
+NSK_REQUIRE_SCOPED_ROSTER_READS = "true"
 
 # Validate that existing secrets are present; do not store their values here.
 [secrets]
@@ -35,17 +34,16 @@ id = "f60b048621ea4aca8d67774f5c9db664"
 name = "SHIFT_LOCK"
 class_name = "ShiftLock"
 
-# Existing production namespace verified using a read-only SQLite query.
-# No migration or namespace replacement is performed.
+# Preserve the existing ShiftLock class and SQLite storage; do not create a
+# new class or replace the existing namespace during this release.
 [exports.ShiftLock]
 type = "durable-object"
 storage = "sqlite"
 
 # REQUIRED BEFORE DEPLOYMENT:
-# - Confirm KV access using the verified live namespace IDs above.
-# - Preserve existing staff records in NSK_TRAINERS.
-# - Verify SHIFT_LOCK migration history and existing object ownership before deployment.
-# - Verify BASEROW_TOKEN, BASEROW_DATABASE_ID, ADMIN_PASSWORD, MATCH_PASSWORD secrets.
-# - Verify a rollback to the currently deployed Worker v42.
-# - Coordinate Pages REQUIRE_SCOPED_ROSTER_READS=true with this Worker flag.
-# This file remains intentionally incomplete and is NOT a deployable manifest.
+# - Confirm live KV access and preserve existing staff records in NSK_TRAINERS.
+# - Verify the existing SHIFT_LOCK migration history and object ownership.
+# - Verify the required secrets are present without exposing their values.
+# - Verify rollback and persistent-data recovery separately.
+# - Complete non-destructive production smoke checks and obtain release approval.
+# This manifest is not itself deployment authorization.
