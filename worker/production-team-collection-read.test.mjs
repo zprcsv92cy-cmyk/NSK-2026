@@ -85,3 +85,28 @@ test('shared pool and its match data are excluded until ownership is verified', 
     assert.equal((await res.json()).results.some(row=>row.id===excluded),false);
   }
 });
+
+test('missing pool link on lineup is never treated as authorization', async()=>{
+  const modified={...data,laguppstallningar:[
+    {id:401,Matchkonfiguration:[{id:301}],Poolspel:[]},
+    {id:402,Matchkonfiguration:[{id:302}],Poolspel:[{id:202}]}
+  ]};
+  const res=await readPersonallyAuthorizedTeamCollection(req('laguppstallningar'),{},{
+    ...deps(),readRows:async name=>modified[name]
+  });
+  assert.equal(res.status,200);
+  assert.deepEqual((await res.json()).results,[]);
+});
+test('ambiguous multi-pool links never authorize a row', async()=>{
+  const modified={...data,
+    matchkonfiguration:[{id:301,Poolspel:[{id:101},{id:202}]}],
+    bytesschema:[{id:501,Poolspel:[{id:101},{id:202}]}]
+  };
+  for (const table of ['matchkonfiguration','bytesschema']) {
+    const res=await readPersonallyAuthorizedTeamCollection(req(table),{},{
+      ...deps(),readRows:async name=>modified[name]
+    });
+    assert.equal(res.status,200);
+    assert.deepEqual((await res.json()).results,[]);
+  }
+});
