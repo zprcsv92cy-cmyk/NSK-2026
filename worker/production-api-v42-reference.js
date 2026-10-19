@@ -859,6 +859,13 @@ var worker_default = { async fetch(req, env) {
   }
   const m = /^\/api\/([a-z]+)$/.exec(url.pathname);
   if (!m || !Object.hasOwn(TABLES, m[1])) return reply({ ok: false, error: "Not found" }, 404);
+  // Mandatory scoped-collection rollout must never silently expose other
+  // sensitive tables through the generic legacy Baserow collection reader.
+  // Dedicated authorized readers are required before enabling these features.
+  if (env.NSK_REQUIRE_SCOPED_COLLECTION_READS === "true" &&
+      ["matcher", "malvaktsstatistik", "spelaretranare"].includes(m[1])) {
+    return reply({ ok: false, error: "Behörighetskontrollerad läsning krävs" }, 403);
+  }
   const page = Math.max(1, Math.min(1e5, parseInt(url.searchParams.get("page") || "1", 10) || 1));
   const size = Math.max(1, Math.min(200, parseInt(url.searchParams.get("size") || "100", 10) || 100));
   try {
