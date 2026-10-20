@@ -38,7 +38,7 @@ for(const name of ['BASEROW_TOKEN','ADMIN_PASSWORD','MATCH_PASSWORD']){
   assert.equal(bindings.find(x=>x.name===name)?.type,'secret_text','Missing named secret: '+name);
 }
 for(const name of ['NSK_REQUIRE_SCOPED_ROSTER_READS','NSK_REQUIRE_SCOPED_TEAM_READS','NSK_REQUIRE_SCOPED_COLLECTION_READS']){
-  assert.equal(bindings.find(x=>x.name===name)?.text,'true','Scoped read disabled: '+name);
+  assert.equal(liveBindings.find(x=>x.name===name)?.text,'true','Active deployed version scoped read flag drift: '+name);
 }
 for(const name of ['NSK_REQUIRE_PERSONAL_POOL_WRITES','NSK_REQUIRE_PERSONAL_MATCH_WRITES','NSK_REQUIRE_PERSONAL_COACH_SELECTION']){
   assert.equal(liveBindings.find(x=>x.name===name)?.text||'false',expectedWriteFlags,'Active deployed version personal write flag drift: '+name);
