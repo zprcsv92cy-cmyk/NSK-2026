@@ -3,6 +3,8 @@ import assert from 'node:assert/strict';
 const token=process.env.CLOUDFLARE_API_TOKEN;
 const account=process.env.CLOUDFLARE_ACCOUNT_ID;
 const expected=process.env.EXPECTED_ACTIVE_VERSION;
+const expectedWriteFlags=process.env.EXPECTED_PERSONAL_WRITE_FLAGS;
+assert.ok(['true','false'].includes(expectedWriteFlags),'Expected personal write flags must be explicitly true or false');
 if(!token||!account)throw Error('Cloudflare API credentials required');
 assert.match(expected||'',/^[0-9a-f]{8}(?:-[0-9a-f]{4}){3}-[0-9a-f]{12}$/);
 
@@ -39,7 +41,7 @@ for(const name of ['NSK_REQUIRE_SCOPED_ROSTER_READS','NSK_REQUIRE_SCOPED_TEAM_RE
   assert.equal(bindings.find(x=>x.name===name)?.text,'true','Scoped read disabled: '+name);
 }
 for(const name of ['NSK_REQUIRE_PERSONAL_POOL_WRITES','NSK_REQUIRE_PERSONAL_MATCH_WRITES','NSK_REQUIRE_PERSONAL_COACH_SELECTION']){
-  assert.equal(liveBindings.find(x=>x.name===name)?.text||'false','false','Active deployed version has personal writes enabled: '+name);
+  assert.equal(liveBindings.find(x=>x.name===name)?.text||'false',expectedWriteFlags,'Active deployed version personal write flag drift: '+name);
 }
 const candidate=await get('/versions/c4a7024e-6621-4e7d-8b88-7ef3cdecd670');
 assert.equal(candidate.metadata?.has_preview,false);
@@ -48,7 +50,7 @@ const summary=[
 '- Active production Worker: \`'+expected+'\` (100% traffic)',
 '- Existing D1, KV and ShiftLock identifiers match the approved baseline',
 '- Secret bindings are present by name; values have not been read',
-'- Active deployed Worker keeps personal write flags disabled',
+'- Active deployed Worker personal write flags verified as '+expectedWriteFlags,
 '- Script settings may show newer uploaded-version flags; those do not prove production traffic changed',
 '- Older uploaded candidate still has no Preview endpoint',
 '- **No deployment, rollback, or data mutation was performed**',
