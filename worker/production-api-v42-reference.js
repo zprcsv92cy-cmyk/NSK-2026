@@ -529,7 +529,9 @@ var worker_default = { async fetch(req, env) {
     try {
       const teamsResp = await fetch(`https://api.baserow.io/api/database/rows/table/${TABLES.lag}/?user_field_names=true&size=100`, { headers: auth });
       if (!teamsResp.ok) return reply({ ok: false, error: "Kunde inte kontrollera f\xF6reningslag" }, 502);
-      const teamRows = (await teamsResp.json()).results;
+      const teamPage = await teamsResp.json();
+      if (teamPage.next) return reply({ ok: false, error: "Laglistan kunde inte verifieras fullständigt" }, 503);
+      const teamRows = teamPage.results;
       const matches = Array.isArray(teamRows) ? teamRows.filter((t) => t.Namn === (authorizedPoolTeam || "NSK Team 18") && String(t["S\xE4song"]) === "2026" && Number.isSafeInteger(Number(t.id)) && Number(t.id) > 0) : [];
       if (matches.length !== 1) return reply({ ok: false, error: "Lagkopplingen kunde inte verifieras" }, 409);
       const team = matches[0];
