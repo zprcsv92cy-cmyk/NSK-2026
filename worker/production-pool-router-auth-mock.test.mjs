@@ -5,7 +5,7 @@ import worker from './production-api-v42-reference.js';
 
 const bearer='p'.repeat(43);
 const title='Isolated route test - no remote writes';
-const payload={title,place:'Teststad',hall:'Testhall',pool_date:'2026-12-01',status:'Aktiv',teams:2,matches:2,players_on_field:5,periods:2,period_time:15,sub_time:120};
+const payload={team_id:'NSK Team 18',title,place:'Teststad',hall:'Testhall',pool_date:'2026-12-01',status:'Aktiv',teams:2,matches:2,players_on_field:5,periods:2,period_time:15,sub_time:120};
 const team={id:18,Namn:'NSK Team 18','Säsong':'2026'};
 function fixture(memberTeam){
  const writes=[];
