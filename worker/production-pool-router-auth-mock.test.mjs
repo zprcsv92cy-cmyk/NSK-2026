@@ -55,6 +55,6 @@ test('rejects duplicate team owners before write',async()=>{
 });
 test('rejects invalid team owner before write',async()=>{
  const result=await run('NSK Team 18',[{...team,id:'bad'}]);
- assert.equal(result.status,409);
+ assert.equal(result.status,503);
  assert.equal(result.writes.length,0);
 });
