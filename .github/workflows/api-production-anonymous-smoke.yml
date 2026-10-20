@@ -1,0 +1,20 @@
+name: Production API anonymous read smoke test
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  deny-anonymous-reads:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Verify production rejects anonymous scoped reads (GET only)
+        run: node scripts/smoke-production-api-no-auth.mjs
