@@ -45,8 +45,8 @@ jobs:
           test -n "$CLOUDFLARE_API_TOKEN" || { echo "::error::Missing CLOUDFLARE_API_TOKEN GitHub Actions secret"; exit 1; }
           test -n "$CLOUDFLARE_ACCOUNT_ID" || { echo "::error::Missing CLOUDFLARE_ACCOUNT_ID GitHub Actions secret"; exit 1; }
           # Never log secret contents or the account identifier.
-          status=$(curl --silent --output /dev/null --write-out '%{http_code}' \\
-            --header "Authorization: Bearer $CLOUDFLARE_API_TOKEN" \\
+          status=$(curl --silent --output /dev/null --write-out '%{http_code}' \
+            --header "Authorization: Bearer $CLOUDFLARE_API_TOKEN" \
             https://api.cloudflare.com/client/v4/user/tokens/verify)
           if [ "$status" != 200 ]; then
             echo "::error::Cloudflare API token verification failed (HTTP $status). Replace the GitHub Actions secret CLOUDFLARE_API_TOKEN with a valid Cloudflare API token for the correct account."
