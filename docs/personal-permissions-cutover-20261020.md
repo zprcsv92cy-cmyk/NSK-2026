@@ -35,3 +35,12 @@ Owner approval has been received to switch from shared Adminläge to personal te
 5. Deploy only after a concrete coordinated cutover sequence and recovery procedure have been reviewed and the release gate is cleared.
 
 **Do not merge this draft PR solely on the basis of green static tests or an upload-only Cloudflare version.**
+
+## Production auth database read-only verification (2026-10-20)
+- The active `nsk-api` deployment remains `7434d756-524c-43c4-95b2-73cc942a256b` at 100%.
+- Its `AUTH_DB` binding points to `nsk-auth-production` (database ID `9f937bcb-b0c0-4129-af5b-775cf284dfcb`).
+- Read-only Cloudflare D1 inspection confirms auth tables exist: `auth_users`, `auth_sessions`, `auth_team_memberships`, `auth_user_permissions`, `auth_global_admins`, `auth_login_attempts`, and `auth_setup_tokens`.
+- Aggregate counts only: one enabled user, three currently valid sessions, one team membership, and nine permission grants. The single membership is `NSK Team 18` with role `team_admin`; its grants match the expected permission vocabulary (read, roster, pool create/finish/reopen, lineup, matches, shifts, users).
+- No session tokens or personal data were read or exposed. No database rows were changed.
+- This confirms the production auth schema and permission vocabulary are present. It does **not** prove that an authenticated request through the exact new Worker version can safely complete a Baserow write and read-back.
+- The live authenticated end-to-end check is still blocked because no controlled test account/session and isolated writable Baserow fixture are provisioned for the exact candidate. Do not use a real team/player mutation as a substitute.
