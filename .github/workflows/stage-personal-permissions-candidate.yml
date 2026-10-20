@@ -1,14 +1,15 @@
 name: Stage personal-permissions production candidate (no traffic)
 on:
-  push:
-    branches: [release/personal-permissions-production-20261020]
-    paths:
-      - 'wrangler.api.production.toml'
-      - 'worker/**'
-      - 'config.js'
-      - 'scripts/personal-production-cutover-contract.test.mjs'
-      - 'scripts/production-cutover-readonly-preflight.mjs'
-      - '.github/workflows/stage-personal-permissions-candidate.yml'
+  workflow_dispatch:
+    inputs:
+      expected_sha:
+        description: 'Reviewed 40-character release commit SHA'
+        type: string
+        required: true
+      confirmation:
+        description: 'Type UPLOAD_ONLY (no production traffic)'
+        type: string
+        required: true
 permissions:
   contents: read
 concurrency:
@@ -17,7 +18,7 @@ concurrency:
 jobs:
   upload-only:
     runs-on: ubuntu-latest
-    if: ${{ github.repository == 'zprcsv92cy-cmyk/NSK-2026' }}
+    if: ${{ github.repository == 'zprcsv92cy-cmyk/NSK-2026' && github.ref == 'refs/heads/release/personal-permissions-production-20261020' && inputs.confirmation == 'UPLOAD_ONLY' }}
     steps:
       - uses: actions/checkout@v4
         with:
@@ -25,6 +26,15 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: '22'
+      - name: Require exact reviewed source commit
+        env:
+          EXPECTED_SHA: ${{ inputs.expected_sha }}
+          ACTUAL_SHA: ${{ github.sha }}
+        run: |
+          set -euo pipefail
+          [[ "$EXPECTED_SHA" =~ ^[0-9a-f]{40}$ ]]
+          test "$EXPECTED_SHA" = "$ACTUAL_SHA"
+
       - name: Verify exact release switches and security contract
         run: |
           set -euo pipefail
