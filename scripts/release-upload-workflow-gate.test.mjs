@@ -27,7 +27,8 @@ test('candidate upload never routes traffic to the new version',()=>{
 test('preflight validates the actually deployed version against explicitly expected write flags',()=>{
  assert.match(preflight,/EXPECTED_PERSONAL_WRITE_FLAGS/);
  assert.match(preflight,/const liveVersion=await get\('\/versions\/'\+expected\)/);
- assert.match(preflight,/liveBindings\.find\(x=>x\.name===name\)\?\.text\|\|'false',expectedWriteFlags/);
+ assert.match(preflight,/assert\.ok\(!item\|\|item\.type==='plain_text'/);
+ assert.match(preflight,/item\?\.text\?\?'false',expectedWriteFlags/);
  assert.doesNotMatch(preflight,/Active deployed Worker keeps personal write flags disabled/);
 });
 
