@@ -3,7 +3,7 @@
 **Status: NO-GO.** This document is preparation, not authorization to merge or deploy. PR #206 remains draft.
 
 ## 1. Immutable baseline (refresh immediately before any cutover)
-- Confirm `main` commit and release candidate SHA; re-run all CI after reconciling the release branch with `main`.
+- Confirm `main` commit and release candidate SHA; re-run all CI after reconciling the release branch with `main`. On 2026-10-20 PR #206 became mergeable and all seven PR checks passed for `e740490`; this is **not** a completed authenticated release validation or authorization to merge.
 - Query Cloudflare deployment traffic and capture the 100% active Worker version. Previously observed: `7434d756-524c-43c4-95b2-73cc942a256b`; **do not assume it remains current**.
 - Record live frontend Pages deployment ID, app version, service-worker cache epoch, and production hostname. Verify a known-good frontend artifact is available for rollback.
 - Read back Worker D1, KV, Durable Object bindings, secrets *names only*, and six permission/read flags. Compare with the candidate. Never print secret values or session tokens.
@@ -36,7 +36,7 @@
 ## Evidence record (fill in before GO)
 | Gate | Evidence URL / ID | Result |
 | --- | --- | --- |
-| Exact SHA and green CI | pending | BLOCKED |
+| Exact SHA and green CI | `e74049014cac31b899b2ac314b5a7b7a3c8e1994`; [Team authorization tests](https://github.com/zprcsv92cy-cmyk/NSK-2026/actions/runs/39443243488), [API release verification](https://github.com/zprcsv92cy-cmyk/NSK-2026/actions/runs/39443243482), [Worker build](https://github.com/zprcsv92cy-cmyk/NSK-2026/actions/runs/39443243452), [API dry-run](https://github.com/zprcsv92cy-cmyk/NSK-2026/actions/runs/39443243604), [bundle dry-run](https://github.com/zprcsv92cy-cmyk/NSK-2026/actions/runs/39443243411), [read-only preflight syntax/mock tests](https://github.com/zprcsv92cy-cmyk/NSK-2026/actions/runs/39443243521), [appversion](https://github.com/zprcsv92cy-cmyk/NSK-2026/actions/runs/39443243437) | PASS for tested SHA; rerun after further changes |
 | Live production baseline | pending refresh | BLOCKED |
 | Isolated authenticated write/read-back | pending | BLOCKED |
 | Denied cross-team write | pending exact Preview | BLOCKED |
