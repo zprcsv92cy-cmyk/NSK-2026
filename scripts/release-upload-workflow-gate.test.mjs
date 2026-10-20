@@ -14,8 +14,8 @@ test('upload requires exact source SHA and manual confirmation',()=>{
  assert.match(workflow,/inputs\.confirmation == 'UPLOAD_ONLY'/);
  assert.match(workflow,/test "\$EXPECTED_SHA" = "\$ACTUAL_SHA"/);
 });
-test('production preflight expects existing live personal-write switches',()=>{
- assert.match(workflow,/EXPECTED_PERSONAL_WRITE_FLAGS: 'true'/);
+test('production preflight expects verified absent live personal-write switches',()=>{
+ assert.match(workflow,/EXPECTED_PERSONAL_WRITE_FLAGS: 'false'/);
  assert.match(workflow,/EXPECTED_ACTIVE_VERSION: 7434d756-524c-43c4-95b2-73cc942a256b/);
 });
 test('candidate upload never routes traffic to the new version',()=>{
