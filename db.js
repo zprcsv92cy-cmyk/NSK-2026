@@ -123,7 +123,15 @@ window.DB = (() => {
       periods:pool.periods,period_time:pool.period_time,sub_time:pool.sub_time};
     return (await adminRequest(`/api/poolspel/${encodeURIComponent(poolId)}`,'PATCH',payload)).row;
   }
-  async function writePool(method,rowId,payload){return (await adminRequest(`/api/poolspel${rowId?'/'+encodeURIComponent(rowId):''}`,method,payload)).row}
+  async function writePool(method,rowId,payload){
+    let body=payload;
+    if(method==='POST' && window.APP_CONFIG?.REQUIRE_PERSONAL_POOL_WRITES===true){
+      const selected=window.Auth?.activeTeam?.();
+      if(typeof selected!=='string'||!selected.trim())throw new Error('Välj ett lag i din personliga inloggning');
+      body={...payload,team_id:selected};
+    }
+    return (await adminRequest(`/api/poolspel${rowId?'/'+encodeURIComponent(rowId):''}`,method,body)).row;
+  }
   const addPool=payload=>writePool('POST',null,payload);
   const updatePool=(rowId,payload)=>writePool('PATCH',rowId,payload);
   const updatePoolActive=(rowId,active)=>adminRequest(`/api/poolspel/${encodeURIComponent(rowId)}/aktiv`,'PATCH',{active});
