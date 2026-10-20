@@ -1,6 +1,23 @@
 (()=>{
 const API='https://nsk-api.peter-hasselberg.workers.dev';
 const KEY='nsk_admin_token';
+// Only the fully coordinated release may replace the shared Adminläge control.
+// Existing production keeps its original login until all client flags are enabled.
+const personalCutoverEnabled = ['POOL_WRITES','MATCH_WRITES','ROSTER_WRITES','COACH_SELECTION']
+  .every(name => window.APP_CONFIG?.['REQUIRE_PERSONAL_' + name] === true);
+if (personalCutoverEnabled) {
+  const addAccountLink = () => {
+    const menu = document.querySelector('.mainmenu');
+    if (!menu || menu.querySelector('a[href="../mittkonto/"]')) return;
+    const link = document.createElement('a');
+    link.href = '../mittkonto/';
+    link.textContent = 'Mitt konto';
+    menu.append(link);
+  };
+  if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', addAccountLink);
+  else addAccountLink();
+  return;
+}
 const css=document.createElement('style');
 css.textContent=`
 #nsk-admin-bar{position:static!important;display:flex;justify-content:flex-end;align-items:center;gap:6px;width:100%;box-sizing:border-box;margin:5px 0 2px!important;padding:0!important;background:transparent!important;border:0!important;border-radius:0!important;box-shadow:none!important;color:#c8d0d8;font:12px system-ui,sans-serif;z-index:auto!important}
