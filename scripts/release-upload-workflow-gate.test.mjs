@@ -34,3 +34,9 @@ test('preflight checks live scoped read flags rather than mutable uploaded setti
  assert.match(preflight,/liveBindings\.find\(x=>x\.name===name\)\?\.text,'true','Active deployed version scoped read flag drift: '/);
  assert.doesNotMatch(preflight,/bindings\.find\(x=>x\.name===name\)\?\.text,'true','Scoped read disabled: '/);
 });
+
+test('preflight verifies live version resource identifiers and named secrets',()=>{
+ assert.match(preflight,/const item=liveBindings\.find\(x=>x\.name===name\)/);
+ assert.match(preflight,/liveBindings\.find\(x=>x\.name===name\)\?\.type,'secret_text'/);
+ assert.doesNotMatch(preflight,/const item=bindings\.find\(x=>x\.name===name\)/);
+});
