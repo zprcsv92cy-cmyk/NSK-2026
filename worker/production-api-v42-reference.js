@@ -532,7 +532,8 @@ var worker_default = { async fetch(req, env) {
       const teamPage = await teamsResp.json();
       if (!teamPage || !Array.isArray(teamPage.results) || teamPage.results.length > 100 || teamPage.next !== null) return reply({ ok: false, error: "Laglistan kunde inte verifieras fullständigt" }, 503);
       const teamRows = teamPage.results;
-      const matches = Array.isArray(teamRows) ? teamRows.filter((t) => t.Namn === (authorizedPoolTeam || "NSK Team 18") && String(t["S\xE4song"]) === "2026" && Number.isSafeInteger(Number(t.id)) && Number(t.id) > 0) : [];
+      const matches = teamRows.filter((t) => t?.Namn === (authorizedPoolTeam || "NSK Team 18") && String(t["S\xE4song"]) === "2026");
+      if (matches.some((t) => !/^[1-9]\\d*$/.test(String(t.id)) || !Number.isSafeInteger(Number(t.id)))) return reply({ ok: false, error: "Ogiltig lagkoppling" }, 503);
       if (matches.length !== 1) return reply({ ok: false, error: "Lagkopplingen kunde inte verifieras" }, 409);
       const team = matches[0];
       const rowId = req.method === "PATCH" ? Number(url.pathname.split("/").pop()) : null;
