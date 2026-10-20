@@ -60,5 +60,5 @@ test('roster page switches permission checks with server verification and limits
   assert.match(page,/Auth\.checkTeamFeature\('roster', team\)/);
   assert.match(page,/const allowed=await window\.NSKRosterCanEdit\(\)/);
   assert.match(page,/const verified=await window\.NSKRosterCanEdit\(\)/);
-  assert.match(config,/REQUIRE_PERSONAL_ROSTER_WRITES: false/);
+  assert.match(config,/REQUIRE_PERSONAL_ROSTER_WRITES: true/);
 });

@@ -1,0 +1,37 @@
+# Production personal-permissions cutover — 2026-10-20
+
+Owner approval has been received to switch from shared Adminläge to personal team permissions, but approval alone does not guarantee safe implementation.
+
+## Prepared, not released
+- Frontend `config.js`: personal pool, match, roster and coach-selection switches on in THIS BRANCH ONLY.
+- Production Worker manifest: pool, match and coach-selection guards on in THIS BRANCH ONLY.
+- The active Worker remains version `7434d756-524c-43c4-95b2-73cc942a256b` at 100% from the last read; capture again at release time.
+- Existing staged Worker `c4a7024e-6621-4e7d-8b88-7ef3cdecd670` has write switches OFF; it is **not** a complete cutover release.
+- Isolated Preview is live and has passed anonymous 401 read/write tests. These tests do not establish a successful authenticated write with the same runtime/data bindings as production.
+
+## Blockers before merging/publishing
+1. The eight legacy `admin-mode.js` imports now hide the shared control and show Mitt konto when all personal switches are enabled. `pool-team-editor.js` now uses the personal pool grant during cutover, and `db.js` prevents shift/matchcode fallbacks without a personal session. **Still required:** full browser end-to-end checks for all pages, logout, cache transitions and existing match functionality; do not treat unit tests as production proof.
+2. Release-branch feature-flag tests now expect all switches on and pass. The existing upload-only GitHub workflow still requires switches OFF; create a reviewed release-specific process rather than bypassing this safeguard.
+3. Publish the frontend and Worker as one coordinated transition. Turning on the frontend first sends personal tokens to the old API; turning on the Worker first may reject existing admin-token requests. Use a safe compatibility phase or planned controlled cutover.
+4. Preserve `AUTH_DB`, `ADMIN_KV`, `NSK_TRAINERS`, the existing `SHIFT_LOCK` namespace and migration history, and all secrets. A Worker-version rollback does not recover changed D1/KV/Baserow/Durable Object data.
+5. Confirm how to return to the last working frontend and Worker version together, then verify positive authorized Team 18 writes, denied Testlag 2 writes and continued function of shifts, lineup, coach selections and match UI. The existing preview tests verify anonymous denial, not successful personal saves in production.
+6. Recheck GitHub checks, live Worker traffic/bindings and release gate immediately before cutover.
+
+**Do not merge this PR or deploy its manifest until these checks are satisfied.**
+
+## Verified isolated and staged candidates (2026-10-20)
+- Release candidate source commit: `f63ccf314ce530adff0284f767e3096995e6f20f`
+- Preview `nsk-personal-release-20261020` deployed and anonymous API smoke checks passed ([GitHub run](https://github.com/zprcsv92cy-cmyk/NSK-2026/actions/runs/39366845601)).
+- Production upload-only Worker version: `534ec56e-45e9-4aa9-9014-ed95da45935a` ([GitHub run](https://github.com/zprcsv92cy-cmyk/NSK-2026/actions/runs/39367027050)).
+- Cloudflare readback confirms candidate has all three personal-write guards ON and all three scoped-read guards ON, with the same D1, KV, Durable Object and secret binding names/IDs as the active Worker.
+- Cloudflare readback also confirms active Worker `7434d756-524c-43c4-95b2-73cc942a256b` remains at 100% traffic.
+- User reported successful personal authentication and Team 18 allowed / Testlag 2 denied tests previously; this report is recorded, but is not a full live test of this release candidate's authenticated writes with production resources.
+
+## Go/no-go: NO-GO for production traffic switch yet
+1. The released webpage immediately enables personal-token writes when `config.js` changes, but the currently active API has these guards OFF. Publishing it ahead of the API risks breaking writes.
+2. The reverse order also risks breaking writes: the older client sends Adminläge tokens, which the candidate API disallows for personalized routes.
+3. The Preview does not contain a seeded auth database or independent writable Baserow test data, so successful authenticated write/read-back against this exact candidate is not verified.
+4. A version rollback is possible in principle, but actual restoration of stateful Baserow/D1/KV/Durable Object data has not been exercised. A frontend version rollback also needs coordinated cache invalidation.
+5. Deploy only after a concrete coordinated cutover sequence and recovery procedure have been reviewed and the release gate is cleared.
+
+**Do not merge this draft PR solely on the basis of green static tests or an upload-only Cloudflare version.**

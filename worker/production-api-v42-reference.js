@@ -355,6 +355,13 @@ var worker_default = { async fetch(req, env) {
     await env.ADMIN_KV.put("match-session:" + await sha(token), "match", { expirationTtl: 604800 });
     return reply({ ok: true, token, expires_in: 604800 });
   }
+  // After complete personal cutover, stop issuing shared Adminläge credentials.
+  // Keep logout/status endpoints for legacy-session cleanup and diagnostics.
+  if (url.pathname === "/api/admin/login" && req.method === "POST" &&
+      personalPoolWritesEnabled && personalMatchWritesEnabled &&
+      env.NSK_REQUIRE_PERSONAL_COACH_SELECTION === "true") {
+    return reply({ ok: false, error: "Använd personlig inloggning" }, 410);
+  }
   if (url.pathname.startsWith("/api/admin/")) {
     if (!env.ADMIN_KV || !env.ADMIN_PASSWORD || env.ADMIN_PASSWORD.length < 12) return reply({ ok: false, error: "Admin configuration incomplete" }, 503);
     if (url.pathname === "/api/admin/status" && req.method === "GET") return reply({ ok: true, admin: !!await session(req, env) });
