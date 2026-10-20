@@ -15,6 +15,8 @@ const bindings=[
 ];
 if(process.env.FIXTURE==='wrong-write-type') bindings.push({name:'NSK_REQUIRE_PERSONAL_POOL_WRITES',type:'secret_text'});
 if(process.env.FIXTURE==='wrong-database') bindings[0].database_id='unexpected';
+if(process.env.FIXTURE==='write-enabled') bindings.push({name:'NSK_REQUIRE_PERSONAL_POOL_WRITES',type:'plain_text',text:'true'});
+if(process.env.FIXTURE==='scoped-read-disabled') bindings.find(x=>x.name==='NSK_REQUIRE_SCOPED_TEAM_READS').text='false';
 globalThis.fetch=async url=>{
  const path=new URL(url).pathname;
  let result;
@@ -48,4 +50,15 @@ test('read-only preflight rejects drifted D1 binding',()=>{
  const r=run('wrong-database');
  assert.notEqual(r.status,0);
  assert.match(r.stderr,/Active production binding ID mismatch for AUTH_DB/);
+});
+
+test('read-only preflight rejects unexpectedly enabled personal writes',()=>{
+ const r=run('write-enabled');
+ assert.notEqual(r.status,0);
+ assert.match(r.stderr,/Active deployed version personal write flag drift/);
+});
+test('read-only preflight rejects disabled scoped team reads',()=>{
+ const r=run('scoped-read-disabled');
+ assert.notEqual(r.status,0);
+ assert.match(r.stderr,/Active deployed version scoped read flag drift/);
 });
