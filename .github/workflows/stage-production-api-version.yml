@@ -1,0 +1,81 @@
+name: Stage production API version (no traffic)
+
+on:
+  workflow_dispatch:
+    inputs:
+      expected_main_sha:
+        description: 'Full 40-character SHA of the main commit to stage'
+        required: true
+        type: string
+      confirmation:
+        description: 'Type UPLOAD_ONLY to upload a Worker version without deploying traffic'
+        required: true
+        type: string
+
+permissions:
+  contents: read
+
+concurrency:
+  group: nsk-api-production-version-upload
+  cancel-in-progress: false
+
+jobs:
+  upload-version:
+    runs-on: ubuntu-latest
+    # Never accept arbitrary refs or unreviewed branch code as a production candidate.
+    if: ${{ github.ref == 'refs/heads/main' && inputs.confirmation == 'UPLOAD_ONLY' }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - name: Require an exact reviewed main commit
+        env:
+          EXPECTED_SHA: ${{ inputs.expected_main_sha }}
+          ACTUAL_SHA: ${{ github.sha }}
+        run: |
+          set -euo pipefail
+          [[ "$EXPECTED_SHA" =~ ^[0-9a-f]{40}$ ]] || { echo "Full SHA required"; exit 1; }
+          test "$EXPECTED_SHA" = "$ACTUAL_SHA" || { echo "Main changed since approval"; exit 1; }
+      - name: Require Cloudflare credentials
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+        run: |
+          set -euo pipefail
+          test -n "$CLOUDFLARE_API_TOKEN"
+          test -n "$CLOUDFLARE_ACCOUNT_ID"
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Run release security and integration tests
+        run: |
+          set -euo pipefail
+          node --experimental-default-type=module --test worker/production-pool-write-authorization.test.mjs worker/production-pool-write-integration.test.mjs worker/production-match-write-authorization.test.mjs worker/production-match-write-integration.test.mjs worker/production-coach-selection-authorization.test.mjs worker/production-coach-selection-integration.test.mjs worker/team-authorization-policy.test.mjs
+          node --test scripts/personal-roster-write-client.test.mjs scripts/roster-staff-role-contract.test.mjs scripts/pool-save-permission-ui.test.mjs
+      - name: Ensure every new write-path switch stays disabled
+        run: |
+          set -euo pipefail
+          node --input-type=module <<'NODE'
+          import assert from 'node:assert/strict';
+          import {readFileSync} from 'node:fs';
+          const app=readFileSync('config.js','utf8');
+          const api=readFileSync('wrangler.api.production.toml','utf8');
+          for(const name of ['POOL_WRITES','MATCH_WRITES','COACH_SELECTION']){
+            assert.match(app,new RegExp('REQUIRE_PERSONAL_'+name+': false'));
+            assert.match(api,new RegExp('NSK_REQUIRE_PERSONAL_'+name+' = "false"'));
+          }
+          assert.match(app,/REQUIRE_PERSONAL_ROSTER_WRITES: false/);
+          NODE
+      - name: Build production API without deploying
+        run: npx --yes wrangler@4.151.2 deploy --config wrangler.api.production.toml --dry-run --outdir /tmp/nsk-worker-stage
+      - name: Upload immutable version only (no deployment)
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+        run: |
+          set -euo pipefail
+          npx --yes wrangler@4.151.2 versions upload --config wrangler.api.production.toml --message "Staged from GitHub main ${GITHUB_SHA}; NO TRAFFIC"
+      - name: Record staged commit
+        run: |
+          echo "Uploaded production API candidate for commit ${GITHUB_SHA} without traffic deployment." >> "$GITHUB_STEP_SUMMARY"
+          echo "Do not run wrangler deploy or versions deploy until live bindings, rollback, and end-to-end authorization are verified." >> "$GITHUB_STEP_SUMMARY"
