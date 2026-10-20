@@ -49,7 +49,7 @@ test('all pages that include old admin button load the new config first',()=>{
 test('release changes service-worker cache epoch so old admin assets are not silently reused',()=>{
   const version=read('version.js');
   const sw=read('sw.js');
-  const number=/NSK_VERSION = "(\\d+)"/.exec(version)?.[1];
+  const number=/NSK_VERSION = "([0-9]+)"/.exec(version)?.[1];
   assert.ok(number,'version.js must declare a version');
   assert.match(sw,new RegExp('CACHE_NAME = "nsk-team18-v'+number+'"'));
   assert.match(sw,/caches\.delete\(key\)/);
