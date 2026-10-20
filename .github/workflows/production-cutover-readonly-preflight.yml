@@ -6,6 +6,13 @@ on:
         description: 'Current active 100% Worker version ID (rollback baseline)'
         required: true
         type: string
+      expected_personal_write_flags:
+        description: 'Expected current state of all three personal write flags (true or false)'
+        required: true
+        type: choice
+        options:
+          - 'true'
+          - 'false'
       confirmation:
         description: 'Type READ_ONLY'
         required: true
@@ -47,4 +54,5 @@ jobs:
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
           EXPECTED_ACTIVE_VERSION: ${{ inputs.expected_active_version }}
+          EXPECTED_PERSONAL_WRITE_FLAGS: ${{ inputs.expected_personal_write_flags }}
         run: node scripts/production-cutover-readonly-preflight.mjs
