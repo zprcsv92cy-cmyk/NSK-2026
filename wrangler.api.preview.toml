@@ -1,0 +1,40 @@
+# Isolated Worker Preview. Never use this manifest for production deployment.
+name = "nsk-api"
+main = "worker/production-api-v42-reference.js"
+compatibility_date = "2026-10-10"
+workers_dev = true
+
+[vars]
+BASEROW_DATABASE_ID = "589073"
+NSK_REQUIRE_SCOPED_ROSTER_READS = "true"
+NSK_REQUIRE_SCOPED_TEAM_READS = "true"
+NSK_REQUIRE_SCOPED_COLLECTION_READS = "true"
+NSK_REQUIRE_PERSONAL_POOL_WRITES = "true"
+NSK_REQUIRE_PERSONAL_MATCH_WRITES = "true"
+NSK_REQUIRE_PERSONAL_COACH_SELECTION = "true"
+NSK_PREVIEW_ISOLATED = "true"
+
+[previews]
+# Preview runtime provisions its own Durable Object namespace and storage.
+
+[[d1_databases]]
+binding = "AUTH_DB"
+database_name = "nsk-api-preview-auth-20261020"
+database_id = "c00ba406-8210-49ba-a0e2-03b838e7934e"
+
+[[kv_namespaces]]
+binding = "ADMIN_KV"
+id = "88980e7865934a3dab82876351b30d28"
+
+[[kv_namespaces]]
+binding = "NSK_TRAINERS"
+id = "9ea94390ad5d4e49ae6d323d5ae78cae"
+
+[durable_objects]
+[[durable_objects.bindings]]
+name = "SHIFT_LOCK"
+class_name = "ShiftLock"
+
+[exports.ShiftLock]
+type = "durable-object"
+storage = "sqlite"
