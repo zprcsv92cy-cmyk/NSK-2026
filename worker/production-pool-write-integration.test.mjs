@@ -15,8 +15,8 @@ test('production pool write routes use the personal guard when the rollout flag 
   assert.match(source, /else if \(!env\.ADMIN_KV \|\| !await session\(req, env\)\)/);
 });
 
-test('client and Worker rollout flags are explicitly disabled by default', () => {
-  assert.match(config, /REQUIRE_PERSONAL_POOL_WRITES: false/);
+test('client and Worker rollout flags are explicitly enabled in release candidate', () => {
+  assert.match(config, /REQUIRE_PERSONAL_POOL_WRITES: true/);
   assert.match(workerConfig, /NSK_REQUIRE_PERSONAL_POOL_WRITES = "false"/);
 });
 
