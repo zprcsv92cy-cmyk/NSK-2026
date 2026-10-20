@@ -17,6 +17,9 @@ async function get(path){
 const [deployment,settings]=await Promise.all([get('/deployments'),get('/settings')]);
 const active=deployment.deployments?.[0]?.versions||[];
 assert.deepEqual(active,[{version_id:expected,percentage:100}],'Production traffic changed; abort coordinated release');
+// Script settings can reflect the last UPLOADED version, not the live deployed version.
+const liveVersion=await get('/versions/'+expected);
+const liveBindings=liveVersion.resources?.bindings||[];
 const bindings=settings.bindings||[];
 const expectations=[
   ['AUTH_DB','d1','9f937bcb-b0c0-4129-af5b-775cf284dfcb'],
@@ -36,7 +39,7 @@ for(const name of ['NSK_REQUIRE_SCOPED_ROSTER_READS','NSK_REQUIRE_SCOPED_TEAM_RE
   assert.equal(bindings.find(x=>x.name===name)?.text,'true','Scoped read disabled: '+name);
 }
 for(const name of ['NSK_REQUIRE_PERSONAL_POOL_WRITES','NSK_REQUIRE_PERSONAL_MATCH_WRITES','NSK_REQUIRE_PERSONAL_COACH_SELECTION']){
-  assert.equal(bindings.find(x=>x.name===name)?.text,'false','Production write rollout changed: '+name);
+  assert.equal(liveBindings.find(x=>x.name===name)?.text||'false','false','Active deployed version has personal writes enabled: '+name);
 }
 const candidate=await get('/versions/c4a7024e-6621-4e7d-8b88-7ef3cdecd670');
 assert.equal(candidate.metadata?.has_preview,false);
@@ -45,7 +48,8 @@ const summary=[
 '- Active production Worker: \`'+expected+'\` (100% traffic)',
 '- Existing D1, KV and ShiftLock identifiers match the approved baseline',
 '- Secret bindings are present by name; values have not been read',
-'- Scoped read flags remain enabled; personal write flags remain disabled',
+'- Active deployed Worker keeps personal write flags disabled',
+'- Script settings may show newer uploaded-version flags; those do not prove production traffic changed',
 '- Older uploaded candidate still has no Preview endpoint',
 '- **No deployment, rollback, or data mutation was performed**',
 '- A Worker version rollback alone does not restore data written to D1, KV, Baserow or Durable Objects'
