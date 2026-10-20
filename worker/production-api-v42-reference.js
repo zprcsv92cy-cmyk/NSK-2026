@@ -8,6 +8,7 @@ import { createPoolOwnerResolver } from './production-shift-pool-owner-resolver.
 import { authorizeTeamFeature } from './team-authorization-policy.js';
 import { authorizePersonalPoolWrite } from './production-pool-write-authorization.js';
 import { authorizePersonalMatchWrite } from './production-match-write-authorization.js';
+import { authorizeCoachSelection } from './production-coach-selection-authorization.js';
 var __defProp = Object.defineProperty;
 var __name = (target, value) => __defProp(target, "name", { value, configurable: true });
 
@@ -252,7 +253,18 @@ var worker_default = { async fetch(req, env) {
   if (origin && origin !== ORIGIN) return reply({ ok: false, error: "Origin not allowed" }, 403);
   if (url.pathname === "/api/coach-selection" && (req.method === "GET" || req.method === "POST")) {
     if (!env.NSK_TRAINERS) return reply({ ok: false, error: "NSK_TRAINERS saknas i Worker Bindings" }, 503);
-    if (!env.ADMIN_KV || !await session(req, env)) return reply({ ok: false, error: "Adminl\xE4ge kr\xE4vs" }, 401);
+    if (env.NSK_REQUIRE_PERSONAL_COACH_SELECTION === "true") {
+      const access = await authorizeCoachSelection(req, env, {
+        readPool: async id => {
+          const response = await fetch(`https://api.baserow.io/api/database/rows/table/${TABLES.poolspel}/${id}/?user_field_names=true`, {
+            headers: { Authorization: `Token ${env.BASEROW_TOKEN}` }
+          });
+          return response.ok ? response.json() : null;
+        },
+        listTeams: () => listTrustedRosterTeams(env)
+      });
+      if (!access.allowed) return reply({ ok: false, error: access.error }, access.status);
+    } else if (!env.ADMIN_KV || !await session(req, env)) return reply({ ok: false, error: "Adminl\xE4ge kr\xE4vs" }, 401);
     let poolId, lagNo, matchNo, coachIds;
     if (req.method === "GET") {
       poolId = Number(url.searchParams.get("pool_id"));
