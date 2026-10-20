@@ -29,3 +29,8 @@ test('preflight validates the actually deployed version against explicitly expec
  assert.match(preflight,/liveBindings\.find\(x=>x\.name===name\)\?\.text\|\|'false',expectedWriteFlags/);
  assert.doesNotMatch(preflight,/Active deployed Worker keeps personal write flags disabled/);
 });
+
+test('preflight checks live scoped read flags rather than mutable uploaded settings',()=>{
+ assert.match(preflight,/liveBindings\.find\(x=>x\.name===name\)\?\.text,'true','Active deployed version scoped read flag drift: '/);
+ assert.doesNotMatch(preflight,/bindings\.find\(x=>x\.name===name\)\?\.text,'true','Scoped read disabled: '/);
+});
