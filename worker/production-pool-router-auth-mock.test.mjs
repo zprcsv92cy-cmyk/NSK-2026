@@ -64,6 +64,16 @@ test('rejects mixed valid and invalid duplicate team owners without writing',asy
  assert.equal(result.status,503);
  assert.equal(result.writes.length,0);
 });
+test('rejects a zero team owner ID without writing',async()=>{
+ const result=await run('NSK Team 18',[{...team,id:0}]);
+ assert.equal(result.status,503);
+ assert.equal(result.writes.length,0);
+});
+test('rejects a team owner ID beyond safe integer range without writing',async()=>{
+ const result=await run('NSK Team 18',[{...team,id:'9007199254740992'}]);
+ assert.equal(result.status,503);
+ assert.equal(result.writes.length,0);
+});
 test('rejects paginated team lookup without writing',async()=>{
  const result=await run('NSK Team 18',[team],true);
  assert.equal(result.status,503);
