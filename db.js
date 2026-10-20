@@ -101,6 +101,7 @@ window.DB = (() => {
       (/^\/api\/(?:spelare|tranare)(?:\/\d+)?$/.test(path) || /^\/api\/lagpersonal\?team_id=\d+$/.test(path)) &&
       ['POST','PATCH','DELETE'].includes(method);
     const personalWrite = personalPoolWrite || personalMatchWrite || personalRosterWrite;
+    if(personalCutoverEnabled() && !personalWrite)throw new Error('Denna åtgärd kräver personlig behörighet och stöds ännu inte i nya läget.');
     const personalToken = personalWrite ? window.Auth?.getToken?.() : null;
     const token = personalWrite ? personalToken : localStorage.getItem('nsk_admin_token');
     if(!token)throw new Error(personalPoolWrite ? 'Personlig inloggning krävs för att ändra poolspel.' :
