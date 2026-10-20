@@ -60,5 +60,5 @@ jobs:
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
           EXPECTED_ACTIVE_VERSION: ${{ github.event_name == 'push' && '7434d756-524c-43c4-95b2-73cc942a256b' || inputs.expected_active_version }}
-          EXPECTED_PERSONAL_WRITE_FLAGS: ${{ github.event_name == 'push' && 'true' || inputs.expected_personal_write_flags }}
+          EXPECTED_PERSONAL_WRITE_FLAGS: ${{ github.event_name == 'push' && 'false' || inputs.expected_personal_write_flags }}
         run: node scripts/production-cutover-readonly-preflight.mjs
