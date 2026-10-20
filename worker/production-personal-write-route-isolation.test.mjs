@@ -8,6 +8,8 @@ import worker from './production-api-v42-reference.js';
  */
 const env = {
   AUTH_DB: {},
+  // Coach selection requires this binding before evaluating the personal session.
+  NSK_TRAINERS: { get: async () => { throw Error('KV access before auth'); }, put: async () => { throw Error('KV write before auth'); } },
   NSK_REQUIRE_PERSONAL_POOL_WRITES: 'true',
   NSK_REQUIRE_PERSONAL_MATCH_WRITES: 'true',
   NSK_REQUIRE_PERSONAL_COACH_SELECTION: 'true',
