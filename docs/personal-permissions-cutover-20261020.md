@@ -10,11 +10,11 @@ Owner approval has been received to switch from shared Adminläge to personal te
 - Isolated Preview is live and has passed anonymous 401 read/write tests. These tests do not establish a successful authenticated write with the same runtime/data bindings as production.
 
 ## Blockers before merging/publishing
-1. Eight pages still load `admin-mode.js`: startsida, truppen, skapapoolspel, laguppstallning, bytesschema, matchvy, malvaktsstatistik and lag. The shared Adminläge flow must be removed or replaced with equivalent personal feature checks on every route, without losing working shift and match functionality.
-2. The existing upload-only GitHub workflow asserts personal-write flags are false. Replace its assumptions with a separately reviewed release workflow and account for current feature-flag tests expecting off.
+1. The eight legacy `admin-mode.js` imports now hide the shared control and show Mitt konto when all personal switches are enabled. `pool-team-editor.js` now uses the personal pool grant during cutover, and `db.js` prevents shift/matchcode fallbacks without a personal session. **Still required:** full browser end-to-end checks for all pages, logout, cache transitions and existing match functionality; do not treat unit tests as production proof.
+2. Release-branch feature-flag tests now expect all switches on and pass. The existing upload-only GitHub workflow still requires switches OFF; create a reviewed release-specific process rather than bypassing this safeguard.
 3. Publish the frontend and Worker as one coordinated transition. Turning on the frontend first sends personal tokens to the old API; turning on the Worker first may reject existing admin-token requests. Use a safe compatibility phase or planned controlled cutover.
 4. Preserve `AUTH_DB`, `ADMIN_KV`, `NSK_TRAINERS`, the existing `SHIFT_LOCK` namespace and migration history, and all secrets. A Worker-version rollback does not recover changed D1/KV/Baserow/Durable Object data.
-5. Confirm how to return to the last working frontend and Worker version together, then verify positive authorized Team 18 writes, denied Testlag 2 writes and continued function of shifts, lineup, coach selections and match UI.
+5. Confirm how to return to the last working frontend and Worker version together, then verify positive authorized Team 18 writes, denied Testlag 2 writes and continued function of shifts, lineup, coach selections and match UI. The existing preview tests verify anonymous denial, not successful personal saves in production.
 6. Recheck GitHub checks, live Worker traffic/bindings and release gate immediately before cutover.
 
 **Do not merge this PR or deploy its manifest until these checks are satisfied.**
