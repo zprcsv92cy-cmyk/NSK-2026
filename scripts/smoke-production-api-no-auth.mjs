@@ -8,15 +8,15 @@ if (base.protocol !== 'https:' || base.hostname !== 'nsk-api.peter-hasselberg.wo
 }
 
 const checks = [
-  ['/api/spelare?team_id=1255083', 'roster'],
-  ['/api/tranare?team_id=1255083', 'coaches'],
-  ['/api/lagpersonal?team_id=1255083', 'staff'],
+  ['/api/spelare?team_id=1', 'roster'],
+  ['/api/tranare?team_id=1', 'coaches'],
+  ['/api/lagpersonal?team_id=1', 'staff'],
   ['/api/lag', 'teams'],
-  ['/api/poolspel?team_id=1255083', 'pools'],
-  ['/api/matchkonfiguration?team_id=1255083', 'match configurations'],
-  ['/api/laguppstallningar?team_id=1255083', 'lineups'],
-  ['/api/bytesschema?team_id=1255083', 'shifts'],
-  ['/api/spelaretranare?team_id=1255083', 'player-coach links']
+  ['/api/poolspel?team_id=1', 'pools'],
+  ['/api/matchkonfiguration?team_id=1', 'match configurations'],
+  ['/api/laguppstallningar?team_id=1', 'lineups'],
+  ['/api/bytesschema?team_id=1', 'shifts'],
+  ['/api/spelaretranare?team_id=1', 'player-coach links']
 ];
 
 for (const [path, label] of checks) {
