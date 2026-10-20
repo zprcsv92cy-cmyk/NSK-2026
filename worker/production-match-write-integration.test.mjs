@@ -17,7 +17,7 @@ test('match configuration and lineup writes invoke the personal guard behind a f
 
 test('match-write client and Worker rollout switches match the jointly enabled release', () => {
   assert.match(config, /REQUIRE_PERSONAL_MATCH_WRITES: true/);
-  assert.match(workerConfig, /NSK_REQUIRE_PERSONAL_MATCH_WRITES = "false"/);
+  assert.match(workerConfig, /NSK_REQUIRE_PERSONAL_MATCH_WRITES = "true"/);
   assert.match(client, /REQUIRE_PERSONAL_MATCH_WRITES === true/);
   assert.ok(client.includes("personalWrite ? personalToken : localStorage.getItem('nsk_admin_token')"));
 });
