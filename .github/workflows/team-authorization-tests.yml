@@ -20,6 +20,7 @@ jobs:
           node --check db.js
           node --test scripts/scoped-roster-client.test.mjs
           node --test scripts/personal-roster-write-client.test.mjs
+          node --test scripts/roster-staff-role-contract.test.mjs
           node --test scripts/shift-client-auth.test.mjs
           node --test scripts/pool-save-permission-ui.test.mjs
           node --check worker/production-api-v42-reference.js
