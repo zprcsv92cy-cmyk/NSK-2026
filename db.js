@@ -113,7 +113,16 @@ window.DB = (() => {
     return data;
   }
   async function writeName(table,method,rowId,name){return (await adminRequest(`/api/${table}${rowId?'/'+encodeURIComponent(rowId):''}`,method,{name:String(name||'').trim()})).row}
-  async function updatePoolTeams(poolId,teams){return (await adminRequest(`/api/poolspel/${encodeURIComponent(poolId)}`,'PATCH',{teams})).row}
+  async function updatePoolTeams(poolId,teams){
+    const pool=await getPool(poolId);
+    if(!pool)throw new Error('Poolspelet finns inte längre.');
+    if(!pool.active)throw new Error('Avslutade poolspel kan inte ändras.');
+    // The production pool endpoint validates a complete row, not a partial {teams} PATCH.
+    const payload={title:pool.title,place:pool.place,hall:pool.hall||'',pool_date:pool.pool_date,
+      status:'Aktiv',teams,matches:pool.matches,players_on_field:pool.players_on_field,
+      periods:pool.periods,period_time:pool.period_time,sub_time:pool.sub_time};
+    return (await adminRequest(`/api/poolspel/${encodeURIComponent(poolId)}`,'PATCH',payload)).row;
+  }
   async function writePool(method,rowId,payload){return (await adminRequest(`/api/poolspel${rowId?'/'+encodeURIComponent(rowId):''}`,method,payload)).row}
   const addPool=payload=>writePool('POST',null,payload);
   const updatePool=(rowId,payload)=>writePool('PATCH',rowId,payload);
