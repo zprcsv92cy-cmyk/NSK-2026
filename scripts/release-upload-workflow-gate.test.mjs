@@ -4,6 +4,7 @@ import {readFileSync} from 'node:fs';
 
 const workflow=readFileSync(new URL('../.github/workflows/stage-personal-permissions-candidate.yml',import.meta.url),'utf8');
 const preflight=readFileSync(new URL('./production-cutover-readonly-preflight.mjs',import.meta.url),'utf8');
+const baselineWorkflow=readFileSync(new URL('../.github/workflows/production-cutover-readonly-preflight.yml',import.meta.url),'utf8');
 
 test('upload-only workflow targets the actual reviewed release branch',()=>{
  assert.match(workflow,/github\.ref == 'refs\/heads\/release\/personal-permissions-rebased-20261020'/);
@@ -45,4 +46,9 @@ test('preflight never reads mutable script settings and handles absent bindings'
  assert.match(preflight,/const deployment=await get\('\/deployments'\)/);
  assert.doesNotMatch(preflight,/get\('\/settings'\)/);
  assert.match(preflight,/item\?\.database_id\|\|item\?\.namespace_id/);
+});
+
+test('main push read-only workflow uses verified disabled personal-write baseline',()=>{
+ assert.match(baselineWorkflow,/github\.event_name == 'push' && 'false' \|\| inputs\.expected_personal_write_flags/);
+ assert.match(baselineWorkflow,/github\.event_name == 'push' && '7434d756-524c-43c4-95b2-73cc942a256b'/);
 });
