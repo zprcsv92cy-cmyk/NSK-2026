@@ -22,10 +22,12 @@ on:
       - main
     paths:
       - 'scripts/production-cutover-readonly-preflight.mjs'
+      - 'scripts/production-cutover-readonly-preflight.test.mjs'
       - '.github/workflows/production-cutover-readonly-preflight.yml'
   pull_request:
     paths:
       - 'scripts/production-cutover-readonly-preflight.mjs'
+      - 'scripts/production-cutover-readonly-preflight.test.mjs'
       - '.github/workflows/production-cutover-readonly-preflight.yml'
 permissions:
   contents: read
@@ -43,7 +45,9 @@ jobs:
         with:
           node-version: '22'
       - name: Validate read-only script syntax
-        run: node --check scripts/production-cutover-readonly-preflight.mjs
+        run: |
+          node --check scripts/production-cutover-readonly-preflight.mjs
+          node --test scripts/production-cutover-readonly-preflight.test.mjs
   live:
     if: ${{ (github.event_name == 'workflow_dispatch' && github.ref == 'refs/heads/main' && inputs.confirmation == 'READ_ONLY') || (github.event_name == 'push' && github.ref == 'refs/heads/main') }}
     runs-on: ubuntu-latest
