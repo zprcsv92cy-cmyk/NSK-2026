@@ -1,0 +1,22 @@
+name: Live isolated API Preview smoke
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'scripts/smoke-isolated-api-preview.mjs'
+      - '.github/workflows/preview-live-smoke.yml'
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  preview-smoke:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Deny anonymous reads and writes on isolated preview
+        run: node scripts/smoke-isolated-api-preview.mjs

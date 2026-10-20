@@ -39,6 +39,8 @@ jobs:
           CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
         run: |
           npx --yes wrangler@4.151.2 preview --name nsk-isolated-auth-20261020 --config wrangler.api.preview.toml --message "Isolated preview from main ${GITHUB_SHA}; no production traffic"
+      - name: Smoke isolated Preview anonymous reads (GET only)
+        run: node scripts/smoke-isolated-api-preview.mjs
       - name: Explain isolation and limitations
         run: |
           {
