@@ -44,3 +44,23 @@ Owner approval has been received to switch from shared Adminläge to personal te
 - No session tokens or personal data were read or exposed. No database rows were changed.
 - This confirms the production auth schema and permission vocabulary are present. It does **not** prove that an authenticated request through the exact new Worker version can safely complete a Baserow write and read-back.
 - The live authenticated end-to-end check is still blocked because no controlled test account/session and isolated writable Baserow fixture are provisioned for the exact candidate. Do not use a real team/player mutation as a substitute.
+
+## Test execution report — 2026-10-20, PR #206
+Tested release commit: `e26df834a3623562eb8dc2d9f531d23ced05eadf`.
+
+### Passed
+- GitHub team-authorization workflow: all jobs green, including authenticated policy tests, isolated D1-session verifier, cross-team enforcement and permissions matrix ([run](https://github.com/zprcsv92cy-cmyk/NSK-2026/actions/runs/39370993867)).
+- Worker build, dry-run, source/static release verification, app-version and production baseline workflows: green for the exact same commit.
+- Isolated Cloudflare Preview deployed from that commit, with no production resources or traffic ([run](https://github.com/zprcsv92cy-cmyk/NSK-2026/actions/runs/39370988563)).
+- Preview smoke tests: 8 anonymous scoped GET denials, 7 anonymous POST/PATCH denials, plus 6 invalid-token denials; all received 401 (21 network cases).
+- In-process **real Worker router** test: authorized Team 18 session completed a simulated pool POST (201) via a fake D1 session and mocked Baserow response. Testlag 2-only session was rejected (403), with no mocked Baserow mutation.
+- Real production Cloudflare bindings inspected read-only; live API version `7434d756-524c-43c4-95b2-73cc942a256b` still has 100% traffic.
+- Existing production auth D1 tables, aggregate membership/session counts and permission vocabulary reviewed read-only without token extraction or data changes.
+
+### Not yet testable / no-go blockers
+- No **real authenticated successful write + read-back** through this exact Preview with isolated writable test Baserow and seeded isolated D1 user/session. Simulated Worker tests do not replace this.
+- No verified two-version frontend/API compatibility during the switchover or tested joint rollback of Pages and Worker.
+- No proof of recoverable Baserow/KV/DO data snapshot and restoration. Code rollback does not restore persistent data.
+- Preview intentionally lacks production Baserow credentials and should not be pointed at live rows to satisfy tests.
+- Do not merge, enable traffic, or claim release ready based solely on green synthetic tests.
+
