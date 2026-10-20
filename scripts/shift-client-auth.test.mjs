@@ -4,8 +4,8 @@ import { readFileSync } from 'node:fs';
 import vm from 'node:vm';
 
 const source = readFileSync(new URL('../db.js', import.meta.url), 'utf8');
-function client({ session, requests, shiftRows = null }) {
-  const window = { APP_CONFIG: { API_URL: 'https://api.test' }, Auth: { getToken: () => session, getSession: () => session ? { user: { id: 'test-user' } } : null }, prompt: () => { throw new Error('Legacy match-code prompt must not appear'); } };
+function client({ session, requests, shiftRows = null, fullCutover = false }) {
+  const window = { APP_CONFIG: { API_URL: 'https://api.test', ...(fullCutover ? { REQUIRE_PERSONAL_POOL_WRITES:true, REQUIRE_PERSONAL_MATCH_WRITES:true, REQUIRE_PERSONAL_ROSTER_WRITES:true, REQUIRE_PERSONAL_COACH_SELECTION:true } : {}) }, Auth: { getToken: () => session, getSession: () => session ? { user: { id: 'test-user' } } : null }, prompt: () => { throw new Error('Legacy match-code prompt must not appear'); } };
   const context = {
     window,
     localStorage: { getItem: key => key === 'nsk_admin_token' ? 'legacy-admin' : null },
@@ -47,4 +47,18 @@ test('stale token without verified session does not override legacy flow', async
   const db = client({ session: null, requests });
   await db.saveShiftSchema(1, 1, 1, [{period_no:1,time_left:'10:00',players:[1]}]);
   assert.equal(requests[0].init.headers.Authorization, 'Bearer legacy-admin');
+});
+
+test('full personal cutover denies anonymous shift saves without legacy admin fallback',async()=>{
+  const requests=[];
+  const db=client({session:null,requests,fullCutover:true});
+  await assert.rejects(()=>db.saveShiftSchema(1,1,1,[{period_no:1,time_left:'10:00',players:[1]}]),/Personlig inloggning krävs/);
+  assert.equal(requests.length,0);
+});
+test('full personal cutover denies match-code/admin fallback when checking shifts',async()=>{
+  const requests=[];
+  const shiftRows=[{id:12,Poolspel:[1],Lagnummer:1,Matchnummer:1,Bytenummer:1,Periodnummer:1,'Tid kvar':'10:00','Spelare på plan':[1],Genomfört:false}];
+  const db=client({session:null,requests,fullCutover:true,shiftRows});
+  await assert.rejects(()=>db.setShiftDone(1,1,1,1,true),/Personlig inloggning krävs/);
+  assert.equal(requests.filter(x=>x.init?.method==='PATCH'||x.init?.method==='POST').length,0);
 });

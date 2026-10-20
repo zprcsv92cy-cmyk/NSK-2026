@@ -53,7 +53,12 @@ export async function authorizePersonalPoolWrite(request, env, {
     teams = await listTeams();
     if (!Array.isArray(teams)) throw new Error('Invalid trusted team list');
     if (poolId === null) {
-      const matches = teams.filter(team => team?.Namn === 'NSK Team 18' &&
+      let body;
+      try { body = await request.clone().json(); } catch { return deny(400, 'Ogiltig JSON'); }
+      const requestedTeam = body?.team_id;
+      if (typeof requestedTeam !== 'string' || !requestedTeam.trim())
+        return deny(400, 'Lag måste anges');
+      const matches = teams.filter(team => team?.Namn === requestedTeam &&
         String(team['Säsong']) === '2026' && /^[1-9]\d*$/.test(String(team.id)));
       if (matches.length !== 1) throw new Error('Trusted target team missing or ambiguous');
       target = matches[0];

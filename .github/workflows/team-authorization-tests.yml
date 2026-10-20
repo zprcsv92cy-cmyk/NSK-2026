@@ -20,6 +20,13 @@ jobs:
           node --check db.js
           node --test scripts/scoped-roster-client.test.mjs
           node --test scripts/personal-roster-write-client.test.mjs
+          node --test scripts/personal-admin-mode-cutover.test.mjs
+          node --test scripts/personal-production-cutover-contract.test.mjs
+          node --test scripts/release-upload-workflow-gate.test.mjs
+          node --test scripts/production-cutover-readonly-preflight.test.mjs
+          node --test scripts/isolated-auth-fixture-readiness.test.mjs
+          node --test scripts/personal-pool-team-editor.test.mjs
+          node --test scripts/pool-teams-complete-payload.test.mjs
           node --test scripts/roster-staff-role-contract.test.mjs
           node --test worker/production-coach-selection-authorization.test.mjs worker/production-coach-selection-integration.test.mjs
           node --test scripts/shift-client-auth.test.mjs
@@ -27,7 +34,10 @@ jobs:
           node --check worker/production-api-v42-reference.js
           node --test worker/production-api-staff-route.test.mjs
           node --experimental-default-type=module --test worker/production-personal-write-route-isolation.test.mjs
+          node --experimental-default-type=module --test worker/production-admin-login-cutover.test.mjs
           node --experimental-default-type=module --test worker/production-personal-write-team-matrix.test.mjs
+          node --experimental-default-type=module --test worker/production-personal-session-integration.test.mjs
+          node --experimental-default-type=module --test worker/production-pool-router-auth-mock.test.mjs
           node scripts/check-staging-imports.mjs
           node --test scripts/check-api-production-release.test.mjs
           node --test scripts/worker-preview-isolation.test.mjs

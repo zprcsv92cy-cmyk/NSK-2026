@@ -101,6 +101,7 @@ window.DB = (() => {
       (/^\/api\/(?:spelare|tranare)(?:\/\d+)?$/.test(path) || /^\/api\/lagpersonal\?team_id=\d+$/.test(path)) &&
       ['POST','PATCH','DELETE'].includes(method);
     const personalWrite = personalPoolWrite || personalMatchWrite || personalRosterWrite;
+    if(personalCutoverEnabled() && !personalWrite)throw new Error('Denna åtgärd kräver personlig behörighet och stöds ännu inte i nya läget.');
     const personalToken = personalWrite ? window.Auth?.getToken?.() : null;
     const token = personalWrite ? personalToken : localStorage.getItem('nsk_admin_token');
     if(!token)throw new Error(personalPoolWrite ? 'Personlig inloggning krävs för att ändra poolspel.' :
@@ -112,8 +113,25 @@ window.DB = (() => {
     return data;
   }
   async function writeName(table,method,rowId,name){return (await adminRequest(`/api/${table}${rowId?'/'+encodeURIComponent(rowId):''}`,method,{name:String(name||'').trim()})).row}
-  async function updatePoolTeams(poolId,teams){return (await adminRequest(`/api/poolspel/${encodeURIComponent(poolId)}`,'PATCH',{teams})).row}
-  async function writePool(method,rowId,payload){return (await adminRequest(`/api/poolspel${rowId?'/'+encodeURIComponent(rowId):''}`,method,payload)).row}
+  async function updatePoolTeams(poolId,teams){
+    const pool=await getPool(poolId);
+    if(!pool)throw new Error('Poolspelet finns inte längre.');
+    if(!pool.active)throw new Error('Avslutade poolspel kan inte ändras.');
+    // The production pool endpoint validates a complete row, not a partial {teams} PATCH.
+    const payload={title:pool.title,place:pool.place,hall:pool.hall||'',pool_date:pool.pool_date,
+      status:'Aktiv',teams,matches:pool.matches,players_on_field:pool.players_on_field,
+      periods:pool.periods,period_time:pool.period_time,sub_time:pool.sub_time};
+    return (await adminRequest(`/api/poolspel/${encodeURIComponent(poolId)}`,'PATCH',payload)).row;
+  }
+  async function writePool(method,rowId,payload){
+    let body=payload;
+    if(method==='POST' && window.APP_CONFIG?.REQUIRE_PERSONAL_POOL_WRITES===true){
+      const selected=window.Auth?.activeTeam?.();
+      if(typeof selected!=='string'||!selected.trim())throw new Error('Välj ett lag i din personliga inloggning');
+      body={...payload,team_id:selected};
+    }
+    return (await adminRequest(`/api/poolspel${rowId?'/'+encodeURIComponent(rowId):''}`,method,body)).row;
+  }
   const addPool=payload=>writePool('POST',null,payload);
   const updatePool=(rowId,payload)=>writePool('PATCH',rowId,payload);
   const updatePoolActive=(rowId,active)=>adminRequest(`/api/poolspel/${encodeURIComponent(rowId)}/aktiv`,'PATCH',{active});
@@ -166,10 +184,15 @@ window.DB = (() => {
     if(!response.ok||!data.ok)throw new Error(data.error||'Kunde inte spara tränarval');
     return data;
   }
-  // Personal sessions take priority for shift writes. Legacy admin is used only without a personal session.
+  const personalCutoverEnabled = () => ['POOL_WRITES','MATCH_WRITES','ROSTER_WRITES','COACH_SELECTION']
+    .every(name => window.APP_CONFIG?.['REQUIRE_PERSONAL_' + name] === true);
+  // During full cutover, shift saves require personal login; never fall back to a shared admin token.
   async function shiftSaveRequest(payload){
     const token=(window.Auth?.getSession?.() ? window.Auth.getToken() : null);
-    if(!token)return adminRequest('/api/bytesschema/save','POST',payload);
+    if(!token){
+      if(personalCutoverEnabled())throw new Error('Personlig inloggning krävs för att spara bytesschema.');
+      return adminRequest('/api/bytesschema/save','POST',payload);
+    }
     const response=await fetch(`${API}/api/bytesschema/save`,{
       method:'POST',headers:{'Content-Type':'application/json',Authorization:'Bearer '+token},
       body:JSON.stringify(payload)
@@ -206,6 +229,7 @@ window.DB = (() => {
     }
     const personalToken=(window.Auth?.getSession?.() ? window.Auth.getToken() : null);
     if(personalToken)return send(personalToken);
+    if(personalCutoverEnabled())throw new Error('Personlig inloggning krävs för att checka byten.');
     let token=localStorage.getItem(key);
     if(token){try{return await send(token)}catch(error){if(error.status!==401)throw error;localStorage.removeItem(key)}}
     const adminToken=localStorage.getItem('nsk_admin_token');

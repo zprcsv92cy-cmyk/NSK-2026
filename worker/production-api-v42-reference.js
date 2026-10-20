@@ -355,6 +355,13 @@ var worker_default = { async fetch(req, env) {
     await env.ADMIN_KV.put("match-session:" + await sha(token), "match", { expirationTtl: 604800 });
     return reply({ ok: true, token, expires_in: 604800 });
   }
+  // After complete personal cutover, stop issuing shared Adminläge credentials.
+  // Keep logout/status endpoints for legacy-session cleanup and diagnostics.
+  if (url.pathname === "/api/admin/login" && req.method === "POST" &&
+      personalPoolWritesEnabled && personalMatchWritesEnabled &&
+      env.NSK_REQUIRE_PERSONAL_COACH_SELECTION === "true") {
+    return reply({ ok: false, error: "Använd personlig inloggning" }, 410);
+  }
   if (url.pathname.startsWith("/api/admin/")) {
     if (!env.ADMIN_KV || !env.ADMIN_PASSWORD || env.ADMIN_PASSWORD.length < 12) return reply({ ok: false, error: "Admin configuration incomplete" }, 503);
     if (url.pathname === "/api/admin/status" && req.method === "GET") return reply({ ok: true, admin: !!await session(req, env) });
@@ -492,9 +499,11 @@ var worker_default = { async fetch(req, env) {
     } catch { return reply({ok:false,error:"Databasfel"},502); }
   }
   if (url.pathname === "/api/poolspel" && req.method === "POST" || /^\/api\/poolspel\/\d+$/.test(url.pathname) && req.method === "PATCH") {
+    let authorizedPoolTeam = null;
     if (personalPoolWritesEnabled) {
       const access = await checkPersonalPoolWrite(req);
       if (!access.allowed) return reply({ ok: false, error: access.error }, access.status);
+      authorizedPoolTeam = access.teamId;
     } else if (!env.ADMIN_KV || !await session(req, env)) return reply({ ok: false, error: "Adminl\xE4ge kr\xE4vs" }, 401);
     if (!(req.headers.get("Content-Type") || "").startsWith("application/json")) return reply({ ok: false, error: "JSON kr\xE4vs" }, 415);
     if (Number(req.headers.get("Content-Length") || 0) > 4096) return reply({ ok: false, error: "F\xF6r stor beg\xE4ran" }, 413);
@@ -505,6 +514,7 @@ var worker_default = { async fetch(req, env) {
       return reply({ ok: false, error: "Ogiltig JSON" }, 400);
     }
     const keys = ["title", "place", "hall", "pool_date", "status", "teams", "matches", "players_on_field", "periods", "period_time", "sub_time"];
+    if (personalPoolWritesEnabled && req.method === "POST") keys.push("team_id");
     if (!body || typeof body !== "object" || Array.isArray(body) || Object.keys(body).some((k) => !keys.includes(k))) return reply({ ok: false, error: "Ogiltiga f\xE4lt" }, 400);
     const place = typeof body.place === "string" ? body.place.trim() : "";
     const hall = typeof body.hall === "string" ? body.hall.trim() : "";
@@ -519,8 +529,13 @@ var worker_default = { async fetch(req, env) {
     try {
       const teamsResp = await fetch(`https://api.baserow.io/api/database/rows/table/${TABLES.lag}/?user_field_names=true&size=100`, { headers: auth });
       if (!teamsResp.ok) return reply({ ok: false, error: "Kunde inte kontrollera f\xF6reningslag" }, 502);
-      const team = (await teamsResp.json()).results?.find((t) => t.Namn === "NSK Team 18" && String(t["S\xE4song"]) === "2026");
-      if (!team) return reply({ ok: false, error: "NSK Team 18 saknas" }, 409);
+      const teamPage = await teamsResp.json();
+      if (!teamPage || !Array.isArray(teamPage.results) || teamPage.results.length > 100 || teamPage.next !== null) return reply({ ok: false, error: "Laglistan kunde inte verifieras fullständigt" }, 503);
+      const teamRows = teamPage.results;
+      const matches = teamRows.filter((t) => t?.Namn === (authorizedPoolTeam || "NSK Team 18") && String(t["S\xE4song"]) === "2026");
+      if (matches.some((t) => !/^[1-9]\d*$/.test(String(t.id)) || !Number.isSafeInteger(Number(t.id)))) return reply({ ok: false, error: "Ogiltig lagkoppling" }, 503);
+      if (matches.length !== 1) return reply({ ok: false, error: "Lagkopplingen kunde inte verifieras" }, 409);
+      const team = matches[0];
       const rowId = req.method === "PATCH" ? Number(url.pathname.split("/").pop()) : null;
       if (rowId) {
         const oldResp = await fetch(`https://api.baserow.io/api/database/rows/table/${TABLES.poolspel}/${rowId}/?user_field_names=true`, { headers: auth });

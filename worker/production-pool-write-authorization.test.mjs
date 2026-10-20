@@ -30,10 +30,10 @@ const setup = ({ identity = actor(), pool = { id: 42, Lag: [{ id: 18 }] }, teamL
 
 test('pool creation requires a verified session, Team 18 membership, and pool:create', async () => {
   const x = setup();
-  const result = await authorizePersonalPoolWrite(request('POST', '/api/poolspel', { title: 'Test' }, null),
+  const result = await authorizePersonalPoolWrite(request('POST', '/api/poolspel', { title: 'Test', team_id: 'NSK Team 18' }, null),
     { AUTH_DB: {} }, x.options);
   assert.equal(result.status, 401);
-  const allowed = await authorizePersonalPoolWrite(request('POST', '/api/poolspel', { title: 'Test' }),
+  const allowed = await authorizePersonalPoolWrite(request('POST', '/api/poolspel', { title: 'Test', team_id: 'NSK Team 18' }),
     { AUTH_DB: {} }, x.options);
   assert.equal(allowed.allowed, true);
   assert.equal(allowed.teamId, 'NSK Team 18');
@@ -63,7 +63,7 @@ test('pool finish and reopen require their separate feature grants', async () =>
 
 test('membership without an explicit pool grant is denied', async () => {
   const x = setup({ identity: actor('NSK Team 18', ['read']) });
-  const result = await authorizePersonalPoolWrite(request('POST', '/api/poolspel', { title: 'Test' }),
+  const result = await authorizePersonalPoolWrite(request('POST', '/api/poolspel', { title: 'Test', team_id: 'NSK Team 18' }),
     { AUTH_DB: {} }, x.options);
   assert.equal(result.allowed, false);
   assert.equal(result.status, 403);

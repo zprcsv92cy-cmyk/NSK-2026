@@ -20,7 +20,7 @@ const poolRow = team=>({id:42,Lag:[{id:team}],'Antal lag':2,'Antal matcher':2});
 const checks = [
   {
     name:'pool create',
-    req:()=>post('/api/poolspel',{team_id:'NSK Testlag 2'}),
+    req:()=>post('/api/poolspel',{team_id:'NSK Team 18'}),
     fn:authorizePersonalPoolWrite,feature:'pool',fixedTeam:true
   },
   {
@@ -108,4 +108,27 @@ test('viewer role cannot gain writes from permission strings alone',async()=>{
     assert.equal(result.allowed,false,item.name);
     assert.equal(result.status,403,item.name);
   }
+});
+
+
+test('new pool targets the server-resolved requested team, not a hardcoded default',async()=>{
+  const item=checks[0];
+  const requested=await item.fn(post('/api/poolspel',{team_id:'NSK Testlag 2'}),{AUTH_DB:{}},{
+    listTeams:async()=>teams,
+    readPool:async()=>null,
+    verifyIdentity:async()=>member('NSK Testlag 2')
+  });
+  assert.equal(requested.allowed,true);
+  assert.equal(requested.teamId,'NSK Testlag 2');
+  const forbidden=await item.fn(post('/api/poolspel',{team_id:'NSK Testlag 2'}),{AUTH_DB:{}},{
+    listTeams:async()=>teams,
+    readPool:async()=>null,
+    verifyIdentity:async()=>member('NSK Team 18')
+  });
+  assert.equal(forbidden.allowed,false);
+  assert.equal(forbidden.status,403);
+  const missing=await item.fn(post('/api/poolspel',{}),{AUTH_DB:{}},{
+    listTeams:async()=>teams,readPool:async()=>null,verifyIdentity:async()=>member()
+  });
+  assert.equal(missing.status,400);
 });

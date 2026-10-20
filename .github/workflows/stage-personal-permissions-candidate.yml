@@ -1,0 +1,72 @@
+name: Stage personal-permissions production candidate (no traffic)
+on:
+  workflow_dispatch:
+    inputs:
+      expected_sha:
+        description: 'Reviewed 40-character release commit SHA'
+        type: string
+        required: true
+      confirmation:
+        description: 'Type UPLOAD_ONLY (no production traffic)'
+        type: string
+        required: true
+permissions:
+  contents: read
+concurrency:
+  group: nsk-api-release-upload-only
+  cancel-in-progress: false
+jobs:
+  upload-only:
+    runs-on: ubuntu-latest
+    if: ${{ github.repository == 'zprcsv92cy-cmyk/NSK-2026' && github.ref == 'refs/heads/release/personal-permissions-rebased-20261020' && inputs.confirmation == 'UPLOAD_ONLY' }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Require exact reviewed source commit
+        env:
+          EXPECTED_SHA: ${{ inputs.expected_sha }}
+          ACTUAL_SHA: ${{ github.sha }}
+        run: |
+          set -euo pipefail
+          [[ "$EXPECTED_SHA" =~ ^[0-9a-f]{40}$ ]]
+          test "$EXPECTED_SHA" = "$ACTUAL_SHA"
+
+      - name: Verify exact release switches and security contract
+        run: |
+          set -euo pipefail
+          node --check worker/production-api-v42-reference.js
+          node --test scripts/personal-production-cutover-contract.test.mjs
+          node --test scripts/release-upload-workflow-gate.test.mjs
+          node --test scripts/production-cutover-readonly-preflight.test.mjs
+          node --experimental-default-type=module --test worker/production-admin-login-cutover.test.mjs worker/production-personal-write-team-matrix.test.mjs worker/production-personal-write-route-isolation.test.mjs
+      - name: Require Cloudflare credentials
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+        run: |
+          test -n "$CLOUDFLARE_API_TOKEN"
+          test -n "$CLOUDFLARE_ACCOUNT_ID"
+      - name: Read current Worker deployment and bindings, abort on drift
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          EXPECTED_ACTIVE_VERSION: 7434d756-524c-43c4-95b2-73cc942a256b
+          EXPECTED_PERSONAL_WRITE_FLAGS: 'false'
+        run: node scripts/production-cutover-readonly-preflight.mjs
+      - name: Wrangler build without deployment
+        run: npx --yes wrangler@4.151.2 deploy --config wrangler.api.production.toml --dry-run --outdir /tmp/nsk-personal-release
+      - name: Upload candidate version without deploying traffic
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+        run: |
+          npx --yes wrangler@4.151.2 versions upload --config wrangler.api.production.toml --message "PERSONAL CANDIDATE ${GITHUB_SHA}; upload only, no traffic"
+      - name: Record release candidate
+        run: |
+          echo "## Personal permissions release candidate" >> "$GITHUB_STEP_SUMMARY"
+          echo "Source commit: \`${GITHUB_SHA}\`" >> "$GITHUB_STEP_SUMMARY"
+          echo "Upload only. Production traffic not changed." >> "$GITHUB_STEP_SUMMARY"

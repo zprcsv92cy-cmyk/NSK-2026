@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 
-const base = 'https://nsk-isolated-auth-20261020-nsk-api.peter-hasselberg.workers.dev';
+const base = process.env.NSK_PREVIEW_BASE_URL || 'https://nsk-isolated-auth-20261020-nsk-api.peter-hasselberg.workers.dev';
 const targets = [
   '/api/lag',
   '/api/spelare?team_id=1',
@@ -44,6 +44,28 @@ for(const [method,path,body] of deniedWrites){
   await response.body?.cancel();
 }
 console.log('Preview denied anonymous writes; no authorized mutation performed.');
+const invalidToken = 'not-a-valid-personal-session-token-0123456789';
+const deniedInvalidToken = [
+ ['GET','/api/spelare?team_id=1'],
+ ['POST','/api/poolspel',{}],
+ ['PATCH','/api/poolspel/42',{name:'should-not-save'}],
+ ['POST','/api/matchkonfiguration',{pool_id:42}],
+ ['POST','/api/laguppstallningar/31',{players:[],coaches:[]}],
+ ['POST','/api/coach-selection',{pool_id:42,lag_no:1,match_no:1,coach_ids:[]}]
+];
+for(const [method,path,body] of deniedInvalidToken){
+  const response=await fetch(base+path,{
+    method,
+    headers:{Authorization:'Bearer '+invalidToken,...(body?{'Content-Type':'application/json'}:{})},
+    ...(body?{body:JSON.stringify(body)}:{}),
+    redirect:'manual',signal:AbortSignal.timeout(12000)
+  });
+  console.log('Invalid token',method,path,response.status);
+  assert.equal(response.status,401,'Invalid personal token must never authorize '+method+' '+path);
+  await response.body?.cancel();
+}
+console.log('Invalid Bearer tokens rejected; no authorized mutation performed.');
+
 
 // /health intentionally depends on Baserow; no production Baserow token in Preview.
 console.log('Preview denies all anonymous scoped reads. No writes or secrets used.');
