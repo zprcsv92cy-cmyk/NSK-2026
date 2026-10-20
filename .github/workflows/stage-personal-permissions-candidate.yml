@@ -41,6 +41,7 @@ jobs:
           node --check worker/production-api-v42-reference.js
           node --test scripts/personal-production-cutover-contract.test.mjs
           node --test scripts/release-upload-workflow-gate.test.mjs
+          node --test scripts/production-cutover-readonly-preflight.test.mjs
           node --experimental-default-type=module --test worker/production-admin-login-cutover.test.mjs worker/production-personal-write-team-matrix.test.mjs worker/production-personal-write-route-isolation.test.mjs
       - name: Require Cloudflare credentials
         env:
