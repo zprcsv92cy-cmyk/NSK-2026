@@ -54,7 +54,7 @@ jobs:
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
           EXPECTED_ACTIVE_VERSION: 7434d756-524c-43c4-95b2-73cc942a256b
-          EXPECTED_PERSONAL_WRITE_FLAGS: 'true'
+          EXPECTED_PERSONAL_WRITE_FLAGS: 'false'
         run: node scripts/production-cutover-readonly-preflight.mjs
       - name: Wrangler build without deployment
         run: npx --yes wrangler@4.151.2 deploy --config wrangler.api.production.toml --dry-run --outdir /tmp/nsk-personal-release
