@@ -1,9 +1,12 @@
 name: Isolated personal-permissions release preview
 on:
   push:
-    branches: [release/personal-permissions-production-20261020]
+    branches: [release/personal-permissions-rebased-20261020]
     paths:
       - 'worker/**'
+      - 'config.js'
+      - 'db.js'
+      - '.github/workflows/team-authorization-tests.yml'
       - 'wrangler.api.preview.toml'
       - 'scripts/smoke-isolated-api-preview.mjs'
       - '.github/workflows/release-personal-preview.yml'
@@ -43,5 +46,5 @@ jobs:
           npx --yes wrangler@4.151.2 preview --name nsk-personal-release-20261020 --config wrangler.api.preview.toml --message "Personal release candidate from ${GITHUB_SHA}; isolated, no traffic"
       - name: Smoke candidate API anonymously (no Baserow writes)
         env:
-          NSK_PREVIEW_BASE_URL: https://nsk-personal-release-20261020-nsk-api.peter-hasselberg.workers.dev
+          NSK_PREVIEW_BASE_URL: https://nsk-personal-release-pr206-20261020-nsk-api.peter-hasselberg.workers.dev
         run: node scripts/smoke-isolated-api-preview.mjs
