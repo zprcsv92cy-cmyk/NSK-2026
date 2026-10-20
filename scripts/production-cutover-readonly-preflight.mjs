@@ -30,12 +30,12 @@ const expectations=[
   ['SHIFT_LOCK','durable_object_namespace','27cd8685c58e4b8aa0aaa85a9d47f6ed']
 ];
 for(const [name,type,id] of expectations){
-  const item=bindings.find(x=>x.name===name);
-  assert.equal(item?.type,type,'Production binding type mismatch for '+name);
-  assert.equal(item.database_id||item.namespace_id,id,'Production binding ID mismatch for '+name);
+  const item=liveBindings.find(x=>x.name===name);
+  assert.equal(item?.type,type,'Active production binding type mismatch for '+name);
+  assert.equal(item.database_id||item.namespace_id,id,'Active production binding ID mismatch for '+name);
 }
 for(const name of ['BASEROW_TOKEN','ADMIN_PASSWORD','MATCH_PASSWORD']){
-  assert.equal(bindings.find(x=>x.name===name)?.type,'secret_text','Missing named secret: '+name);
+  assert.equal(liveBindings.find(x=>x.name===name)?.type,'secret_text','Missing named secret: '+name);
 }
 for(const name of ['NSK_REQUIRE_SCOPED_ROSTER_READS','NSK_REQUIRE_SCOPED_TEAM_READS','NSK_REQUIRE_SCOPED_COLLECTION_READS']){
   assert.equal(liveBindings.find(x=>x.name===name)?.text,'true','Active deployed version scoped read flag drift: '+name);
