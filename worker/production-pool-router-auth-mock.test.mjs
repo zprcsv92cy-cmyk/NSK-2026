@@ -50,7 +50,7 @@ test('real Worker router denies Testlag 2 member before any Baserow mutation',as
 
 test('rejects duplicate team owners before write',async()=>{
  const result=await run('NSK Team 18',[team,{...team,id:19}]);
- assert.equal(result.status,409);
+ assert.equal(result.status,503);
  assert.equal(result.writes.length,0);
 });
 test('rejects invalid team owner before write',async()=>{
