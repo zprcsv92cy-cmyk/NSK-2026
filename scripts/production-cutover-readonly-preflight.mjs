@@ -55,9 +55,9 @@ const summary=[
 '- Older uploaded candidate still has no Preview endpoint',
 '- **No deployment, rollback, or data mutation was performed**',
 '- A Worker version rollback alone does not restore data written to D1, KV, Baserow or Durable Objects'
-].join('\\n');
+].join('\n');
 console.log(summary);
 if(process.env.GITHUB_STEP_SUMMARY){
  const fs=await import('node:fs');
- fs.appendFileSync(process.env.GITHUB_STEP_SUMMARY,summary+'\\n');
+ fs.appendFileSync(process.env.GITHUB_STEP_SUMMARY,summary+'\n');
 }
