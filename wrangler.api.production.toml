@@ -14,6 +14,8 @@ NSK_REQUIRE_SCOPED_COLLECTION_READS = "true"
 # Keep legacy pool writes until the new personal-session client is explicitly enabled.
 NSK_REQUIRE_PERSONAL_POOL_WRITES = "false"
 NSK_REQUIRE_PERSONAL_MATCH_WRITES = "false"
+# Enable only after coordinated client + Worker verification.
+NSK_REQUIRE_PERSONAL_COACH_SELECTION = "false"
 
 # Validate that existing secrets are present; do not store their values here.
 [secrets]
