@@ -166,10 +166,15 @@ window.DB = (() => {
     if(!response.ok||!data.ok)throw new Error(data.error||'Kunde inte spara tränarval');
     return data;
   }
-  // Personal sessions take priority for shift writes. Legacy admin is used only without a personal session.
+  const personalCutoverEnabled = () => ['POOL_WRITES','MATCH_WRITES','ROSTER_WRITES','COACH_SELECTION']
+    .every(name => window.APP_CONFIG?.['REQUIRE_PERSONAL_' + name] === true);
+  // During full cutover, shift saves require personal login; never fall back to a shared admin token.
   async function shiftSaveRequest(payload){
     const token=(window.Auth?.getSession?.() ? window.Auth.getToken() : null);
-    if(!token)return adminRequest('/api/bytesschema/save','POST',payload);
+    if(!token){
+      if(personalCutoverEnabled())throw new Error('Personlig inloggning krävs för att spara bytesschema.');
+      return adminRequest('/api/bytesschema/save','POST',payload);
+    }
     const response=await fetch(`${API}/api/bytesschema/save`,{
       method:'POST',headers:{'Content-Type':'application/json',Authorization:'Bearer '+token},
       body:JSON.stringify(payload)
@@ -206,6 +211,7 @@ window.DB = (() => {
     }
     const personalToken=(window.Auth?.getSession?.() ? window.Auth.getToken() : null);
     if(personalToken)return send(personalToken);
+    if(personalCutoverEnabled())throw new Error('Personlig inloggning krävs för att checka byten.');
     let token=localStorage.getItem(key);
     if(token){try{return await send(token)}catch(error){if(error.status!==401)throw error;localStorage.removeItem(key)}}
     const adminToken=localStorage.getItem('nsk_admin_token');
