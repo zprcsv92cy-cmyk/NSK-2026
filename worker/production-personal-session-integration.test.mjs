@@ -10,7 +10,7 @@ function env({team='NSK Team 18',valid=true,role='team_admin'}={}){
  async first(){return valid?{id:'u1',display_name:'Test',is_global_admin:0}:null},
  async all(){return {results:sql.includes('auth_team_memberships')?[{team_id:team,role}]:[{permission:'pool:create'}]}}}}}};
 }
-const request=()=>new Request('https://test.invalid/api/poolspel',{method:'POST',headers:{Authorization:'Bearer '+token,'Content-Type':'application/json'},body:'{}'});
+const request=()=>new Request('https://test.invalid/api/poolspel',{method:'POST',headers:{Authorization:'Bearer '+token,'Content-Type':'application/json'},body:JSON.stringify({team_id:'NSK Team 18'})});
 const options={listTeams:async()=>[{id:18,Namn:'NSK Team 18','Säsong':'2026'}],readPool:async()=>null};
 test('actual D1 session verifier permits correct membership and denies different team',async()=>{
  for(const [state,expected] of [[{},200],[{team:'NSK Testlag 2'},403],[{valid:false},401],[{role:'viewer'},403]]){
