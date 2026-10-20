@@ -19,13 +19,13 @@ function fixture(memberTeam){
  return {writes,env};
 }
 function req(){return new Request('https://api.example.invalid/api/poolspel',{method:'POST',headers:{Authorization:'Bearer '+bearer,'Content-Type':'application/json'},body:JSON.stringify(payload)})}
-async function run(memberTeam){
+async function run(memberTeam, teamRows=[team]){
  const {writes,env}=fixture(memberTeam);
  const original=globalThis.fetch;
  globalThis.fetch=async(url,init={})=>{
   const u=new URL(String(url));
   assert.equal(u.origin,'https://api.baserow.io','No real external network');
-  if(u.pathname.endsWith('/1255083/'))return Response.json({results:[team],next:null});
+  if(u.pathname.endsWith('/1255083/'))return Response.json({results:teamRows,next:null});
   if(u.pathname.endsWith('/1255101/')&&init.method==='POST'){
     const row=JSON.parse(init.body);writes.push(row);return Response.json({id:999,...row});
   }
@@ -46,4 +46,15 @@ test('real Worker router denies Testlag 2 member before any Baserow mutation',as
  const r=await run('NSK Testlag 2');
  assert.equal(r.status,403,JSON.stringify(r.data));
  assert.equal(r.writes.length,0);
+});
+
+test('rejects duplicate team owners before write',async()=>{
+ const result=await run('NSK Team 18',[team,{...team,id:19}]);
+ assert.equal(result.status,409);
+ assert.equal(result.writes.length,0);
+});
+test('rejects invalid team owner before write',async()=>{
+ const result=await run('NSK Team 18',[{...team,id:'bad'}]);
+ assert.equal(result.status,409);
+ assert.equal(result.writes.length,0);
 });
