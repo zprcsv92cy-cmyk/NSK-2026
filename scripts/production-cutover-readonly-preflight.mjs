@@ -50,6 +50,7 @@ const summary=[
 '- Active production Worker: \`'+expected+'\` (100% traffic)',
 '- Existing D1, KV and ShiftLock identifiers match the approved baseline',
 '- Secret bindings are present by name; values have not been read',
+'- Active deployed Worker scoped read flags verified as true',
 '- Active deployed Worker personal write flags verified as '+expectedWriteFlags,
 '- Script settings may show newer uploaded-version flags; those do not prove production traffic changed',
 '- Older uploaded candidate still has no Preview endpoint',
