@@ -11,9 +11,9 @@ test('coach selection is protected server-side only when enabled',()=>{
  assert.match(worker,/await authorizeCoachSelection\(req, env/);
  assert.match(worker,/else if \(!env\.ADMIN_KV \|\| !await session\(req, env\)\)/);
 });
-test('client switches read/write tokens together while both rollout flags default off',()=>{
+test('client switches read/write tokens together while both rollout flags are enabled in release candidate',()=>{
  assert.match(client,/personalCoachSelectionEnabled\(\)\?window\.Auth\?\.getToken/);
  assert.match(client,/if\(!personalCoachSelectionEnabled\(\)\)return adminRequest/);
- assert.match(config,/REQUIRE_PERSONAL_COACH_SELECTION: false/);
+ assert.match(config,/REQUIRE_PERSONAL_COACH_SELECTION: true/);
  assert.match(wrangler,/NSK_REQUIRE_PERSONAL_COACH_SELECTION = "false"/);
 });
