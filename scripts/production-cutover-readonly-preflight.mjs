@@ -16,10 +16,12 @@ async function get(path){
   assert.equal(data.success,true,'Cloudflare request unsuccessful at '+path);
   return data.result;
 }
-const [deployment,settings]=await Promise.all([get('/deployments'),get('/settings')]);
+const deployment=await get('/deployments');
 const active=deployment.deployments?.[0]?.versions||[];
 assert.deepEqual(active,[{version_id:expected,percentage:100}],'Production traffic changed; abort coordinated release');
-const bindings=settings.bindings||[];
+// Script settings can reflect the last UPLOADED version, not the live deployed version.
+const liveVersion=await get('/versions/'+expected);
+const liveBindings=liveVersion.resources?.bindings||[];
 const expectations=[
   ['AUTH_DB','d1','9f937bcb-b0c0-4129-af5b-775cf284dfcb'],
   ['ADMIN_KV','kv_namespace','7f978e9bbcd04b888e5b0dfbc338ba5d'],
@@ -27,18 +29,20 @@ const expectations=[
   ['SHIFT_LOCK','durable_object_namespace','27cd8685c58e4b8aa0aaa85a9d47f6ed']
 ];
 for(const [name,type,id] of expectations){
-  const item=bindings.find(x=>x.name===name);
-  assert.equal(item?.type,type,'Production binding type mismatch for '+name);
-  assert.equal(item.database_id||item.namespace_id,id,'Production binding ID mismatch for '+name);
+  const item=liveBindings.find(x=>x.name===name);
+  assert.equal(item?.type,type,'Active production binding type mismatch for '+name);
+  assert.equal(item?.database_id||item?.namespace_id,id,'Active production binding ID mismatch for '+name);
 }
 for(const name of ['BASEROW_TOKEN','ADMIN_PASSWORD','MATCH_PASSWORD']){
-  assert.equal(bindings.find(x=>x.name===name)?.type,'secret_text','Missing named secret: '+name);
+  assert.equal(liveBindings.find(x=>x.name===name)?.type,'secret_text','Missing named secret: '+name);
 }
 for(const name of ['NSK_REQUIRE_SCOPED_ROSTER_READS','NSK_REQUIRE_SCOPED_TEAM_READS','NSK_REQUIRE_SCOPED_COLLECTION_READS']){
-  assert.equal(bindings.find(x=>x.name===name)?.text,'true','Scoped read disabled: '+name);
+  assert.equal(liveBindings.find(x=>x.name===name)?.text,'true','Active deployed version scoped read flag drift: '+name);
 }
 for(const name of ['NSK_REQUIRE_PERSONAL_POOL_WRITES','NSK_REQUIRE_PERSONAL_MATCH_WRITES','NSK_REQUIRE_PERSONAL_COACH_SELECTION']){
-  assert.equal(bindings.find(x=>x.name===name)?.text,expectedWriteFlags,'Production write rollout changed: '+name);
+  const item=liveBindings.find(x=>x.name===name);
+  assert.ok(!item||item.type==='plain_text','Unexpected active personal write flag binding type: '+name);
+  assert.equal(item?.text??'false',expectedWriteFlags,'Active deployed version personal write flag drift: '+name);
 }
 const candidate=await get('/versions/c4a7024e-6621-4e7d-8b88-7ef3cdecd670');
 assert.equal(candidate.metadata?.has_preview,false);
@@ -47,13 +51,15 @@ const summary=[
 '- Active production Worker: \`'+expected+'\` (100% traffic)',
 '- Existing D1, KV and ShiftLock identifiers match the approved baseline',
 '- Secret bindings are present by name; values have not been read',
-'- Scoped read flags remain enabled; personal write flags verified as '+expectedWriteFlags,
+'- Active deployed Worker scoped read flags verified as true',
+'- Active deployed Worker personal write flags verified as '+expectedWriteFlags,
+'- Validation uses the deployed version, not potentially newer uploaded-version settings',
 '- Older uploaded candidate still has no Preview endpoint',
 '- **No deployment, rollback, or data mutation was performed**',
 '- A Worker version rollback alone does not restore data written to D1, KV, Baserow or Durable Objects'
-].join('\\n');
+].join('\n');
 console.log(summary);
 if(process.env.GITHUB_STEP_SUMMARY){
  const fs=await import('node:fs');
- fs.appendFileSync(process.env.GITHUB_STEP_SUMMARY,summary+'\\n');
+ fs.appendFileSync(process.env.GITHUB_STEP_SUMMARY,summary+'\n');
 }
