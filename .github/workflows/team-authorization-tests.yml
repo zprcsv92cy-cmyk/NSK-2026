@@ -22,6 +22,7 @@ jobs:
           node --test scripts/personal-roster-write-client.test.mjs
           node --test scripts/personal-admin-mode-cutover.test.mjs
           node --test scripts/personal-production-cutover-contract.test.mjs
+          node --test scripts/release-upload-workflow-gate.test.mjs
           node --test scripts/personal-pool-team-editor.test.mjs
           node --test scripts/pool-teams-complete-payload.test.mjs
           node --test scripts/roster-staff-role-contract.test.mjs
