@@ -40,3 +40,9 @@ test('preflight verifies live version resource identifiers and named secrets',()
  assert.match(preflight,/liveBindings\.find\(x=>x\.name===name\)\?\.type,'secret_text'/);
  assert.doesNotMatch(preflight,/const item=bindings\.find\(x=>x\.name===name\)/);
 });
+
+test('preflight never reads mutable script settings and handles absent bindings',()=>{
+ assert.match(preflight,/const deployment=await get\('\/deployments'\)/);
+ assert.doesNotMatch(preflight,/get\('\/settings'\)/);
+ assert.match(preflight,/item\?\.database_id\|\|item\?\.namespace_id/);
+});
