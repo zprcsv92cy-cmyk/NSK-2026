@@ -18,3 +18,20 @@ Owner approval has been received to switch from shared Adminläge to personal te
 6. Recheck GitHub checks, live Worker traffic/bindings and release gate immediately before cutover.
 
 **Do not merge this PR or deploy its manifest until these checks are satisfied.**
+
+## Verified isolated and staged candidates (2026-10-20)
+- Release candidate source commit: `f63ccf314ce530adff0284f767e3096995e6f20f`
+- Preview `nsk-personal-release-20261020` deployed and anonymous API smoke checks passed ([GitHub run](https://github.com/zprcsv92cy-cmyk/NSK-2026/actions/runs/39366845601)).
+- Production upload-only Worker version: `534ec56e-45e9-4aa9-9014-ed95da45935a` ([GitHub run](https://github.com/zprcsv92cy-cmyk/NSK-2026/actions/runs/39367027050)).
+- Cloudflare readback confirms candidate has all three personal-write guards ON and all three scoped-read guards ON, with the same D1, KV, Durable Object and secret binding names/IDs as the active Worker.
+- Cloudflare readback also confirms active Worker `7434d756-524c-43c4-95b2-73cc942a256b` remains at 100% traffic.
+- User reported successful personal authentication and Team 18 allowed / Testlag 2 denied tests previously; this report is recorded, but is not a full live test of this release candidate's authenticated writes with production resources.
+
+## Go/no-go: NO-GO for production traffic switch yet
+1. The released webpage immediately enables personal-token writes when `config.js` changes, but the currently active API has these guards OFF. Publishing it ahead of the API risks breaking writes.
+2. The reverse order also risks breaking writes: the older client sends Adminläge tokens, which the candidate API disallows for personalized routes.
+3. The Preview does not contain a seeded auth database or independent writable Baserow test data, so successful authenticated write/read-back against this exact candidate is not verified.
+4. A version rollback is possible in principle, but actual restoration of stateful Baserow/D1/KV/Durable Object data has not been exercised. A frontend version rollback also needs coordinated cache invalidation.
+5. Deploy only after a concrete coordinated cutover sequence and recovery procedure have been reviewed and the release gate is cleared.
+
+**Do not merge this draft PR solely on the basis of green static tests or an upload-only Cloudflare version.**
