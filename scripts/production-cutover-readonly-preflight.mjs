@@ -40,7 +40,9 @@ for(const name of ['NSK_REQUIRE_SCOPED_ROSTER_READS','NSK_REQUIRE_SCOPED_TEAM_RE
   assert.equal(liveBindings.find(x=>x.name===name)?.text,'true','Active deployed version scoped read flag drift: '+name);
 }
 for(const name of ['NSK_REQUIRE_PERSONAL_POOL_WRITES','NSK_REQUIRE_PERSONAL_MATCH_WRITES','NSK_REQUIRE_PERSONAL_COACH_SELECTION']){
-  assert.equal(liveBindings.find(x=>x.name===name)?.text||'false',expectedWriteFlags,'Active deployed version personal write flag drift: '+name);
+  const item=liveBindings.find(x=>x.name===name);
+  assert.ok(!item||item.type==='plain_text','Unexpected active personal write flag binding type: '+name);
+  assert.equal(item?.text??'false',expectedWriteFlags,'Active deployed version personal write flag drift: '+name);
 }
 const candidate=await get('/versions/c4a7024e-6621-4e7d-8b88-7ef3cdecd670');
 assert.equal(candidate.metadata?.has_preview,false);
