@@ -16,13 +16,12 @@ async function get(path){
   assert.equal(data.success,true,'Cloudflare request unsuccessful at '+path);
   return data.result;
 }
-const [deployment,settings]=await Promise.all([get('/deployments'),get('/settings')]);
+const deployment=await get('/deployments');
 const active=deployment.deployments?.[0]?.versions||[];
 assert.deepEqual(active,[{version_id:expected,percentage:100}],'Production traffic changed; abort coordinated release');
 // Script settings can reflect the last UPLOADED version, not the live deployed version.
 const liveVersion=await get('/versions/'+expected);
 const liveBindings=liveVersion.resources?.bindings||[];
-const bindings=settings.bindings||[];
 const expectations=[
   ['AUTH_DB','d1','9f937bcb-b0c0-4129-af5b-775cf284dfcb'],
   ['ADMIN_KV','kv_namespace','7f978e9bbcd04b888e5b0dfbc338ba5d'],
@@ -32,7 +31,7 @@ const expectations=[
 for(const [name,type,id] of expectations){
   const item=liveBindings.find(x=>x.name===name);
   assert.equal(item?.type,type,'Active production binding type mismatch for '+name);
-  assert.equal(item.database_id||item.namespace_id,id,'Active production binding ID mismatch for '+name);
+  assert.equal(item?.database_id||item?.namespace_id,id,'Active production binding ID mismatch for '+name);
 }
 for(const name of ['BASEROW_TOKEN','ADMIN_PASSWORD','MATCH_PASSWORD']){
   assert.equal(liveBindings.find(x=>x.name===name)?.type,'secret_text','Missing named secret: '+name);
@@ -52,7 +51,7 @@ const summary=[
 '- Secret bindings are present by name; values have not been read',
 '- Active deployed Worker scoped read flags verified as true',
 '- Active deployed Worker personal write flags verified as '+expectedWriteFlags,
-'- Script settings may show newer uploaded-version flags; those do not prove production traffic changed',
+'- Validation uses the deployed version, not potentially newer uploaded-version settings',
 '- Older uploaded candidate still has no Preview endpoint',
 '- **No deployment, rollback, or data mutation was performed**',
 '- A Worker version rollback alone does not restore data written to D1, KV, Baserow or Durable Objects'
