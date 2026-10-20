@@ -56,3 +56,12 @@ test('release changes service-worker cache epoch so old admin assets are not sil
   assert.match(sw,/fetch\(req\)/);
   assert.match(sw,/url\.pathname\.endsWith\("\/deploy\.json"\)/);
 });
+
+test('new personal pool creation sends active team, never legacy fixed owner',()=>{
+  assert.match(db,/if\(method==='POST' && window\.APP_CONFIG\?\.REQUIRE_PERSONAL_POOL_WRITES===true\)/);
+  assert.match(db,/window\.Auth\?\.activeTeam\?\.\(\)/);
+  assert.match(db,/body=\{\.\.\.payload,team_id:selected\}/);
+  assert.match(api,/authorizedPoolTeam = access\.teamId/);
+  assert.match(api,/authorizedPoolTeam \|\| "NSK Team 18"/);
+  assert.match(api,/personalPoolWritesEnabled && req\.method === "POST"\) keys\.push\("team_id"\)/);
+});
