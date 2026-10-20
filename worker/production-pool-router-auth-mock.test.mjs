@@ -59,6 +59,11 @@ test('rejects invalid team owner before write',async()=>{
  assert.equal(result.writes.length,0);
 });
 
+test('rejects mixed valid and invalid duplicate team owners without writing',async()=>{
+ const result=await run('NSK Team 18',[team,{...team,id:'bad'}]);
+ assert.equal(result.status,503);
+ assert.equal(result.writes.length,0);
+});
 test('rejects paginated team lookup without writing',async()=>{
  const result=await run('NSK Team 18',[team],true);
  assert.equal(result.status,503);
