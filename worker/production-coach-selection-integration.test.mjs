@@ -15,5 +15,5 @@ test('client switches read/write tokens together while both rollout flags are en
  assert.match(client,/personalCoachSelectionEnabled\(\)\?window\.Auth\?\.getToken/);
  assert.match(client,/if\(!personalCoachSelectionEnabled\(\)\)return adminRequest/);
  assert.match(config,/REQUIRE_PERSONAL_COACH_SELECTION: true/);
- assert.match(wrangler,/NSK_REQUIRE_PERSONAL_COACH_SELECTION = "false"/);
+ assert.match(wrangler,/NSK_REQUIRE_PERSONAL_COACH_SELECTION = "true"/);
 });
