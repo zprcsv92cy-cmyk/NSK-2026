@@ -529,8 +529,10 @@ var worker_default = { async fetch(req, env) {
     try {
       const teamsResp = await fetch(`https://api.baserow.io/api/database/rows/table/${TABLES.lag}/?user_field_names=true&size=100`, { headers: auth });
       if (!teamsResp.ok) return reply({ ok: false, error: "Kunde inte kontrollera f\xF6reningslag" }, 502);
-      const team = (await teamsResp.json()).results?.find((t) => t.Namn === (authorizedPoolTeam || "NSK Team 18") && String(t["S\xE4song"]) === "2026");
-      if (!team) return reply({ ok: false, error: "Valt lag saknas" }, 409);
+      const teamRows = (await teamsResp.json()).results;
+      const matches = Array.isArray(teamRows) ? teamRows.filter((t) => t.Namn === (authorizedPoolTeam || "NSK Team 18") && String(t["S\xE4song"]) === "2026" && Number.isSafeInteger(Number(t.id)) && Number(t.id) > 0) : [];
+      if (matches.length !== 1) return reply({ ok: false, error: "Lagkopplingen kunde inte verifieras" }, 409);
+      const team = matches[0];
       const rowId = req.method === "PATCH" ? Number(url.pathname.split("/").pop()) : null;
       if (rowId) {
         const oldResp = await fetch(`https://api.baserow.io/api/database/rows/table/${TABLES.poolspel}/${rowId}/?user_field_names=true`, { headers: auth });
