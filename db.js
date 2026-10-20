@@ -141,10 +141,11 @@ window.DB = (() => {
       return adminRequest(`/api/laguppstallningar/${Number(configId)}`,'POST',{players:players.map(Number),coaches:coaches.map(Number)});
     });
   }
-  // Separat tränarval i Cloudflare KV. Kräver Adminläge.
+  // Tränarval använder personlig behörighet först när API och klient aktiverats tillsammans.
+  const personalCoachSelectionEnabled=()=>window.APP_CONFIG?.REQUIRE_PERSONAL_COACH_SELECTION===true;
   async function getCoachSelection(poolId,lagNo,matchNo){
-    const token=localStorage.getItem('nsk_admin_token');
-    if(!token)throw new Error('Aktivera Adminläge för att hämta tränarval.');
+    const token=personalCoachSelectionEnabled()?window.Auth?.getToken?.():localStorage.getItem('nsk_admin_token');
+    if(!token)throw new Error(personalCoachSelectionEnabled()?'Personlig inloggning krävs för tränarval.':'Aktivera Adminläge för att hämta tränarval.');
     const params=new URLSearchParams({pool_id:String(poolId),lag_no:String(lagNo),match_no:String(matchNo)});
     const response=await fetch(`${API}/api/coach-selection?${params}`,{headers:{Authorization:'Bearer '+token},cache:'no-store'});
     const data=await response.json().catch(()=>({}));
@@ -152,10 +153,18 @@ window.DB = (() => {
     return {coach_ids:Array.isArray(data.coach_ids)?data.coach_ids.map(Number):[],saved:!!data.saved};
   }
   async function saveCoachSelection(poolId,lagNo,matchNo,coachIds){
-    return adminRequest('/api/coach-selection','POST',{
-      pool_id:Number(poolId),lag_no:Number(lagNo),match_no:Number(matchNo),
-      coach_ids:[...new Set(coachIds.map(Number))]
+    const payload={pool_id:Number(poolId),lag_no:Number(lagNo),match_no:Number(matchNo),
+      coach_ids:[...new Set(coachIds.map(Number))]};
+    if(!personalCoachSelectionEnabled())return adminRequest('/api/coach-selection','POST',payload);
+    const token=window.Auth?.getToken?.();
+    if(!token)throw new Error('Personlig inloggning krävs för att spara tränarval.');
+    const response=await fetch(`${API}/api/coach-selection`,{
+      method:'POST',headers:{'Content-Type':'application/json',Authorization:'Bearer '+token},
+      body:JSON.stringify(payload)
     });
+    const data=await response.json().catch(()=>({}));
+    if(!response.ok||!data.ok)throw new Error(data.error||'Kunde inte spara tränarval');
+    return data;
   }
   // Personal sessions take priority for shift writes. Legacy admin is used only without a personal session.
   async function shiftSaveRequest(payload){
