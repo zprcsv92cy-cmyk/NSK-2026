@@ -26,6 +26,7 @@ jobs:
           node --test scripts/pool-save-permission-ui.test.mjs
           node --check worker/production-api-v42-reference.js
           node --test worker/production-api-staff-route.test.mjs
+          node --experimental-default-type=module --test worker/production-personal-write-route-isolation.test.mjs
           node scripts/check-staging-imports.mjs
           node --test scripts/check-api-production-release.test.mjs
       - name: Confirm login page uses existing auth client without rewriting legacy data
