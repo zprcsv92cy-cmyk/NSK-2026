@@ -32,6 +32,7 @@ jobs:
           node --experimental-default-type=module --test worker/production-personal-write-route-isolation.test.mjs
           node --experimental-default-type=module --test worker/production-admin-login-cutover.test.mjs
           node --experimental-default-type=module --test worker/production-personal-write-team-matrix.test.mjs
+          node --experimental-default-type=module --test worker/production-personal-session-integration.test.mjs
           node scripts/check-staging-imports.mjs
           node --test scripts/check-api-production-release.test.mjs
           node --test scripts/worker-preview-isolation.test.mjs
