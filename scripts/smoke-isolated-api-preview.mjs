@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 
-const base = 'https://nsk-isolated-auth-20261020-nsk-api.peter-hasselberg.workers.dev';
+const base = process.env.NSK_PREVIEW_BASE_URL || 'https://nsk-isolated-auth-20261020-nsk-api.peter-hasselberg.workers.dev';
 const targets = [
   '/api/lag',
   '/api/spelare?team_id=1',
