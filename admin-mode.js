@@ -6,6 +6,8 @@ const KEY='nsk_admin_token';
 const personalCutoverEnabled = ['POOL_WRITES','MATCH_WRITES','ROSTER_WRITES','COACH_SELECTION']
   .every(name => window.APP_CONFIG?.['REQUIRE_PERSONAL_' + name] === true);
 if (personalCutoverEnabled) {
+  // Stale shared credentials must not linger in the browser after personal cutover.
+  try { localStorage.removeItem(KEY); localStorage.removeItem('nsk_match_token'); } catch { /* Storage can be disabled */ }
   const addAccountLink = () => {
     const menu = document.querySelector('.mainmenu');
     if (!menu || menu.querySelector('a[href="../mittkonto/"]')) return;
