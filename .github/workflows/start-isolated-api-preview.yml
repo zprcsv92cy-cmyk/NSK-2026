@@ -13,7 +13,9 @@ concurrency:
   cancel-in-progress: false
 jobs:
   preview:
-    if: ${{ inputs.confirmation == 'PREVIEW_ONLY' }}
+    # Disabled until isolated Baserow, D1/KV and authorized tests are verified (PR #211).
+    # PREVIEW_ONLY confirmation alone is not a sufficient isolation gate.
+    if: ${{ inputs.confirmation == 'PREVIEW_ONLY' && false }}
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
