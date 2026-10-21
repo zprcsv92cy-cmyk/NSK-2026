@@ -8,7 +8,7 @@ const teams = [{ id: 18, Namn: 'NSK Team 18', 'Säsong': '2026' }, { id: 2, Namn
 function env(role = 'team_admin', permissions = ['roster:manage']) {
   return { AUTH_DB: { prepare(sql) { return { bind(...args) { return {
     async first() { assert.equal(args[0], hash); return { id: 'u1', display_name: 'Tester' }; },
-    async all() { return { results: sql.includes('auth_team_memberships') ? [{ team_id: '18', role }] : permissions.map(permission => ({ permission })) }; }
+    async all() { return { results: sql.includes('auth_team_memberships') ? [{ team_id: '18', role }, { team_id: 'NSK Team 18', role }] : permissions.map(permission => ({ permission })) }; }
   }; } }; } } };
 }
 const req = (method, path, auth = token) => new Request('https://example.test' + path, {
