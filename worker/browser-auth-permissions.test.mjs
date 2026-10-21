@@ -79,3 +79,10 @@ test('global-admin UI hint still requires team membership, a grant, and a non-vi
   });
   assert.equal(viewer.can('roster', 'team-18'), false);
 });
+
+
+test('legacy roster UI stays disabled outside Team 18 even with an admin token', () => {
+  const html = readFileSync(new URL('../truppen/index.html', import.meta.url), 'utf8');
+  const legacy = html.split("const token = localStorage.getItem('nsk_admin_token');")[0];
+  assert.match(legacy, /if \(window\.Auth\?\.activeTeam\?\.\(\) !== 'NSK Team 18'\) return false;/);
+});
