@@ -85,46 +85,18 @@
    $('rinkTitle').value=String(v.title||'').slice(0,100);$('rinkDescription').value=String(v.description||'').slice(0,2000);
   }}catch{}rink();
  }
- const locations=[
-  {keys:['nedre vänstra','nere till vänster'],x:118,y:665},{keys:['nedre högra','nere till höger'],x:360,y:665},
-  {keys:['övre vänstra','uppe till vänster'],x:118,y:190},{keys:['övre högra','uppe till höger'],x:360,y:190},
-  {keys:['mitten','mittcirkeln','mittzon'],x:240,y:430},
-  {keys:['nedre målet','nedre mål'],x:240,y:760},{keys:['övre målet','övre mål'],x:240,y:100},
-  {keys:['vänster'],x:135,y:430},{keys:['höger'],x:345,y:430}
- ];
- function locate(s,def={x:240,y:430}){
-  const hit=locations.find(l=>l.keys.some(k=>s.includes(k)));return hit||def;
- }
- function kind(s){
-  if(/målvakt/i.test(s))return 'goalie';
-  if(/kon(er)?/i.test(s))return 'cone';
-  if(/puck(ar)?/i.test(s))return 'puck';
-  if(/spelare/i.test(s))return 'player';
-  return null;
- }
- function count(s){const words={en:1,ett:1,två:2,tre:3,fyra:4,fem:5,sex:6};const m=s.match(/(?:^|\s)(\d+|en|ett|två|tre|fyra|fem|sex)\s+(?:röda?\s+|blåa?\s+|svarta?\s+|gröna?\s+)?(?:spelare|målvakter?|puckar?|koner?)/i);return clamp(m?(words[m[1].toLowerCase()]||Number(m[1])):1,1,20);}
  function drawFromText(){
-  const txt=$('rinkDescription').value.trim().toLocaleLowerCase('sv');
-  if(!txt){announce('Skriv en beskrivning först.');return;}
-  const parts=txt.split(/[.;\n]+/).map(s=>s.trim()).filter(Boolean);
-  let created=0;
-  remember();marks=[];
-  for(const part of parts){
-   const t=kind(part), loc=locate(part);
-   if(t){
-    const n=count(part);let color=$('rinkColor').value;
-    if(part.includes('röd'))color=palette[0];else if(part.includes('blå'))color=palette[1];else if(part.includes('svart'))color=palette[2];else if(part.includes('grön'))color=palette[3];
-    for(let i=0;i<n;i++){const col=i%4,row=Math.floor(i/4);add(t,clamp(loc.x+(col-(Math.min(n,4)-1)/2)*28,35,445),clamp(loc.y+(row)*30,35,825),color);created++;}
-   }
-   if(/åkväg|skridsko(väg)?|åker från|åk från|passning från|passa från|avdelare från/.test(part)){
-    const halves=part.split(/\s+till\s+/);if(halves.length>=2){
-     const a=locate(halves[0],{x:120,y:650}),b=locate(halves[1],{x:300,y:350});
-     const type=/pass/.test(part)?'pass':/avdelare/.test(part)?'divider':'skate';
-     add(type,a.x,a.y,$('rinkColor').value,b.x,b.y);created++;
-    }
-   }
-  }
-  rink();announce(created?created+' symboler och linjer skapade från texten. Justera dem med Flytta.':'Beskrivningen kunde inte tolkas. Försök till exempel: Två spelare vid nedre vänstra hörnet. Tre koner vid övre högra hörnet.');
+  const text=$('rinkDescription').value.trim();
+  if(!text){announce('Beskriv först övningen.');return;}
+  const parser=window.NskRinkTextParser;
+  if(!parser){announce('Texttolkningen kunde inte laddas. Uppdatera sidan.');return;}
+  const result=parser.parse(text,$('rinkColor').value);
+  if(!result.marks.length){announce('Ingen ritning skapades. Prova: 2 röda spelare vid nedre vänstra hörnet. Passning från nedre vänstra hörnet till mittcirkeln.');return;}
+  remember();
+  marks=result.marks.map(m=>({...m,id:uuid()}));
+  rink();
+  const extra=result.warnings.length?' Delar som behöver förtydligas: '+result.warnings.slice(0,2).join(' / '):'';
+  announce(result.marks.length+' objekt ritade. Flytta och justera symbolerna vid behov.'+extra);
  }
  function exportImage(){
   const s=$('rinkSvg').cloneNode(true);s.setAttribute('xmlns',NS);s.setAttribute('width',String(W));s.setAttribute('height',String(H));
