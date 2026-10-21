@@ -44,14 +44,17 @@ document.write('<script src="../training-groups.js?v='+window.NSK_VERSION+'"><\/
 <section class="card">
 <div class="training-controls">
 <label>Träningsdatum<input id="trainingDate" type="date"></label>
-<label>Antal tröjfärger<select id="trainingColorCount"><option value="2">2 grupper</option><option value="3" selected>3 grupper</option><option value="4">4 grupper</option></select></label>
+<label>Antal målvakter<select id="trainingGoalieCount"><option value="0">0 målvakter</option><option value="1">1 målvakt</option><option value="2">2 målvakter</option></select></label>
 </div>
 <p id="trainingStatus" role="status" aria-live="polite">Hämtar spelare…</p>
 <p class="small">Markera de spelare som kommer. Uppgifterna sparas tills vidare endast i den här webbläsaren, inte gemensamt mellan ledare.</p>
 <h2>Spelare som kommer</h2><p class="training-count" id="trainingCount">0 anmälda</p>
 <div class="training-roster" id="trainingRoster"></div>
+<h2 style="margin-top:18px">Välj målvakter</h2>
+<div class="training-controls" id="trainingGoalies"></div>
+<p class="small">Målvakterna väljs bland spelarna som kommer och visas separat från utespelarnas tröjfärger.</p>
 <div class="training-actions"><button type="button" id="trainingGroupButton">Dela in i tröjfärger</button><button type="button" id="trainingPrintButton">Skriv ut grupper</button></div>
 </section>
-<section class="card"><h2>Tröjfärger</h2><div class="training-groups" id="trainingGroups"></div></section>
+<section class="card"><h2>Målvakter</h2><div id="trainingGoalieSummary">Inga målvakter valda</div><h2 style="margin-top:18px">Tröjfärger – röd, vit och svart</h2><div class="training-groups" id="trainingGroups"></div></section>
 </div>
 </body></html>
