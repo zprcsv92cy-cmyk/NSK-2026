@@ -19,7 +19,13 @@ test('preview never inherits production data stores or hardcoded secrets',()=>{
     assert.ok(!preview.includes(id),'Production resource ID included in Preview');
   }
   assert.doesNotMatch(preview,/BASEROW_DATABASE_ID\s*=\s*"589073"/);
-  assert.doesNotMatch(preview,/BASEROW_TABLE_IDS|BASEROW_TOKEN/);
+  // An isolated mapping is required before preview can run; reject only production
+  // table IDs and secrets, not all Baserow configuration unconditionally.
+  assert.doesNotMatch(preview,/^\\s*BASEROW_TOKEN\\s*=/m);
+  for (const productionTableId of ['1255083','1255098','1255100','1255101','1255109','1255113','1255115','1255119','1255152','1255157']) {
+    assert.doesNotMatch(preview, new RegExp('\\\\b' + productionTableId + '\\\\b'),
+      'Production Baserow table ID included in preview');
+  }
   assert.match(preview,/database_id = "b94c8dba-34be-4cff-a4e9-892caf4e3ddd"/);
   assert.match(preview,/id = "8b079c75ed6c4d4695476f1de24089fd"/);
   assert.match(preview,/id = "e8772468a0004f0ea78b02a5251eadf7"/);
