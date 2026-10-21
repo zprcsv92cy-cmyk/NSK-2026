@@ -41,6 +41,7 @@ jobs:
           node scripts/check-staging-imports.mjs
           node --test scripts/check-api-production-release.test.mjs
           node --test scripts/worker-preview-isolation.test.mjs
+          node --test scripts/isolated-preview-baserow-gate.test.mjs
       - name: Confirm login page uses existing auth client without rewriting legacy data
         run: |
           node --input-type=module -e "import {readFileSync as read} from 'node:fs'; import assert from 'node:assert/strict'; const h=read('login/index.html','utf8'); assert.match(h,/Auth\\.login\\(/); assert.match(h,/\.\.\\/auth\\.js/); assert.doesNotMatch(h,/nsk_admin_token|nsk_match_token/); console.log('Login integration verified');"
