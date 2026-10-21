@@ -102,3 +102,25 @@ test('invalid staff role is rejected without writes', async () => {
     { name: 'Unknown', role: 'Administratör' }), x.env, x);
   assert.equal(result.status, 400); assert.equal(x.writes, 0);
 });
+
+
+test('staff names containing control characters cannot be created', async () => {
+  const x = setup();
+  for (const name of ['Bad\nName', 'Bad\tName', 'Bad\u0000Name', 'Bad\u007fName']) {
+    const result = await handlePersonalLagpersonalWrite(request('POST', '18', token,
+      { name, role: 'Lagledare' }), x.env, x);
+    assert.equal(result.status, 400, JSON.stringify(name));
+    assert.equal(x.writes, 0);
+  }
+});
+
+test('staff PATCH containing control characters preserves the existing row', async () => {
+  const x = setup();
+  const created = await handlePersonalLagpersonalWrite(request('POST'), x.env, x);
+  assert.equal(created.status, 201);
+  const result = await handlePersonalLagpersonalWrite(request('PATCH', '18', token,
+    { id: created.row.id, name: 'Bad\nName', role: 'Lagledare' }), x.env, x);
+  assert.equal(result.status, 400);
+  assert.equal(x.writes, 1);
+  assert.equal(JSON.parse(x.kv.get('lagpersonal:team:18'))[0].name, 'Alex');
+});
