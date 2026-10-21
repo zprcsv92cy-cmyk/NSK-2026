@@ -1,0 +1,59 @@
+<!doctype html>
+<html lang="sv"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<script>document.documentElement.style.visibility='hidden';</script>
+<script src="../config.js"></script><script src="../login-gate.js"></script>
+<title>Rita hockeyövning – NSK</title><meta name="theme-color" content="#b11226">
+<script src="../version.js?v=872"></script>
+<script>document.write('<link rel="stylesheet" href="../app.css?v='+window.NSK_VERSION+'">');document.write('<script src="../rink-drawer.js?v='+window.NSK_VERSION+'"><\/script>');</script>
+<style>
+.draw-wrap{max-width:980px;margin:auto}
+.draw-toolbar{display:flex;flex-wrap:wrap;gap:7px;padding:10px 0;align-items:center}
+.draw-toolbar button{min-height:44px;width:auto;padding:9px 11px;background:#282a30;border:1px solid #62646a;color:white;border-radius:9px;font-size:14px}
+.draw-toolbar button[aria-pressed="true"]{background:#a90920;border-color:#fff}
+.draw-toolbar label{display:flex;align-items:center;gap:6px}
+.draw-toolbar select{font:inherit;max-width:135px}
+#rinkSvg{display:block;width:100%;height:auto;max-height:calc(100dvh - 165px);aspect-ratio:480/860;touch-action:none;background:white;margin:auto;border-radius:12px;user-select:none}
+.rink-container{display:flex;justify-content:center;align-items:center;background:#191b20;border-radius:12px;padding:5px}
+.draw-note{font-size:.87rem;color:var(--muted)}
+.draw-title{width:100%;max-width:420px;margin:6px 0}
+body.rink-fullscreen{margin:0;padding:0;overflow:hidden}
+body.rink-fullscreen .mainmenu,body.rink-fullscreen h1,body.rink-fullscreen .draw-note,body.rink-fullscreen .draw-title,body.rink-fullscreen #rinkTextPanel{display:none}
+body.rink-fullscreen .draw-wrap{max-width:none;width:100vw;height:100dvh;display:flex;flex-direction:column}
+body.rink-fullscreen .draw-toolbar{padding:4px;gap:4px;background:#17181b;flex:none}
+body.rink-fullscreen .draw-toolbar button{padding:7px;min-height:38px}
+body.rink-fullscreen .rink-container{flex:1;min-height:0;padding:0}
+body.rink-fullscreen #rinkSvg{height:100%;width:100%;max-height:none;object-fit:contain}
+@media (max-width:580px){.draw-toolbar{gap:5px}.draw-toolbar button{font-size:13px;padding:8px}#rinkSvg{max-height:calc(100dvh - 215px)}}
+</style></head><body><div class="draw-wrap">
+<nav class="mainmenu"><a href="../startsida/">Startsida</a><a href="../ovningsarkiv/">Övningsarkiv</a><a href="./" class="active">Ritverktyg</a></nav>
+<h1>Rita hockeyövning</h1>
+<p class="draw-note">Välj symbol och tryck på rinken. Med <strong>Flytta</strong> kan du dra symboler med fingret. Välj <strong>Åkväg</strong>, <strong>Passning</strong> eller <strong>Avdelare</strong> och dra en linje.</p>
+<label class="draw-note">Övningens namn <input id="rinkTitle" class="draw-title" maxlength="100" placeholder="Ex. Passning och avslut"></label>
+<section class="card" id="rinkTextPanel">
+<h2>Beskriv övningen</h2>
+<label for="rinkDescription">Skriv instruktioner om var spelare och utrustning ska placeras</label>
+<textarea id="rinkDescription" rows="4" style="width:100%;margin:8px 0" placeholder="Två röda spelare vid nedre vänstra hörnet. En puck i mittcirkeln. Tre koner vid övre högra hörnet. Åkväg från nedre vänstra hörnet till mittcirkeln."></textarea>
+<div class="draw-toolbar"><button type="button" id="rinkFromText">Rita från beskrivning</button><button type="button" id="rinkTextExample">Visa exempel</button></div>
+<p class="draw-note">Första versionen förstår antal, symboler och platser som hörn, mittcirkeln och målen. Den tolkar inte ännu alla fria tränarbeskrivningar.</p>
+</section>
+<div class="draw-toolbar" id="rinkToolbar" role="toolbar" aria-label="Ritverktyg">
+<button type="button" data-tool="move" aria-pressed="true">↔ Flytta</button>
+<button type="button" data-tool="player">● Spelare</button>
+<button type="button" data-tool="goalie">◉ Målvakt</button>
+<button type="button" data-tool="puck">● Puck</button>
+<button type="button" data-tool="cone">▲ Kon</button>
+<button type="button" data-tool="divider">┃ Avdelare</button>
+<button type="button" data-tool="skate">➜ Åkväg</button>
+<button type="button" data-tool="pass">⇢ Passning</button>
+<button type="button" data-tool="erase">⌫ Radera</button>
+<label class="draw-note">Färg <select id="rinkColor"><option value="#b11226">Röd</option><option value="#2563eb">Blå</option><option value="#111827">Svart</option><option value="#16a34a">Grön</option></select></label>
+<button type="button" id="rinkUndo">Ångra</button>
+<button type="button" id="rinkClear">Rensa</button>
+<button type="button" id="rinkSave">Spara</button>
+<button type="button" id="rinkLoad">Öppna</button>
+<button type="button" id="rinkExport">Exportera bild</button>
+<button type="button" id="rinkFullscreen">Helskärm</button>
+</div>
+<div class="rink-container"><svg id="rinkSvg" viewBox="0 0 480 860" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="Stående hockeyrink för att rita övningar"></svg></div>
+<p id="rinkStatus" class="draw-note" role="status" aria-live="polite">Färdig att rita.</p>
+</div></body></html>

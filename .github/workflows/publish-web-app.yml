@@ -23,6 +23,7 @@ on:
       - 'truppen/**'
       - 'traningsgrupper/**'
       - 'ovningsarkiv/**'
+      - 'ritverktyg/**'
       - 'manifest.webmanifest'
       - 'deploy.json'
       - 'scripts/bump-version.cjs'
@@ -59,6 +60,7 @@ jobs:
           node --check login-gate.js
           node --check training-groups.js
           node --check exercise-archive.js
+          node --check rink-drawer.js
           node --check db.js
           node --check sw.js
           node --test worker/browser-auth-permissions.test.mjs
@@ -73,8 +75,8 @@ jobs:
         run: |
           set -euo pipefail
           mkdir -p _site
-          cp -a index.html app.css app.js admin-mode.js auth.js config.js db.js deploy.json version.js sw.js manifest.webmanifest icon-192.png icon-512.png login-patch.js login-gate.js training-groups.js exercise-archive.js pool-team-editor.js _site/
-          for dir in aktivera anvandare bytesschema lag laguppstallning login malvaktsstatistik matchvy mittkonto skapapoolspel startsida truppen traningsgrupper ovningsarkiv; do
+          cp -a index.html app.css app.js admin-mode.js auth.js config.js db.js deploy.json version.js sw.js manifest.webmanifest icon-192.png icon-512.png login-patch.js login-gate.js training-groups.js exercise-archive.js rink-drawer.js pool-team-editor.js _site/
+          for dir in aktivera anvandare bytesschema lag laguppstallning login malvaktsstatistik matchvy mittkonto skapapoolspel startsida truppen traningsgrupper ovningsarkiv ritverktyg; do
             cp -a "$dir" _site/
           done
           touch _site/.nojekyll
