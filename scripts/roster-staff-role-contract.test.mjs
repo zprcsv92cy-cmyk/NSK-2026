@@ -9,7 +9,7 @@ async function run(enabled, role, action='write') {
   const sandbox={
     window:{
       APP_CONFIG:{API_URL:'https://api.example',REQUIRE_PERSONAL_ROSTER_WRITES:enabled,REQUIRE_SCOPED_ROSTER_READS:enabled},
-      Auth:{activeTeam:()=> 'NSK Team 18',getToken:()=> 'p'.repeat(43)}
+      Auth:{activeTeam:()=> 'NSK Team 18',getToken:()=> 'p'.repeat(43),checkTeamFeature:async(feature,team)=>feature==='roster'&&team==='NSK Team 18'}
     },
     localStorage:{getItem:()=> 'legacy-admin'},
     fetch:async (url,options={})=>{

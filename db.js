@@ -110,6 +110,12 @@ window.DB = (() => {
     if(!token)throw new Error(personalPoolWrite ? 'Personlig inloggning krävs för att ändra poolspel.' :
       personalMatchWrite ? 'Personlig inloggning krävs för match och laguppställning.' :
       personalRosterWrite ? 'Personlig inloggning krävs för att ändra truppen.' : 'Aktivera Adminläge först.');
+    if (personalRosterWrite) {
+      const team = window.Auth?.activeTeam?.();
+      if (!team || typeof window.Auth?.checkTeamFeature !== 'function' ||
+          !await window.Auth.checkTeamFeature('roster', team))
+        throw new Error('Saknar personlig behörighet att ändra truppen för valt lag.');
+    }
     const response=await fetch(`${API}${path}`,{method,headers:{'Content-Type':'application/json',Authorization:'Bearer '+token},body:JSON.stringify(payload)});
     let data;try{data=await response.json()}catch{throw new Error('Ogiltigt svar från servern')}
     if(!response.ok||!data.ok)throw new Error(data.error||'Kunde inte spara');
