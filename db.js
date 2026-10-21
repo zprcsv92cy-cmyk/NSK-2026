@@ -115,6 +115,9 @@ window.DB = (() => {
       if (!team || typeof window.Auth?.checkTeamFeature !== 'function' ||
           !await window.Auth.checkTeamFeature('roster', team))
         throw new Error('Saknar personlig behörighet att ändra truppen för valt lag.');
+      // Permission verification is asynchronous; abort if the user changed teams meanwhile.
+      if (window.Auth?.activeTeam?.() !== team)
+        throw new Error('Lagvalet ändrades. Välj lag och försök igen.');
     }
     const response=await fetch(`${API}${path}`,{method,headers:{'Content-Type':'application/json',Authorization:'Bearer '+token},body:JSON.stringify(payload)});
     let data;try{data=await response.json()}catch{throw new Error('Ogiltigt svar från servern')}
