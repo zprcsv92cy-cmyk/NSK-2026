@@ -1,0 +1,90 @@
+name: Publish NSK web app
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths:
+      - '*.html'
+      - '*.js'
+      - '*.css'
+      - '*.png'
+      - 'aktivera/**'
+      - 'anvandare/**'
+      - 'bytesschema/**'
+      - 'lag/**'
+      - 'laguppstallning/**'
+      - 'login/**'
+      - 'malvaktsstatistik/**'
+      - 'matchvy/**'
+      - 'mittkonto/**'
+      - 'skapapoolspel/**'
+      - 'startsida/**'
+      - 'truppen/**'
+      - 'manifest.webmanifest'
+      - 'deploy.json'
+      - 'scripts/bump-version.cjs'
+      - '.github/workflows/publish-web-app.yml'
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: nsk-web-production
+  cancel-in-progress: false
+
+jobs:
+  publish:
+    if: ${{ github.ref == 'refs/heads/main' }}
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Run existing client safety and functionality tests
+        run: |
+          set -euo pipefail
+          node --check app.js
+          node --check auth.js
+          node --check db.js
+          node --check sw.js
+          node --test worker/browser-auth-permissions.test.mjs
+          node --test scripts/scoped-roster-client.test.mjs scripts/personal-roster-write-client.test.mjs scripts/roster-staff-role-contract.test.mjs
+          node --test scripts/shift-client-auth.test.mjs scripts/pool-save-permission-ui.test.mjs
+          node --test scripts/preview-dispatch-lock.test.mjs
+      - name: Stamp a unique cache version into this build only
+        env:
+          NSK_TARGET_VERSION: ${{ github.run_id }}
+        run: node scripts/bump-version.cjs
+      - name: Assemble only public frontend files
+        run: |
+          set -euo pipefail
+          mkdir -p _site
+          cp -a index.html app.css app.js admin-mode.js auth.js config.js db.js deploy.json version.js sw.js manifest.webmanifest icon-192.png icon-512.png login-patch.js pool-team-editor.js _site/
+          for dir in aktivera anvandare bytesschema lag laguppstallning login malvaktsstatistik matchvy mittkonto skapapoolspel startsida truppen; do
+            cp -a "$dir" _site/
+          done
+          touch _site/.nojekyll
+          test -s _site/startsida/index.html
+          test -s _site/version.js
+          ! test -e _site/worker
+          ! test -e _site/wrangler.api.production.toml
+      - uses: actions/configure-pages@v5
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: _site
+      - name: Publish to GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@v4
+      - name: Link to deployed app
+        run: |
+          echo "Web app deployed from main commit ${GITHUB_SHA}" >> "$GITHUB_STEP_SUMMARY"
+          echo "${{ steps.deployment.outputs.page_url }}" >> "$GITHUB_STEP_SUMMARY"
