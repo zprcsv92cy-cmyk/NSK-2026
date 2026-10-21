@@ -65,9 +65,9 @@ jobs:
             }
             echo "Verified isolated resource ID: $expected_id"
           }
-          check_resource "d1/database/b94c8dba-34be-4cff-a4e9-892caf4e3ddd" "b94c8dba-34be-4cff-a4e9-892caf4e3ddd" "nsk-api-preview-auth-20261020"
-          check_resource "storage/kv/namespaces/8b079c75ed6c4d4695476f1de24089fd" "8b079c75ed6c4d4695476f1de24089fd"
-          check_resource "storage/kv/namespaces/e8772468a0004f0ea78b02a5251eadf7" "e8772468a0004f0ea78b02a5251eadf7"
+          check_resource "d1/database/b94c8dba-34be-4cff-a4e9-892caf4e3ddd" "b94c8dba-34be-4cff-a4e9-892caf4e3ddd" "nsk-integration-isolated-20261018"
+          check_resource "storage/kv/namespaces/8b079c75ed6c4d4695476f1de24089fd" "8b079c75ed6c4d4695476f1de24089fd" "NSK_INTEGRATION_ADMIN_SESSIONS_20261018"
+          check_resource "storage/kv/namespaces/e8772468a0004f0ea78b02a5251eadf7" "e8772468a0004f0ea78b02a5251eadf7" "NSK_INTEGRATION_TRAINERS_20261018"
       - name: Create isolated Worker Preview (never production deploy)
         env:
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
