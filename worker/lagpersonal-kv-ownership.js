@@ -17,8 +17,8 @@ export async function resolveLagpersonalKvOwnership(request, { listTeams, readTe
   if (!raw || !/^[1-9]\d*$/.test(raw) || !Number.isSafeInteger(Number(raw)))
     throw new Error('Invalid team ID');
   const teams = await listTeams();
-  if (!Array.isArray(teams) || !teams.some(t => String(t?.id) === raw))
-    throw new Error('Unknown team');
+  if (!Array.isArray(teams) || teams.filter(t => t && String(t.id) === raw).length !== 1)
+    throw new Error('Unknown or ambiguous team');
   if (request.method === 'POST') return raw;
   let body;
   try { body = await request.clone().json(); } catch { throw new Error('Invalid JSON'); }

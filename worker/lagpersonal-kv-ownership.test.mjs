@@ -47,3 +47,15 @@ test('rejects conflicting team_id values', async () => {
   const req = new Request('https://example.test/api/lagpersonal?team_id=18&team_id=2', { method: 'POST' });
   await assert.rejects(resolveLagpersonalKvOwnership(req, sources), /Ambiguous team ID/);
 });
+
+
+test('rejects duplicate trusted team records rather than choosing one', async () => {
+  for (const method of ['POST', 'PATCH']) {
+    let staffReads = 0;
+    await assert.rejects(resolveLagpersonalKvOwnership(make(method, 18), {
+      listTeams: async () => [{ id: 18 }, { id: 18 }, { id: 2 }],
+      readTeamStaff: async () => { staffReads++; return [{ id, role: 'Lagledare' }]; }
+    }), /Unknown or ambiguous team/);
+    assert.equal(staffReads, 0, method);
+  }
+});
