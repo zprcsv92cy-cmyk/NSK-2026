@@ -84,6 +84,7 @@
   ];
 
   const $ = id=>document.getElementById(id);
+  let previewUrl=null, previewPreviousFocus=null, previewEntry=null;
   const dbName='nsk_exercise_files_v1',store='files';
   function openDb(){
     return new Promise((resolve,reject)=>{
@@ -112,12 +113,59 @@
     const cat=$('exerciseCategory').value;
     return (!cat||entry.category===cat)&&(!query||(entry.title+' '+entry.description+' '+entry.category).toLocaleLowerCase('sv').includes(query));
   }
-  function makeCard(entry,uploaded){
+
+  function closePreview(){
+    $('exercisePreviewModal').hidden=true;
+    document.body.classList.remove('archive-preview-print');
+    $('exercisePreviewImage').replaceChildren();
+    if(previewUrl){URL.revokeObjectURL(previewUrl);previewUrl=null;}
+    previewEntry=null;
+    previewPreviousFocus?.focus?.();
+  }
+  function openPreview(entry,uploaded=false,index=0){
+    const dialog=$('exercisePreviewModal'),host=$('exercisePreviewImage');
+    if(previewUrl){URL.revokeObjectURL(previewUrl);previewUrl=null;}
+    previewPreviousFocus=document.activeElement;
+    previewEntry={entry,uploaded,index};
+    host.replaceChildren();
+    $('exercisePreviewTitle').textContent=entry.title;
+    $('exercisePreviewDescription').textContent=entry.description||'Ingen beskrivning angiven.';
+    $('exercisePreviewInfo').textContent=uploaded?entry.category:(entry.category+' · '+entry.minutes+' minuter · Material: '+entry.equipment+' · Tränartips: '+entry.coaching);
+    if(!uploaded){
+      const svg=document.createElementNS('http://www.w3.org/2000/svg','svg');
+      svg.setAttribute('role','img');svg.setAttribute('aria-label','Rinkritning för '+entry.title);
+      window.NskExerciseRink.render(svg,window.NskExerciseRink.diagram(index));
+      host.append(svg);
+    }else{
+      const mime=String(entry.blob?.type||'');
+      const isImage=mime.startsWith('image/')||/\.(svg|png|jpe?g|webp)$/i.test(entry.filename||'');
+      const isPdf=mime==='application/pdf'||/\.pdf$/i.test(entry.filename||'');
+      if(!isImage&&!isPdf){return;}
+      previewUrl=URL.createObjectURL(entry.blob);
+      if(isImage){
+        const img=document.createElement('img');img.src=previewUrl;img.alt='Uppritad övning: '+entry.title;
+        host.append(img);
+      }else{
+        const frame=document.createElement('iframe');frame.src=previewUrl;
+        frame.title='Övningsfil: '+entry.title;frame.style.cssText='width:100%;height:100%;border:0;background:#fff';
+        host.append(frame);
+      }
+    }
+    dialog.hidden=false;
+    $('exercisePreviewClose').focus();
+  }
+
+  function makeCard(entry,uploaded,index=0){
     const card=document.createElement('article');card.className='archive-item';
     card.append(text('h3',entry.title),text('p',entry.category+(uploaded?'':' · '+entry.minutes+' min'),'small'),text('p',entry.description));
     if(!uploaded){card.append(text('p','Material: '+entry.equipment),text('p','Tränartips: '+entry.coaching));}
     const buttons=document.createElement('div');buttons.className='archive-actions';
     if(uploaded){
+      const canView=entry.blob instanceof Blob && (/^image\//.test(entry.blob.type)||entry.blob.type==='application/pdf'||/\.(svg|png|jpe?g|webp|pdf)$/i.test(entry.filename||''));
+      if(canView){
+        const view=document.createElement('button');view.type='button';view.textContent='Visa';
+        view.addEventListener('click',()=>openPreview(entry,true,index));buttons.append(view);
+      }
       const download=document.createElement('button');download.type='button';download.textContent='Hämta fil';
       download.addEventListener('click',()=>{
         const url=URL.createObjectURL(entry.blob);
@@ -128,15 +176,17 @@
       remove.addEventListener('click',async()=>{if(!confirm('Ta bort filen från den här webbläsaren?'))return;await deleteFile(entry.id);await render();});
       buttons.append(download,remove);
     }else{
+      const view=document.createElement('button');view.type='button';view.textContent='Visa';
+      view.addEventListener('click',()=>openPreview(entry,false,index));buttons.append(view);
       const print=document.createElement('button');print.type='button';print.textContent='Skriv ut övning';
-      print.addEventListener('click',()=>{const win=window.open('','_blank');if(!win)return;const doc=win.document;doc.title=entry.title;const h=doc.createElement('h1');h.textContent=entry.title;doc.body.append(h);for(const value of ['Kategori: '+entry.category,'Tid: '+entry.minutes+' min','Övning: '+entry.description,'Material: '+entry.equipment,'Tränartips: '+entry.coaching]){doc.body.append(text.call(null,'p',value));}win.print();});
+      print.addEventListener('click',()=>{openPreview(entry,false,index);document.body.classList.add('archive-preview-print');window.print();});
       buttons.append(print);
     }
     card.append(buttons);return card;
   }
   async function render(){
     const list=$('exerciseList');list.replaceChildren();
-    for(const entry of items.filter(match))list.append(makeCard(entry,false));
+    for(const [index,entry] of items.entries())if(match(entry))list.append(makeCard(entry,false,index));
     const container=$('exerciseUserFiles');container.replaceChildren();
     try{
       const files=(await getFiles()).sort((a,b)=>b.created-a.created);
@@ -146,6 +196,18 @@
     }catch{container.append(text('p','Filarkivet kunde inte öppnas i den här webbläsaren.'));$('exerciseStatus').textContent='De färdiga övningarna är tillgängliga.';}
   }
   document.addEventListener('DOMContentLoaded',()=>{
+    $('exercisePreviewClose').addEventListener('click',closePreview);
+    $('exercisePreviewPrint').addEventListener('click',()=>{document.body.classList.add('archive-preview-print');window.print();});
+    window.addEventListener('afterprint',()=>document.body.classList.remove('archive-preview-print'));
+    document.addEventListener('keydown',event=>{
+      if(event.key==='Escape'&&!$('exercisePreviewModal').hidden)closePreview();
+      if(event.key==='Tab'&&!$('exercisePreviewModal').hidden){
+        const focusables=Array.from($('exercisePreviewModal').querySelectorAll('button:not([disabled])'));
+        const first=focusables[0],last=focusables[focusables.length-1];
+        if(event.shiftKey&&document.activeElement===first){event.preventDefault();last.focus();}
+        else if(!event.shiftKey&&document.activeElement===last){event.preventDefault();first.focus();}
+      }
+    });
     $('exerciseSearch').addEventListener('input',render);
     $('exerciseCategory').addEventListener('change',render);
     $('exerciseUpload').addEventListener('submit',async event=>{
