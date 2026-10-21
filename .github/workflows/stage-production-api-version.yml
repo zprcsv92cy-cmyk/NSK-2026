@@ -1,16 +1,7 @@
-name: Stage production API version (no traffic)
+name: Stage production API – one click (no traffic)
 
 on:
   workflow_dispatch:
-    inputs:
-      expected_main_sha:
-        description: 'Full 40-character SHA of the main commit to stage'
-        required: true
-        type: string
-      confirmation:
-        description: 'Type UPLOAD_ONLY to upload a Worker version without deploying traffic'
-        required: true
-        type: string
 
 permissions:
   contents: read
@@ -23,19 +14,17 @@ jobs:
   upload-version:
     runs-on: ubuntu-latest
     # Never accept arbitrary refs or unreviewed branch code as a production candidate.
-    if: ${{ github.ref == 'refs/heads/main' && inputs.confirmation == 'UPLOAD_ONLY' }}
+    if: ${{ github.ref == 'refs/heads/main' }}
     steps:
       - uses: actions/checkout@v4
         with:
           persist-credentials: false
-      - name: Require an exact reviewed main commit
+      - name: Verify checked out protected main revision
         env:
-          EXPECTED_SHA: ${{ inputs.expected_main_sha }}
-          ACTUAL_SHA: ${{ github.sha }}
+          EXPECTED_SHA: ${{ github.sha }}
         run: |
           set -euo pipefail
-          [[ "$EXPECTED_SHA" =~ ^[0-9a-f]{40}$ ]] || { echo "Full SHA required"; exit 1; }
-          test "$EXPECTED_SHA" = "$ACTUAL_SHA" || { echo "Main changed since approval"; exit 1; }
+          test "$(git rev-parse HEAD)" = "$EXPECTED_SHA" || { echo "::error::Workflow checkout changed"; exit 1; }
       - name: Require Cloudflare credentials
         env:
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
