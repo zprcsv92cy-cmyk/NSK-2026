@@ -15,15 +15,22 @@ export function verifyIsolatedBaserowManifest(source) {
   assert.equal(field('NSK_ISOLATED_MODE'), 'true', 'Isolated mode must be enabled');
   const databaseId = field('BASEROW_DATABASE_ID');
   assert.match(databaseId, /^[1-9]\d*$/, 'Baserow database ID must be numeric');
-  assert.notEqual(databaseId, '589073', 'Production Baserow database is forbidden');
+  const production = readFileSync(new URL('../wrangler.api.production.toml', import.meta.url), 'utf8');
+  const productionId = /^BASEROW_DATABASE_ID\s*=\s*"([1-9]\d*)"\s*$/m.exec(production)?.[1];
+  assert.ok(productionId, 'Production Baserow database ID must be verifiable');
+  assert.notEqual(databaseId, productionId, 'Production Baserow database is forbidden');
   const raw = field('BASEROW_TABLE_IDS');
   let mapping;
   try { mapping = JSON.parse(raw.replace(/\\"/g, '"')); }
   catch { throw Error('Baserow table mapping must be valid JSON'); }
   const expected = ['lag','spelare','tranare','poolspel','matcher','laguppstallningar','bytesschema','malvaktsstatistik','spelaretranare','matchkonfiguration'];
   assert.deepEqual(Object.keys(mapping).sort(), expected.sort(), 'Baserow mapping must contain exactly ten tables');
-  const ids = expected.map(name => String(mapping[name]));
-  for (const id of ids) assert.match(id, /^[1-9]\d*$/, 'Every table ID must be a positive integer');
+  const ids = expected.map(name => {
+    const id = mapping[name];
+    assert.ok(typeof id === 'number' && Number.isSafeInteger(id) && id > 0,
+      'Every table ID must be a positive safe integer');
+    return String(id);
+  });
   assert.equal(new Set(ids).size, expected.length, 'Baserow table IDs must be distinct');
   const productionIds = new Set(['1255083','1255098','1255100','1255101','1255109','1255113','1255115','1255119','1255152','1255157']);
   for (const id of ids) assert.ok(!productionIds.has(id), 'Production Baserow table ID is forbidden');
