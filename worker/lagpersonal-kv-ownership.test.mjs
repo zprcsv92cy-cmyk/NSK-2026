@@ -59,3 +59,24 @@ test('rejects duplicate trusted team records rather than choosing one', async ()
     assert.equal(staffReads, 0, method);
   }
 });
+
+test('named Baserow team authorizes using the trusted personal membership name', async () => {
+  const named = { ...sources, listTeams: async () => [
+    { id: 18, Namn: 'NSK Team 18', 'Säsong': '2026' },
+    { id: 2, Namn: 'NSK Testlag 2', 'Säsong': '2026' }
+  ] };
+  assert.equal(await resolveLagpersonalKvOwnership(make('POST', 18), named), 'NSK Team 18');
+  assert.equal(await resolveLagpersonalKvOwnership(make('PATCH', 18), named), 'NSK Team 18');
+  assert.equal(await resolveLagpersonalKvOwnership(make('POST', 2), named), 'NSK Testlag 2');
+});
+
+test('ambiguous Baserow names or duplicate IDs are denied', async () => {
+  for (const invalid of [
+    [{ id: 18, Namn: 'NSK Team 18' }, { id: 18, Namn: 'NSK Team 18' }],
+    [{ id: 18, Namn: 'Same' }, { id: 2, Namn: 'Same' }]
+  ]) {
+    await assert.rejects(resolveLagpersonalKvOwnership(make('POST', 18), {
+      ...sources, listTeams: async () => invalid
+    }), /ambiguous/i);
+  }
+});

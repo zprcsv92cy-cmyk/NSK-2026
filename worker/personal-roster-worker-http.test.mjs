@@ -11,7 +11,7 @@ let writes = 0, lookupCount = 0;
 const env = { AUTH_DB: { prepare(sql) { return { bind(...params) { return {
   async first() { assert.equal(params[0], digest); return { id: 'user18', display_name: 'Test' }; },
   async all() { return { results: sql.includes('auth_team_memberships')
-    ? [{ team_id: '18', role: 'team_admin' }] : [{ permission: 'roster:manage' }] }; }
+    ? [{ team_id: '18', role: 'team_admin' }, { team_id: 'NSK Team 18', role: 'team_admin' }] : [{ permission: 'roster:manage' }] }; }
 }; } }; } } };
 const server = createServer(async (incoming, outgoing) => {
   try {
