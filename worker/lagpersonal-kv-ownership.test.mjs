@@ -47,3 +47,24 @@ test('rejects conflicting team_id values', async () => {
   const req = new Request('https://example.test/api/lagpersonal?team_id=18&team_id=2', { method: 'POST' });
   await assert.rejects(resolveLagpersonalKvOwnership(req, sources), /Ambiguous team ID/);
 });
+
+test('named Baserow team authorizes using the trusted personal membership name', async () => {
+  const named = { ...sources, listTeams: async () => [
+    { id: 18, Namn: 'NSK Team 18', 'Säsong': '2026' },
+    { id: 2, Namn: 'NSK Testlag 2', 'Säsong': '2026' }
+  ] };
+  assert.equal(await resolveLagpersonalKvOwnership(make('POST', 18), named), 'NSK Team 18');
+  assert.equal(await resolveLagpersonalKvOwnership(make('PATCH', 18), named), 'NSK Team 18');
+  assert.equal(await resolveLagpersonalKvOwnership(make('POST', 2), named), 'NSK Testlag 2');
+});
+
+test('ambiguous Baserow names or duplicate IDs are denied', async () => {
+  for (const invalid of [
+    [{ id: 18, Namn: 'NSK Team 18' }, { id: 18, Namn: 'NSK Team 18' }],
+    [{ id: 18, Namn: 'Same' }, { id: 2, Namn: 'Same' }]
+  ]) {
+    await assert.rejects(resolveLagpersonalKvOwnership(make('POST', 18), {
+      ...sources, listTeams: async () => invalid
+    }), /Ambiguous/);
+  }
+});
