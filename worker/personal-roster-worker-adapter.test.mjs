@@ -5,10 +5,10 @@ import { authorizePersonalWorkerWrite } from './personal-roster-worker-adapter.j
 
 const token = 'A'.repeat(40), hash = createHash('sha256').update(token).digest('hex');
 const teams = [{ id: 18, Namn: 'NSK Team 18', 'Säsong': '2026' }, { id: 2, Namn: 'Testlag 2', 'Säsong': '2026' }];
-function env(role = 'team_admin', permissions = ['roster:manage']) {
+function env(role = 'team_admin', permissions = ['roster:manage'], includeNamedMembership = true) {
   return { AUTH_DB: { prepare(sql) { return { bind(...args) { return {
     async first() { assert.equal(args[0], hash); return { id: 'u1', display_name: 'Tester' }; },
-    async all() { return { results: sql.includes('auth_team_memberships') ? [{ team_id: '18', role }, { team_id: 'NSK Team 18', role }] : permissions.map(permission => ({ permission })) }; }
+    async all() { return { results: sql.includes('auth_team_memberships') ? [{ team_id: '18', role }, ...(includeNamedMembership ? [{ team_id: 'NSK Team 18', role }] : [])] : permissions.map(permission => ({ permission })) }; }
   }; } }; } } };
 }
 const req = (method, path, auth = token) => new Request('https://example.test' + path, {
@@ -103,7 +103,7 @@ test('roster POST accepts matching Baserow Lag link', async () => {
 
 
 test('mapped team key requires matching membership', async () => {
-  const result = await authorizePersonalWorkerWrite(req('POST', '/api/spelare'), env(), {
+  const result = await authorizePersonalWorkerWrite(req('POST', '/api/spelare'), env('team_admin', ['roster:manage'], false), {
     listTeams: async () => teams,
     readRow: async () => ({ Lag: [{ id: 18 }] }),
     authorizationTeamId: 'NSK Team 18',
