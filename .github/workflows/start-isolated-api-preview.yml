@@ -7,8 +7,8 @@ on:
         required: true
         type: string
       preview_base_url:
-        description: Paste the actual HTTPS workers.dev URL printed by Wrangler for this isolated preview
-        required: true
+        description: Optional actual HTTPS workers.dev URL printed by Wrangler; leave blank if not yet known
+        required: false
         type: string
 permissions:
   contents: read
@@ -69,6 +69,7 @@ jobs:
         run: |
           npx --yes wrangler@4.151.2 preview --name nsk-isolated-auth-20261020 --config wrangler.api.preview.toml --message "Isolated preview from branch ${GITHUB_REF_NAME} at ${GITHUB_SHA}; no production traffic"
       - name: Smoke isolated Preview anonymous access only
+        if: ${{ inputs.preview_base_url != '' }}
         env:
           NSK_PREVIEW_BASE_URL: ${{ inputs.preview_base_url }}
         run: node scripts/smoke-isolated-api-preview.mjs
@@ -76,8 +77,13 @@ jobs:
         run: |
           {
             echo "## Isolated API Preview"
-            echo "Preview created from branch ${GITHUB_REF_NAME} using wrangler.api.preview.toml."
+            echo "Preview operation invoked from branch ${GITHUB_REF_NAME} at ${GITHUB_SHA} using wrangler.api.preview.toml."
             echo "No production deployment was requested."
-            echo "Performs read-only existence checks for configured D1/KV IDs before preview creation."
+            echo "Performs read-only existence checks for configured D1/KV IDs before the preview operation."
+            if [ -n "${{ inputs.preview_base_url }}" ]; then
+              echo "Anonymous-access smoke tests were run against the supplied preview URL."
+            else
+              echo "Anonymous-access smoke tests were skipped because no verified preview URL was supplied."
+            fi
             echo "No Baserow credential is provisioned; Baserow tests and authorized business-data write tests are not enabled."
           } >> "$GITHUB_STEP_SUMMARY"
