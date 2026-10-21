@@ -8,12 +8,12 @@ const page = readFileSync(new URL('../truppen/index.html', import.meta.url), 'ut
 const config = readFileSync(new URL('../config.js', import.meta.url), 'utf8');
 const token = 'p'.repeat(43);
 
-async function exercise({ enabled, authenticated = true, activeTeam = 'NSK Team 18', path, method = 'POST' }) {
+async function exercise({ enabled, authenticated = true, activeTeam = 'NSK Team 18', authorized = true, path, method = 'POST' }) {
   const requests = [];
   const sandbox = {
     window: {
       APP_CONFIG: { API_URL: 'https://api.example.invalid', REQUIRE_PERSONAL_ROSTER_WRITES: enabled },
-      Auth: { getToken: () => authenticated ? token : null, activeTeam: () => activeTeam }
+      Auth: { getToken: () => authenticated ? token : null, activeTeam: () => activeTeam, checkTeamFeature: async (feature, team) => authorized && feature === 'roster' && team === 'NSK Team 18' }
     },
     localStorage: { getItem: key => key === 'nsk_admin_token' ? 'legacy-admin' : null },
     fetch: async (url, options) => {
@@ -76,4 +76,12 @@ test('personal roster writes deny missing active team rather than falling back t
   const result = await exercise({ enabled: true, activeTeam: null, path: '/api/spelare' });
   assert.match(result.error?.message || '', /Välj NSK Team 18/);
   assert.equal(result.requests.length, 0);
+});
+
+test('personal roster mutation checks server feature access immediately before write', async () => {
+  for (const path of ['/api/spelare', '/api/tranare', '/api/spelare/1', '/api/tranare/1']) {
+    const result = await exercise({ enabled: true, authorized: false, path });
+    assert.match(result.error?.message || '', /Saknar personlig behörighet/, path);
+    assert.equal(result.requests.length, 0, path);
+  }
 });
