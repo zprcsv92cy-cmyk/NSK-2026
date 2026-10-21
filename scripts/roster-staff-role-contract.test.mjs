@@ -44,3 +44,29 @@ test('listStaff supports existing role keys and new protected API role names',as
 test('unexpected staff roles are rejected before mutations',async()=>{
  await assert.rejects(()=>run(true,'unknown'),/Ogiltig funktion/);
 });
+
+test('personal staff write stops if the active team changes during Baserow lookup', async () => {
+  let active = 'NSK Team 18';
+  const writes = [];
+  const sandbox = {
+    window: {
+      APP_CONFIG: { API_URL: 'https://api.example', REQUIRE_PERSONAL_ROSTER_WRITES: true, REQUIRE_SCOPED_ROSTER_READS: true },
+      Auth: { activeTeam: () => active, getToken: () => 'p'.repeat(43), checkTeamFeature: async () => true }
+    },
+    localStorage: { getItem: () => 'legacy-admin' },
+    fetch: async (url, options = {}) => {
+      if (url.includes('/api/lag?')) {
+        active = 'NSK Testlag 2';
+        return { ok: true, json: async () => ({ ok: true, results: [
+          { id: 18, Namn: 'NSK Team 18', 'Säsong': '2026' }
+        ], next: null }) };
+      }
+      writes.push({ url, options });
+      return { ok: true, json: async () => ({ ok: true, row: { id: 'c' } }) };
+    },
+    URL, console
+  };
+  vm.runInNewContext(source, sandbox);
+  await assert.rejects(() => sandbox.window.DB.addStaff('leader', 'Person C'), /Lagvalet ändrades/);
+  assert.equal(writes.length, 0);
+});
