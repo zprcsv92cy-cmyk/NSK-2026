@@ -5,21 +5,23 @@ import { handlePersonalLagpersonalWrite } from './production-lagpersonal-write-h
 
 const token = 'A'.repeat(40);
 const hash = createHash('sha256').update(token).digest('hex');
-function setup(role = 'team_admin', permissions = ['roster:manage']) {
+function setup(role = 'team_admin', permissions = ['roster:manage'], membershipTeamId = '18', namedTeams = false) {
   const kv = new Map();
   let writes = 0;
   const env = {
     AUTH_DB: { prepare(sql) { return { bind(...args) { return {
       async first() { assert.equal(args[0], hash); return { id: 'u1', display_name: 'Tester' }; },
       async all() { return { results: sql.includes('auth_team_memberships')
-        ? [{ team_id: '18', role }] : permissions.map(permission => ({ permission })) }; }
+        ? [{ team_id: membershipTeamId, role }] : permissions.map(permission => ({ permission })) }; }
     }; } }; } },
     NSK_TRAINERS: {
       async get(key) { return kv.has(key) ? JSON.parse(kv.get(key)) : null; },
       async put(key, value) { writes++; kv.set(key, value); }
     }
   };
-  return { env, kv, get writes() { return writes; }, listTeams: async () => [{ id: 18 }, { id: 2 }] };
+  return { env, kv, get writes() { return writes; }, listTeams: async () => namedTeams
+    ? [{ id: 18, Namn: 'NSK Team 18' }, { id: 2, Namn: 'NSK Testlag 2' }]
+    : [{ id: 18 }, { id: 2 }] };
 }
 function request(method, team = '18', bearer = token, body = { name: 'Alex', role: 'Lagledare' }) {
   return new Request('https://example.test/api/lagpersonal?team_id=' + team, {
@@ -123,4 +125,39 @@ test('staff PATCH containing control characters preserves the existing row', asy
   assert.equal(result.status, 400);
   assert.equal(x.writes, 1);
   assert.equal(JSON.parse(x.kv.get('lagpersonal:team:18'))[0].name, 'Alex');
+});
+
+test('named membership can create and update staff using its trusted Baserow team', async () => {
+  const x = setup('team_admin', ['roster:manage'], 'NSK Team 18', true);
+  const created = await handlePersonalLagpersonalWrite(request('POST'), x.env, x);
+  assert.equal(created.status, 201);
+  assert.equal(x.kv.has('lagpersonal:team:18'), true);
+  const updated = await handlePersonalLagpersonalWrite(request('PATCH', '18', token,
+    { id: created.row.id, name: 'Alexandra', role: 'Lagledare' }), x.env, x);
+  assert.equal(updated.status, 200);
+  assert.equal(JSON.parse(x.kv.get('lagpersonal:team:18'))[0].name, 'Alexandra');
+  assert.equal(x.writes, 2);
+});
+
+test('named membership cannot write to another team or rely on numeric alias', async () => {
+  const x = setup('team_admin', ['roster:manage'], 'NSK Team 18', true);
+  const denied = await handlePersonalLagpersonalWrite(request('POST', '2'), x.env, x);
+  assert.equal(denied.status, 403);
+  assert.equal(x.writes, 0);
+
+  const legacy = setup('team_admin', ['roster:manage'], '18', true);
+  const deniedAlias = await handlePersonalLagpersonalWrite(request('POST', '18'), legacy.env, legacy);
+  assert.equal(deniedAlias.status, 403);
+  assert.equal(legacy.writes, 0);
+});
+
+test('authorized second team stores its staff only under second team KV key', async () => {
+  const x = setup('team_admin', ['roster:manage'], 'NSK Testlag 2', true);
+  const created = await handlePersonalLagpersonalWrite(request('POST', '2'), x.env, x);
+  assert.equal(created.status, 201);
+  assert.equal(x.kv.has('lagpersonal:team:2'), true);
+  assert.equal(x.kv.has('lagpersonal:team:18'), false);
+  const denied = await handlePersonalLagpersonalWrite(request('POST', '18'), x.env, x);
+  assert.equal(denied.status, 403);
+  assert.equal(x.writes, 1);
 });
