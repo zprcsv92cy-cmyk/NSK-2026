@@ -5,7 +5,7 @@
 <script src="../config.js"></script><script src="../login-gate.js"></script>
 <title>Övningsarkiv – NSK</title><meta name="theme-color" content="#b11226">
 <script src="../version.js?v=872"></script>
-<script>document.write('<link rel="stylesheet" href="../app.css?v='+window.NSK_VERSION+'">');document.write('<script src="../auth.js?v='+window.NSK_VERSION+'"><\/script>');document.write('<script src="../exercise-archive.js?v='+window.NSK_VERSION+'"><\/script>');</script>
+<script>document.write('<link rel="stylesheet" href="../app.css?v='+window.NSK_VERSION+'">');document.write('<script src="../auth.js?v='+window.NSK_VERSION+'"><\/script>');document.write('<script src="../exercise-rink-preview.js?v='+window.NSK_VERSION+'"><\/script>');document.write('<script src="../exercise-archive.js?v='+window.NSK_VERSION+'"><\/script>');</script>
 <style>
 .archive-toolbar{display:flex;gap:12px;flex-wrap:wrap;margin:12px 0}
 .archive-toolbar label{flex:1 1 180px}
@@ -18,6 +18,29 @@
 .archive-actions{display:flex;gap:8px;flex-wrap:wrap;margin-top:10px}
 .archive-actions button{width:auto}
 @media print{nav,.archive-toolbar,.archive-file-form,.archive-actions,.no-print{display:none!important}body{background:#fff;color:#000}.archive-item,.card{border-color:#ddd;box-shadow:none}}
+
+.archive-preview{position:fixed;inset:0;z-index:9999;display:flex;flex-direction:column;background:#121316;color:#fff;padding:env(safe-area-inset-top) max(10px,env(safe-area-inset-right)) env(safe-area-inset-bottom) max(10px,env(safe-area-inset-left))}
+.archive-preview[hidden]{display:none!important}
+.archive-preview-head{display:flex;flex-wrap:wrap;gap:8px;align-items:center;justify-content:space-between;padding:8px 0}
+.archive-preview-head h2{font-size:1.1rem;margin:0}
+.archive-preview-head button{width:auto;min-height:44px}
+.archive-preview-body{display:flex;flex:1;min-height:0;gap:14px;justify-content:center;align-items:center}
+.archive-preview-image{display:flex;align-items:center;justify-content:center;height:100%;min-height:0;flex:1}
+.archive-preview-image svg,.archive-preview-image img{display:block;width:100%;height:100%;max-height:100%;object-fit:contain}
+.archive-preview-image svg{max-width:480px}
+.archive-preview-text{max-width:310px;max-height:85%;overflow:auto}
+.archive-preview-text p{font-size:.94rem}
+.archive-preview-actions{display:flex;gap:8px;justify-content:center;padding:6px}
+.archive-preview-actions button{width:auto}
+@media(max-width:650px){.archive-preview-body{flex-direction:column;gap:4px}.archive-preview-image{flex:1;min-height:0;width:100%}.archive-preview-text{max-width:100%;max-height:18dvh;overflow:auto}.archive-preview-image svg{max-width:100%}}
+@media print{
+ body.archive-preview-print .wrap{display:none!important}
+ body.archive-preview-print .archive-preview{position:static;display:block;background:#fff;color:#000;padding:0}
+ body.archive-preview-print .archive-preview-head button,body.archive-preview-print .archive-preview-actions{display:none}
+ body.archive-preview-print .archive-preview-body{display:block}
+ body.archive-preview-print .archive-preview-image{height:225mm}
+ body.archive-preview-print .archive-preview-text{max-width:none;max-height:none;overflow:visible}
+}
 </style></head><body><div class="wrap">
 <nav class="mainmenu"><a href="../startsida/">Startsida</a><a href="../truppen/">Truppen</a><a href="../traningsgrupper/">Träningsgrupper</a><a class="active" href="../ovningsarkiv/">Övningsarkiv</a><a href="../mittkonto/">Mitt konto</a></nav>
 <section class="home-hero"><div class="home-hero-logo-box"><img class="home-hero-logo" src="../icon-192.png" alt="NSK"></div><div class="home-hero-text"><h1>Övningsarkiv</h1><div class="home-hero-sub">Ishockeyövningar och egna filer</div></div></section>
@@ -36,4 +59,11 @@
 <label>Fil (max 15 MB)<input id="exerciseFile" type="file" accept=".pdf,.doc,.docx,.txt,.png,.jpg,.jpeg,.webp" required></label>
 <button type="submit">Spara fil i mitt arkiv</button></form>
 <h3 style="margin-top:20px">Sparade filer</h3><div id="exerciseUserFiles" class="archive-list"></div></section>
-</div></body></html>
+</div><section id="exercisePreviewModal" class="archive-preview" role="dialog" aria-modal="true" aria-labelledby="exercisePreviewTitle" hidden>
+ <div class="archive-preview-head"><h2 id="exercisePreviewTitle"></h2><button type="button" id="exercisePreviewClose">✕ Stäng</button></div>
+ <div class="archive-preview-body">
+  <div id="exercisePreviewImage" class="archive-preview-image" aria-label="Uppritad hockeyövning"></div>
+  <div class="archive-preview-text"><p id="exercisePreviewDescription"></p><p id="exercisePreviewInfo"></p></div>
+ </div>
+ <div class="archive-preview-actions"><button type="button" id="exercisePreviewPrint">Skriv ut övning</button></div>
+</section></body></html>
