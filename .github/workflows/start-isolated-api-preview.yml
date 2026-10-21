@@ -52,7 +52,7 @@ jobs:
               -H "Authorization: Bearer $CLOUDFLARE_API_TOKEN" \
               "https://api.cloudflare.com/client/v4/accounts/$CLOUDFLARE_ACCOUNT_ID/$path")"
             echo "$response" | jq -e --arg id "$expected_id" --arg name "$expected_name" \
-              '.success == true and .result.id == $id and ($name == "" or .result.name == $name)' >/dev/null || {
+              '.success == true and ((.result.id // .result.uuid) == $id) and ($name == "" or .result.name == $name)' >/dev/null || {
               echo "::error::Could not verify isolated resource at $path"
               echo "$response" | jq '{success,errors,messages,result:{id:.result.id,name:.result.name}}'
               exit 1
