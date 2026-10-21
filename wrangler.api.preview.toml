@@ -19,7 +19,7 @@ NSK_ISOLATED_MODE = "true"
 
 [[previews.d1_databases]]
 binding = "AUTH_DB"
-database_name = "nsk-api-preview-auth-20261020"
+database_name = "nsk-integration-isolated-20261018"
 database_id = "b94c8dba-34be-4cff-a4e9-892caf4e3ddd"
 
 [[previews.kv_namespaces]]
