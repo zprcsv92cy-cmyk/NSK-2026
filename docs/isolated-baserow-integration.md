@@ -2,6 +2,28 @@
 
 This guide applies only to the isolated Cloudflare Preview `nsk-isolated-integration-20261018`. Do not use production Baserow data or tokens.
 
+## Verified Cloudflare resource inventory (2026-10-21; read-only)
+
+The connected Cloudflare account returned HTTP 200 for these **exact** resources:
+
+| Binding | ID | Cloudflare-reported name | Verified |
+| --- | --- | --- | --- |
+| `AUTH_DB` (D1) | `b94c8dba-34be-4cff-a4e9-892caf4e3ddd` | `nsk-integration-isolated-20261018` | ID/name/existence only |
+| `ADMIN_KV` | `8b079c75ed6c4d4695476f1de24089fd` | `NSK_INTEGRATION_ADMIN_SESSIONS_20261018` | ID/name/existence only |
+| `NSK_TRAINERS` | `e8772468a0004f0ea78b02a5251eadf7` | `NSK_INTEGRATION_TRAINERS_20261018` | ID/name/existence only |
+
+Cloudflare D1 metadata reports 12 tables, but no individual table names or schema were verified. A read-only D1 schema query was blocked by tool safety controls; do not claim that the auth tables, migration version, or fixtures are ready. Resource metadata is not proof that these IDs are unbound from other Workers or that live bindings cannot be inherited.
+
+**Current gate: BLOCKED.** Preview dispatch must remain disabled, including in PR #211, until each of these is established:
+
+1. A separate Baserow test database and all ten schema-compatible table IDs exist, are not production IDs, and contain only synthetic records.
+2. A Preview-only Baserow credential is verified to have access exclusively to that isolated database; do not expose its value in logs or GitHub.
+3. D1 schema/migrations and synthetic test identities/permissions are verified without reading or writing production auth data.
+4. All D1/KV and Durable Object bindings are verified isolated from the production Worker and storage, including a readback of actual Preview deployment bindings when a deployment is eventually authorized.
+5. The workflow's static Baserow gate, CI security tests, and positive/negative write tests against synthetic data pass. Test runs are not a substitute for live isolation checks.
+
+PR #211's static manifest checker intentionally fails while `BASEROW_DATABASE_ID` and `BASEROW_TABLE_IDS` are missing. **Do not remove the unconditional preview-dispatch lock to bypass this condition.** No Preview or production deployment was performed during this inventory.
+
 ## Baserow prerequisites
 
 1. In Baserow, create a **new empty database** for NSK integration testing. Never duplicate rows from the live NSK database.
