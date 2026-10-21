@@ -54,6 +54,7 @@ jobs:
           set -euo pipefail
           node --check app.js
           node --check auth.js
+          node --check login-gate.js
           node --check db.js
           node --check sw.js
           node --test worker/browser-auth-permissions.test.mjs
