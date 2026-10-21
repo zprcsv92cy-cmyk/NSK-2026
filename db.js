@@ -101,6 +101,10 @@ window.DB = (() => {
       (/^\/api\/(?:spelare|tranare)(?:\/\d+)?$/.test(path) || /^\/api\/lagpersonal\?team_id=\d+$/.test(path)) &&
       ['POST','PATCH','DELETE'].includes(method);
     const personalWrite = personalPoolWrite || personalMatchWrite || personalRosterWrite;
+    // Legacy player/coach writes target Team 18; fail closed if a different team is active.
+    if (personalRosterWrite && /^\/api\/(?:spelare|tranare)(?:\/\d+)?$/.test(path) &&
+        window.Auth?.activeTeam?.() !== 'NSK Team 18')
+      throw new Error('Välj NSK Team 18 för att ändra spelare eller tränare.');
     const personalToken = personalWrite ? window.Auth?.getToken?.() : null;
     const token = personalWrite ? personalToken : localStorage.getItem('nsk_admin_token');
     if(!token)throw new Error(personalPoolWrite ? 'Personlig inloggning krävs för att ändra poolspel.' :
