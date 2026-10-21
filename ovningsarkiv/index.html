@@ -1,0 +1,37 @@
+<!doctype html>
+<html lang="sv"><head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<script>document.documentElement.style.visibility='hidden';</script>
+<script src="../config.js"></script><script src="../login-gate.js"></script>
+<title>Övningsarkiv – NSK</title><meta name="theme-color" content="#b11226">
+<script src="../version.js?v=872"></script>
+<script>document.write('<link rel="stylesheet" href="../app.css?v='+window.NSK_VERSION+'">');document.write('<script src="../auth.js?v='+window.NSK_VERSION+'"><\/script>');document.write('<script src="../exercise-archive.js?v='+window.NSK_VERSION+'"><\/script>');</script>
+<style>
+.archive-toolbar{display:flex;gap:12px;flex-wrap:wrap;margin:12px 0}
+.archive-toolbar label{flex:1 1 180px}
+.archive-toolbar input,.archive-toolbar select{display:block;width:100%;margin-top:5px}
+.archive-list{display:grid;grid-template-columns:repeat(auto-fit,minmax(250px,1fr));gap:12px}
+.archive-item{border:1px solid var(--line);border-radius:12px;padding:14px;min-width:0}
+.archive-item h3{margin:0 0 6px}.archive-item p{margin:6px 0}.archive-item .small{font-size:.88rem}
+.archive-file-form{display:grid;gap:10px;max-width:550px}
+.archive-file-form input,.archive-file-form select,.archive-file-form textarea{width:100%}
+.archive-actions{display:flex;gap:8px;flex-wrap:wrap;margin-top:10px}
+.archive-actions button{width:auto}
+@media print{nav,.archive-toolbar,.archive-file-form,.archive-actions,.no-print{display:none!important}body{background:#fff;color:#000}.archive-item,.card{border-color:#ddd;box-shadow:none}}
+</style></head><body><div class="wrap">
+<nav class="mainmenu"><a href="../startsida/">Startsida</a><a href="../truppen/">Truppen</a><a href="../traningsgrupper/">Träningsgrupper</a><a class="active" href="../ovningsarkiv/">Övningsarkiv</a><a href="../mittkonto/">Mitt konto</a></nav>
+<section class="home-hero"><div class="home-hero-logo-box"><img class="home-hero-logo" src="../icon-192.png" alt="NSK"></div><div class="home-hero-text"><h1>Övningsarkiv</h1><div class="home-hero-sub">Träningsövningar och egna filer</div></div></section>
+<section class="card"><h2>Hitta övningar</h2>
+<div class="archive-toolbar"><label>Sök<input id="exerciseSearch" type="search" placeholder="Sök namn eller beskrivning"></label><label>Kategori<select id="exerciseCategory"><option value="">Alla kategorier</option><option>Uppvärmning</option><option>Teknik</option><option>Passningar</option><option>Spelövningar</option><option>Målvakter</option><option>Koordination</option></select></label></div>
+<p id="exerciseStatus" role="status" aria-live="polite"></p>
+<div id="exerciseList" class="archive-list"></div></section>
+<section class="card"><h2>Mina träningsfiler</h2>
+<p class="small">Ladda upp PDF, Word, bilder eller textfiler. Filerna lagras <strong>endast i den här webbläsaren</strong> på den här enheten, inte gemensamt i NSK och inte hos Svenskalag. Rensa inte webbplatsens lagring om du vill behålla dem.</p>
+<form id="exerciseUpload" class="archive-file-form">
+<label>Namn<input id="exerciseTitle" maxlength="100" required placeholder="Ex. Dribblingsbana"></label>
+<label>Kategori<select id="exerciseUploadCategory"><option>Uppvärmning</option><option>Teknik</option><option>Passningar</option><option>Spelövningar</option><option>Målvakter</option><option>Koordination</option></select></label>
+<label>Beskrivning<textarea id="exerciseDescription" maxlength="800" rows="3" placeholder="Syfte, material och genomförande"></textarea></label>
+<label>Fil (max 15 MB)<input id="exerciseFile" type="file" accept=".pdf,.doc,.docx,.txt,.png,.jpg,.jpeg,.webp" required></label>
+<button type="submit">Spara fil i mitt arkiv</button></form>
+<h3 style="margin-top:20px">Sparade filer</h3><div id="exerciseUserFiles" class="archive-list"></div></section>
+</div></body></html>
