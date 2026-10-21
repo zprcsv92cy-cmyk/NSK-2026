@@ -29,6 +29,7 @@ body.rink-fullscreen #rinkSvg{height:100%;width:100%;max-height:none;object-fit:
 <h1>Rita hockeyövning</h1>
 <p class="draw-note">Välj symbol och tryck på rinken. Med <strong>Flytta</strong> kan du dra symboler med fingret. Välj <strong>Åkväg</strong>, <strong>Passning</strong> eller <strong>Avdelare</strong> och dra en linje.</p>
 <label class="draw-note">Övningens namn <input id="rinkTitle" class="draw-title" maxlength="100" placeholder="Ex. Passning och avslut"></label>
+<label class="draw-note">Kategori <select id="rinkCategory" class="draw-title"><option>Uppvärmning</option><option>Skridskoteknik</option><option>Puckkontroll</option><option selected>Passningar</option><option>Skott</option><option>Smålagsspel</option><option>Målvakter</option><option>Spelsituationer</option></select></label>
 <section class="card" id="rinkTextPanel">
 <h2>Beskriv övningen</h2>
 <label for="rinkDescription">Skriv instruktioner om var spelare och utrustning ska placeras</label>
@@ -49,7 +50,7 @@ body.rink-fullscreen #rinkSvg{height:100%;width:100%;max-height:none;object-fit:
 <label class="draw-note">Färg <select id="rinkColor"><option value="#b11226">Röd</option><option value="#2563eb">Blå</option><option value="#111827">Svart</option><option value="#16a34a">Grön</option></select></label>
 <button type="button" id="rinkUndo">Ångra</button>
 <button type="button" id="rinkClear">Rensa</button>
-<button type="button" id="rinkSave">Spara</button>
+<button type="button" id="rinkSave">Spara i Övningsarkivet</button>
 <button type="button" id="rinkLoad">Öppna</button>
 <button type="button" id="rinkExport">Exportera bild</button>
 <button type="button" id="rinkFullscreen">Helskärm</button>
