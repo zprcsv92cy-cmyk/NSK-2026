@@ -45,7 +45,7 @@ test('table IDs must be positive safe JSON integers, never numeric strings', () 
 });
 test('the production Baserow database identifier comes from the production manifest', () => {
   const production = readFileSync(new URL('../wrangler.api.production.toml', import.meta.url), 'utf8');
-  const id = /^BASEROW_DATABASE_ID\\s*=\\s*"([1-9]\\d*)"\\s*$/m.exec(production)?.[1];
+  const id = /^BASEROW_DATABASE_ID\s*=\s*"([1-9]\d*)"\s*$/m.exec(production)?.[1];
   assert.ok(id, 'Production Baserow ID must be extractable');
   assert.throws(() => verifyIsolatedBaserowManifest(valid(id)), /Production Baserow database/);
 });
