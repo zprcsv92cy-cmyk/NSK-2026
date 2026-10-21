@@ -5,7 +5,6 @@ compatibility_date = "2026-10-10"
 workers_dev = true
 
 [previews.vars]
-BASEROW_DATABASE_ID = "589073"
 NSK_REQUIRE_SCOPED_ROSTER_READS = "true"
 NSK_REQUIRE_SCOPED_TEAM_READS = "true"
 NSK_REQUIRE_SCOPED_COLLECTION_READS = "true"
@@ -13,22 +12,23 @@ NSK_REQUIRE_PERSONAL_POOL_WRITES = "true"
 NSK_REQUIRE_PERSONAL_MATCH_WRITES = "true"
 NSK_REQUIRE_PERSONAL_COACH_SELECTION = "true"
 NSK_PREVIEW_ISOLATED = "true"
+NSK_ISOLATED_MODE = "true"
 
 # All D1 / KV resources below apply only to the Preview.
 # Preview runtime also provisions its own Durable Object namespace.
 
 [[previews.d1_databases]]
 binding = "AUTH_DB"
-database_name = "nsk-api-preview-auth-20261020"
-database_id = "c00ba406-8210-49ba-a0e2-03b838e7934e"
+database_name = "nsk-integration-isolated-20261018"
+database_id = "b94c8dba-34be-4cff-a4e9-892caf4e3ddd"
 
 [[previews.kv_namespaces]]
 binding = "ADMIN_KV"
-id = "88980e7865934a3dab82876351b30d28"
+id = "8b079c75ed6c4d4695476f1de24089fd"
 
 [[previews.kv_namespaces]]
 binding = "NSK_TRAINERS"
-id = "9ea94390ad5d4e49ae6d323d5ae78cae"
+id = "e8772468a0004f0ea78b02a5251eadf7"
 
 [[previews.durable_objects.bindings]]
 name = "SHIFT_LOCK"
