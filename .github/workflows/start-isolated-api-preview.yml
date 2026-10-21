@@ -6,6 +6,10 @@ on:
         description: Type PREVIEW_ONLY
         required: true
         type: string
+      preview_base_url:
+        description: Optional actual HTTPS workers.dev URL printed by Wrangler; leave blank if not yet known
+        required: false
+        type: string
 permissions:
   contents: read
 concurrency:
@@ -13,8 +17,8 @@ concurrency:
   cancel-in-progress: false
 jobs:
   preview:
-    # Disabled until isolated Baserow, D1/KV and authorized tests are verified (PR #211).
-    # PREVIEW_ONLY confirmation alone is not a sufficient isolation gate.
+    # Remain disabled until isolated Baserow token scope, D1/KV and positive writes are verified.
+    # Static readiness checks alone do not permit launching a preview.
     if: ${{ inputs.confirmation == 'PREVIEW_ONLY' && false }}
     runs-on: ubuntu-latest
     steps:
@@ -28,6 +32,10 @@ jobs:
         run: |
           node --test scripts/worker-preview-isolation.test.mjs
           node --check worker/production-api-v42-reference.js
+      - name: Require isolated Baserow readiness before any Cloudflare operation
+        run: |
+          node --test scripts/isolated-preview-baserow-gate.test.mjs
+          node scripts/isolated-preview-baserow-gate.mjs
       - name: Require Cloudflare Actions credentials
         env:
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
@@ -35,20 +43,53 @@ jobs:
         run: |
           test -n "$CLOUDFLARE_API_TOKEN" || { echo "::error::Missing Cloudflare API token"; exit 1; }
           test -n "$CLOUDFLARE_ACCOUNT_ID" || { echo "::error::Missing Cloudflare account ID"; exit 1; }
+      - name: Verify isolated Cloudflare resources (read-only)
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+        run: |
+          set -euo pipefail
+          check_resource() {
+            local path="$1"
+            local expected_id="$2"
+            local expected_name="${3:-}"
+            local response
+            response="$(curl --fail-with-body --silent --show-error \
+              -H "Authorization: Bearer $CLOUDFLARE_API_TOKEN" \
+              "https://api.cloudflare.com/client/v4/accounts/$CLOUDFLARE_ACCOUNT_ID/$path")"
+            echo "$response" | jq -e --arg id "$expected_id" --arg name "$expected_name" \
+              '.success == true and ((.result.id // .result.uuid) == $id) and ($name == "" or .result.name == $name)' >/dev/null || {
+              echo "::error::Could not verify isolated resource at $path"
+              echo "$response" | jq '{success,errors,messages,result:{id:.result.id,name:.result.name}}'
+              exit 1
+            }
+            echo "Verified isolated resource ID: $expected_id"
+          }
+          check_resource "d1/database/b94c8dba-34be-4cff-a4e9-892caf4e3ddd" "b94c8dba-34be-4cff-a4e9-892caf4e3ddd" "nsk-integration-isolated-20261018"
+          check_resource "storage/kv/namespaces/8b079c75ed6c4d4695476f1de24089fd" "8b079c75ed6c4d4695476f1de24089fd" "NSK_INTEGRATION_ADMIN_SESSIONS_20261018"
+          check_resource "storage/kv/namespaces/e8772468a0004f0ea78b02a5251eadf7" "e8772468a0004f0ea78b02a5251eadf7" "NSK_INTEGRATION_TRAINERS_20261018"
       - name: Create isolated Worker Preview (never production deploy)
         env:
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
         run: |
-          npx --yes wrangler@4.151.2 preview --name nsk-isolated-auth-20261020 --config wrangler.api.preview.toml --message "Isolated preview from main ${GITHUB_SHA}; no production traffic"
-      - name: Smoke isolated Preview anonymous reads (GET only)
+          npx --yes wrangler@4.151.2 preview --name nsk-isolated-auth-20261020 --config wrangler.api.preview.toml --message "Isolated preview from branch ${GITHUB_REF_NAME} at ${GITHUB_SHA}; no production traffic"
+      - name: Smoke isolated Preview anonymous access only
+        if: ${{ inputs.preview_base_url != '' }}
+        env:
+          NSK_PREVIEW_BASE_URL: ${{ inputs.preview_base_url }}
         run: node scripts/smoke-isolated-api-preview.mjs
       - name: Explain isolation and limitations
         run: |
           {
             echo "## Isolated API Preview"
-            echo "Preview created from \`main\` using \`wrangler.api.preview.toml\`."
+            echo "Preview operation invoked from branch ${GITHUB_REF_NAME} at ${GITHUB_SHA} using wrangler.api.preview.toml."
             echo "No production deployment was requested."
-            echo "Uses separate D1 and KV. Durable Object storage is preview-isolated."
-            echo "No Baserow credential is provisioned; live business-data write tests are not enabled."
+            echo "Performs read-only existence checks for configured D1/KV IDs before the preview operation."
+            if [ -n "${{ inputs.preview_base_url }}" ]; then
+              echo "Anonymous-access smoke tests were run against the supplied preview URL."
+            else
+              echo "Anonymous-access smoke tests were skipped because no verified preview URL was supplied."
+            fi
+            echo "No Baserow credential is provisioned; Baserow tests and authorized business-data write tests are not enabled."
           } >> "$GITHUB_STEP_SUMMARY"
