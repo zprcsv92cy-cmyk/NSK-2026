@@ -68,7 +68,7 @@ jobs:
         run: |
           set -euo pipefail
           mkdir -p _site
-          cp -a index.html app.css app.js admin-mode.js auth.js config.js db.js deploy.json version.js sw.js manifest.webmanifest icon-192.png icon-512.png login-patch.js pool-team-editor.js _site/
+          cp -a index.html app.css app.js admin-mode.js auth.js config.js db.js deploy.json version.js sw.js manifest.webmanifest icon-192.png icon-512.png login-patch.js login-gate.js pool-team-editor.js _site/
           for dir in aktivera anvandare bytesschema lag laguppstallning login malvaktsstatistik matchvy mittkonto skapapoolspel startsida truppen; do
             cp -a "$dir" _site/
           done
