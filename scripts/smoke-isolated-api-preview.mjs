@@ -1,6 +1,15 @@
 import assert from 'node:assert/strict';
 
-const base = process.env.NSK_PREVIEW_BASE_URL || 'https://nsk-isolated-auth-20261020-nsk-api.peter-hasselberg.workers.dev';
+const configuredBase = process.env.NSK_PREVIEW_BASE_URL;
+assert.ok(configuredBase, 'Set NSK_PREVIEW_BASE_URL to the actual isolated Worker Preview URL; do not guess it.');
+const parsedBase = new URL(configuredBase);
+assert.equal(parsedBase.protocol, 'https:', 'Preview URL must use HTTPS');
+assert.ok(parsedBase.hostname.endsWith('.workers.dev'), 'Preview URL must be on the workers.dev domain');
+assert.equal(parsedBase.username, '', 'Preview URL must not contain credentials');
+assert.equal(parsedBase.password, '', 'Preview URL must not contain credentials');
+assert.equal(parsedBase.search, '', 'Preview URL must not contain query parameters');
+assert.equal(parsedBase.hash, '', 'Preview URL must not contain a fragment');
+const base = parsedBase.origin;
 const targets = [
   '/api/lag',
   '/api/spelare?team_id=1',
@@ -66,6 +75,5 @@ for(const [method,path,body] of deniedInvalidToken){
 }
 console.log('Invalid Bearer tokens rejected; no authorized mutation performed.');
 
-
 // /health intentionally depends on Baserow; no production Baserow token in Preview.
-console.log('Preview denies all anonymous scoped reads. No writes or secrets used.');
+console.log('Preview denies anonymous scoped reads. No Baserow access or authorized writes performed.');
