@@ -65,6 +65,6 @@ test('ambiguous Baserow names or duplicate IDs are denied', async () => {
   ]) {
     await assert.rejects(resolveLagpersonalKvOwnership(make('POST', 18), {
       ...sources, listTeams: async () => invalid
-    }), /Ambiguous/);
+    }), /ambiguous/i);
   }
 });
