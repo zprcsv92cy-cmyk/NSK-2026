@@ -17,7 +17,9 @@ concurrency:
   cancel-in-progress: false
 jobs:
   preview:
-    if: ${{ inputs.confirmation == 'PREVIEW_ONLY' }}
+    # Remain disabled until isolated Baserow token scope, D1/KV and positive writes are verified.
+    # Static readiness checks alone do not permit launching a preview.
+    if: ${{ inputs.confirmation == 'PREVIEW_ONLY' && false }}
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
