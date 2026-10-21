@@ -82,7 +82,7 @@
  function restore(){
   try{const v=JSON.parse(localStorage.getItem('nsk_rink_drawing_v1')||'null');if(v&&Array.isArray(v.marks)){
    marks=v.marks.filter(m=>m&&['player','goalie','puck','cone','divider','skate','pass'].includes(m.type)&&[m.x,m.y].every(Number.isFinite)&&palette.includes(m.color)).slice(0,250);
-   $('rinkTitle').value=String(v.title||'').slice(0,100);$('rinkDescription').value=String(v.description||'').slice(0,2000);
+   $('rinkTitle').value=String(v.title||'').slice(0,100);$('rinkDescription').value=String(v.description||'').slice(0,2000);if(v.category&&Array.from($('rinkCategory').options).some(o=>o.value===v.category))$('rinkCategory').value=v.category;
   }}catch{}rink();
  }
  function drawFromText(){
@@ -97,6 +97,45 @@
   rink();
   const extra=result.warnings.length?' Delar som behöver förtydligas: '+result.warnings.slice(0,2).join(' / '):'';
   announce(result.marks.length+' objekt ritade. Flytta och justera symbolerna vid behov.'+extra);
+ }
+ // Save the drawn rink as a locally stored SVG image in the existing exercise archive.
+ function archiveDrawing(record){
+  return new Promise((resolve,reject)=>{
+   const request=indexedDB.open('nsk_exercise_files_v1',1);
+   request.onupgradeneeded=()=>{
+    if(!request.result.objectStoreNames.contains('files'))request.result.createObjectStore('files',{keyPath:'id'});
+   };
+   request.onerror=()=>reject(request.error);
+   request.onsuccess=()=>{
+    const db=request.result;
+    const tx=db.transaction('files','readwrite');
+    tx.objectStore('files').put(record);
+    tx.oncomplete=()=>{db.close();resolve();};
+    tx.onerror=()=>{db.close();reject(tx.error);};
+    tx.onabort=()=>{db.close();reject(tx.error);};
+   };
+  });
+ }
+ async function saveDrawing(){
+  const title=$('rinkTitle').value.trim()||'Min hockeyövning';
+  if(!marks.length){announce('Rita först symboler och rörelser på rinken.');return;}
+  const button=$('rinkSave');button.disabled=true;
+  try{
+   const description=$('rinkDescription').value.trim();
+   const category=$('rinkCategory').value;
+   const saved={title,description,category,marks};
+   localStorage.setItem('nsk_rink_drawing_v1',JSON.stringify(saved));
+   const svg=$('rinkSvg').cloneNode(true);
+   svg.setAttribute('xmlns',NS);
+   svg.setAttribute('width',String(W));svg.setAttribute('height',String(H));
+   const blob=new Blob([new XMLSerializer().serializeToString(svg)],{type:'image/svg+xml'});
+   await archiveDrawing({
+    id:uuid(),title,description,category,filename:'hockeyovning.svg',
+    blob,created:Date.now()
+   });
+   announce('Övningen sparades i Övningsarkivet på den här enheten. Välj Visa där.');
+  }catch(e){announce('Kunde inte spara i Övningsarkivet: '+(e.message||'okänt fel'));}
+  finally{button.disabled=false;}
  }
  function exportImage(){
   const s=$('rinkSvg').cloneNode(true);s.setAttribute('xmlns',NS);s.setAttribute('width',String(W));s.setAttribute('height',String(H));
@@ -119,7 +158,7 @@
   document.querySelectorAll('[data-tool]').forEach(b=>b.addEventListener('click',()=>setTool(b.dataset.tool)));
   $('rinkUndo').onclick=()=>{if(history.length){marks=JSON.parse(history.pop());rink();}};
   $('rinkClear').onclick=()=>{if(confirm('Rensa alla symboler från rinken?')){remember();marks=[];rink();}};
-  $('rinkSave').onclick=()=>{localStorage.setItem('nsk_rink_drawing_v1',JSON.stringify({title:$('rinkTitle').value,description:$('rinkDescription').value,marks}));announce('Övningen sparad på den här enheten.');};
+  $('rinkSave').onclick=saveDrawing;
   $('rinkLoad').onclick=()=>{restore();announce('Senaste lokalt sparade övningen öppnad.');};
   $('rinkExport').onclick=exportImage;
   $('rinkFromText').onclick=drawFromText;
