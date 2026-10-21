@@ -15,9 +15,13 @@ const valid = (database = '990000', tables = mapping) => [
   'binding = "AUTH_DB"'
 ].join('\n');
 
-test('current preview manifest is blocked until isolated Baserow is provisioned', () => {
+test('incomplete preview manifest is blocked until isolated Baserow is provisioned', () => {
+  const incomplete = valid().replace(/^BASEROW_DATABASE_ID.*\\n/m, '');
+  assert.throws(() => verifyIsolatedBaserowManifest(incomplete), /BASEROW_DATABASE_ID/);
+});
+test('preview manifest does not embed a Baserow credential', () => {
   const existing = readFileSync(new URL('../wrangler.api.preview.toml', import.meta.url), 'utf8');
-  assert.throws(() => verifyIsolatedBaserowManifest(existing), /NSK_ISOLATED_MODE|BASEROW_DATABASE_ID/);
+  assert.doesNotMatch(existing, /^\\s*BASEROW_TOKEN\\s*=/m);
 });
 test('complete synthetic mapping passes the static gate', () => {
   assert.deepEqual(verifyIsolatedBaserowManifest(valid()), { databaseId: '990000', tableCount: 10 });
