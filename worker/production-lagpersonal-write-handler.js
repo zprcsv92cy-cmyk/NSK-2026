@@ -30,7 +30,7 @@ export async function handlePersonalLagpersonalWrite(request, env, { listTeams }
       catch { return { ok: false, status: 400, error: 'Ogiltig JSON' }; }
       const allowed = ['Lagledare', 'Fysansvarig', 'Materialförvaltare'];
       if (!body || typeof body.name !== 'string' || !body.name.trim() ||
-          body.name.trim().length > 150 || !allowed.includes(body.role))
+          body.name.trim().length > 150 || /[\x00-\x1f\x7f]/.test(body.name) || !allowed.includes(body.role))
         return { ok: false, status: 400, error: 'Ogiltigt namn eller uppdrag' };
       const key = 'lagpersonal:team:' + teamId;
       const stored = await env.NSK_TRAINERS.get(key, 'json');
