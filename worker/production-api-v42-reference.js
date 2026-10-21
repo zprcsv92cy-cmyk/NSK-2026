@@ -792,7 +792,7 @@ var worker_default = { async fetch(req, env) {
   // Any Authorization header triggers the scoped path so malformed credentials
   // cannot fall through to the legacy, unscoped roster read.
   if (req.method === "GET" &&
-      (url.pathname === "/api/lagpersonal" || env.NSK_REQUIRE_SCOPED_ROSTER_READS === "true" || req.headers.has("Authorization")) &&
+      (url.pathname === "/api/lagpersonal" || env.NSK_REQUIRE_SCOPED_ROSTER_READS !== "false" || req.headers.has("Authorization")) &&
       /^\/api\/(?:spelare|tranare|lagpersonal)(?:\/\d+)?$/.test(url.pathname)) {
     const listTrustedTeams = async () => {
       if (!env.BASEROW_TOKEN) throw Error("Trusted teams unavailable");
@@ -865,7 +865,7 @@ var worker_default = { async fetch(req, env) {
   // to the unscoped legacy collection API.
   if (req.method === "GET" &&
       /^\/api\/(?:poolspel|matchkonfiguration|laguppstallningar|bytesschema|spelaretranare)$/.test(url.pathname) &&
-      (env.NSK_REQUIRE_SCOPED_COLLECTION_READS === "true" || req.headers.has("Authorization"))) {
+      (env.NSK_REQUIRE_SCOPED_COLLECTION_READS !== "false" || req.headers.has("Authorization"))) {
     const tableIds = resolveBaserowTables(env);
     const readRows = async table => {
       if (!Object.hasOwn(tableIds, table) || !env.BASEROW_TOKEN)
@@ -914,7 +914,7 @@ var worker_default = { async fetch(req, env) {
   }
   // Personally authorized team discovery.
   if (req.method === "GET" && url.pathname === "/api/lag" &&
-      (env.NSK_REQUIRE_SCOPED_TEAM_READS === "true" ||
+      (env.NSK_REQUIRE_SCOPED_TEAM_READS !== "false" ||
        req.headers.has("Authorization"))) {
     const readRows = async () => {
       const results = [];

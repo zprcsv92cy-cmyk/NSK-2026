@@ -38,7 +38,7 @@ test('shift routes parse Bearer tokens using real whitespace boundaries', () => 
 
 
 test('opt-in scoped roster handler precedes legacy reads and uses trusted sources', () => {
-  assert.match(source, /env\.NSK_REQUIRE_SCOPED_ROSTER_READS === "true"/);
+  assert.match(source, /env\.NSK_REQUIRE_SCOPED_ROSTER_READS !== "false"/);
   assert.match(source, /req\.headers\.has\("Authorization"\)/);
   assert.match(source, /req\.method === "GET"/);
   assert.match(source, /spelare\|tranare\|lagpersonal/);
@@ -52,7 +52,7 @@ test('opt-in scoped roster handler precedes legacy reads and uses trusted source
   assert.match(source, /listTrustedTeams,/);
   assert.match(source, /data\.results\.length > 200/);
   assert.match(source, /Incomplete roster page/);
-  const gate = source.indexOf('(url.pathname === "/api/lagpersonal" || env.NSK_REQUIRE_SCOPED_ROSTER_READS === "true"');
+  const gate = source.indexOf('(url.pathname === "/api/lagpersonal" || env.NSK_REQUIRE_SCOPED_ROSTER_READS !== "false"');
   const legacyRead = source.indexOf('if (url.pathname === "/api/lagpersonal" && req.method === "GET")');
   assert.ok(gate >= 0 && legacyRead > gate, 'scoped handler must precede legacy roster read');
 });
