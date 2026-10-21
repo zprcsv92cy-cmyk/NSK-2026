@@ -25,6 +25,7 @@
       <a href="../lag/">Lag</a>
       <a href="../anvandare/" id="usersMenuLink" hidden>Användare</a>
       <a href="../mittkonto/">Mitt konto</a>
+      <a href="../login/" id="loginMenuLink">Logga in</a>
     </nav>
 
     <section class="home-hero">
@@ -37,21 +38,6 @@
       </div>
     </section>
 
-    <section class="card" id="personalAuthPanel" aria-label="Personlig inloggning">
-      <h2>Personlig inloggning</h2>
-      <p><a href="../login/">Öppna inloggningssidan</a></p>
-      <p id="personalAuthStatus" class="small" aria-live="polite"></p>
-      <form id="personalAuthForm" hidden>
-        <label>E-post <input type="email" id="personalAuthEmail" autocomplete="username" required></label>
-        <label>Lösenord <input type="password" id="personalAuthPassword" autocomplete="current-password" required></label>
-        <button type="submit">Logga in</button>
-      </form>
-      <div id="personalAuthSignedIn" hidden>
-        <label>Aktivt lag <select id="personalAuthTeam"></select></label>
-        <p id="personalAuthAccess" class="small" aria-live="polite"></p>
-        <button type="button" id="personalAuthLogout">Logga ut</button>
-      </div>
-    </section>
     <section class="card home-shortcuts home-create-pool">
       <div class="home-create-intro">
         <span class="home-create-icon" aria-hidden="true">＋</span>
@@ -78,72 +64,19 @@
   </div>
 <script>
 (() => {
-  const status = document.getElementById('personalAuthStatus');
-  const form = document.getElementById('personalAuthForm');
-  const signedIn = document.getElementById('personalAuthSignedIn');
-  const teams = document.getElementById('personalAuthTeam');
-  const access = document.getElementById('personalAuthAccess');
-  const permissionLabels = [
-    ['read', 'Läsa'], ['pool', 'Skapa poolspel'], ['lineup', 'Ändra laguppställning'],
-    ['shifts', 'Checka byten'], ['matches', 'Hantera matchvy'],
-    ['pool_finish', 'Avsluta poolspel'], ['pool_reopen', 'Återöppna poolspel'],
-    ['roster', 'Hantera truppen'], ['users', 'Hantera användare']
-  ];
-  function renderAccess() {
-    const team = Auth.activeTeam();
-    if (!team) { access.textContent = 'Inget aktivt lag valt.'; return; }
-    const available = permissionLabels.filter(([key]) => Auth.can(key, team)).map(([, label]) => label);
-    access.textContent = 'Behörigheter för valt lag: ' + (available.length ? available.join(', ') : 'Inga visade rättigheter') + '. Ändringar kontrolleras alltid av servern.';
-  }
-  const configured = !!window.APP_CONFIG?.AUTH_URL;
-  if (!configured) {
-    status.textContent = 'Personlig inloggning är under införande. Befintliga funktioner påverkas inte.';
-    return;
-  }
-  async function refresh() {
-    const identity = await Auth.init();
-    document.getElementById('usersMenuLink').hidden =
-      !identity?.permissions?.includes('users:manage');
-    form.hidden = !!identity;
-    signedIn.hidden = !identity;
-    if (!identity) {
-      status.textContent = 'Logga in med ditt personliga konto.';
-      return;
-    }
-    status.textContent = 'Inloggad: ' + (identity.user?.name || identity.user?.email || 'Användare');
-    teams.replaceChildren();
-    for (const membership of identity.memberships) {
-      const option = document.createElement('option');
-      option.value = membership.team_id;
-      option.textContent = membership.team_name || membership.team_id;
-      teams.append(option);
-    }
-    if (identity.memberships.length && !Auth.activeTeam()) Auth.selectTeam(identity.memberships[0].team_id);
-    teams.value = Auth.activeTeam() || '';
-    renderAccess();
-  }
-  form.addEventListener('submit', async event => {
-    event.preventDefault();
-    const submit = form.querySelector('button[type="submit"]');
-    const password = document.getElementById('personalAuthPassword');
-    if (submit.disabled) return;
-    submit.disabled = true;
-    status.textContent = 'Loggar in…';
-    try {
-      await Auth.login(document.getElementById('personalAuthEmail').value, password.value);
-      await refresh();
-    } catch (error) {
-      status.textContent = error.message || 'Inloggningen misslyckades';
-    } finally {
-      password.value = '';
-      submit.disabled = false;
-    }
+  // Login and team selection live on /login/ and /mittkonto/.
+  // The home page only updates navigation from an existing session.
+  const loginLink = document.getElementById('loginMenuLink');
+  const usersLink = document.getElementById('usersMenuLink');
+  Auth.init().then(identity => {
+    loginLink.hidden = !!identity;
+    usersLink.hidden = !identity?.permissions?.includes('users:manage');
+  }).catch(() => {
+    loginLink.hidden = false;
+    usersLink.hidden = true;
   });
-  teams.addEventListener('change', () => { try { Auth.selectTeam(teams.value); renderAccess(); } catch (error) { status.textContent = error.message; } });
-  document.getElementById('personalAuthLogout').addEventListener('click', async () => { await Auth.logout(); await refresh(); });
-  refresh().catch(() => { status.textContent = 'Inloggningen kunde inte kontrolleras'; });
 })();
 </script>
-<!-- Startsidan använder personlig inloggning; äldre Adminläge visas endast på sidor som ännu behöver det. -->
+<!-- Inloggning sker endast på ../login/. Lag och behörigheter hanteras under Mitt konto. -->
 </body>
 </html>
