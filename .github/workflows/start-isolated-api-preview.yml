@@ -30,6 +30,8 @@ jobs:
         run: |
           node --test scripts/worker-preview-isolation.test.mjs
           node --check worker/production-api-v42-reference.js
+      - name: Require isolated Baserow readiness before any Cloudflare operation
+        run: node scripts/isolated-preview-baserow-gate.mjs
       - name: Require Cloudflare Actions credentials
         env:
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
