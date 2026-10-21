@@ -1,15 +1,88 @@
 // Exercise cards are public examples; personal uploaded files stay in this browser's IndexedDB.
 (() => {
   const items = [
-    {title:'Fånga svansen',category:'Uppvärmning',minutes:10,description:'Alla spelare har en väst som svans. Försök samla svansar medan du skyddar din egen.',equipment:'Västar och koner',coaching:'Rörelseglädje, blick upp och snabba riktningsförändringar.'},
-    {title:'Dribblingsbana',category:'Teknik',minutes:12,description:'Bygg en bana med slalom, vändning och avslut. Byt fot mellan omgångarna.',equipment:'En boll per spelare, koner, två småmål',coaching:'Många bollkontakter och kontroll före fart.'},
-    {title:'Passning i triangel',category:'Passningar',minutes:12,description:'Tre spelare passar i triangel och följer sin passning. Byt riktning efter några minuter.',equipment:'Bollar och koner',coaching:'Mottagning med första touch och visa vart passningen ska.'},
-    {title:'3 mot 3 med småmål',category:'Spelövningar',minutes:18,description:'Spela 3 mot 3 på små planer. Korta matcher och många byten.',equipment:'Bollar, koner och fyra småmål',coaching:'Hitta fria ytor, samarbeta och låt alla få bollen.'},
-    {title:'Målvakt – greppa och rulla',category:'Målvakter',minutes:12,description:'Tränaren rullar och kastar mjuka bollar i olika höjder. Målvakten fångar och startar spelet med utrullning.',equipment:'Bollar och mål',coaching:'Grundställning, trygg teknik och tydlig kommunikation.'},
-    {title:'Stegar och riktningsbyte',category:'Koordination',minutes:10,description:'Öva snabba fötter genom stege eller konrader. Avsluta med en kort acceleration.',equipment:'Koordinationsstege eller koner',coaching:'Balans, variation och kvalitet framför fart.'},
-    {title:'1 mot 1 till mål',category:'Teknik',minutes:15,description:'En anfallare försöker passera sin försvarare och avsluta mot ett litet mål.',equipment:'Bollar, koner och småmål',coaching:'Uppmuntra finter och direkt återerövring.'},
-    {title:'Fyra hörn – pass och löp',category:'Passningar',minutes:12,description:'Fyra stationer bildar en kvadrat. Passa till nästa hörn och spring efter bollen.',equipment:'Koner och bollar',coaching:'Titta före passningen och kommunicera med mottagaren.'}
+    {
+      "title": "Skridskoåkning – start, stopp och vändning",
+      "category": "Skridskoteknik",
+      "minutes": 12,
+      "description": "Åk mellan koner med kort acceleration, kontrollerat stopp åt båda håll och en snäv vändning. Kör i små grupper så alla får många repetitioner.",
+      "equipment": "Koner och klubbor",
+      "coaching": "Böjda knän, balans och kontroll. Ge alla tid att utveckla tekniken."
+    },
+    {
+      "title": "Puckbana med svängar",
+      "category": "Puckkontroll",
+      "minutes": 12,
+      "description": "Driv puck genom en konbana. Lägg in breda och snäva svängar samt byte mellan forehand och backhand.",
+      "equipment": "Puckar, klubbor och koner",
+      "coaching": "Håll pucken nära bladet, våga lyfta blicken och använd båda sidorna av klubban."
+    },
+    {
+      "title": "Passa och följ",
+      "category": "Passningar",
+      "minutes": 12,
+      "description": "Spelarna står i två led. Passa till andra ledet och åk efter passningen. Utöka med mottagning i rörelse.",
+      "equipment": "Puckar, klubbor och koner",
+      "coaching": "Klubban i isen, tydlig passningsriktning och mjuk mottagning."
+    },
+    {
+      "title": "Skott från nära håll",
+      "category": "Skott",
+      "minutes": 12,
+      "description": "Skjut från markerade positioner nära mål. Hämta pucken och byt led. Låt barnen prova olika avslut utan press.",
+      "equipment": "Puckar, klubbor och mål",
+      "coaching": "Sikta, följ igenom rörelsen och se till att ingen åker framför skytten."
+    },
+    {
+      "title": "2 mot 2 på liten yta",
+      "category": "Smålagsspel",
+      "minutes": 15,
+      "description": "Spela två mot två på avgränsad isyta med små mål. Byt korta omgångar för hög aktivitet och många puckkontakter.",
+      "equipment": "Puckar, koner, västar och småmål",
+      "coaching": "Spelbarhet, samarbete, puckjakt och glädje."
+    },
+    {
+      "title": "Målvakt – grundställning och sidledsförflyttning",
+      "category": "Målvakter",
+      "minutes": 12,
+      "description": "Målvakten tränar grundställning och lugna sidledsförflyttningar mellan två markeringar. Avsluta med lätta, kontrollerade skott.",
+      "equipment": "Mål, koner och puckar",
+      "coaching": "Tryggt tempo, balans och god uppsikt över övriga spelare."
+    },
+    {
+      "title": "Stafett på skridskor",
+      "category": "Uppvärmning",
+      "minutes": 10,
+      "description": "Dela in i små lag som åker en kort bana och växlar genom en tydlig markering. Anpassa svårigheten för alla nivåer.",
+      "equipment": "Koner",
+      "coaching": "Uppmuntra laganda och kontroll; låt säkerhet gå före tävling."
+    },
+    {
+      "title": "1 mot 1 längs sargen",
+      "category": "Spelsituationer",
+      "minutes": 12,
+      "description": "En anfallare driver puck längs en markerad yta medan en försvarare försöker styra bort anfallaren med klubba och positionering. Ingen kroppstackling.",
+      "equipment": "Puckar, klubbor och koner",
+      "coaching": "Balans, klubbarbete och säker närkampsposition."
+    },
+    {
+      "title": "Puckhämtning och vänd upp",
+      "category": "Puckkontroll",
+      "minutes": 12,
+      "description": "Starta vid en kon, hämta en stillaliggande puck, vänd upp och spela tillbaka till en medspelare. Växla höger och vänster.",
+      "equipment": "Puckar, klubbor och koner",
+      "coaching": "Orientera före puckhämtning och behåll fart genom svängen."
+    },
+    {
+      "title": "Tre passningar till avslut",
+      "category": "Passningar",
+      "minutes": 15,
+      "description": "Tre spelare passar pucken mellan varandra under förflyttning och avslutar mot mål. Starta lugnt och korta avstånden efter behov.",
+      "equipment": "Puckar, klubbor, koner och mål",
+      "coaching": "Tajming, ta emot puck i rörelse och beröm samarbetet."
+    }
   ];
+
   const $ = id=>document.getElementById(id);
   const dbName='nsk_exercise_files_v1',store='files';
   function openDb(){
