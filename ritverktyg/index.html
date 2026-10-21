@@ -4,7 +4,7 @@
 <script src="../config.js"></script><script src="../login-gate.js"></script>
 <title>Rita hockeyövning – NSK</title><meta name="theme-color" content="#b11226">
 <script src="../version.js?v=872"></script>
-<script>document.write('<link rel="stylesheet" href="../app.css?v='+window.NSK_VERSION+'">');document.write('<script src="../rink-drawer.js?v='+window.NSK_VERSION+'"><\/script>');</script>
+<script>document.write('<link rel="stylesheet" href="../app.css?v='+window.NSK_VERSION+'">');document.write('<script src="../rink-text-parser.js?v='+window.NSK_VERSION+'"><\/script>');document.write('<script src="../rink-drawer.js?v='+window.NSK_VERSION+'"><\/script>');</script>
 <style>
 .draw-wrap{max-width:980px;margin:auto}
 .draw-toolbar{display:flex;flex-wrap:wrap;gap:7px;padding:10px 0;align-items:center}
@@ -32,9 +32,9 @@ body.rink-fullscreen #rinkSvg{height:100%;width:100%;max-height:none;object-fit:
 <section class="card" id="rinkTextPanel">
 <h2>Beskriv övningen</h2>
 <label for="rinkDescription">Skriv instruktioner om var spelare och utrustning ska placeras</label>
-<textarea id="rinkDescription" rows="4" style="width:100%;margin:8px 0" placeholder="Två röda spelare vid nedre vänstra hörnet. En puck i mittcirkeln. Tre koner vid övre högra hörnet. Åkväg från nedre vänstra hörnet till mittcirkeln."></textarea>
+<textarea id="rinkDescription" rows="4" style="width:100%;margin:8px 0" placeholder="Tre röda spelare vid nedre vänstra hörnet. Två puckar vid blålinjen. Spelare 1 passar till spelare 2. Spelare 2 åker mot övre målet och avslutar."></textarea>
 <div class="draw-toolbar"><button type="button" id="rinkFromText">Rita från beskrivning</button><button type="button" id="rinkTextExample">Visa exempel</button></div>
-<p class="draw-note">Första versionen förstår antal, symboler och platser som hörn, mittcirkeln och målen. Den tolkar inte ännu alla fria tränarbeskrivningar.</p>
+<p class="draw-note">Förstår bland annat antal spelare och puckar, färger, positioner på isen, passningar och åkvägar. Otydliga instruktioner markeras så att du kan justera ritningen.</p>
 </section>
 <div class="draw-toolbar" id="rinkToolbar" role="toolbar" aria-label="Ritverktyg">
 <button type="button" data-tool="move" aria-pressed="true">↔ Flytta</button>
