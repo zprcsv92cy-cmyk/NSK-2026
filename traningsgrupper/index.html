@@ -1,0 +1,57 @@
+<!doctype html>
+<html lang="sv">
+<head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<script>document.documentElement.style.visibility='hidden';</script>
+<script src="../config.js"></script><script src="../login-gate.js"></script>
+<title>Träningsgrupper – NSK</title>
+<meta name="theme-color" content="#b11226">
+<script src="../version.js?v=872"></script>
+<script>
+document.write('<link rel="stylesheet" href="../app.css?v='+window.NSK_VERSION+'">');
+document.write('<script src="../auth.js?v='+window.NSK_VERSION+'"><\/script>');
+document.write('<script src="../db.js?v='+window.NSK_VERSION+'"><\/script>');
+document.write('<script src="../training-groups.js?v='+window.NSK_VERSION+'"><\/script>');
+</script>
+<style>
+.training-controls{display:flex;gap:12px;flex-wrap:wrap;align-items:end}
+.training-controls label{flex:1 1 160px}
+.training-controls input,.training-controls select{width:100%;margin-top:5px}
+.training-count{font-size:1.15rem;font-weight:700;margin:10px 0}
+.training-roster{display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:8px}
+.training-roster label{display:flex;gap:10px;align-items:center;padding:11px;border:1px solid var(--line);border-radius:10px;cursor:pointer}
+.training-roster input{width:20px;height:20px;flex:none}
+.training-actions{display:flex;flex-wrap:wrap;gap:10px;margin-top:14px}
+.training-groups{display:grid;grid-template-columns:repeat(auto-fit,minmax(170px,1fr));gap:12px;margin-top:14px}
+.training-group{border:1px solid var(--line);border-radius:12px;overflow:hidden}
+.training-group h3{padding:12px;margin:0;color:white}
+.training-group ul{padding:6px 12px 12px 28px;margin:0}
+.training-group li{padding:4px 0}
+@media print {nav,.training-controls,.training-roster,.training-actions,.no-print{display:none!important}body{background:white;color:black}.card{border:0;box-shadow:none}}
+</style>
+</head>
+<body>
+<div class="wrap">
+<nav class="mainmenu">
+<a href="../startsida/">Startsida</a><a href="../truppen/">Truppen</a>
+<a class="active" href="../traningsgrupper/">Träningsgrupper</a>
+<a href="../skapapoolspel/">Skapa poolspel</a><a href="../mittkonto/">Mitt konto</a>
+</nav>
+<section class="home-hero">
+<div class="home-hero-logo-box"><img class="home-hero-logo" src="../icon-192.png" alt="NSK"></div>
+<div class="home-hero-text"><h1>Träningsgrupper</h1><div class="home-hero-sub">Närvaro och tröjfärger</div></div>
+</section>
+<section class="card">
+<div class="training-controls">
+<label>Träningsdatum<input id="trainingDate" type="date"></label>
+<label>Antal tröjfärger<select id="trainingColorCount"><option value="2">2 grupper</option><option value="3" selected>3 grupper</option><option value="4">4 grupper</option></select></label>
+</div>
+<p id="trainingStatus" role="status" aria-live="polite">Hämtar spelare…</p>
+<p class="small">Markera de spelare som kommer. Uppgifterna sparas tills vidare endast i den här webbläsaren, inte gemensamt mellan ledare.</p>
+<h2>Spelare som kommer</h2><p class="training-count" id="trainingCount">0 anmälda</p>
+<div class="training-roster" id="trainingRoster"></div>
+<div class="training-actions"><button type="button" id="trainingGroupButton">Dela in i tröjfärger</button><button type="button" id="trainingPrintButton">Skriv ut grupper</button></div>
+</section>
+<section class="card"><h2>Tröjfärger</h2><div class="training-groups" id="trainingGroups"></div></section>
+</div>
+</body></html>
