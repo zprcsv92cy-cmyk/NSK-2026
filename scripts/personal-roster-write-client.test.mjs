@@ -85,3 +85,34 @@ test('personal roster mutation checks server feature access immediately before w
     assert.equal(result.requests.length, 0, path);
   }
 });
+
+test('personal roster write aborts if the active team changes during feature authorization', async () => {
+  for (const path of ['/api/spelare', '/api/tranare', '/api/spelare/1', '/api/tranare/1']) {
+    let activeTeam = 'NSK Team 18';
+    const requests = [];
+    const sandbox = {
+      window: {
+        APP_CONFIG: { API_URL: 'https://api.example.invalid', REQUIRE_PERSONAL_ROSTER_WRITES: true },
+        Auth: {
+          getToken: () => token,
+          activeTeam: () => activeTeam,
+          checkTeamFeature: async () => { activeTeam = 'NSK Testlag 2'; return true; }
+        }
+      },
+      localStorage: { getItem: () => 'legacy-admin' },
+      fetch: async (url, options) => {
+        requests.push({ url, options });
+        return { ok: true, json: async () => ({ ok: true, row: { id: 1 } }) };
+      },
+      URL, console
+    };
+    vm.runInNewContext(dbSource, sandbox);
+    const update = path.includes('/1');
+    const coach = path.includes('tranare');
+    const mutation = coach
+      ? (update ? sandbox.window.DB.updateCoach(1, 'Trainer') : sandbox.window.DB.addCoach('Trainer'))
+      : (update ? sandbox.window.DB.updatePlayer(1, 'Player') : sandbox.window.DB.addPlayer('Player'));
+    await assert.rejects(mutation, /Lagvalet ändrades/, path);
+    assert.equal(requests.length, 0, path);
+  }
+});
