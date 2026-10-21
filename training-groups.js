@@ -3,7 +3,8 @@
   const palette = [{name:'Röd',hex:'#b11226',text:'#fff'},{name:'Vit',hex:'#fff',text:'#17181b'},{name:'Svart',hex:'#17181b',text:'#fff'}];
   const $ = id => document.getElementById(id);
   const storagePrefix = 'nsk_training_v1:';
-  let players = [], team = '';
+  let players = [], coaches = [], team = '';
+  let selectedCoaches = new Set();
   let selected = new Set();
   let allocation = [];
   let goalies = [];
@@ -14,13 +15,15 @@
       const data = JSON.parse(localStorage.getItem(storageKey()) || '{}');
       const allowed = new Set(players.map(p => String(p.id)));
       selected = new Set((Array.isArray(data.selected) ? data.selected : []).map(String).filter(x => allowed.has(x)));
+      const allowedCoaches = new Set(coaches.map(p=>String(p.id)));
+      selectedCoaches = new Set((Array.isArray(data.selectedCoaches)?data.selectedCoaches:[]).map(String).filter(x=>allowedCoaches.has(x)));
       allocation = Array.isArray(data.allocation) ? data.allocation : [];
       goalies = (Array.isArray(data.goalies) ? data.goalies : []).map(String).filter((id,i,a)=>allowed.has(id)&&selected.has(id)&&a.indexOf(id)===i).slice(0,2);
       goalieCount = Number.isInteger(data.goalieCount) && data.goalieCount>=0 && data.goalieCount<=2 ? data.goalieCount : goalies.length;
       $('trainingGoalieCount').value = String(goalieCount);
-    } catch { selected = new Set(); allocation = []; goalies = []; goalieCount=0; $('trainingGoalieCount').value='0'; }
+    } catch { selected = new Set(); selectedCoaches = new Set(); allocation = []; goalies = []; goalieCount=0; $('trainingGoalieCount').value='0'; }
   }
-  function persist() { localStorage.setItem(storageKey(),JSON.stringify({selected:[...selected],allocation,goalies,goalieCount})); }
+  function persist() { localStorage.setItem(storageKey(),JSON.stringify({selected:[...selected],selectedCoaches:[...selectedCoaches],allocation,goalies,goalieCount})); }
   function renderRoster() {
     const root=$('trainingRoster');root.replaceChildren();
     for(const p of players){
@@ -34,6 +37,25 @@
       label.append(check,document.createTextNode(p.full_name));root.append(label);
     }
     renderCount();
+  }
+  function renderCoaches(){
+    const root=$('trainingCoachRoster');root.replaceChildren();
+    for(const coach of coaches){
+      const label=document.createElement('label');
+      const check=document.createElement('input');check.type='checkbox';
+      check.checked=selectedCoaches.has(String(coach.id));
+      check.addEventListener('change',()=>{
+        if(check.checked)selectedCoaches.add(String(coach.id));else selectedCoaches.delete(String(coach.id));
+        persist();renderCoachesSummary();
+      });
+      label.append(check,document.createTextNode(coach.full_name));root.append(label);
+    }
+    renderCoachesSummary();
+  }
+  function renderCoachesSummary(){
+    const names=coaches.filter(p=>selectedCoaches.has(String(p.id))).map(p=>p.full_name);
+    $('trainingCoachCount').textContent=names.length+' av '+coaches.length+' tränare kommer';
+    $('trainingCoachSummary').textContent=names.join(', ')||'Inga tränare markerade';
   }
   function renderGoalieSelectors(){
     const root=$('trainingGoalies');root.replaceChildren();
@@ -88,7 +110,7 @@
   }
   document.addEventListener('DOMContentLoaded',async()=>{
     $('trainingDate').value=new Date().toLocaleDateString('sv-SE',{year:'numeric',month:'2-digit',day:'2-digit'});
-    $('trainingDate').addEventListener('change',()=>{restore();renderRoster();renderGoalieSelectors();renderGroups();});
+    $('trainingDate').addEventListener('change',()=>{restore();renderRoster();renderCoaches();renderGoalieSelectors();renderGroups();});
     $('trainingGoalieCount').addEventListener('change',()=>{
       goalieCount=Number($('trainingGoalieCount').value);
       goalies=goalies.slice(0,goalieCount);
@@ -102,9 +124,9 @@
       if(!Auth.activeTeam() && session.memberships?.length)Auth.selectTeam(session.memberships[0].team_id);
       team=Auth.activeTeam();
       if(!team)throw Error('Välj ett aktivt lag under Mitt konto.');
-      players=await DB.listPlayers();
-      restore();renderRoster();renderGroups();
-      $('trainingStatus').textContent=players.length+' spelare hämtade från NSK-truppen.';
+      [players,coaches]=await Promise.all([DB.listPlayers(),DB.listCoaches()]);
+      restore();renderRoster();renderCoaches();renderGoalieSelectors();renderGroups();
+      $('trainingStatus').textContent=players.length+' spelare och '+coaches.length+' tränare hämtade från NSK-truppen.';
     }catch(error){$('trainingStatus').textContent=error.message||'Kunde inte läsa truppen.';}
   });
 })();
