@@ -10,18 +10,18 @@
   let goalies = [];
   let goalieCount = 0;
   const storageKey = () => storagePrefix + team + ':' + $('trainingDate').value;
-  function restore() {
-    try {
-      const data = JSON.parse(localStorage.getItem(storageKey()) || '{}');
-      const allowed = new Set(players.map(p => String(p.id)));
-      selected = new Set((Array.isArray(data.selected) ? data.selected : []).map(String).filter(x => allowed.has(x)));
-      const allowedCoaches = new Set(coaches.map(p=>String(p.id)));
-      selectedCoaches = new Set((Array.isArray(data.selectedCoaches)?data.selectedCoaches:[]).map(String).filter(x=>allowedCoaches.has(x)));
-      allocation = Array.isArray(data.allocation) ? data.allocation : [];
-      goalies = (Array.isArray(data.goalies) ? data.goalies : []).map(String).filter((id,i,a)=>allowed.has(id)&&selected.has(id)&&a.indexOf(id)===i).slice(0,2);
-      goalieCount = Number.isInteger(data.goalieCount) && data.goalieCount>=0 && data.goalieCount<=2 ? data.goalieCount : goalies.length;
-      $('trainingGoalieCount').value = String(goalieCount);
-    } catch { selected = new Set(); selectedCoaches = new Set(); allocation = []; goalies = []; goalieCount=0; $('trainingGoalieCount').value='0'; }
+  async function restore(){
+    const response=await SharedTraining.get($('trainingDate').value);
+    const data=response.session||{};
+    const allowed=new Set(players.map(p=>String(p.id)));
+    const allowedCoaches=new Set(coaches.map(p=>String(p.id)));
+    selected=new Set((data.selected||[]).map(String).filter(x=>allowed.has(x)));
+    selectedCoaches=new Set((data.selectedCoaches||[]).map(String).filter(x=>allowedCoaches.has(x)));
+    allocation=Array.isArray(data.allocation)?data.allocation:[];
+    goalies=(data.goalies||[]).map(String).filter(id=>allowed.has(id)&&selected.has(id));
+    goalieCount=Number(data.goalieCount)||0;
+    revision=Number(data.revision)||0;
+    $('trainingGoalieCount').value=String(goalieCount);
   }
   let revision=0;
   let saveQueue=Promise.resolve();
