@@ -174,11 +174,12 @@
     $('trainingImportImages').addEventListener('change',()=>{
       // No preview is created: screenshots are only read transiently for OCR.
       $('trainingImportApply').disabled=true;
+      importMatches=[];
       $('trainingImportReview').replaceChildren();
     });
     $('trainingImportRead').addEventListener('click',async()=>{
       $('trainingImportApply').disabled=true;
-      if(!players.length&&!coaches.length){$('trainingImportStatus').textContent='Truppen måste hämtas först.';return;}
+      if(!players.length&&!coaches.length){clearImportImages();$('trainingImportStatus').textContent='Truppen måste hämtas först.';return;}
       let text=$('trainingImportText').value;
       try{
         const detected=await readImageText();
