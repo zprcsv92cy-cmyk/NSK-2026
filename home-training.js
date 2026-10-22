@@ -9,7 +9,18 @@
       await Auth.init();
       const team=Auth.activeTeam();
       if(!team){root.textContent='Välj lag under Mitt konto för att se träningar.';return;}
-      const data=await SharedTraining.list();
+      const token=Auth.getToken();
+      if(!token)throw Error('Logga in först');
+      const base=String(window.APP_CONFIG?.API_URL||'https://nsk-api.peter-hasselberg.workers.dev').replace(/\/$/,'');
+      const teamResponse=await fetch(base+'/api/lag',{headers:{Authorization:'Bearer '+token},cache:'no-store'});
+      if(!teamResponse.ok)throw Error('Kunde inte läsa lag');
+      const teamData=await teamResponse.json();
+      const teams=Array.isArray(teamData.results)?teamData.results:[];
+      const matches=teams.filter(t=>t.Namn===team&&String(t['Säsong'])==='2026');
+      if(matches.length!==1)throw Error('Lagkopplingen saknas');
+      const response=await fetch(base+'/api/training?team_id='+encodeURIComponent(matches[0].id),{headers:{Authorization:'Bearer '+token},cache:'no-store'});
+      if(!response.ok)throw Error('Gemensamma träningar är ännu inte aktiverade');
+      const data=await response.json();
       const sessions=Array.isArray(data.sessions)?data.sessions:[];
       sessions.sort((a,b)=>b.date.localeCompare(a.date));
       if(!sessions.length){root.textContent='Inga gemensamt sparade träningar ännu.';return;}
