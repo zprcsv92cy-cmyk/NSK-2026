@@ -23,7 +23,17 @@
       $('trainingGoalieCount').value = String(goalieCount);
     } catch { selected = new Set(); selectedCoaches = new Set(); allocation = []; goalies = []; goalieCount=0; $('trainingGoalieCount').value='0'; }
   }
-  function persist() { localStorage.setItem(storageKey(),JSON.stringify({selected:[...selected],selectedCoaches:[...selectedCoaches],allocation,goalies,goalieCount})); }
+  let revision=0;
+  let saveQueue=Promise.resolve();
+  function persist(){
+    const date=$('trainingDate').value;
+    const snapshot={selected:[...selected],selectedCoaches:[...selectedCoaches],allocation,goalies,goalieCount};
+    saveQueue=saveQueue.then(async()=>{
+      const saved=await SharedTraining.save(date,{...snapshot,revision});
+      revision=saved.revision;
+      $('trainingStatus').textContent='Träningen är sparad för laget.';
+    }).catch(error=>{$('trainingStatus').textContent='Kunde inte spara: '+error.message;});
+  }
   function renderRoster() {
     const root=$('trainingRoster');root.replaceChildren();
     for(const p of players){
