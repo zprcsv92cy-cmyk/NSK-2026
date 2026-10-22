@@ -18,9 +18,13 @@ test('preview D1 binding is the isolated integration database, not the prepared 
 });
 
 
-test('preview Baserow mapping is intentionally absent until isolated credentials and IDs are verified',()=>{
- assert.doesNotMatch(manifest,/^BASEROW_DATABASE_ID\s*=/m);
- assert.doesNotMatch(manifest,/^BASEROW_TABLE_IDS\s*=/m);
+test('preview Baserow mapping points only to the isolated test database and tables',()=>{
+ assert.match(manifest,/^BASEROW_DATABASE_ID\s*=\s*"599495"\s*$/m);
+ assert.match(manifest,/^BASEROW_TABLE_IDS\s*=/m);
+ assert.doesNotMatch(manifest,/^BASEROW_DATABASE_ID\s*=\s*"589073"\s*$/m);
+ for (const productionTableId of [1255083,1255098,1255100,1255101,1255109,1255113,1255115,1255119,1255152,1255157]) {
+  assert.doesNotMatch(manifest,new RegExp(':'+productionTableId+'(?=[,}])'));
+ }
 });
 
 test('preview launch workflow enforces the Baserow readiness gate before Cloudflare access',()=>{

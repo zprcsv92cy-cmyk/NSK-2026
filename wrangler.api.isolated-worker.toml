@@ -1,0 +1,41 @@
+# Dedicated isolated NSK API Worker. NOT production. Do not deploy until token scope and positive-write checks pass.
+name = "nsk-api-isolated-preview"
+main = "worker/production-api-v42-reference.js"
+compatibility_date = "2026-10-10"
+workers_dev = true
+
+[vars]
+BASEROW_DATABASE_ID = "599495"
+BASEROW_TABLE_IDS = "{\"lag\":1273707,\"spelare\":1273713,\"tranare\":1273716,\"poolspel\":1273721,\"matcher\":1273723,\"laguppstallningar\":1273725,\"bytesschema\":1273726,\"malvaktsstatistik\":1273727,\"spelaretranare\":1273728,\"matchkonfiguration\":1273730}"
+NSK_PREVIEW_ISOLATED = "true"
+NSK_ISOLATED_MODE = "true"
+NSK_REQUIRE_SCOPED_ROSTER_READS = "true"
+NSK_REQUIRE_SCOPED_TEAM_READS = "true"
+NSK_REQUIRE_SCOPED_COLLECTION_READS = "true"
+NSK_REQUIRE_PERSONAL_POOL_WRITES = "true"
+NSK_REQUIRE_PERSONAL_MATCH_WRITES = "true"
+NSK_REQUIRE_PERSONAL_COACH_SELECTION = "true"
+NSK_ENABLE_SHARED_TRAINING = "false"
+
+[[d1_databases]]
+binding = "AUTH_DB"
+database_name = "nsk-integration-isolated-20261018"
+database_id = "b94c8dba-34be-4cff-a4e9-892caf4e3ddd"
+
+[[kv_namespaces]]
+binding = "ADMIN_KV"
+id = "8b079c75ed6c4d4695476f1de24089fd"
+
+[[kv_namespaces]]
+binding = "NSK_TRAINERS"
+id = "e8772468a0004f0ea78b02a5251eadf7"
+
+[[durable_objects.bindings]]
+name = "SHIFT_LOCK"
+class_name = "ShiftLock"
+
+[[migrations]]
+tag = "isolated-shiftlock-v1"
+new_sqlite_classes = ["ShiftLock"]
+
+# BASEROW_TOKEN is an existing Cloudflare Worker secret. Never commit its value.
