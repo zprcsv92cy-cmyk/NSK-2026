@@ -70,7 +70,7 @@ async function checkAppVersion() {
     const loaded = String(window.NSK_VERSION || "");
     // The deployed manifest is authoritative. An installed iPhone PWA may
     // still execute an older cached version.js after a successful release.
-    if (/^[1-9]\\d*$/.test(published)) {
+    if (/^[1-9]\d*$/.test(published)) {
       const label = document.getElementById("nsk-current-version");
       if (label) label.textContent = "NSK-2026 · version " + published;
     }
