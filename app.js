@@ -29,10 +29,27 @@ function showNskUpdate(version) {
     notice.setAttribute("role", "status");
     notice.innerHTML = '<span id="nsk-update-message"></span><button type="button" id="nsk-update-now">Uppdatera nu</button><button type="button" id="nsk-update-later">Senare</button>';
     document.body.appendChild(notice);
-    notice.querySelector("#nsk-update-now").addEventListener("click", () => {
+    notice.querySelector("#nsk-update-now").addEventListener("click", async () => {
       const next = new URL(location.href);
       next.searchParams.set("nsk_v", nskPendingVersion);
-      // Bara ett uttryckligt knapptryck får ladda om sidan.
+      const button = notice.querySelector("#nsk-update-now");
+      button.disabled = true;
+      button.textContent = "Uppdaterar…";
+      // Ta bort gamla offline-cacher först efter användarens uttryckliga val.
+      // En installerad iPhone-app kan annars fortsätta starta från en gammal shell.
+      try {
+        if ("serviceWorker" in navigator) {
+          const registrations = await navigator.serviceWorker.getRegistrations();
+          const scope = new URL(nskVersionRoot()).href;
+          await Promise.all(registrations.filter(reg => reg.scope === scope).map(reg => reg.unregister()));
+        }
+        if ("caches" in window) {
+          const keys = await caches.keys();
+          await Promise.all(keys.filter(key => key.startsWith("nsk-team18-")).map(key => caches.delete(key)));
+        }
+      } catch (err) {
+        console.warn("Kunde inte rensa äldre appcache", err);
+      }
       location.replace(next.href);
     });
     notice.querySelector("#nsk-update-later").addEventListener("click", () => {
