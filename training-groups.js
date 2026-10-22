@@ -35,6 +35,7 @@
     const date=$('trainingDate').value;
     if(goalies.filter(Boolean).length!==goalieCount){$('trainingStatus').textContent='Välj namn för alla målvakter innan träningen sparas.';return;}
     const snapshot={selected:[...selected],selectedCoaches:[...selectedCoaches],allocation:allocation.map(group=>[...group]),goalies:[...goalies],goalieCount};
+    $('trainingStatus').textContent='Sparar träningen…';
     saveQueue=saveQueue.then(async()=>{
       if(saveBlocked)return;
       const saved=await SharedTraining.save(date,{...snapshot,revision});
@@ -129,13 +130,19 @@
 
   // Import is explicitly reviewed before any attendance state is changed.
   let importMatches=[];
+  const normalizeImportLine = line => String(line||'')
+    .replace(/^\s*(?:[•*✓✔☑-]|\d+[.)])\s*/, '')
+    .replace(/\s*\|.*$/, '')
+    .replace(/\s*[-–]\s*(ass\.?\s*tranare|huvudtranare|materialare|lagledare).*$/i, '')
+    .replace(/\s*\((?:spelare|tränare|kommer)\)\s*$/i, '')
+    .trim();
   const normalized = value => String(value||'').normalize('NFKD').replace(/[\u0300-\u036f]/g,'').toLocaleLowerCase('sv-SE').replace(/[^a-z0-9 ]/g,' ').replace(/\s+/g,' ').trim();
   function importCandidates(text){
     const roster=[...players.map(p=>({...p,kind:'player'})),...coaches.map(p=>({...p,kind:'coach'}))];
     const lines=String(text||'').split(/\n/).map(x=>x.trim()).filter(Boolean);
     const found=new Map();
     for(const line of lines){
-      const cleaned=normalized(line.replace(/\s*\|.*$/,'').replace(/\s*[-–]\s*(ass\.?\s*tranare|huvudtranare|materialare|lagledare).*$/i,''));
+      const cleaned=normalized(normalizeImportLine(line));
       if(!cleaned||cleaned.length<3||/^(kommer|kan ej|kallade|anmalda|anmalan|kalender|samling|svara senast)$/.test(cleaned))continue;
       const matches=roster.filter(p=>{
         const full=normalized(p.full_name);
