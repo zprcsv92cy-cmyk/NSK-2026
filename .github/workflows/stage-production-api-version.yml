@@ -61,7 +61,8 @@ jobs:
             assert.match(app,new RegExp('REQUIRE_PERSONAL_'+name+': false'));
             assert.match(api,new RegExp('NSK_REQUIRE_PERSONAL_'+name+' = "false"'));
           }
-          assert.match(app,/REQUIRE_PERSONAL_ROSTER_WRITES: false/);
+          // Personal roster writes are already enabled in production; require the protected flow.
+          assert.match(app,/REQUIRE_PERSONAL_ROSTER_WRITES: true/);
           NODE
       - name: Confirm remote production bindings have not drifted
         env:
