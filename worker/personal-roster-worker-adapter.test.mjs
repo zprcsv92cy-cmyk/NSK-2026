@@ -164,3 +164,33 @@ test('worker adapter rejects foreign team query before roster mutation', async (
   assert.equal(x.result.status, 502);
   assert.equal(x.rosterWrites, 0);
 });
+
+
+test('roster DELETE requires personal membership and never invokes legacy mutation', async () => {
+  const denied = await run(req('DELETE', '/api/spelare/17'), env('viewer'));
+  assert.equal(denied.result.status, 403);
+  assert.equal(denied.rosterWrites, 0);
+});
+
+test('roster PATCH without personal bearer is denied before mutation', async () => {
+  const denied = await run(req('PATCH', '/api/tranare/17', null));
+  assert.equal(denied.result.status, 401);
+  assert.equal(denied.rosterWrites, 0);
+});
+
+test('staff PATCH with missing personal login cannot mutate KV', async () => {
+  const request = new Request('https://example.test/api/lagpersonal?team_id=18', {
+    method: 'PATCH',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ id: '123e4567-e89b-12d3-a456-426614174000', role: 'Lagledare' })
+  });
+  const denied = await run(request);
+  assert.equal(denied.result.status, 401);
+  assert.equal(denied.staffWrites, 0);
+});
+
+test('foreign team player DELETE is rejected before mutation', async () => {
+  const denied = await run(req('DELETE', '/api/spelare/17'), env(), { Lag: [{ id: 2 }] });
+  assert.equal(denied.result.status, 502);
+  assert.equal(denied.rosterWrites, 0);
+});
