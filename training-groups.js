@@ -169,13 +169,9 @@
   function initImport(){
     // Never retain preview object URLs or selected image references after processing.
     function clearImportImages(){
-      const root=$('trainingImportPreviews');
-      for(const img of root.querySelectorAll('img[data-object-url]'))URL.revokeObjectURL(img.dataset.objectUrl);
-      root.replaceChildren();
       $('trainingImportImages').value='';
     }
     $('trainingImportImages').addEventListener('change',()=>{
-      const root=$('trainingImportPreviews');root.replaceChildren();
       // No preview is created: screenshots are only read transiently for OCR.
       $('trainingImportApply').disabled=true;
       $('trainingImportReview').replaceChildren();
