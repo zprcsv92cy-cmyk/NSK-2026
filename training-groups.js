@@ -132,7 +132,7 @@
   async function readImageText(){
     const files=[...$('trainingImportImages').files];
     if(!files.length)return '';
-    if(typeof window.TextDetector!=='function')return '';
+    if(typeof window.TextDetector!=='function')return ''; // Optional local OCR; never upload images.
     const detector=new window.TextDetector();
     const texts=[];
     for(const file of files){
