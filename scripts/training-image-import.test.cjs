@@ -66,3 +66,10 @@ test('failed shared save blocks subsequent writes and date changes',()=>{
 test('incomplete goalie selections are not sent to shared storage',()=>{
  assert.match(js,/goalies\.filter\(Boolean\)\.length!==goalieCount/);
 });
+
+
+test('training date responses must be ignored after date changes',()=>{
+ const source=fs.readFileSync('training-groups.js','utf8');
+ assert.match(source,/const date=\$\('trainingDate'\)\.value;[\s\S]*?SharedTraining\.get\(date\)/);
+ assert.match(source,/if\(\$\('trainingDate'\)\.value!==date\)return/);
+});
