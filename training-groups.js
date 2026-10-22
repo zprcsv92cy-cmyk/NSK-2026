@@ -167,14 +167,16 @@
     $('trainingImportApply').disabled=!matches.length;
   }
   function initImport(){
+    // Never retain preview object URLs or selected image references after processing.
+    function clearImportImages(){
+      const root=$('trainingImportPreviews');
+      for(const img of root.querySelectorAll('img[data-object-url]'))URL.revokeObjectURL(img.dataset.objectUrl);
+      root.replaceChildren();
+      $('trainingImportImages').value='';
+    }
     $('trainingImportImages').addEventListener('change',()=>{
       const root=$('trainingImportPreviews');root.replaceChildren();
-      for(const file of $('trainingImportImages').files){
-        if(!file.type.startsWith('image/'))continue;
-        const img=document.createElement('img');img.className='training-import-preview';img.alt='Vald skärmbild från SvenskaLag';
-        const url=URL.createObjectURL(file);img.src=url;img.addEventListener('load',()=>URL.revokeObjectURL(url),{once:true});
-        root.append(img);
-      }
+      // No preview is created: screenshots are only read transiently for OCR.
       $('trainingImportApply').disabled=true;
       $('trainingImportReview').replaceChildren();
     });
@@ -184,9 +186,14 @@
       let text=$('trainingImportText').value;
       try{
         const detected=await readImageText();
-        if(detected){text+=(text?'\n':'')+detected;$('trainingImportText').value=text;}
-      }catch(error){$('trainingImportStatus').textContent=(error.message||'Kunde inte läsa bildtext')+' Skriv namnen i textrutan.';}
+        if(detected)text+=(text?'\n':'')+detected;
+      }catch(error){
+        $('trainingImportStatus').textContent=(error.message||'Kunde inte läsa bildtext')+' Skriv namnen i textrutan.';
+      }finally{
+        clearImportImages();
+      }
       importMatches=importCandidates(text);
+      text=''; // OCR output is never copied to a field or persisted.
       showImportReview(importMatches);
       $('trainingImportStatus').textContent=importMatches.length
         ?importMatches.length+' unika namn matchade. Kontrollera markeringarna och bekräfta. Övriga närvaroval ändras inte.'
@@ -202,6 +209,9 @@
       allocation=[];persist();renderRoster();renderCoaches();renderGoalieSelectors();renderGroups();
       $('trainingImportStatus').textContent=checks.length+' deltagare markerade som Kommer. Tidigare markeringar har behållits.';
       $('trainingImportApply').disabled=true;
+      importMatches=[];
+      $('trainingImportText').value='';
+      clearImportImages();
     });
   }
 
