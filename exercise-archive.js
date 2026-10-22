@@ -271,12 +271,13 @@
     card.append(text('p',entry.description));
     const actions=document.createElement('div');actions.className='archive-actions';
     const link=document.createElement('a');
-    link.href=entry.hasDirectLink?entry.sourceUrl:entry.searchUrl;
+    if(entry.hasDirectLink)link.href=entry.sourceUrl;
     link.target='_blank';link.rel='noopener noreferrer';
     link.className='archive-source-link';
-    link.textContent=entry.hasDirectLink?'Visa rätt originalövning ↗':'Sök efter just denna övning ↗';
+    link.textContent='Visa originalövning ↗';
+    if(!entry.hasDirectLink){link.removeAttribute('href');link.setAttribute('aria-disabled','true');link.style.opacity='0.55';link.style.pointerEvents='none';}
     if(!entry.hasDirectLink){
-      card.append(text('p','Direktlänken är ännu inte verifierad. Sökningen använder exakt övningsnamn på Hockeyakademins webbplats och visar möjliga träffar.','small'));
+      card.append(text('p','Originaladressen är ännu inte verifierad. Länken aktiveras när rätt originalövning har identifierats.','small'));
     }
     actions.append(link);card.append(actions);return card;
   }
