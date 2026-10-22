@@ -19,3 +19,8 @@ test('group allocation uses arrays and rejects repeated or unknown players',()=>
  assert.equal(validateTrainingPayload({...grouped,allocation:[['4'],[],[]]}),false);
  assert.equal(validateTrainingPayload({...grouped,allocation:[['1'],['2'],[]]}),false);
 });
+
+test('goalie count must match confirmed goalie names',()=>{
+ assert.equal(validateTrainingPayload({...good,goalieCount:2}),false);
+ assert.equal(validateTrainingPayload({...good,goalieCount:0,goalies:[]}),true);
+});
