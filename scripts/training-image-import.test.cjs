@@ -19,7 +19,7 @@ test('OCR uses local worker and releases it',()=>{
  assert.match(js,/await worker\.terminate\(\)/);
  assert.match(js,/worker\.recognize\(files\[i\]\)/);
 });
-test('manual text fallback and private browser storage remain available',()=>{
+test('manual text fallback and shared attendance saving remain available',()=>{
  assert.match(js,/trainingImportText/);
  assert.match(js,/localStorage\.setItem\(storageKey\(\)/);
 });
