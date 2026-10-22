@@ -23,3 +23,15 @@ test('training API rejects unsupported methods and unknown routes',async()=>{
  assert.equal((await handler(request('/api/training?team_id=18','DELETE'))).status,405);
  assert.equal((await handler(request('/api/other?team_id=18'))).status,404);
 });
+
+
+test('training API denies malformed Bearer credentials before database access',async()=>{
+ for(const token of ['Bearer','Bearer ','Basic abc','Bearer abc def','Bearer abc\\tdef']){
+  const response=await handler(request('/api/training?team_id=18','GET',token));
+  assert.equal(response.status,401,token);
+ }
+});
+
+test('training API rejects writes without a date before authorization',async()=>{
+ assert.equal((await handler(request('/api/training?team_id=18','PUT','Bearer token'))).status,400);
+});
