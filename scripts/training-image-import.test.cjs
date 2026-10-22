@@ -21,7 +21,8 @@ test('OCR uses local worker and releases it',()=>{
 });
 test('manual text fallback and shared attendance saving remain available',()=>{
  assert.match(js,/trainingImportText/);
- assert.match(js,/localStorage\.setItem\(storageKey\(\)/);
+ assert.match(js,/SharedTraining\.save\(date/);
+ assert.doesNotMatch(js,/localStorage\.setItem\(/);
 });
 
 test('selected screenshots are discarded and never previewed or stored',()=>{
