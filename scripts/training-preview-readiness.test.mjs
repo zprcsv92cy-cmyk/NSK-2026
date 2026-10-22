@@ -16,3 +16,15 @@ test('preview D1 binding is the isolated integration database, not the prepared 
  assert.match(manifest,/database_id = "b94c8dba-34be-4cff-a4e9-892caf4e3ddd"/);
  assert.doesNotMatch(manifest,/database_id = "c00ba406-8210-49ba-a0e2-03b838e7934e"/);
 });
+
+
+test('preview Baserow mapping is intentionally absent until isolated credentials and IDs are verified',()=>{
+ assert.doesNotMatch(manifest,/^BASEROW_DATABASE_ID\s*=/m);
+ assert.doesNotMatch(manifest,/^BASEROW_TABLE_IDS\s*=/m);
+});
+
+test('preview launch workflow enforces the Baserow readiness gate before Cloudflare access',()=>{
+ const gate=workflow.indexOf('node scripts/isolated-preview-baserow-gate.mjs');
+ const cloudflare=workflow.indexOf('Require Cloudflare Actions credentials');
+ assert.ok(gate>=0&&cloudflare>gate);
+});
