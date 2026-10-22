@@ -9,7 +9,9 @@
   let goalies = [];
   let goalieCount = 0;
   async function restore(){
-    const response=await SharedTraining.get($('trainingDate').value);
+    const date=$('trainingDate').value;
+    const response=await SharedTraining.get(date);
+    if($('trainingDate').value!==date)return;
     const data=response.session||{};
     const allowed=new Set(players.map(p=>String(p.id)));
     const allowedCoaches=new Set(coaches.map(p=>String(p.id)));
