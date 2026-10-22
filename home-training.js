@@ -26,7 +26,7 @@
       root.innerHTML=sessions.map(s=>'<details class="nsk-pool-row" data-date="'+encodeURIComponent(s.date)+'"><summary class="nsk-pool-summary"><span class="nsk-pool-name">Träning • '+escapeHtml(s.date)+'</span><span class="nsk-pool-hall">'+s.players+' spelare, '+s.coaches+' tränare</span><span class="nsk-pool-chevron" aria-hidden="true">⌄</span></summary><div class="nsk-pool-content"><p data-training-info>Öppna för att visa träningsuppgifter.</p><div class="nsk-pool-actions"><a class="home-create-button" href="../traningsgrupper/?date='+encodeURIComponent(s.date)+'">Visa / redigera träning</a></div></div></details>').join('');
       root.addEventListener('toggle',async event=>{
         const details=event.target;
-        if(!(details instanceof HTMLDetailsElement)||!details.open||details.dataset.loaded)return;
+        if(!(details instanceof HTMLDetailsElement)||!details.open||details.dataset.loaded==='pending')return;
         const date=details.dataset.date;
         const info=details.querySelector('[data-training-info]');
         if(!info||!date)return;
@@ -40,7 +40,7 @@
           if(!session)throw Error('Träningen finns inte längre');
           const groups=Array.isArray(session.allocation)?session.allocation.length:0;
           info.textContent=(session.selected||[]).length+' spelare • '+(session.selectedCoaches||[]).length+' tränare • '+(Number(session.goalieCount)||0)+' målvakter • '+groups+' grupper';
-          details.dataset.loaded='yes';
+          delete details.dataset.loaded;
         }catch(error){delete details.dataset.loaded;info.textContent=error.message||'Kunde inte hämta träningsuppgifter';}
       },true);
     }catch(error){root.textContent='Kunde inte läsa sparade träningar: '+(error.message||String(error));}
