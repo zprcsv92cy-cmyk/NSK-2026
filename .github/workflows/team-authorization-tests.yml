@@ -25,6 +25,10 @@ jobs:
           node --test scripts/shift-client-auth.test.mjs
           node --test scripts/pool-save-permission-ui.test.mjs
           node --check worker/production-api-v42-reference.js
+          node --check training-groups.js
+          node --check shared-training.js
+          node --check home-training.js
+          node --test scripts/training-session-validation.test.mjs scripts/training-permission-policy.test.mjs scripts/training-api-route.test.mjs
           node --test worker/production-api-staff-route.test.mjs
           node --experimental-default-type=module --test worker/production-personal-write-route-isolation.test.mjs
           node --experimental-default-type=module --test worker/production-personal-write-team-matrix.test.mjs
