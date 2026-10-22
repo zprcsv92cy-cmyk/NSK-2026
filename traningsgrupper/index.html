@@ -14,7 +14,7 @@ document.write('<script src="../db.js?v='+window.NSK_VERSION+'"><\/script>');
 document.write('<script src="../training-groups.js?v='+window.NSK_VERSION+'"><\/script>');
 </script>
 <style>
-.training-controls{display:flex;gap:12px;flex-wrap:wrap;align-items:end}
+.training-import-preview{max-width:100%;max-height:350px;object-fit:contain;display:block;margin:10px 0}.training-import-review{display:grid;gap:7px;margin:10px 0}.training-import-review label{display:flex;gap:8px;align-items:center}.training-import-review input{width:20px;height:20px}.training-controls{display:flex;gap:12px;flex-wrap:wrap;align-items:end}
 .training-controls label{flex:1 1 160px}
 .training-controls input,.training-controls select{width:100%;margin-top:5px}
 .training-count{font-size:1.15rem;font-weight:700;margin:10px 0}
@@ -47,7 +47,7 @@ document.write('<script src="../training-groups.js?v='+window.NSK_VERSION+'"><\/
 <label>Träningsdatum<input id="trainingDate" type="date"></label>
 <label>Antal målvakter<select id="trainingGoalieCount"><option value="0">0 målvakter</option><option value="1">1 målvakt</option><option value="2">2 målvakter</option></select></label>
 </div>
-<p id="trainingStatus" role="status" aria-live="polite">Hämtar spelare…</p>
+<section class="no-print" aria-label="Importera närvaro"><h2>Importera närvaro från SvenskaLag</h2><p class="small">Välj en eller flera skärmbilder från fliken Kommer. Bilderna behandlas på din enhet och skickas inte till någon extern tjänst. Om webbläsaren saknar bildtextigenkänning kan du skriva eller klistra in namnen nedan.</p><input id="trainingImportImages" type="file" accept="image/*" multiple aria-label="Välj skärmbilder"><div id="trainingImportPreviews"></div><label for="trainingImportText">Namn från listan Kommer (ett namn per rad)</label><textarea id="trainingImportText" rows="5" style="width:100%" placeholder="Exempel: Oliver E"></textarea><div class="training-actions"><button type="button" id="trainingImportRead">Läs bildtext / granska namn</button><button type="button" id="trainingImportApply" disabled>Bekräfta import</button></div><p id="trainingImportStatus" role="status" aria-live="polite"></p><div id="trainingImportReview" class="training-import-review"></div></section><p id="trainingStatus" role="status" aria-live="polite">Hämtar spelare…</p>
 <p class="small">Markera de spelare som kommer. Uppgifterna sparas tills vidare endast i den här webbläsaren, inte gemensamt mellan ledare.</p>
 <h2>Spelare som kommer</h2><p class="training-count" id="trainingCount">0 anmälda</p>
 <div class="training-roster" id="trainingRoster"></div>
