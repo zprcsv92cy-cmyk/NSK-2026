@@ -55,6 +55,7 @@ jobs:
       - name: Run existing client safety and functionality tests
         run: |
           set -euo pipefail
+          node --test scripts/frontend-regression-guard.test.cjs
           node --check app.js
           node --check auth.js
           node --check login-gate.js
