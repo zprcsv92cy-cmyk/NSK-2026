@@ -32,3 +32,8 @@ test('selected screenshots are discarded and never previewed or stored',()=>{
  assert.match(js,/finally\s*\{\s*clearImportImages\(\)/);
  assert.doesNotMatch(js,/trainingImportText'\)\.value=text/);
 });
+
+test('privacy: image input is cleared on early exit and when replacing selection',()=>{
+ assert.match(js,/if\(!players\.length&&!coaches\.length\)\{clearImportImages\(\)/);
+ assert.match(js,/trainingImportImages'\)\.addEventListener\('change',[\s\S]*?importMatches=\[\]/);
+});
