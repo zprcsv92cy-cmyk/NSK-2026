@@ -33,15 +33,23 @@ test('legacy roster reads remain unchanged while feature is off', async()=>exerc
 test('scoped roster reads send numeric team and bearer token', async()=>exercise(true,true));
 test('scoped roster reads fail closed without login', async()=>exercise(true,false));
 
-test('scoped roster rejects missing active team before roster fetch', async () => {
+test('scoped roster uses fixed Team 18 even when no team was selected', async () => {
   const requests = [];
   const sandbox = {
     window: { APP_CONFIG: { API_URL: 'https://api.invalid', REQUIRE_SCOPED_ROSTER_READS: true },
       Auth: { getToken: () => token, activeTeam: () => null } },
-    fetch: async (...args) => { requests.push(args); throw Error('unexpected request'); },
+    fetch: async (url, options) => {
+      requests.push({url, options});
+      if (url.includes('/api/lag?')) return {ok:true,json:async()=>({ok:true,results:[{id:18,Namn:'NSK Team 18','Säsong':'2026'}],next:null})};
+      if (url.includes('/api/spelare?')) return {ok:true,json:async()=>({ok:true,results:[],next:null})};
+      throw Error('unexpected request');
+    },
     URL, console
   };
   vm.runInNewContext(source, sandbox);
-  await assert.rejects(() => sandbox.window.DB.listPlayers(), /Välj ett lag/);
-  assert.equal(requests.length, 0);
+  await sandbox.window.DB.listPlayers();
+  const roster = requests.find(r => r.url.includes('/api/spelare?'));
+  assert.ok(roster);
+  assert.match(roster.url, /team_id=18/);
+  assert.equal(roster.options.headers.Authorization, 'Bearer '+token);
 });
