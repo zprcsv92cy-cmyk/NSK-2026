@@ -83,6 +83,72 @@
     }
   ];
 
+  // Curated source links and original NSK summaries; no Hockeyakademin images/PDFs are copied.
+  const academyItems = [
+    {
+      "title": "Skridskocirkeln",
+      "category": "Skridskoteknik",
+      "age": "U9–U12",
+      "description": "Skridskoåkning och vändningar runt tekningscirkeln. Träna balans, framåt- och baklängesåkning i små grupper.",
+      "sourceUrl": "https://hockeyakademin.se/ovningar/cirkelklockan"
+    },
+    {
+      "title": "Passnings virr-varr",
+      "category": "Passningar",
+      "age": "U9–U12",
+      "description": "Små grupper passar pucken under fri rörelse på isen. Fokus på kommunikation, uppsikt och mottagning.",
+      "sourceUrl": "https://hockeyakademin.se/ovningar/passnings-virr-varr"
+    },
+    {
+      "title": "Smålagsspel – ett mål",
+      "category": "Smålagsspel",
+      "age": "TKH/U9–U12",
+      "description": "Spel på avgränsad yta där lagen arbetar mot samma mål. Anpassa antalet spelare till gruppens nivå.",
+      "sourceUrl": "https://hockeyakademin.se/ovningar/smalagsspel-ett-mal"
+    },
+    {
+      "title": "Smålagsspel – klassiskt",
+      "category": "Smålagsspel",
+      "age": "TKH/U9–U12",
+      "description": "Korta spel med små lag och många puckkontakter. Variera lagstorlek och hur målen står placerade.",
+      "sourceUrl": "https://hockeyakademin.se/ovningar/smalagsspel-klassiskt"
+    },
+    {
+      "title": "1 mot 1 genom hinderbana",
+      "category": "Skridskoteknik",
+      "age": "TKH/U9–U12",
+      "description": "Två spelare åker genom en utmanande bana och tävlar sedan om pucken. Träna skridskor, balans och spelförståelse.",
+      "sourceUrl": "https://hockeyakademin.se/ovningar/1-mot-1-2"
+    },
+    {
+      "title": "1 mot 1 – närkampsspel",
+      "category": "Spelsituationer",
+      "age": "U9–U12",
+      "description": "Spelare utmanar varandra med puck. Fokus på balans, klubba mot puck och positionering framför eget mål.",
+      "sourceUrl": "https://hockeyakademin.se/ovningar/1-mot-1-3"
+    },
+    {
+      "title": "3 mot 3 – smålagsspel",
+      "category": "Smålagsspel",
+      "age": "U9–U12",
+      "description": "Tre mot tre på begränsad isyta. Träna spelbarhet, puckvinst och snabba beslut med korta byten.",
+      "sourceUrl": "https://hockeyakademin.se/ovningar/3-mot-3-2"
+    },
+    {
+      "title": "Färdigt ispass – fyra stationer",
+      "category": "Uppvärmning",
+      "age": "U9–U12",
+      "description": "Ett stationspass med skridskoåkning, puckkontroll, närkampsmoment och smålagsspel. Följ originalets stationsupplägg.",
+      "sourceUrl": "https://hockeyakademin.se/ovningar/stationstraning-4-ytor"
+    },
+    {
+      "title": "Färdigt ispass – fem stationer",
+      "category": "Uppvärmning",
+      "age": "U9–U12",
+      "description": "Färdig stationsstruktur med puckteknik, skott och flera smålagsspel. Använd originalet för stationsritningarna.",
+      "sourceUrl": "https://hockeyakademin.se/ovningar/stationstraning-5-ytor"
+    }
+  ];
   const $ = id=>document.getElementById(id);
   let previewUrl=null, previewPreviousFocus=null, previewEntry=null;
   const dbName='nsk_exercise_files_v1',store='files';
@@ -155,6 +221,16 @@
     $('exercisePreviewClose').focus();
   }
 
+  function makeAcademyCard(entry){
+    const card=document.createElement('article');card.className='archive-item';
+    card.append(text('h3',entry.title));
+    card.append(text('p',entry.category+' · '+entry.age+' · Hockeyakademin','small'));
+    card.append(text('p',entry.description));
+    const actions=document.createElement('div');actions.className='archive-actions';
+    const link=document.createElement('a');link.href=entry.sourceUrl;link.target='_blank';link.rel='noopener noreferrer';
+    link.className='archive-source-link';link.textContent='Visa original och övningsritning ↗';
+    actions.append(link);card.append(actions);return card;
+  }
   function makeCard(entry,uploaded,index=0){
     const card=document.createElement('article');card.className='archive-item';
     card.append(text('h3',entry.title),text('p',entry.category+(uploaded?'':' · '+entry.minutes+' min'),'small'),text('p',entry.description));
@@ -185,14 +261,19 @@
     card.append(buttons);return card;
   }
   async function render(){
+    const source=$('exerciseAcademyList');source.replaceChildren();
+    const selected=$('exerciseSource').value;
+    if(selected!=='nsk')for(const entry of academyItems.filter(match))source.append(makeAcademyCard(entry));
+    if(selected==='nsk')source.append(text('p','Visa alla källor eller välj Hockeyakademin för att se originalövningarna.'));
+    if(selected==='academy'&&!academyItems.some(match))source.append(text('p','Inga övningar matchar sökningen.'));
     const list=$('exerciseList');list.replaceChildren();
-    for(const [index,entry] of items.entries())if(match(entry))list.append(makeCard(entry,false,index));
+    if(selected!=='academy')for(const [index,entry] of items.entries())if(match(entry))list.append(makeCard(entry,false,index));
     const container=$('exerciseUserFiles');container.replaceChildren();
     try{
       const files=(await getFiles()).sort((a,b)=>b.created-a.created);
-      for(const entry of files.filter(match))container.append(makeCard(entry,true));
+      for(const entry of (selected==='academy'?[]:files.filter(match)))container.append(makeCard(entry,true));
       if(!files.length)container.append(text('p','Inga egna filer sparade ännu.'));
-      $('exerciseStatus').textContent=items.filter(match).length+' färdiga övningar · '+files.filter(match).length+' egna filer';
+      $('exerciseStatus').textContent=(selected==='nsk'?0:academyItems.filter(match).length)+' Hockeyakademin · '+(selected==='academy'?0:items.filter(match).length)+' NSK · '+(selected==='academy'?0:files.filter(match).length)+' egna filer';
     }catch{container.append(text('p','Filarkivet kunde inte öppnas i den här webbläsaren.'));$('exerciseStatus').textContent='De färdiga övningarna är tillgängliga.';}
   }
   document.addEventListener('DOMContentLoaded',()=>{
@@ -210,6 +291,7 @@
     });
     $('exerciseSearch').addEventListener('input',render);
     $('exerciseCategory').addEventListener('change',render);
+    $('exerciseSource').addEventListener('change',render);
     $('exerciseUpload').addEventListener('submit',async event=>{
       event.preventDefault();const file=$('exerciseFile').files[0];
       const allowed=/\.(pdf|doc|docx|txt|png|jpe?g|webp)$/i;
