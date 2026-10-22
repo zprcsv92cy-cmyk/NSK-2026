@@ -32,3 +32,11 @@ Status: **INTE DRIFTSATT**. GitHub PR #269 har godkända bygg- och behörighetsk
 ## Nuvarande blockeringar
 
 Preview-workflowen är låst, Baserow-mappning och isolerad token saknas i manifestet, och produktionens D1-migrering är inte utförd. Att koden kan mergas tekniskt innebär inte att gemensamma träningar fungerar i produktion.
+
+## Kontroll utan Cloudflare-anslutning i ChatGPT
+
+GitHub-kodkontroll räcker inte för att slå på gemensam lagring. Cloudflare MCP:s `temporarily_unavailable` är ett anslutningsfel, inte bevis på fel i NSK API. Använd inte produktions-D1 eller produktionens Baserow för att ersätta isolerade tester.
+
+Före ny publiceringsåtgärd: kontrollera i GitHub Actions att isolerad preview verkligen är aktiverad (workflowen innehåller i nuläget `&& false` och kör inte preview), att en separat Baserow-token och tio syntetiska tabeller är verifierade, och att positiva läs-/skrivtester med två testledare samt nekad åtkomst från annat lag och revisionskonflikt har dokumenterade resultat. Först därefter kan operatören med Cloudflare-behörighet bekräfta produktions-D1, backup, migrering och flaggaktivering i den ordningen.
+
+Om dessa bevis saknas: håll `NSK_ENABLE_SHARED_TRAINING=false`, rapportera att sparandet ännu inte är driftsatt, och låt befintlig produktionsmiljö vara oförändrad. Kräv aldrig att användaren klistrar in hemliga token i chatten.
