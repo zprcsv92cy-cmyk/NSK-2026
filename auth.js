@@ -19,18 +19,21 @@
         clear(); return null;
       }
       identity = data;
-      if (!data.memberships.some(m => m.team_id === sessionStorage.getItem(teamKey))) {
+      // NSK Team 18 is the only selectable team. Never grant membership implicitly.
+      if (data.memberships.some(m => m.team_id === 'NSK Team 18')) {
+        sessionStorage.setItem(teamKey, 'NSK Team 18');
+      } else {
         sessionStorage.removeItem(teamKey);
       }
       return identity;
     } catch { identity = null; return null; }
   }
   function activeTeam() {
-    const team = sessionStorage.getItem(teamKey);
-    return identity?.memberships?.some(m => m.team_id === team) ? team : null;
+    return identity?.memberships?.some(m => m.team_id === 'NSK Team 18') ? 'NSK Team 18' : null;
   }
   function selectTeam(team) {
-    if (!identity?.memberships?.some(m => m.team_id === team)) throw new Error('Saknar åtkomst till laget');
+    if (team !== 'NSK Team 18' || !identity?.memberships?.some(m => m.team_id === team))
+      throw new Error('Endast NSK Team 18 är tillgängligt');
     sessionStorage.setItem(teamKey, team);
     return team;
   }
