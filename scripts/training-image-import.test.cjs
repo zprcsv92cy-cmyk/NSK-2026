@@ -48,3 +48,21 @@ test('queued training saves snapshot group and goalie arrays',()=>{
  assert.match(js,/allocation:allocation\.map\(group=>\[\.\.\.group\]\)/);
  assert.match(js,/goalies:\[\.\.\.goalies\]/);
 });
+
+
+test('shared training save is blocked until selected date is loaded',()=>{
+ assert.match(js,/let loadedDate=''/);
+ assert.match(js,/loadedDate=\$\('trainingDate'\)\.value/);
+ assert.match(js,/\$\('trainingDate'\)\.value!==loadedDate/);
+});
+
+test('failed shared save blocks subsequent writes and date changes',()=>{
+ assert.match(js,/let saveBlocked=false/);
+ assert.match(js,/saveBlocked=true/);
+ assert.match(js,/if\(saveBlocked\)throw Error/);
+ assert.match(js,/if\(saveBlocked\)\{/);
+});
+
+test('incomplete goalie selections are not sent to shared storage',()=>{
+ assert.match(js,/goalies\.filter\(Boolean\)\.length!==goalieCount/);
+});
