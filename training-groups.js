@@ -23,7 +23,9 @@
   }
   let revision=0;
   let saveQueue=Promise.resolve();
+  let saveBlocked=false;
   function persist(){
+    if(saveBlocked){$('trainingStatus').textContent='Sparning stoppad efter konflikt. Ladda om sidan innan du ändrar träningen igen.';return;}
     const date=$('trainingDate').value;
     if(goalies.filter(Boolean).length!==goalieCount){$('trainingStatus').textContent='Välj namn för alla målvakter innan träningen sparas.';return;}
     const snapshot={selected:[...selected],selectedCoaches:[...selectedCoaches],allocation:allocation.map(group=>[...group]),goalies:[...goalies],goalieCount};
@@ -31,7 +33,7 @@
       const saved=await SharedTraining.save(date,{...snapshot,revision});
       revision=saved.revision;
       $('trainingStatus').textContent='Träningen är sparad för laget.';
-    }).catch(error=>{$('trainingStatus').textContent='Kunde inte spara: '+error.message;});
+    }).catch(error=>{saveBlocked=true;$('trainingStatus').textContent='Kunde inte spara: '+error.message+' Ladda om sidan för att hämta den senaste träningen.';});
   }
   function renderRoster() {
     const root=$('trainingRoster');root.replaceChildren();
@@ -241,7 +243,7 @@
       team=Auth.activeTeam();
       if(!team)throw Error('Välj ett aktivt lag under Mitt konto.');
       [players,coaches]=await Promise.all([DB.listPlayers(),DB.listCoaches()]);
-      await restore();renderRoster();renderCoaches();renderGoalieSelectors();renderGroups();
+      await restore();saveBlocked=false;renderRoster();renderCoaches();renderGoalieSelectors();renderGroups();
       $('trainingStatus').textContent=players.length+' spelare och '+coaches.length+' tränare hämtade från NSK-truppen.';
     }catch(error){$('trainingStatus').textContent=error.message||'Kunde inte läsa truppen.';}
   });
