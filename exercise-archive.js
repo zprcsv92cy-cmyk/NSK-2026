@@ -271,13 +271,12 @@
     card.append(text('p',entry.description));
     const actions=document.createElement('div');actions.className='archive-actions';
     const link=document.createElement('a');
-    if(entry.hasDirectLink)link.href=entry.sourceUrl;
+    link.href=entry.hasDirectLink?entry.sourceUrl:entry.searchUrl;
     link.target='_blank';link.rel='noopener noreferrer';
     link.className='archive-source-link';
-    link.textContent='Visa originalövning ↗';
-    if(!entry.hasDirectLink){link.removeAttribute('href');link.setAttribute('aria-disabled','true');link.style.opacity='0.55';link.style.pointerEvents='none';}
+    link.textContent=entry.hasDirectLink?'Visa originalövning ↗':'Sök originalövning ↗';
     if(!entry.hasDirectLink){
-      card.append(text('p','Originaladressen är ännu inte verifierad. Länken aktiveras när rätt originalövning har identifierats.','small'));
+      card.append(text('p','Ingen verifierad direktlänk finns ännu. Sökningen visar möjliga originalträffar – kontrollera att rätt övning öppnas.','small'));
     }
     actions.append(link);card.append(actions);return card;
   }
