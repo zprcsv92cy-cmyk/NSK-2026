@@ -14,7 +14,7 @@ export function createTrainingHandler(env,listTeams){
   if(team.length!==1||! /^[1-9][0-9]*$/.test(team[0])||dates.length>1||
     (dates.length===1&&!/^\d{4}-\d{2}-\d{2}$/.test(dates[0]))||
     (request.method==='PUT'&&dates.length!==1))return fail(400,'Invalid team or date');
-  const token=/^Bearer ([A-Za-z0-9_-]{32,256})$/.exec(request.headers.get('Authorization')||'')?.[1];
+  const token=/^Bearer ([^\\s]+)$/.exec(request.headers.get('Authorization')||'')?.[1];
   if(!token)return fail(401,'Login required');
   if(!env.AUTH_DB||typeof listTeams!=='function')return fail(503,'Unavailable');
   try{
