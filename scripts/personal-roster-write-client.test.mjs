@@ -118,3 +118,10 @@ test('personal roster write aborts if the active team changes during feature aut
     assert.equal(requests.length, 0, path);
   }
 });
+
+test('staff form passes stable role keys supported by DB instead of Swedish labels', () => {
+  assert.match(page, /const roles=\[\["leader","leader"\],\["fitness","fitness"\],\["equipment","equipment"\]\]/);
+  assert.match(dbSource, /leader: 'Lagledare', fitness: 'Fysansvarig', equipment: 'Materialförvaltare'/);
+  assert.match(page, /DB\.addStaff\(role,inp\.value\.trim\(\)\)/);
+  assert.match(page, /DB\.updateStaff\(role,inp\.dataset\.staffId,newName\)/);
+});
