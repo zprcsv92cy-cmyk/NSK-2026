@@ -1,0 +1,25 @@
+name: Training image import checks
+on:
+  pull_request:
+    paths:
+      - 'training-groups.js'
+      - 'traningsgrupper/index.html'
+      - 'scripts/training-image-import.test.cjs'
+      - '.github/workflows/training-image-import-checks.yml'
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Syntax and image privacy regression checks
+        run: |
+          node --check training-groups.js
+          node --test scripts/training-image-import.test.cjs

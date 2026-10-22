@@ -108,7 +108,112 @@
     persist();renderGroups();
     $('trainingStatus').textContent='Grupperna är fördelade. Du kan slumpa om genom att trycka igen.';
   }
+
+  // Import is explicitly reviewed before any attendance state is changed.
+  let importMatches=[];
+  const normalized = value => String(value||'').normalize('NFKD').replace(/[\u0300-\u036f]/g,'').toLocaleLowerCase('sv-SE').replace(/[^a-z0-9 ]/g,' ').replace(/\s+/g,' ').trim();
+  function importCandidates(text){
+    const roster=[...players.map(p=>({...p,kind:'player'})),...coaches.map(p=>({...p,kind:'coach'}))];
+    const lines=String(text||'').split(/\n/).map(x=>x.trim()).filter(Boolean);
+    const found=new Map();
+    for(const line of lines){
+      const cleaned=normalized(line.replace(/\s*\|.*$/,'').replace(/\s*[-–]\s*(ass\.?\s*tranare|huvudtranare|materialare|lagledare).*$/i,''));
+      if(!cleaned||cleaned.length<3||/^(kommer|kan ej|kallade|anmalda|anmalan|kalender|samling|svara senast)$/.test(cleaned))continue;
+      const matches=roster.filter(p=>{
+        const full=normalized(p.full_name);
+        const parts=full.split(' ');
+        const abbreviated=parts.length>1?parts[0]+' '+parts[parts.length-1][0]:'';
+        return cleaned===full||cleaned===abbreviated;
+      });
+      if(matches.length===1)found.set(matches[0].kind+':'+matches[0].id,matches[0]);
+    }
+    return [...found.values()];
+  }
+  async function readImageText(){
+    const files=[...$('trainingImportImages').files].filter(f=>f.type.startsWith('image/'));
+    if(!files.length)return '';
+    const texts=[];
+    if(window.Tesseract?.createWorker){
+      // OCR runs locally in a Web Worker; do not send children's images to an OCR API.
+      const worker=await window.Tesseract.createWorker('swe');
+      try{
+        for(let i=0;i<files.length;i++){
+          $('trainingImportStatus').textContent='Läser bild '+(i+1)+' av '+files.length+'…';
+          const result=await worker.recognize(files[i]);
+          texts.push(result.data?.text||'');
+        }
+      }finally{await worker.terminate();}
+      return texts.join('\n');
+    }
+    if(typeof window.TextDetector==='function'){
+      const detector=new window.TextDetector();
+      for(const file of files){
+        const bitmap=await createImageBitmap(file);
+        try{const blocks=await detector.detect(bitmap);texts.push(blocks.map(b=>b.rawValue||'').join('\n'));}
+        finally{bitmap.close();}
+      }
+      return texts.join('\n');
+    }
+    throw Error('Bildtolkning kunde inte startas. Kontrollera nätanslutningen eller skriv namnen manuellt.');
+  }
+  function showImportReview(matches){
+    const root=$('trainingImportReview');root.replaceChildren();
+    for(const person of matches){
+      const label=document.createElement('label'),check=document.createElement('input');
+      check.type='checkbox';check.checked=true;check.dataset.kind=person.kind;check.dataset.id=String(person.id);
+      label.append(check,document.createTextNode(person.full_name+' ('+(person.kind==='player'?'spelare':'tränare')+')'));
+      root.append(label);
+    }
+    $('trainingImportApply').disabled=!matches.length;
+  }
+  function initImport(){
+    // Never retain preview object URLs or selected image references after processing.
+    function clearImportImages(){
+      $('trainingImportImages').value='';
+    }
+    $('trainingImportImages').addEventListener('change',()=>{
+      // No preview is created: screenshots are only read transiently for OCR.
+      $('trainingImportApply').disabled=true;
+      importMatches=[];
+      $('trainingImportReview').replaceChildren();
+    });
+    $('trainingImportRead').addEventListener('click',async()=>{
+      $('trainingImportApply').disabled=true;
+      if(!players.length&&!coaches.length){clearImportImages();$('trainingImportStatus').textContent='Truppen måste hämtas först.';return;}
+      let text=$('trainingImportText').value;
+      try{
+        const detected=await readImageText();
+        if(detected)text+=(text?'\n':'')+detected;
+      }catch(error){
+        $('trainingImportStatus').textContent=(error.message||'Kunde inte läsa bildtext')+' Skriv namnen i textrutan.';
+      }finally{
+        clearImportImages();
+      }
+      importMatches=importCandidates(text);
+      text=''; // OCR output is never copied to a field or persisted.
+      showImportReview(importMatches);
+      $('trainingImportStatus').textContent=importMatches.length
+        ?importMatches.length+' unika namn matchade. Kontrollera markeringarna och bekräfta. Övriga närvaroval ändras inte.'
+        :'Inga säkra namnmatchningar. Skriv ett namn per rad som i NSK-truppen. Kontrollera att namnen står på egna rader.';
+    });
+    $('trainingImportApply').addEventListener('click',()=>{
+      if(!importMatches.length)return;
+      const checks=[...$('trainingImportReview').querySelectorAll('input:checked')];
+      for(const check of checks){
+        if(check.dataset.kind==='player')selected.add(check.dataset.id);
+        else selectedCoaches.add(check.dataset.id);
+      }
+      allocation=[];persist();renderRoster();renderCoaches();renderGoalieSelectors();renderGroups();
+      $('trainingImportStatus').textContent=checks.length+' deltagare markerade som Kommer. Tidigare markeringar har behållits.';
+      $('trainingImportApply').disabled=true;
+      importMatches=[];
+      $('trainingImportText').value='';
+      clearImportImages();
+    });
+  }
+
   document.addEventListener('DOMContentLoaded',async()=>{
+    initImport();
     $('trainingDate').value=new Date().toLocaleDateString('sv-SE',{year:'numeric',month:'2-digit',day:'2-digit'});
     $('trainingDate').addEventListener('change',()=>{restore();renderRoster();renderCoaches();renderGoalieSelectors();renderGroups();});
     $('trainingGoalieCount').addEventListener('change',()=>{
