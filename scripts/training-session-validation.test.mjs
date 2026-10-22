@@ -17,5 +17,5 @@ test('group allocation uses arrays and rejects repeated or unknown players',()=>
  assert.equal(validateTrainingPayload(grouped),true);
  assert.equal(validateTrainingPayload({...grouped,allocation:[['2'],['2'],[]]}),false);
  assert.equal(validateTrainingPayload({...grouped,allocation:[['4'],[],[]]}),false);
- assert.equal(validateTrainingPayload({...grouped,allocation:[['2'],['2'],[]]}),false);
+ assert.equal(validateTrainingPayload({...grouped,allocation:[['1'],['2'],[]]}),false);
 });
