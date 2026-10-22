@@ -56,7 +56,7 @@ window.DB = (() => {
   scopedRosterEnabled() ||
   scopedCollectionsEnabled() ||
   window.APP_CONFIG?.REQUIRE_SCOPED_TEAM_READS === true
-) ? window.Auth?.activeTeam?.() : 'NSK Team 18';if(!selected)throw new Error('Välj ett lag i din personliga inloggning');const matches=(await rows('lag', null, true)).filter(r=>r.Namn===selected && String(r['Säsong'])==='2026');if(matches.length!==1)throw new Error('Lagkopplingen kunde inte verifieras');return matches[0].id};
+) ? 'NSK Team 18' : 'NSK Team 18';if(!window.Auth?.getToken?.() && (scopedRosterEnabled() || scopedCollectionsEnabled() || window.APP_CONFIG?.REQUIRE_SCOPED_TEAM_READS === true))throw new Error('Personlig inloggning krävs för NSK Team 18');const matches=(await rows('lag', null, true)).filter(r=>r.Namn===selected && String(r['Säsong'])==='2026');if(matches.length!==1)throw new Error('Lagkopplingen kunde inte verifieras');return matches[0].id};
   async function listPlayers(){const t=await teamId();return (await rows('spelare',t)).filter(r=>linked(r.Lag).includes(t)).map(r=>({id:r.id,full_name:r.Namn,team_id:t})).sort((a,b)=>a.full_name.localeCompare(b.full_name,'sv'))}
   async function listCoaches(){const t=await teamId();return (await rows('tranare',t)).filter(r=>linked(r.Lag).includes(t)).map(r=>({id:r.id,full_name:r.Namn,team_id:t})).sort((a,b)=>a.full_name.localeCompare(b.full_name,'sv'))}
   // New protected staff writes use Swedish role names, while existing UI selectors use stable English keys.
