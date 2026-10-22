@@ -92,6 +92,10 @@
 
     <div class="roster-print-row"><button id="rosterPrintButton" type="button">Skriv ut truppen / PDF</button></div>
 
+    <style>/* Keep authorization checks and staging logic intact, but remove their panels from the production roster view. */
+      #rosterAccessCard, #stagingRosterPanel { display: none !important; }
+    </style>
+
     <section class="card roster-card" id="rosterAccessCard" aria-label="Personlig lagbehörighet">
       <h2>Lagbehörighet</h2>
       <p id="rosterPersonalAccess" class="small" aria-live="polite">Kontrollerar inloggning…</p>
