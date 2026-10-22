@@ -162,6 +162,8 @@
     "Smålagsspel - Klassiskt (video)": "smalagsspel-klassiskt",
     "3 mot 3": "3-mot-3-2",
     "Fjärilen (Video)": "fjarilen",
+    "Åttan": "attan",
+    "Gatloppet": "gatloppet",
     "Åttan - med passningar (Video)": "attan-med-passningar",
     "Puckföring virr-varr": "puckforing-virr-varr",
     "Pass i cirkel": "cirkelpass",
