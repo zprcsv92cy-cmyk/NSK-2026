@@ -11,3 +11,11 @@ test('reject malformed attendance and invalid revision',()=>{
  assert.equal(validateTrainingPayload({...good,goalies:['2']}),false);
  assert.equal(validateTrainingPayload({...good,revision:-1}),false);
 });
+
+test('group allocation uses arrays and rejects repeated or unknown players',()=>{
+ const grouped={...good,selected:['1','2','3'],goalies:['1'],allocation:[['2'],['3'],[]]};
+ assert.equal(validateTrainingPayload(grouped),true);
+ assert.equal(validateTrainingPayload({...grouped,allocation:[['2'],['2'],[]]}),false);
+ assert.equal(validateTrainingPayload({...grouped,allocation:[['4'],[],[]]}),false);
+ assert.equal(validateTrainingPayload({...grouped,allocation:[['2'],['2'],[]]}),false);
+});
