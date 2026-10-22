@@ -1,6 +1,7 @@
 import {createPersonalRosterIdentityVerifier} from './personal-roster-identity-adapter.js';
 import {mapTrustedMembershipsToLegacyTeams} from './production-team-id-map.js';
 import {validateTrainingPayload} from './training-session-validation.js';
+import {authorizeTeamFeature} from './team-authorization-policy.js';
 
 const fail=(status,error)=>Response.json({ok:false,error},{status,headers:{'cache-control':'no-store'}});
 export function createTrainingHandler(env,listTeams){
@@ -30,7 +31,7 @@ export function createTrainingHandler(env,listTeams){
     const row=await db.prepare('SELECT * FROM training_sessions WHERE team_id=? AND training_date=?').bind(team[0],dates[0]).first();
     return Response.json({ok:true,session:row?{selected:JSON.parse(row.selected_players_json),selectedCoaches:JSON.parse(row.selected_coaches_json),goalies:JSON.parse(row.goalies_json),goalieCount:row.goalie_count,allocation:JSON.parse(row.allocation_json),revision:row.revision}:null});
    }
-   if(!access.permissions.includes('lineup:edit'))return fail(403,'Edit permission required');
+   if(!authorizeTeamFeature(access,team[0],'lineup').allowed)return fail(403,'Edit permission required');
    const raw=await request.text();
    if(raw.length>16000)return fail(413,'Too large');
    let data;try{data=JSON.parse(raw)}catch{return fail(400,'Invalid JSON')}
