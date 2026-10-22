@@ -11,7 +11,7 @@
   async function restore(){
     const date=$('trainingDate').value;
     const response=await SharedTraining.get(date);
-    if($('trainingDate').value!==date)return;
+    if($('trainingDate').value!==date)return false;
     const data=response.session||{};
     const allowed=new Set(players.map(p=>String(p.id)));
     const allowedCoaches=new Set(coaches.map(p=>String(p.id)));
@@ -23,6 +23,7 @@
     revision=Number(data.revision)||0;
     loadedDate=$('trainingDate').value;
     $('trainingGoalieCount').value=String(goalieCount);
+    return true;
   }
   let revision=0;
   let saveQueue=Promise.resolve();
@@ -234,7 +235,7 @@
     const requestedDate=new URLSearchParams(location.search).get('date');
     const today=new Date().toLocaleDateString('sv-SE',{year:'numeric',month:'2-digit',day:'2-digit'});
     $('trainingDate').value=/^\d{4}-\d{2}-\d{2}$/.test(requestedDate||'')?requestedDate:today;
-    $('trainingDate').addEventListener('change',async()=>{try{await saveQueue;if(saveBlocked)throw Error('Sparningen misslyckades. Ladda om sidan innan du byter träning.');await restore();renderRoster();renderCoaches();renderGoalieSelectors();renderGroups();}catch(error){$('trainingStatus').textContent=error.message;}});
+    $('trainingDate').addEventListener('change',async()=>{try{await saveQueue;if(saveBlocked)throw Error('Sparningen misslyckades. Ladda om sidan innan du byter träning.');if(!await restore())return;renderRoster();renderCoaches();renderGoalieSelectors();renderGroups();}catch(error){if(loadedDate)$('trainingDate').value=loadedDate;$('trainingStatus').textContent=error.message;}});
     $('trainingGoalieCount').addEventListener('change',()=>{
       goalieCount=Number($('trainingGoalieCount').value);
       goalies=goalies.slice(0,goalieCount);
