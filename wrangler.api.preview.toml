@@ -5,6 +5,8 @@ compatibility_date = "2026-10-10"
 workers_dev = true
 
 [previews.vars]
+BASEROW_DATABASE_ID = "599495"
+BASEROW_TABLE_IDS = "{\"lag\":1273707,\"spelare\":1273713,\"tranare\":1273716,\"poolspel\":1273721,\"matcher\":1273723,\"laguppstallningar\":1273725,\"bytesschema\":1273726,\"malvaktsstatistik\":1273727,\"spelaretranare\":1273728,\"matchkonfiguration\":1273730}"
 NSK_REQUIRE_SCOPED_ROSTER_READS = "true"
 NSK_REQUIRE_SCOPED_TEAM_READS = "true"
 NSK_REQUIRE_SCOPED_COLLECTION_READS = "true"
