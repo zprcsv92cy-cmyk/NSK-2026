@@ -227,7 +227,7 @@
     const requestedDate=new URLSearchParams(location.search).get('date');
     const today=new Date().toLocaleDateString('sv-SE',{year:'numeric',month:'2-digit',day:'2-digit'});
     $('trainingDate').value=/^\d{4}-\d{2}-\d{2}$/.test(requestedDate||'')?requestedDate:today;
-    $('trainingDate').addEventListener('change',()=>{restore();renderRoster();renderCoaches();renderGoalieSelectors();renderGroups();});
+    $('trainingDate').addEventListener('change',async()=>{try{await saveQueue;await restore();renderRoster();renderCoaches();renderGoalieSelectors();renderGroups();}catch(error){$('trainingStatus').textContent=error.message;}});
     $('trainingGoalieCount').addEventListener('change',()=>{
       goalieCount=Number($('trainingGoalieCount').value);
       goalies=goalies.slice(0,goalieCount);
@@ -242,7 +242,7 @@
       team=Auth.activeTeam();
       if(!team)throw Error('Välj ett aktivt lag under Mitt konto.');
       [players,coaches]=await Promise.all([DB.listPlayers(),DB.listCoaches()]);
-      restore();renderRoster();renderCoaches();renderGoalieSelectors();renderGroups();
+      await restore();renderRoster();renderCoaches();renderGoalieSelectors();renderGroups();
       $('trainingStatus').textContent=players.length+' spelare och '+coaches.length+' tränare hämtade från NSK-truppen.';
     }catch(error){$('trainingStatus').textContent=error.message||'Kunde inte läsa truppen.';}
   });
