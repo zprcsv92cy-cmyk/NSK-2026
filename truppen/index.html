@@ -227,7 +227,7 @@
       }
       const team = Auth.activeTeam();
       if (!team) {
-        label.textContent = 'Inloggad, men inget aktivt lag valt. Välj lag på Startsida.';
+        label.textContent = 'Ditt konto saknar aktivt medlemskap i NSK Team 18. Kontakta administratören.';
         return;
       }
       const allowed = await Auth.checkTeamFeature('roster', team);
