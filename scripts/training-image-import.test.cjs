@@ -38,3 +38,8 @@ test('privacy: image input is cleared on early exit and when replacing selection
  assert.match(js,/if\(!players\.length&&!coaches\.length\)\{clearImportImages\(\)/);
  assert.match(js,/trainingImportImages'\)\.addEventListener\('change',[\s\S]*?importMatches=\[\]/);
 });
+
+test('training restore remains async for shared API loading',()=>{
+ assert.match(js,/async function restore\(\)/);
+ assert.match(js,/await SharedTraining\.get\(/);
+});
