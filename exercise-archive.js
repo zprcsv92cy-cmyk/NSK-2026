@@ -149,6 +149,12 @@
       "sourceUrl": "https://hockeyakademin.se/ovningar/stationstraning-5-ytor"
     }
   ];
+  // Public index metadata (not a copy of the Hockeyakademin exercises or files).
+  const fullAcademyItems = (window.NSK_HOCKEYAKADEMIN_CATALOG||[]).map((entry,index)=>{
+    const original=academyItems.find(x=>x.title.toLocaleLowerCase('sv')===entry.title.replace(/ \(Video\)$/i,'').toLocaleLowerCase('sv'));
+    return {...entry,index,sourceUrl:original?.sourceUrl||'https://hockeyakademin.se/ovningar/kategori/hockeyovningar',hasDirectLink:!!original,
+      description:original?.description||'Öppna Hockeyakademins övningsbank för fullständig instruktion och originalritning.'};
+  });
   const $ = id=>document.getElementById(id);
   let previewUrl=null, previewPreviousFocus=null, previewEntry=null;
   const dbName='nsk_exercise_files_v1',store='files';
@@ -177,7 +183,11 @@
   function match(entry){
     const query=$('exerciseSearch').value.trim().toLocaleLowerCase('sv');
     const cat=$('exerciseCategory').value;
-    return (!cat||entry.category===cat)&&(!query||(entry.title+' '+entry.description+' '+entry.category).toLocaleLowerCase('sv').includes(query));
+    const aliases={'Skridskoteknik':['Skridskoåkning'],'Puckkontroll':['Klubbteknik'],'Passningar':['Passning och mottagning'],'Skott':['Skott och målskytte'],'Spelsituationer':['Spela spelet','Närkampsspel']};
+    const matchesCategory=!cat||entry.category===cat||(aliases[cat]||[]).some(c=>entry.category.includes(c));
+    const age=$('exerciseAge').value;
+    const matchesAge=!age||!entry.age||entry.age.includes(age)||entry.age==='Alla';
+    return matchesCategory&&matchesAge&&(!query||(entry.title+' '+entry.description+' '+entry.category+' '+(entry.age||'')).toLocaleLowerCase('sv').includes(query));
   }
 
   function closePreview(){
@@ -228,7 +238,12 @@
     card.append(text('p',entry.description));
     const actions=document.createElement('div');actions.className='archive-actions';
     const link=document.createElement('a');link.href=entry.sourceUrl;link.target='_blank';link.rel='noopener noreferrer';
-    link.className='archive-source-link';link.textContent='Visa original och övningsritning ↗';
+    link.className='archive-source-link';
+    link.textContent=entry.hasDirectLink?'Visa original och övningsritning ↗':'Öppna originalkatalogen ↗';
+    if(!entry.hasDirectLink){
+      const help=text('p','Sök på övningens namn hos Hockeyakademin för att hitta originalritningen.','small');
+      card.append(help);
+    }
     actions.append(link);card.append(actions);return card;
   }
   function makeCard(entry,uploaded,index=0){
@@ -263,9 +278,9 @@
   async function render(){
     const source=$('exerciseAcademyList');source.replaceChildren();
     const selected=$('exerciseSource').value;
-    if(selected!=='nsk')for(const entry of academyItems.filter(match))source.append(makeAcademyCard(entry));
+    if(selected!=='nsk')for(const entry of fullAcademyItems.filter(match))source.append(makeAcademyCard(entry));
     if(selected==='nsk')source.append(text('p','Visa alla källor eller välj Hockeyakademin för att se originalövningarna.'));
-    if(selected==='academy'&&!academyItems.some(match))source.append(text('p','Inga övningar matchar sökningen.'));
+    if(selected==='academy'&&!fullAcademyItems.some(match))source.append(text('p','Inga övningar matchar sökningen.'));
     const list=$('exerciseList');list.replaceChildren();
     if(selected!=='academy')for(const [index,entry] of items.entries())if(match(entry))list.append(makeCard(entry,false,index));
     const container=$('exerciseUserFiles');container.replaceChildren();
@@ -273,7 +288,7 @@
       const files=(await getFiles()).sort((a,b)=>b.created-a.created);
       for(const entry of (selected==='academy'?[]:files.filter(match)))container.append(makeCard(entry,true));
       if(!files.length)container.append(text('p','Inga egna filer sparade ännu.'));
-      $('exerciseStatus').textContent=(selected==='nsk'?0:academyItems.filter(match).length)+' Hockeyakademin · '+(selected==='academy'?0:items.filter(match).length)+' NSK · '+(selected==='academy'?0:files.filter(match).length)+' egna filer';
+      $('exerciseStatus').textContent=(selected==='nsk'?0:fullAcademyItems.filter(match).length)+' Hockeyakademin · '+(selected==='academy'?0:items.filter(match).length)+' NSK · '+(selected==='academy'?0:files.filter(match).length)+' egna filer';
     }catch{container.append(text('p','Filarkivet kunde inte öppnas i den här webbläsaren.'));$('exerciseStatus').textContent='De färdiga övningarna är tillgängliga.';}
   }
   document.addEventListener('DOMContentLoaded',()=>{
@@ -292,6 +307,7 @@
     $('exerciseSearch').addEventListener('input',render);
     $('exerciseCategory').addEventListener('change',render);
     $('exerciseSource').addEventListener('change',render);
+    $('exerciseAge').addEventListener('change',render);
     $('exerciseUpload').addEventListener('submit',async event=>{
       event.preventDefault();const file=$('exerciseFile').files[0];
       const allowed=/\.(pdf|doc|docx|txt|png|jpe?g|webp)$/i;
