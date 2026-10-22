@@ -25,7 +25,7 @@
   let saveQueue=Promise.resolve();
   function persist(){
     const date=$('trainingDate').value;
-    const snapshot={selected:[...selected],selectedCoaches:[...selectedCoaches],allocation,goalies,goalieCount};
+    const snapshot={selected:[...selected],selectedCoaches:[...selectedCoaches],allocation:allocation.map(group=>[...group]),goalies:[...goalies],goalieCount};
     saveQueue=saveQueue.then(async()=>{
       const saved=await SharedTraining.save(date,{...snapshot,revision});
       revision=saved.revision;
