@@ -1,6 +1,5 @@
-// Saved training sessions are local to this browser and scoped to the active team.
+// Saved training sessions are fetched from team-scoped shared storage.
 (() => {
-  const prefix='nsk_training_v1:';
   const escapeHtml=s=>String(s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
   async function render(){
     const root=document.getElementById('savedTrainingsList');
@@ -15,7 +14,7 @@
       const teamResponse=await fetch(base+'/api/lag',{headers:{Authorization:'Bearer '+token},cache:'no-store'});
       if(!teamResponse.ok)throw Error('Kunde inte läsa lag');
       const teamData=await teamResponse.json();
-      const teams=Array.isArray(teamData.results)?teamData.results:[];
+      const teams=Array.isArray(teamData.results)?teamData.results:Array.isArray(teamData)?teamData:[];
       const matches=teams.filter(t=>t.Namn===team&&String(t['Säsong'])==='2026');
       if(matches.length!==1)throw Error('Lagkopplingen saknas');
       const response=await fetch(base+'/api/training?team_id='+encodeURIComponent(matches[0].id),{headers:{Authorization:'Bearer '+token},cache:'no-store'});
