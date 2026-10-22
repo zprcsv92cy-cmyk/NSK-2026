@@ -1,6 +1,6 @@
 # Gemensam Träning – publiceringsplan
 
-Status: **INTE DRIFTSATT**. PR #269 är en releasekandidat, inte tillstånd att driftsätta. Följ stegen i ordning. Inga produktionsdata får kopieras till preview.
+Status: **INTE DRIFTSATT**. GitHub PR #269 har godkända bygg- och behörighetskontroller på commit `b762cc9` men var fortfarande blockerad av pågående säkerhetskontroll vid senaste granskningen. Detta är inte en produktionsverifiering. PR #269 är en releasekandidat, inte tillstånd att driftsätta. Följ stegen i ordning. Inga produktionsdata får kopieras till preview.
 
 ## 1. Förutsättningar (måste vara uppfyllda)
 
