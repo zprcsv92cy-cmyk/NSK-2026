@@ -35,8 +35,15 @@ export function createTrainingHandler(env,listTeams){
    if(raw.length>16000)return fail(413,'Too large');
    let data;try{data=JSON.parse(raw)}catch{return fail(400,'Invalid JSON')}
    if(!validateTrainingPayload(data))return fail(400,'Invalid training');
-   const result=await db.prepare('INSERT INTO training_sessions (team_id,training_date,selected_players_json,selected_coaches_json,goalies_json,goalie_count,allocation_json,revision,updated_by) SELECT ?,?,?,?,?,?,?,1,? WHERE ?=0 ON CONFLICT(team_id,training_date) DO UPDATE SET selected_players_json=excluded.selected_players_json,selected_coaches_json=excluded.selected_coaches_json,goalies_json=excluded.goalies_json,goalie_count=excluded.goalie_count,allocation_json=excluded.allocation_json,revision=training_sessions.revision+1,updated_by=excluded.updated_by,updated_at=CURRENT_TIMESTAMP WHERE training_sessions.revision=?')
-    .bind(team[0],dates[0],JSON.stringify(data.selected),JSON.stringify(data.selectedCoaches),JSON.stringify(data.goalies),data.goalieCount,JSON.stringify(data.allocation),String(actor.user?.id||'unknown'),data.revision,data.revision).run();
+   const values=[JSON.stringify(data.selected),JSON.stringify(data.selectedCoaches),JSON.stringify(data.goalies),data.goalieCount,JSON.stringify(data.allocation),String(actor.user.id)];
+   let result;
+   if(data.revision===0){
+    result=await db.prepare('INSERT INTO training_sessions (team_id,training_date,selected_players_json,selected_coaches_json,goalies_json,goalie_count,allocation_json,revision,updated_by) VALUES (?,?,?,?,?,?,?,1,?) ON CONFLICT(team_id,training_date) DO NOTHING')
+      .bind(team[0],dates[0],...values).run();
+   }else{
+    result=await db.prepare('UPDATE training_sessions SET selected_players_json=?,selected_coaches_json=?,goalies_json=?,goalie_count=?,allocation_json=?,updated_by=?,revision=revision+1,updated_at=CURRENT_TIMESTAMP WHERE team_id=? AND training_date=? AND revision=?')
+      .bind(...values,team[0],dates[0],data.revision).run();
+   }
    if(!result.meta?.changes)return fail(409,'Concurrent update');
    return Response.json({ok:true,revision:data.revision+1});
   }catch{return fail(503,'Training storage unavailable')}
