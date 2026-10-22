@@ -1,4 +1,4 @@
-// A single shared navigation for every app view. Hidden features stay hidden.
+// A single shared navigation for every app view.
 (() => {
   const entries = [
     ['startsida','Startsida'],['truppen','Truppen'],['traningsgrupper','Träning'],
@@ -11,10 +11,8 @@
     const nav = document.querySelector('nav.mainmenu');
     if (!nav) return;
     const active = location.pathname.split('/').filter(Boolean).pop() || 'startsida';
-    const showTraining = window.APP_CONFIG?.ENABLE_SHARED_TRAINING === true;
     nav.innerHTML = '';
     for (const [slug,label] of entries) {
-      if (slug === 'traningsgrupper' && !showTraining) continue;
       const a = document.createElement('a');
       a.href = '../' + slug + '/';
       a.textContent = label;
