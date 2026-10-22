@@ -25,6 +25,7 @@
   let saveQueue=Promise.resolve();
   function persist(){
     const date=$('trainingDate').value;
+    if(goalies.filter(Boolean).length!==goalieCount){$('trainingStatus').textContent='Välj namn för alla målvakter innan träningen sparas.';return;}
     const snapshot={selected:[...selected],selectedCoaches:[...selectedCoaches],allocation:allocation.map(group=>[...group]),goalies:[...goalies],goalieCount};
     saveQueue=saveQueue.then(async()=>{
       const saved=await SharedTraining.save(date,{...snapshot,revision});
