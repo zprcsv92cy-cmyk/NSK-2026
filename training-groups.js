@@ -130,19 +130,31 @@
     return [...found.values()];
   }
   async function readImageText(){
-    const files=[...$('trainingImportImages').files];
+    const files=[...$('trainingImportImages').files].filter(f=>f.type.startsWith('image/'));
     if(!files.length)return '';
-    if(typeof window.TextDetector!=='function')return ''; // Optional local OCR; never upload images.
-    const detector=new window.TextDetector();
     const texts=[];
-    for(const file of files){
-      const bitmap=await createImageBitmap(file);
+    if(window.Tesseract?.createWorker){
+      // OCR runs locally in a Web Worker; do not send children's images to an OCR API.
+      const worker=await window.Tesseract.createWorker('swe');
       try{
-        const blocks=await detector.detect(bitmap);
-        texts.push(blocks.map(b=>b.rawValue||'').join('\n'));
-      }finally{bitmap.close();}
+        for(let i=0;i<files.length;i++){
+          $('trainingImportStatus').textContent='Läser bild '+(i+1)+' av '+files.length+'…';
+          const result=await worker.recognize(files[i]);
+          texts.push(result.data?.text||'');
+        }
+      }finally{await worker.terminate();}
+      return texts.join('\n');
     }
-    return texts.join('\n');
+    if(typeof window.TextDetector==='function'){
+      const detector=new window.TextDetector();
+      for(const file of files){
+        const bitmap=await createImageBitmap(file);
+        try{const blocks=await detector.detect(bitmap);texts.push(blocks.map(b=>b.rawValue||'').join('\n'));}
+        finally{bitmap.close();}
+      }
+      return texts.join('\n');
+    }
+    throw Error('Bildtolkning kunde inte startas. Kontrollera nätanslutningen eller skriv namnen manuellt.');
   }
   function showImportReview(matches){
     const root=$('trainingImportReview');root.replaceChildren();
@@ -173,12 +185,12 @@
       try{
         const detected=await readImageText();
         if(detected){text+=(text?'\n':'')+detected;$('trainingImportText').value=text;}
-      }catch{$('trainingImportStatus').textContent='Kunde inte läsa bildtext automatiskt. Skriv namnen i textrutan.';}
+      }catch(error){$('trainingImportStatus').textContent=(error.message||'Kunde inte läsa bildtext')+' Skriv namnen i textrutan.';}
       importMatches=importCandidates(text);
       showImportReview(importMatches);
       $('trainingImportStatus').textContent=importMatches.length
         ?importMatches.length+' unika namn matchade. Kontrollera markeringarna och bekräfta. Övriga närvaroval ändras inte.'
-        :'Inga säkra namnmatchningar. Skriv ett namn per rad som i NSK-truppen. På iPhone kan automatisk bildtextläsning saknas.';
+        :'Inga säkra namnmatchningar. Skriv ett namn per rad som i NSK-truppen. Kontrollera att namnen står på egna rader.';
     });
     $('trainingImportApply').addEventListener('click',()=>{
       if(!importMatches.length)return;
