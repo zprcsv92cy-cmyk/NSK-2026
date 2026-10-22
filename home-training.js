@@ -9,21 +9,10 @@
       await Auth.init();
       const team=Auth.activeTeam();
       if(!team){root.textContent='Välj lag under Mitt konto för att se träningar.';return;}
-      const keyPrefix=prefix+team+':';
-      const sessions=[];
-      for(let i=0;i<localStorage.length;i++){
-        const key=localStorage.key(i);
-        if(!key||!key.startsWith(keyPrefix))continue;
-        const date=key.slice(keyPrefix.length);
-        if(!/^\d{4}-\d{2}-\d{2}$/.test(date))continue;
-        try{
-          const data=JSON.parse(localStorage.getItem(key));
-          if(!data||typeof data!=='object')continue;
-          sessions.push({date,players:Array.isArray(data.selected)?data.selected.length:0,coaches:Array.isArray(data.selectedCoaches)?data.selectedCoaches.length:0});
-        }catch{}
-      }
+      const data=await SharedTraining.list();
+      const sessions=Array.isArray(data.sessions)?data.sessions:[];
       sessions.sort((a,b)=>b.date.localeCompare(a.date));
-      if(!sessions.length){root.textContent='Inga sparade träningar i den här webbläsaren ännu.';return;}
+      if(!sessions.length){root.textContent='Inga gemensamt sparade träningar ännu.';return;}
       root.innerHTML=sessions.map(s=>'<details class="nsk-pool-row"><summary class="nsk-pool-summary"><span class="nsk-pool-name">Träning • '+escapeHtml(s.date)+'</span><span class="nsk-pool-hall">'+s.players+' spelare, '+s.coaches+' tränare</span><span class="nsk-pool-chevron" aria-hidden="true">⌄</span></summary><div class="nsk-pool-content"><div class="nsk-pool-actions"><a class="home-create-button" href="../traningsgrupper/?date='+encodeURIComponent(s.date)+'">Visa / redigera träning</a></div></div></details>').join('');
     }catch(error){root.textContent='Kunde inte läsa sparade träningar: '+(error.message||String(error));}
   }
