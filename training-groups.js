@@ -19,13 +19,16 @@
     goalies=(data.goalies||[]).map(String).filter(id=>allowed.has(id)&&selected.has(id));
     goalieCount=Number(data.goalieCount)||0;
     revision=Number(data.revision)||0;
+    loadedDate=$('trainingDate').value;
     $('trainingGoalieCount').value=String(goalieCount);
   }
   let revision=0;
   let saveQueue=Promise.resolve();
   let saveBlocked=false;
+  let loadedDate='';
   function persist(){
     if(saveBlocked){$('trainingStatus').textContent='Sparning stoppad efter konflikt. Ladda om sidan innan du ändrar träningen igen.';return;}
+    if($('trainingDate').value!==loadedDate){$('trainingStatus').textContent='Vänta tills träningen för valt datum har lästs in.';return;}
     const date=$('trainingDate').value;
     if(goalies.filter(Boolean).length!==goalieCount){$('trainingStatus').textContent='Välj namn för alla målvakter innan träningen sparas.';return;}
     const snapshot={selected:[...selected],selectedCoaches:[...selectedCoaches],allocation:allocation.map(group=>[...group]),goalies:[...goalies],goalieCount};
