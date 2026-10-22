@@ -2,9 +2,12 @@
 (() => {
   const base=()=>String(window.APP_CONFIG?.API_URL||'https://nsk-api.peter-hasselberg.workers.dev').replace(/\/$/,'');
   let teamId;
+  let cachedTeamName;
   async function resolveTeam(){
-    if(teamId)return teamId;
-    if(!Auth.activeTeam())throw Error('Välj ett lag');
+    const activeTeam=Auth.activeTeam();
+    if(teamId&&cachedTeamName===activeTeam)return teamId;
+    teamId=undefined;
+    if(!activeTeam)throw Error('Välj ett lag');
     const token=Auth.getToken();
     if(!token)throw Error('Logga in först');
     const r=await fetch(base()+'/api/lag',{headers:{Authorization:'Bearer '+token},cache:'no-store'});
@@ -14,6 +17,7 @@
     const matches=teams.filter(t=>t.Namn===Auth.activeTeam()&&String(t['Säsong'])==='2026');
     if(matches.length!==1)throw Error('Lagkopplingen kunde inte verifieras');
     teamId=String(matches[0].id);
+    cachedTeamName=activeTeam;
     return teamId;
   }
   async function request(date,payload){
