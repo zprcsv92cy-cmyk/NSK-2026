@@ -214,7 +214,9 @@
 
   document.addEventListener('DOMContentLoaded',async()=>{
     initImport();
-    $('trainingDate').value=new Date().toLocaleDateString('sv-SE',{year:'numeric',month:'2-digit',day:'2-digit'});
+    const requestedDate=new URLSearchParams(location.search).get('date');
+    const today=new Date().toLocaleDateString('sv-SE',{year:'numeric',month:'2-digit',day:'2-digit'});
+    $('trainingDate').value=/^\\d{4}-\\d{2}-\\d{2}$/.test(requestedDate||'')?requestedDate:today;
     $('trainingDate').addEventListener('change',()=>{restore();renderRoster();renderCoaches();renderGoalieSelectors();renderGroups();});
     $('trainingGoalieCount').addEventListener('change',()=>{
       goalieCount=Number($('trainingGoalieCount').value);
