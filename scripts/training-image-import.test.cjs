@@ -43,3 +43,8 @@ test('training restore remains async for shared API loading',()=>{
  assert.match(js,/async function restore\(\)/);
  assert.match(js,/await SharedTraining\.get\(/);
 });
+
+test('queued training saves snapshot group and goalie arrays',()=>{
+ assert.match(js,/allocation:allocation\.map\(group=>\[\.\.\.group\]\)/);
+ assert.match(js,/goalies:\[\.\.\.goalies\]/);
+});
