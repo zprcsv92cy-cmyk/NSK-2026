@@ -68,6 +68,12 @@ async function checkAppVersion() {
     const data = await res.json();
     const published = String(data?.version || "");
     const loaded = String(window.NSK_VERSION || "");
+    // The deployed manifest is authoritative. An installed iPhone PWA may
+    // still execute an older cached version.js after a successful release.
+    if (/^[1-9]\\d*$/.test(published)) {
+      const label = document.getElementById("nsk-current-version");
+      if (label) label.textContent = "NSK-2026 · version " + published;
+    }
     if (!published || !loaded || published === loaded) {
       if (published === loaded) {
         nskPendingVersion = "";
@@ -2494,6 +2500,7 @@ window.NSK2App = (() => {
 window.addEventListener("DOMContentLoaded", () => {
   registerNskServiceWorker();
   showNskVersion();
+  checkAppVersion();
   setInterval(checkAppVersion, NSK_UPDATE_INTERVAL_MS);
   document.addEventListener("visibilitychange", () => {
     if (!document.hidden) checkAppVersion();
