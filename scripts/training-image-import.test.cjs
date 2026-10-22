@@ -23,3 +23,12 @@ test('manual text fallback and private browser storage remain available',()=>{
  assert.match(js,/trainingImportText/);
  assert.match(js,/localStorage\.setItem\(storageKey\(\)/);
 });
+
+test('selected screenshots are discarded and never previewed or stored',()=>{
+ assert.doesNotMatch(html,/id="trainingImportPreviews"/);
+ assert.doesNotMatch(js,/createObjectURL\(/);
+ assert.match(js,/function clearImportImages\(\)/);
+ assert.match(js,/trainingImportImages'\)\.value=''/);
+ assert.match(js,/finally\s*\{\s*clearImportImages\(\)/);
+ assert.doesNotMatch(js,/trainingImportText'\)\.value=text/);
+});
