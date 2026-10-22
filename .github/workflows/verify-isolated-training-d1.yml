@@ -1,0 +1,33 @@
+name: Verify isolated training D1 schema (read-only)
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check isolated training schema without reading user records
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+        run: |
+          set -euo pipefail
+          test -n "$CLOUDFLARE_API_TOKEN" || { echo "::error::Cloudflare token is missing"; exit 1; }
+          test -n "$CLOUDFLARE_ACCOUNT_ID" || { echo "::error::Cloudflare account ID is missing"; exit 1; }
+          # Hard-coded disposable integration D1 ID; this workflow cannot target production.
+          db_id="b94c8dba-34be-4cff-a4e9-892caf4e3ddd"
+          response="$(curl --fail-with-body --silent --show-error --retry 2 \
+            -X POST \
+            -H "Authorization: Bearer $CLOUDFLARE_API_TOKEN" \
+            -H "Content-Type: application/json" \
+            --data '{"sql":"SELECT name FROM sqlite_master WHERE type = '\''table'\'' AND name = '\''training_sessions'\''"}' \
+            "https://api.cloudflare.com/client/v4/accounts/$CLOUDFLARE_ACCOUNT_ID/d1/database/$db_id/query")"
+          echo "$response" | jq -e '.success == true and ([.result[]?.results[]?.name] | index("training_sessions") != null)' >/dev/null || {
+            echo "::error::Isolated training_sessions table not confirmed; no production changes made."
+            exit 1
+          }
+          echo "Isolated training_sessions table verified. No row data read or written."
