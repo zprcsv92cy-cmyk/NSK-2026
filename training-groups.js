@@ -118,7 +118,7 @@
     const found=new Map();
     for(const line of lines){
       const cleaned=normalized(line.replace(/\s*\|.*$/,'').replace(/\s*[-–]\s*(ass\.?\s*tranare|huvudtranare|materialare|lagledare).*$/i,''));
-      if(!cleaned||cleaned.length<3)continue;
+      if(!cleaned||cleaned.length<3||/^(kommer|kan ej|kallade|anmalda|anmalan|kalender|samling|svara senast)$/.test(cleaned))continue;
       const matches=roster.filter(p=>{
         const full=normalized(p.full_name);
         const parts=full.split(' ');
