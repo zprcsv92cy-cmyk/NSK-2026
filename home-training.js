@@ -23,7 +23,26 @@
       const sessions=Array.isArray(data.sessions)?data.sessions:[];
       sessions.sort((a,b)=>b.date.localeCompare(a.date));
       if(!sessions.length){root.textContent='Inga gemensamt sparade träningar ännu.';return;}
-      root.innerHTML=sessions.map(s=>'<details class="nsk-pool-row"><summary class="nsk-pool-summary"><span class="nsk-pool-name">Träning • '+escapeHtml(s.date)+'</span><span class="nsk-pool-hall">'+s.players+' spelare, '+s.coaches+' tränare</span><span class="nsk-pool-chevron" aria-hidden="true">⌄</span></summary><div class="nsk-pool-content"><div class="nsk-pool-actions"><a class="home-create-button" href="../traningsgrupper/?date='+encodeURIComponent(s.date)+'">Visa / redigera träning</a></div></div></details>').join('');
+      root.innerHTML=sessions.map(s=>'<details class="nsk-pool-row" data-date="'+encodeURIComponent(s.date)+'"><summary class="nsk-pool-summary"><span class="nsk-pool-name">Träning • '+escapeHtml(s.date)+'</span><span class="nsk-pool-hall">'+s.players+' spelare, '+s.coaches+' tränare</span><span class="nsk-pool-chevron" aria-hidden="true">⌄</span></summary><div class="nsk-pool-content"><div class="nsk-pool-actions"><a class="home-create-button" href="../traningsgrupper/?date='+encodeURIComponent(s.date)+'">Visa / redigera träning</a></div></div></details>').join('');
+      root.addEventListener('toggle',async event=>{
+        const details=event.target;
+        if(!(details instanceof HTMLDetailsElement)||!details.open||details.dataset.loaded)return;
+        const date=details.dataset.date;
+        const info=details.querySelector('[data-training-info]');
+        if(!info||!date)return;
+        details.dataset.loaded='pending';
+        info.textContent='Hämtar träningsuppgifter…';
+        try{
+          const response=await fetch(base+'/api/training?team_id='+encodeURIComponent(matches[0].id)+'&date='+encodeURIComponent(date),{headers:{Authorization:'Bearer '+token},cache:'no-store'});
+          if(!response.ok)throw Error('Kunde inte hämta träningen');
+          const data=await response.json();
+          const session=data.session;
+          if(!session)throw Error('Träningen finns inte längre');
+          const groups=Array.isArray(session.allocation)?session.allocation.length:0;
+          info.textContent=(session.selected||[]).length+' spelare • '+(session.selectedCoaches||[]).length+' tränare • '+(Number(session.goalieCount)||0)+' målvakter • '+groups+' grupper';
+          details.dataset.loaded='yes';
+        }catch(error){delete details.dataset.loaded;info.textContent=error.message||'Kunde inte hämta träningsuppgifter';}
+      },true);
     }catch(error){root.textContent='Kunde inte läsa sparade träningar: '+(error.message||String(error));}
   }
   document.addEventListener('DOMContentLoaded',render);
