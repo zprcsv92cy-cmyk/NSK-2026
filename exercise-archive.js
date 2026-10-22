@@ -177,7 +177,7 @@
     "Färdiga ispass TKH - 5 stationer": "stationstraning-5-stationer",
     "Smålagsspel - Med passare (Video)": null
   };
-  const normalizeTitle = value=>String(value||'').toLocaleLowerCase('sv').replace(/\\s+/g,' ').trim();
+  const normalizeTitle = value=>String(value||'').toLocaleLowerCase('sv').replace(/\s+/g,' ').trim();
   const fullAcademyItems = (window.NSK_HOCKEYAKADEMIN_CATALOG||[]).map((entry,index)=>{
     const variants=window.NSK_HOCKEYAKADEMIN_CATALOG.slice(0,index).filter(x=>x.title===entry.title).length;
     let slug=verifiedOriginals[entry.title];
