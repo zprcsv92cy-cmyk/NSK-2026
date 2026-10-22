@@ -149,11 +149,44 @@
       "sourceUrl": "https://hockeyakademin.se/ovningar/stationstraning-5-ytor"
     }
   ];
-  // Public index metadata (not a copy of the Hockeyakademin exercises or files).
+  // Only exact, individually checked original addresses; never invent a slug from a title.
+  const verifiedOriginals = {
+    "Powerplay - 5 mot 2": "powerplay-5-mot-2",
+    "2 mot 1": "2-mot-1-3",
+    "1 mot 1 med nedlägg": "1-mot-1-8",
+    "Ingångar/hemgångar - 1 mot 1 (Video)": "ingangar-hemgangar",
+    "2 mot 1 - stationsträning (video)": "2-mot-1-2",
+    "Skridskocirkeln (Video)": "cirkelklockan",
+    "Passnings virr-varr": "passnings-virr-varr",
+    "Smålagsspel - ett mål": "smalagsspel-ett-mal",
+    "Smålagsspel - Klassiskt (video)": "smalagsspel-klassiskt",
+    "3 mot 3": "3-mot-3-2",
+    "Fjärilen (Video)": "fjarilen",
+    "Åttan - med passningar (Video)": "attan-med-passningar",
+    "Puckföring virr-varr": "puckforing-virr-varr",
+    "Pass i cirkel": "cirkelpass",
+    "Smålagsspel - små mål": "smalagsspel-sma-mal",
+    "TKH - Fri lek": "tkh-fri-lek",
+    "Målskytte i rörelse - quick release": "malskytte-i-rorelse-quick-release",
+    "Puckföringsbana": "puckforingsbana",
+    "Skridskoåkning, tekniska grunder del 1": "skridskoakning-tekniska-grunder",
+    "Färdiga ispass - Stationsträning (5 ytor)": "stationstraning-5-ytor",
+    "Färdiga ispass TKH – Smålagsspel": "stationstraning-smalagsspel",
+    "Färdiga ispass TKH - 10 stationer": "stationstraning-10-stationer",
+    "Färdiga ispass TKH - 6 stationer": "stationstraning-6-stationer",
+    "Färdiga ispass TKH - 5 stationer": "stationstraning-5-stationer",
+    "Smålagsspel - Med passare (Video)": null
+  };
+  const normalizeTitle = value=>String(value||'').toLocaleLowerCase('sv').replace(/\s+/g,' ').trim();
   const fullAcademyItems = (window.NSK_HOCKEYAKADEMIN_CATALOG||[]).map((entry,index)=>{
-    const original=academyItems.find(x=>x.title.toLocaleLowerCase('sv')===entry.title.replace(/ \(Video\)$/i,'').toLocaleLowerCase('sv'));
-    return {...entry,index,sourceUrl:original?.sourceUrl||'https://hockeyakademin.se/ovningar/kategori/hockeyovningar',hasDirectLink:!!original,
-      description:original?.description||'Öppna Hockeyakademins övningsbank för fullständig instruktion och originalritning.'};
+    const variants=window.NSK_HOCKEYAKADEMIN_CATALOG.slice(0,index).filter(x=>x.title===entry.title).length;
+    let slug=verifiedOriginals[entry.title];
+    if(entry.title==='Färdiga ispass - Stationsträning (4 ytor)')slug=['stationstraning-4-ytor','stationstraning-4-ytor-2','stationstraning-4-ytor-3'][variants]||null;
+    const sourceUrl=slug?'https://hockeyakademin.se/ovningar/'+slug:null;
+    const original=academyItems.find(x=>normalizeTitle(x.title)===normalizeTitle(entry.title.replace(/ \(Video\)$/i,'')));
+    return {...entry,index,sourceUrl,hasDirectLink:!!sourceUrl,
+      searchUrl:'https://www.google.com/search?q='+encodeURIComponent('site:hockeyakademin.se/ovningar/ "'+entry.title+'"'),
+      description:original?.description||'Övning ur Hockeyakademins offentliga register. Öppna originalet för fullständiga instruktioner och rinkritning.'};
   });
   const $ = id=>document.getElementById(id);
   let previewUrl=null, previewPreviousFocus=null, previewEntry=null;
@@ -237,12 +270,13 @@
     card.append(text('p',entry.category+' · '+entry.age+' · Hockeyakademin','small'));
     card.append(text('p',entry.description));
     const actions=document.createElement('div');actions.className='archive-actions';
-    const link=document.createElement('a');link.href=entry.sourceUrl;link.target='_blank';link.rel='noopener noreferrer';
+    const link=document.createElement('a');
+    link.href=entry.hasDirectLink?entry.sourceUrl:entry.searchUrl;
+    link.target='_blank';link.rel='noopener noreferrer';
     link.className='archive-source-link';
-    link.textContent=entry.hasDirectLink?'Visa original och övningsritning ↗':'Öppna originalkatalogen ↗';
+    link.textContent=entry.hasDirectLink?'Visa rätt originalövning ↗':'Sök efter just denna övning ↗';
     if(!entry.hasDirectLink){
-      const help=text('p','Sök på övningens namn hos Hockeyakademin för att hitta originalritningen.','small');
-      card.append(help);
+      card.append(text('p','Direktlänken är ännu inte verifierad. Sökningen använder exakt övningsnamn på Hockeyakademins webbplats och visar möjliga träffar.','small'));
     }
     actions.append(link);card.append(actions);return card;
   }
