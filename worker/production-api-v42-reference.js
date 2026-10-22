@@ -1,3 +1,4 @@
+import { createTrainingHandler } from './training-sessions-api.js';
 import { readPersonallyAuthorizedTeams } from './production-team-read.js';
 import { authorizePersonalWorkerWrite } from './personal-roster-worker-adapter.js';
 import { createProductionRosterReadHandler } from './production-roster-read-integration.js';
@@ -218,6 +219,16 @@ var worker_default = { async fetch(req, env) {
   const url = new URL(req.url), origin = req.headers.get("Origin");
   const cors = { "Vary": "Origin", ...origin === ORIGIN ? { "Access-Control-Allow-Origin": ORIGIN, "Access-Control-Allow-Headers": "Content-Type,Authorization", "Access-Control-Allow-Methods": "GET,POST,PATCH,OPTIONS" } : {} };
   const reply = /* @__PURE__ */ __name((obj, status = 200) => json(obj, status, cors), "reply");
+  if (url.pathname === "/api/training") {
+    if (req.method === "OPTIONS") return new Response(null,{status:204,headers:{...cors,"Access-Control-Allow-Methods":"GET,PUT,OPTIONS","Cache-Control":"no-store"}});
+    if (env.NSK_ENABLE_SHARED_TRAINING !== "true") return reply({ok:false,error:"Träning är inte aktiverad"},503);
+    const response = await createTrainingHandler(env, () => listTrustedRosterTeams(env))(req);
+    const headers = new Headers(response.headers);
+    for (const [key,value] of Object.entries(cors)) headers.set(key,value);
+    headers.set("Access-Control-Allow-Methods","GET,PUT,OPTIONS");
+    headers.set("Cache-Control","no-store");
+    return new Response(response.body,{status:response.status,headers});
+  }
   const personalPoolWritesEnabled = env.NSK_REQUIRE_PERSONAL_POOL_WRITES === "true";
   const personalMatchWritesEnabled = env.NSK_REQUIRE_PERSONAL_MATCH_WRITES === "true";
   const checkPersonalMatchWrite = async request => {

@@ -1,29 +1,47 @@
-// Local-first attendance prototype. Personal data is never sent to third-party services.
+// Shared attendance; uploaded screenshots and OCR text are never persisted.
 (() => {
   const palette = [{name:'Röd',hex:'#b11226',text:'#fff'},{name:'Vit',hex:'#fff',text:'#17181b'},{name:'Svart',hex:'#17181b',text:'#fff'}];
   const $ = id => document.getElementById(id);
-  const storagePrefix = 'nsk_training_v1:';
   let players = [], coaches = [], team = '';
   let selectedCoaches = new Set();
   let selected = new Set();
   let allocation = [];
   let goalies = [];
   let goalieCount = 0;
-  const storageKey = () => storagePrefix + team + ':' + $('trainingDate').value;
-  function restore() {
-    try {
-      const data = JSON.parse(localStorage.getItem(storageKey()) || '{}');
-      const allowed = new Set(players.map(p => String(p.id)));
-      selected = new Set((Array.isArray(data.selected) ? data.selected : []).map(String).filter(x => allowed.has(x)));
-      const allowedCoaches = new Set(coaches.map(p=>String(p.id)));
-      selectedCoaches = new Set((Array.isArray(data.selectedCoaches)?data.selectedCoaches:[]).map(String).filter(x=>allowedCoaches.has(x)));
-      allocation = Array.isArray(data.allocation) ? data.allocation : [];
-      goalies = (Array.isArray(data.goalies) ? data.goalies : []).map(String).filter((id,i,a)=>allowed.has(id)&&selected.has(id)&&a.indexOf(id)===i).slice(0,2);
-      goalieCount = Number.isInteger(data.goalieCount) && data.goalieCount>=0 && data.goalieCount<=2 ? data.goalieCount : goalies.length;
-      $('trainingGoalieCount').value = String(goalieCount);
-    } catch { selected = new Set(); selectedCoaches = new Set(); allocation = []; goalies = []; goalieCount=0; $('trainingGoalieCount').value='0'; }
+  async function restore(){
+    const date=$('trainingDate').value;
+    const response=await SharedTraining.get(date);
+    if($('trainingDate').value!==date)return false;
+    const data=response.session||{};
+    const allowed=new Set(players.map(p=>String(p.id)));
+    const allowedCoaches=new Set(coaches.map(p=>String(p.id)));
+    selected=new Set((data.selected||[]).map(String).filter(x=>allowed.has(x)));
+    selectedCoaches=new Set((data.selectedCoaches||[]).map(String).filter(x=>allowedCoaches.has(x)));
+    allocation=Array.isArray(data.allocation)?data.allocation:[];
+    goalies=(data.goalies||[]).map(String).filter(id=>allowed.has(id)&&selected.has(id));
+    goalieCount=Number(data.goalieCount)||0;
+    revision=Number(data.revision)||0;
+    loadedDate=$('trainingDate').value;
+    $('trainingGoalieCount').value=String(goalieCount);
+    return true;
   }
-  function persist() { localStorage.setItem(storageKey(),JSON.stringify({selected:[...selected],selectedCoaches:[...selectedCoaches],allocation,goalies,goalieCount})); }
+  let revision=0;
+  let saveQueue=Promise.resolve();
+  let saveBlocked=false;
+  let loadedDate='';
+  function persist(){
+    if(saveBlocked){$('trainingStatus').textContent='Sparning stoppad efter konflikt. Ladda om sidan innan du ändrar träningen igen.';return;}
+    if($('trainingDate').value!==loadedDate){$('trainingStatus').textContent='Vänta tills träningen för valt datum har lästs in.';return;}
+    const date=$('trainingDate').value;
+    if(goalies.filter(Boolean).length!==goalieCount){$('trainingStatus').textContent='Välj namn för alla målvakter innan träningen sparas.';return;}
+    const snapshot={selected:[...selected],selectedCoaches:[...selectedCoaches],allocation:allocation.map(group=>[...group]),goalies:[...goalies],goalieCount};
+    saveQueue=saveQueue.then(async()=>{
+      if(saveBlocked)return;
+      const saved=await SharedTraining.save(date,{...snapshot,revision});
+      revision=saved.revision;
+      $('trainingStatus').textContent='Träningen är sparad för laget.';
+    }).catch(error=>{saveBlocked=true;$('trainingStatus').textContent='Kunde inte spara: '+error.message+' Ladda om sidan för att hämta den senaste träningen.';});
+  }
   function renderRoster() {
     const root=$('trainingRoster');root.replaceChildren();
     for(const p of players){
@@ -214,8 +232,10 @@
 
   document.addEventListener('DOMContentLoaded',async()=>{
     initImport();
-    $('trainingDate').value=new Date().toLocaleDateString('sv-SE',{year:'numeric',month:'2-digit',day:'2-digit'});
-    $('trainingDate').addEventListener('change',()=>{restore();renderRoster();renderCoaches();renderGoalieSelectors();renderGroups();});
+    const requestedDate=new URLSearchParams(location.search).get('date');
+    const today=new Date().toLocaleDateString('sv-SE',{year:'numeric',month:'2-digit',day:'2-digit'});
+    $('trainingDate').value=/^\d{4}-\d{2}-\d{2}$/.test(requestedDate||'')?requestedDate:today;
+    $('trainingDate').addEventListener('change',async()=>{try{await saveQueue;if(saveBlocked)throw Error('Sparningen misslyckades. Ladda om sidan innan du byter träning.');if(!await restore())return;renderRoster();renderCoaches();renderGoalieSelectors();renderGroups();$('trainingStatus').textContent='Träningen för '+loadedDate+' är inläst.';}catch(error){if(loadedDate)$('trainingDate').value=loadedDate;$('trainingStatus').textContent=error.message;}});
     $('trainingGoalieCount').addEventListener('change',()=>{
       goalieCount=Number($('trainingGoalieCount').value);
       goalies=goalies.slice(0,goalieCount);
@@ -230,7 +250,7 @@
       team=Auth.activeTeam();
       if(!team)throw Error('Välj ett aktivt lag under Mitt konto.');
       [players,coaches]=await Promise.all([DB.listPlayers(),DB.listCoaches()]);
-      restore();renderRoster();renderCoaches();renderGoalieSelectors();renderGroups();
+      await restore();saveBlocked=false;renderRoster();renderCoaches();renderGoalieSelectors();renderGroups();
       $('trainingStatus').textContent=players.length+' spelare och '+coaches.length+' tränare hämtade från NSK-truppen.';
     }catch(error){$('trainingStatus').textContent=error.message||'Kunde inte läsa truppen.';}
   });

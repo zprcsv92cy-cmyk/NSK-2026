@@ -21,7 +21,7 @@
     <nav class="mainmenu">
       <a href="../startsida/" class="active">Startsida</a>
       <a href="../truppen/">Truppen</a>
-      <a href="../traningsgrupper/">Träningsgrupper</a>
+      <a href="../traningsgrupper/" data-training-release hidden>Träning</a>
 <a href="../ovningsarkiv/">Övningsarkiv</a>
       <a href="../ritverktyg/">Ritverktyg</a>
       <a href="../skapapoolspel/">Skapa poolspel</a>
@@ -60,12 +60,16 @@
       <div id="savedPoolsList"></div>
     </section>
 
+    <section class="card home-saved" data-training-release hidden><h2>Träningar</h2><p class="small">Gemensamma träningar för valt lag.</p><div id="savedTrainingsList"></div><a class="home-create-button" href="../traningsgrupper/">＋ Ny träning</a></section>
+
     <div id="appError" class="small"></div>
     <script>
       document.write('<script src="../config.js?v=' + window.NSK_VERSION + '"><\/script>');
       document.write('<script src="../auth.js?v=' + window.NSK_VERSION + '"><\/script>');
       document.write('<script src="../db.js?v=' + window.NSK_VERSION + '"><\/script>');
       document.write('<script src="../app.js?v=' + window.NSK_VERSION + '"><\/script>');
+      document.write('<script src="../home-training.js?v=' + window.NSK_VERSION + '"><\/script>');
+      if(window.APP_CONFIG?.ENABLE_SHARED_TRAINING===true){document.querySelectorAll('[data-training-release]').forEach(el=>el.hidden=false);}
     </script>
   </div>
 <script>
