@@ -1,15 +1,13 @@
-// Local-first attendance prototype. Personal data is never sent to third-party services.
+// Shared attendance; uploaded screenshots and OCR text are never persisted.
 (() => {
   const palette = [{name:'Röd',hex:'#b11226',text:'#fff'},{name:'Vit',hex:'#fff',text:'#17181b'},{name:'Svart',hex:'#17181b',text:'#fff'}];
   const $ = id => document.getElementById(id);
-  const storagePrefix = 'nsk_training_v1:';
   let players = [], coaches = [], team = '';
   let selectedCoaches = new Set();
   let selected = new Set();
   let allocation = [];
   let goalies = [];
   let goalieCount = 0;
-  const storageKey = () => storagePrefix + team + ':' + $('trainingDate').value;
   async function restore(){
     const response=await SharedTraining.get($('trainingDate').value);
     const data=response.session||{};
