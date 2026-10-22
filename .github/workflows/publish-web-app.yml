@@ -57,6 +57,7 @@ jobs:
           set -euo pipefail
           node --test scripts/frontend-regression-guard.test.cjs scripts/training-image-import.test.cjs
           node --check app.js
+          node --check navigation.js
           node --check home-training.js
           node --check shared-training.js
           node --check auth.js
@@ -103,7 +104,7 @@ jobs:
         run: |
           set -euo pipefail
           mkdir -p _site
-          cp -a index.html app.css app.js home-training.js shared-training.js admin-mode.js auth.js config.js db.js deploy.json version.js sw.js manifest.webmanifest icon-192.png icon-512.png login-patch.js login-gate.js training-groups.js exercise-archive.js rink-drawer.js rink-text-parser.js exercise-rink-preview.js hockeyakademin-catalog.js pool-team-editor.js _site/
+          cp -a index.html app.css app.js navigation.js home-training.js shared-training.js admin-mode.js auth.js config.js db.js deploy.json version.js sw.js manifest.webmanifest icon-192.png icon-512.png login-patch.js login-gate.js training-groups.js exercise-archive.js rink-drawer.js rink-text-parser.js exercise-rink-preview.js hockeyakademin-catalog.js pool-team-editor.js _site/
           for dir in aktivera anvandare bytesschema lag laguppstallning login malvaktsstatistik matchvy mittkonto skapapoolspel startsida truppen traningsgrupper ovningsarkiv ritverktyg; do
             cp -a "$dir" _site/
           done
