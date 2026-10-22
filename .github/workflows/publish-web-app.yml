@@ -74,6 +74,28 @@ jobs:
         env:
           NSK_TARGET_VERSION: ${{ github.run_id }}
         run: node scripts/bump-version.cjs
+      - name: Verify stamped release consistency
+        env:
+          NSK_TARGET_VERSION: ${{ github.run_id }}
+        run: |
+          set -euo pipefail
+          node - <<'NODE'
+          const fs = require('node:fs');
+          const assert = require('node:assert/strict');
+          const version = process.env.NSK_TARGET_VERSION;
+          const script = fs.readFileSync('version.js', 'utf8');
+          const deploy = JSON.parse(fs.readFileSync('deploy.json', 'utf8'));
+          const manifest = JSON.parse(fs.readFileSync('manifest.webmanifest', 'utf8'));
+          const sw = fs.readFileSync('sw.js', 'utf8');
+          assert.ok(script.includes('window.NSK_VERSION = "' + version + '";'), 'version.js mismatch');
+          assert.equal(deploy.version, version);
+          assert.equal(manifest.version, version);
+          assert.ok(sw.includes('nsk-team18-v' + version));
+          for (const file of ['startsida/index.html', 'ovningsarkiv/index.html', 'truppen/index.html']) {
+            assert.ok(fs.readFileSync(file, 'utf8').includes('version.js?v=' + version), file + ' must reference stamped version');
+          }
+          console.log('Release version consistent:', version);
+          NODE
       - name: Assemble only public frontend files
         run: |
           set -euo pipefail
