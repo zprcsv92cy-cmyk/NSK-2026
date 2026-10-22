@@ -1,0 +1,26 @@
+name: Validate isolated NSK Worker bundle (no deployment)
+on:
+  workflow_dispatch:
+  pull_request:
+    paths:
+      - 'worker/**'
+      - 'wrangler.api.isolated-worker.toml'
+      - '.github/workflows/validate-isolated-worker.yml'
+permissions:
+  contents: read
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Check Worker JavaScript syntax
+        run: node --check worker/production-api-v42-reference.js
+      - name: Validate isolated Worker bundle without publishing
+        run: npx --yes wrangler@4.151.2 deploy --dry-run --outdir /tmp/nsk-isolated-worker-build --config wrangler.api.isolated-worker.toml
+      - name: Verify bundle output exists
+        run: test -n "$(find /tmp/nsk-isolated-worker-build -maxdepth 1 -type f -name '*.js' -print -quit)"
