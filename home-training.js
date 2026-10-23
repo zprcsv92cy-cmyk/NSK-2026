@@ -136,6 +136,7 @@
       if(!currentContext||!importMonth||!candidates.length)return;
       confirm.disabled=true;
       const checked=new Set([...review.querySelectorAll('input:checked')].map(x=>x.value));
+      const knownTrainingDates=new Set(currentContext.dates);
       let created=0,skipped=0;
       for(const item of candidates.filter(c=>checked.has(c.type+':'+c.date+':'+(c.place||'')))){
         if(item.date<todayLocalDate()){skipped++;continue;}
@@ -163,7 +164,7 @@
       }
       // Never delete when the user selected only a subset or OCR found no training.
       const selectedAll=candidates.every(c=>checked.has(c.type+':'+c.date+':'+(c.place||''))||
-        (c.type==='training'?currentContext.dates.has(c.date):knownPools.some(p=>p.pool_date===c.date)));
+        (c.type==='training'?knownTrainingDates.has(c.date):knownPools.some(p=>p.pool_date===c.date)));
       const trainingDates=candidates.filter(c=>c.type==='training').map(c=>c.date);
       let removed=0;
       // OCR can omit an entire day without reporting an error. Require an explicit
