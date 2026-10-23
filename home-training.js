@@ -84,7 +84,8 @@
         day=validDate.getDate()===proposed&&(!weekday||weekdayNames[validDate.getDay()]===weekday)?proposed:null;
         continue;
       }
-      // A new date on the activity line overrides any earlier OCR day header.\n      if(!day)continue;
+      // A new date on the activity line overrides any earlier OCR day header.
+      if(!day)continue;
       const isTraining=/\b(?:träning|is(?:\s*1[789](?:\s*\/\s*1[789])?)?|hockeyfritids|open\s*ice)\b/i.test(normalized);
       const isPool=/\b(?:poolspel|intresseanmälan\s+poolspel)\b/i.test(normalized);
       if(!isTraining&&!isPool)continue;
@@ -169,7 +170,22 @@
           const label=document.createElement('label');label.className='training-review-item';
           const check=document.createElement('input');check.type='checkbox';check.value=item.type+':'+item.date+':'+(item.place||'');check.disabled=exists;check.checked=!exists;
           const text=document.createElement('span');text.textContent=(item.type==='pool'?'Poolspel':'Träning')+' • '+item.date+' • '+(item.place||item.hall||'Plats ej angiven')+(exists?' – finns redan':'');
-          label.append(check,text);review.append(label);
+          // OCR can misalign the narrow date column. Require an editable date
+          // for each candidate so the user can correct it before any write.
+          const dateInput=document.createElement('input');dateInput.type='date';
+          dateInput.value=item.date;dateInput.min=importMonth+'-01';
+          dateInput.max=importMonth+'-'+String(new Date(Number(importMonth.slice(0,4)),Number(importMonth.slice(5,7)),0).getDate()).padStart(2,'0');
+          dateInput.setAttribute('aria-label','Kontrollera datum för '+(item.type==='pool'?'poolspel':'träning'));
+          dateInput.addEventListener('change',()=>{
+            const next=dateInput.value;
+            if(!next.startsWith(importMonth+'-')){dateInput.value=item.date;return;}
+            item.date=next;
+            const already=item.type==='training'?currentContext.dates.has(next):knownPools.some(p=>p.pool_date===next);
+            check.value=item.type+':'+next+':'+(item.place||'');
+            check.disabled=already;check.checked=!already;
+            text.textContent=(item.type==='pool'?'Poolspel':'Träning')+' • '+next+' • '+(item.place||item.hall||'Plats ej angiven')+(already?' – finns redan':'');
+          });
+          label.append(check,text,dateInput);review.append(label);
         }
         const fresh=candidates.filter(c=>c.type==='training'?!currentContext.dates.has(c.date):!knownPools.some(p=>p.pool_date===c.date&&(!c.place||String(p.place||'').toLocaleLowerCase('sv-SE')===c.place.toLocaleLowerCase('sv-SE'))));
         status.textContent='Kalendermånad '+importMonth+': hittade '+candidates.length+' aktiviteter, '+fresh.length+' nya. Granska före import. Borttagning kräver separat bekräftelse av att hela månaden har lästs korrekt.';
