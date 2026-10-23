@@ -150,26 +150,27 @@
     // If the Anmälda heading was recognized, skip the invitation section.
     const relevant=lines.slice(status>=0?status+1:section>=0?section+1:0);
     const found=new Map();
+    // OCR may place a name after a bullet, a number, or another UI fragment.
+    // Only accept a name at a token boundary, and require a unique roster match.
+    const skip=/^(kommer|kan ej|kallade|anmalda|anmalan|kalender|samling|svara senast|ej svarat)(?: |$)/;
     for(const line of relevant){
       const cleaned=normalized(normalizeImportLine(line));
-      if(!cleaned||cleaned.length<3||/^(kommer|kan ej|kallade|anmalda|anmalan|kalender|samling|svara senast|ej svarat)$/.test(cleaned))continue;
-      // Match a name at the start of an OCR line, even when a role/comment follows.
-      const matches=roster.filter(p=>{
-        const full=normalized(p.full_name);
+      if(!cleaned||cleaned.length<3||skip.test(cleaned))continue;
+      const matches=roster.map(person=>{
+        const full=normalized(person.full_name);
         const parts=full.split(' ');
-        const abbreviated=parts.length>1?parts[0]+' '+parts[parts.length-1][0]:'';
-        return cleaned===full||cleaned.startsWith(full+' ')||
-          (abbreviated&& (cleaned===abbreviated||cleaned.startsWith(abbreviated+' ')));
-      });
+        if(parts.length<2)return null;
+        const shortName=parts[0]+' '+parts[parts.length-1][0];
+        // Prefer a complete name; otherwise match first name plus surname initial.
+        // An OCR line can contain role labels and other text before or after a name.
+        const fullMatch=new RegExp('(?:^| )'+full+'(?: |$)').test(cleaned);
+        const shortMatch=new RegExp('(?:^| )'+shortName+'(?: |$)').test(cleaned);
+        return fullMatch||shortMatch?{...person,exact:fullMatch}:null;
+      }).filter(Boolean);
       if(matches.length===1){
-        const person=matches[0];
-        const fullName=normalized(person.full_name);
-        const nameParts=fullName.split(' ');
-        const shortName=nameParts.length>1?nameParts[0]+' '+nameParts[nameParts.length-1][0]:'';
-        const exact=cleaned===fullName||Boolean(shortName&&(cleaned===shortName||cleaned.startsWith(shortName+' ')));
-        const key=person.kind+':'+person.id;
+        const person=matches[0],key=person.kind+':'+person.id;
         const previous=found.get(key);
-        if(!previous||exact)found.set(key,{...person,exact});
+        if(!previous||person.exact)found.set(key,person);
       }
     }
     return [...found.values()];
