@@ -520,9 +520,12 @@ var worker_default = { async fetch(req, env) {
         new Set(body.dates).size!==body.dates.length) return reply({ok:false,error:"Ogiltig månadslista"},400);
     const today = new Intl.DateTimeFormat("sv-SE",{timeZone:"Europe/Stockholm",year:"numeric",month:"2-digit",day:"2-digit"}).format(new Date());
     if (body.month < today.slice(0,7)) return reply({ok:false,error:"Passerad månad"},400);
+    const teamsForImport = await listTrustedRosterTeams(env).catch(()=>null);
+    const importTeams = Array.isArray(teamsForImport) ? teamsForImport.filter(t=>t.Namn===access.teamId && String(t["Säsong"])==="2026") : [];
+    if (importTeams.length!==1 || !Number.isSafeInteger(Number(importTeams[0].id)) || Number(importTeams[0].id)<=0) return reply({ok:false,error:"Laget kunde inte verifieras"},503);
     let tracked;
     try {
-      tracked = await env.AUTH_DB.prepare("SELECT pool_id,pool_date FROM pool_calendar_imports WHERE team_id=? AND import_month=? ORDER BY pool_date,pool_id").bind(access.teamId,body.month).all();
+      tracked = await env.AUTH_DB.prepare("SELECT pool_id,pool_date FROM pool_calendar_imports WHERE team_id=? AND import_month=? ORDER BY pool_date,pool_id").bind(String(importTeams[0].id),body.month).all();
     } catch { return reply({ok:false,error:"Importregistreringen kunde inte läsas"},503); }
     const dates = new Set(body.dates);
     const trackedRows = tracked.results || [];
