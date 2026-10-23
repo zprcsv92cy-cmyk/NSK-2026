@@ -142,10 +142,13 @@
   function importCandidates(text){
     const roster=[...players.map(p=>({...p,kind:'player'})),...coaches.map(p=>({...p,kind:'coach'}))];
     const lines=String(text||'').split(/\n/).map(x=>x.trim()).filter(Boolean);
-    const section=lines.findIndex(line=>normalized(line)==='anmalda');
-    const status=section<0?-1:lines.findIndex((line,i)=>i>section&&/^kommer(?:\s+\d+\s*\+\s*\d+)?$/i.test(normalized(line)));
-    // Do not infer attendance from invitations or other response columns.
-    const relevant=status>=0?lines.slice(status+1):section>=0?[]:lines;
+    const section=lines.findIndex(line=>/^anmalda(?:\\s|$)/.test(normalized(line)));
+    // OCR often separates "Kommer" and "14+9" into different lines, or
+    // renders the counter as "Kommer 14 9" after punctuation removal.
+    const status=section<0?-1:lines.findIndex((line,i)=>i>section&&/^kommer(?:\\s|$)/.test(normalized(line)));
+    // A missing OCR header must not silently turn a valid roster into zero matches.
+    // If the Anmälda heading was recognized, skip the invitation section.
+    const relevant=lines.slice(status>=0?status+1:section>=0?section+1:0);
     const found=new Map();
     for(const line of relevant){
       const cleaned=normalized(normalizeImportLine(line));
