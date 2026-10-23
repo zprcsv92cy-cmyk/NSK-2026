@@ -1,0 +1,22 @@
+name: Smoke test isolated NSK API (read-only)
+on:
+  push:
+    paths:
+      - '.github/workflows/smoke-isolated-worker.yml'
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  smoke:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Verify anonymous and invalid sessions are denied
+        env:
+          NSK_PREVIEW_BASE_URL: https://nsk-api-isolated-preview.peter-hasselberg.workers.dev
+        run: node scripts/smoke-isolated-api-preview.mjs
