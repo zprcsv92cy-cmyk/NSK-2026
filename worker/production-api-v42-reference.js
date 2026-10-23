@@ -530,6 +530,31 @@ var worker_default = { async fetch(req, env) {
     const teams = await listTrustedRosterTeams(env).catch(()=>null);
     const team = Array.isArray(teams) ? teams.find(t=>t.Namn===access.teamId && String(t["Säsong"])==="2026") : null;
     if (!team || !Number.isSafeInteger(Number(team.id))) return reply({ok:false,error:"Laget kunde inte verifieras"},503);
+    // A pool with any related match or lineup is protected from future deletion.
+    // Fetch every page; incomplete data fails closed rather than implying no dependencies.
+    const relatedPoolIds = new Set();
+    for (const tableName of ["matcher","matchkonfiguration","laguppstallningar"]) {
+      let page = 1;
+      while (page <= 100) {
+        const response = await fetch(`https://api.baserow.io/api/database/rows/table/${TABLES[tableName]}/?user_field_names=true&page=${page}&size=200`,{
+          headers:{Authorization:`Token ${env.BASEROW_TOKEN}`}
+        }).catch(()=>null);
+        if (!response || !response.ok) return reply({ok:false,error:"Matchkopplingar kunde inte kontrolleras"},503);
+        const data = await response.json().catch(()=>null);
+        if (!data || !Array.isArray(data.results)) return reply({ok:false,error:"Ogiltiga matchkopplingar"},503);
+        for (const entry of data.results) {
+          for (const key of ["Poolspel","poolspel"]) {
+            if (Array.isArray(entry[key])) for (const link of entry[key]) {
+              const id = Number(typeof link==="object"?link?.id:link);
+              if (Number.isSafeInteger(id) && id>0) relatedPoolIds.add(id);
+            }
+          }
+        }
+        if (!data.next) break;
+        page++;
+      }
+      if (page>100) return reply({ok:false,error:"För många matchkopplingar"},503);
+    }
     const checked = [];
     for (const row of trackedRows) {
       const poolId = Number(row.pool_id);
@@ -545,7 +570,7 @@ var worker_default = { async fetch(req, env) {
       const validDate = pool.Datum===row.pool_date && row.pool_date.slice(0,7)===body.month;
       const missing = !dates.has(row.pool_date);
       const protectedRow = !validOwner || !validDate || row.pool_date<=today ||
-        pool.Aktiv===false || /avslut/i.test(String(pool.Status||""));
+        pool.Aktiv===false || /avslut/i.test(String(pool.Status||"")) || relatedPoolIds.has(poolId);
       checked.push({pool_id:poolId,pool_date:row.pool_date,present_in_calendar:!missing,
         status:!missing?"present":protectedRow?"protected":"needs_manual_review"});
     }
