@@ -10,8 +10,8 @@ test('image import requires explicit confirmation',()=>{
 });
 test('attendance import matches unique names and does not clear existing attendance',()=>{
  assert.match(js,/if\(matches\.length===1\)/);
- assert.match(js,/selected\.add\(check\.dataset\.id\)/);
- assert.match(js,/selectedCoaches\.add\(check\.dataset\.id\)/);
+ assert.match(js,/selected\.add\(String\(person\.id\)\)/);
+ assert.match(js,/selectedCoaches\.add\(String\(person\.id\)\)/);
  assert.doesNotMatch(js.slice(js.indexOf("trainingImportApply').addEventListener")),/selected\.clear\(|selectedCoaches\.clear\(/);
 });
 test('OCR uses local worker and releases it',()=>{
@@ -72,4 +72,10 @@ test('training date responses must be ignored after date changes',()=>{
  const source=fs.readFileSync('training-groups.js','utf8');
  assert.match(source,/const date=\$\('trainingDate'\)\.value;[\s\S]*?SharedTraining\.get\(date\)/);
  assert.match(source,/if\(\$\('trainingDate'\)\.value!==date\)return/);
+});
+
+test('only uncertain OCR matches require review',()=>{
+ assert.match(js,/matches\.filter\(p=>!p\.exact\)/);
+ assert.match(js,/importMatches\.filter\(p=>p\.exact\)/);
+ assert.match(js,/const approved=/);
 });
