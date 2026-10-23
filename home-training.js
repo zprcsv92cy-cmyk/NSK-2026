@@ -23,7 +23,12 @@
       const sessions=Array.isArray(data.sessions)?data.sessions:[];
       sessions.sort((a,b)=>b.date.localeCompare(a.date));
       if(!sessions.length){root.textContent='Inga gemensamt sparade träningar ännu.';return;}
-      root.innerHTML=sessions.map(s=>'<details class="nsk-pool-row" data-date="'+encodeURIComponent(s.date)+'"><summary class="nsk-pool-summary"><span class="nsk-pool-name">Träning • '+escapeHtml(s.date)+'</span><span class="nsk-pool-hall">'+s.players+' spelare, '+s.coaches+' tränare</span><span class="nsk-pool-chevron" aria-hidden="true">⌄</span></summary><div class="nsk-pool-content"><p data-training-info>Öppna för att visa träningsuppgifter.</p><div class="nsk-pool-actions"><a class="home-create-button" href="../traningsgrupper/?date='+encodeURIComponent(s.date)+'">Visa / redigera träning</a></div></div></details>').join('');
+      root.innerHTML=sessions.map(s=>{
+        const day=new Date(s.date+'T12:00:00');
+        const weekday=Number.isNaN(day.getTime())?'Träning':day.toLocaleDateString('sv-SE',{weekday:'long'});
+        const title=weekday.charAt(0).toLocaleUpperCase('sv-SE')+weekday.slice(1);
+        const hall=['Lilla Hallen','Stora hallen'].includes(s.hall)?s.hall:'Hall ej vald';
+        return '<details class="nsk-pool-row" data-date="'+encodeURIComponent(s.date)+'"><summary class="nsk-pool-summary"><span class="nsk-pool-name">'+escapeHtml(title+' • '+s.date)+'</span><span class="nsk-pool-hall">'+escapeHtml(hall)+'</span><span class="nsk-pool-chevron" aria-hidden="true">⌄</span></summary><div class="nsk-pool-content"><p data-training-info>Öppna för att visa träningsuppgifter.</p><div class="nsk-pool-actions"><a class="home-create-button" href="../traningsgrupper/?date='+encodeURIComponent(s.date)+'">Visa / redigera träning</a></div></div></details>';}).join('');
       root.addEventListener('toggle',async event=>{
         const details=event.target;
         if(!(details instanceof HTMLDetailsElement)||!details.open||details.dataset.loaded==='pending')return;
