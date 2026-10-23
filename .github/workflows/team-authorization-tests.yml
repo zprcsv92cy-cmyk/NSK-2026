@@ -28,7 +28,7 @@ jobs:
           node --check training-groups.js
           node --check shared-training.js
           node --check home-training.js
-          node --test scripts/training-session-validation.test.mjs scripts/training-permission-policy.test.mjs scripts/training-api-route.test.mjs scripts/training-storage-schema.test.mjs scripts/training-handler-http.test.mjs scripts/training-preview-readiness.test.mjs
+          node --test scripts/training-session-validation.test.mjs scripts/training-permission-policy.test.mjs scripts/training-api-route.test.mjs scripts/training-storage-schema.test.mjs scripts/training-handler-http.test.mjs scripts/training-authorized-http.test.mjs scripts/training-payload-regression.test.mjs scripts/training-preview-readiness.test.mjs
           python3 scripts/training-d1-integration.test.py
           node --test worker/production-api-staff-route.test.mjs
           node --experimental-default-type=module --test worker/production-personal-write-route-isolation.test.mjs
