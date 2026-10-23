@@ -150,7 +150,14 @@
         const abbreviated=parts.length>1?parts[0]+' '+parts[parts.length-1][0]:'';
         return cleaned===full||cleaned===abbreviated;
       });
-      if(matches.length===1)found.set(matches[0].kind+':'+matches[0].id,matches[0]);
+      if(matches.length===1){
+        const person=matches[0];
+        const exact=cleaned===normalized(person.full_name);
+        const key=person.kind+':'+person.id;
+        // Initial-only OCR matches require explicit opt-in during review.
+        const previous=found.get(key);
+        if(!previous||exact)found.set(key,{...person,exact});
+      }
     }
     return [...found.values()];
   }
@@ -185,8 +192,8 @@
     const root=$('trainingImportReview');root.replaceChildren();
     for(const person of matches){
       const label=document.createElement('label'),check=document.createElement('input');
-      check.type='checkbox';check.checked=true;check.dataset.kind=person.kind;check.dataset.id=String(person.id);
-      label.append(check,document.createTextNode(person.full_name+' ('+(person.kind==='player'?'spelare':'tränare')+')'));
+      check.type='checkbox';check.checked=person.exact===true;check.dataset.kind=person.kind;check.dataset.id=String(person.id);
+      label.append(check,document.createTextNode(person.full_name+' ('+(person.kind==='player'?'spelare':'tränare')+')'+(person.exact?'':' – kontrollera, endast initial matchade')));
       root.append(label);
     }
     $('trainingImportApply').disabled=!matches.length;
