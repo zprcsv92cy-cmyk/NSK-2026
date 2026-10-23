@@ -140,7 +140,9 @@
       .map(w=>({day:Number(w.text.trim()),y:w.bbox.y0,x:w.bbox.x0}))
       .filter(w=>w.day>=1&&w.day<=31)
       .sort((a,b)=>a.y-b.y);
-    if(!dates.length)return null;
+    // A cropped section can contain only the month heading, weekday names or hall text.
+    // Missing dates in one crop does not mean the OCR engine omitted coordinates.
+    if(!dates.length)return [];
     const items=new Map();
     const rows=words.filter(w=>w.bbox.x0>=dayColumn)
       .sort((a,b)=>a.bbox.y0-b.bbox.y0);
@@ -202,6 +204,8 @@
           if(!monthMatch)throw Error('Kunde inte läsa månad och år i bildens överkant.');
           const monthHeading=monthMatch[1]+' '+monthMatch[2];
           const merged=new Map();
+          let chunksWithGeometry=0;
+          let chunksWithoutGeometry=0;
           const chunkHeight=Math.max(300,Math.round(bitmap.width*2.3));
           const overlap=Math.round(chunkHeight*0.2);
           for(let top=0;top<bitmap.height;top+=chunkHeight-overlap){
@@ -215,10 +219,13 @@
             const layoutItems=parseCalendarLayout(result.data,monthMatch[2]+'-'+String(monthNames.indexOf(monthMatch[1])+1).padStart(2,'0'),canvas.width);
             // If geometry is unavailable, do not silently trust text ordering:
             // the date column can be read one day ahead of an activity.
-            if(layoutItems===null)throw Error('OCR-motorn gav varken blockpositioner eller TSV-koordinater. Importen stoppades utan ändringar.');
+            if(layoutItems===null){chunksWithoutGeometry++;continue;}
+            chunksWithGeometry++;
             for(const item of layoutItems)merged.set(item.type+':'+item.date+':'+(item.place||''),item);
             if(top+height>=bitmap.height)break;
           }
+          if(!chunksWithGeometry)throw Error('OCR-motorn gav inga läsbara positionsdata i någon bilddel. Ingen import har gjorts.');
+          if(chunksWithoutGeometry)throw Error('Positionsdata saknades i '+chunksWithoutGeometry+' bilddelar. Importen stoppades för att inte missa aktiviteter.');
           parsed={month:monthNames.indexOf(monthMatch[1])+1,items:[...merged.values()],valid:merged.size>0};
           parsed.month=monthMatch[2]+'-'+String(parsed.month).padStart(2,'0');
         }finally{bitmap.close();}
