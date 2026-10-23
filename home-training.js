@@ -66,15 +66,19 @@
       const heading=normalized.match(/(januari|februari|mars|april|maj|juni|juli|augusti|september|oktober|november|december)\s+(20\d{2})/);
       if(heading){month=monthNames.indexOf(heading[1])+1;year=Number(heading[2]);continue;}
       const dayMatch=normalized.match(/^(\d{1,2})(?:\s+(?:mån|tis|ons|tor|fre|lör|sön))?\s*$/);
-      if(dayMatch&&Number(dayMatch[1])>=1&&Number(dayMatch[1])<=31){day=Number(dayMatch[1]);continue;}
+      if(dayMatch){day=Number(dayMatch[1])>=1&&Number(dayMatch[1])<=31?Number(dayMatch[1]):null;continue;}
+      // A calendar entry cannot borrow a date from a previous activity.
+      // Ignore unrelated text and reset after each recognized activity.
       if(!year||!month||!day)continue;
       const isTraining=/\b(?:träning|is\s*17\s*[/\\]\s*18)\b/i.test(normalized);
       const isPool=/\b(?:poolspel|intresseanmälan\s+poolspel)\b/i.test(normalized);
       if(!isTraining&&!isPool)continue;
-      const context=lines.slice(i,i+4).join(' ').toLocaleLowerCase('sv-SE');
+      const nextDayIndex=lines.findIndex((line,j)=>j>i&&/^(\d{1,2})(?:\s+(?:mån|tis|ons|tor|fre|lör|sön))?\s*$/i.test(line));
+      const end=nextDayIndex<0?Math.min(i+4,lines.length):Math.min(i+4,nextDayIndex);
+      const context=lines.slice(i,end).join(' ').toLocaleLowerCase('sv-SE');
       const hall=/\blilla\s+hallen\b/.test(context)?'Lilla Hallen':/\bstora\s+hallen\b/.test(context)?'Stora hallen':null;
       const date=year+'-'+String(month).padStart(2,'0')+'-'+String(day).padStart(2,'0');
-      if(new Date(date+'T12:00:00').getDate()!==day)continue;
+      if(new Date(date+'T12:00:00').getDate()!==day||date<todayLocalDate())continue;
       if(isPool){
         const place=/södertälje/i.test(context)?'Södertälje':'';
         const key='pool:'+date+':'+place;
@@ -83,6 +87,7 @@
         const key='training:'+date;
         if(!found.has(key))found.set(key,{type:'training',date,hall});
       }
+      day=null;
     }
     return [...found.values()];
   }
