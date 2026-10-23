@@ -158,7 +158,7 @@
       const day=String(date.day).padStart(2,'0');
       const fullDate=monthKey+'-'+day;
       if(new Date(fullDate+'T12:00:00').getDate()!==date.day||fullDate<todayLocalDate())continue;
-      const hall=/lilla\s+hallen/.test(content)?'Lilla Hallen':/stora\s+hallen/.test(content)?'Stora hallen':null;
+      const hall=/lilla\s+hall(?:en)?/.test(content)?'Lilla Hallen':/stora\s+hall(?:en)?/.test(content)?'Stora hallen':null;
       const place=isPool&&/södertälje/.test(content)?'Södertälje':'';
       const item=isPool?{type:'pool',date:fullDate,hall:hall||'',place}:{type:'training',date:fullDate,hall};
       items.set(item.type+':'+fullDate+':'+(item.place||''),item);
