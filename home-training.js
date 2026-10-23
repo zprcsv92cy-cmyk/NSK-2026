@@ -1,6 +1,7 @@
 // Saved training sessions are fetched from team-scoped shared storage.
 (() => {
   const escapeHtml=s=>String(s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+  let currentContext=null;
   async function render(){
     const root=document.getElementById('savedTrainingsList');
     if(!root)return;
@@ -21,9 +22,15 @@
       if(!response.ok)throw Error('Gemensamma träningar är ännu inte aktiverade');
       const data=await response.json();
       const sessions=Array.isArray(data.sessions)?data.sessions:[];
+      currentContext={base,token,teamId:String(matches[0].id),dates:new Set(sessions.map(s=>s.date))};
       sessions.sort((a,b)=>b.date.localeCompare(a.date));
       if(!sessions.length){root.textContent='Inga gemensamt sparade träningar ännu.';return;}
-      root.innerHTML=sessions.map(s=>'<details class="nsk-pool-row" data-date="'+encodeURIComponent(s.date)+'"><summary class="nsk-pool-summary"><span class="nsk-pool-name">Träning • '+escapeHtml(s.date)+'</span><span class="nsk-pool-hall">'+s.players+' spelare, '+s.coaches+' tränare</span><span class="nsk-pool-chevron" aria-hidden="true">⌄</span></summary><div class="nsk-pool-content"><p data-training-info>Öppna för att visa träningsuppgifter.</p><div class="nsk-pool-actions"><a class="home-create-button" href="../traningsgrupper/?date='+encodeURIComponent(s.date)+'">Visa / redigera träning</a></div></div></details>').join('');
+      root.innerHTML=sessions.map(s=>{
+        const day=new Date(s.date+'T12:00:00');
+        const weekday=Number.isNaN(day.getTime())?'Träning':day.toLocaleDateString('sv-SE',{weekday:'long'});
+        const title=weekday.charAt(0).toLocaleUpperCase('sv-SE')+weekday.slice(1);
+        const hall=['Lilla Hallen','Stora hallen'].includes(s.hall)?s.hall:'Hall ej vald';
+        return '<details class="nsk-pool-row" data-date="'+encodeURIComponent(s.date)+'"><summary class="nsk-pool-summary"><span class="nsk-pool-name">'+escapeHtml(title+' • '+s.date)+'</span><span class="nsk-pool-hall">'+escapeHtml(hall)+'</span><span class="nsk-pool-chevron" aria-hidden="true">⌄</span></summary><div class="nsk-pool-content"><p data-training-info>Öppna för att visa träningsuppgifter.</p><div class="nsk-pool-actions"><a class="home-create-button" href="../traningsgrupper/?date='+encodeURIComponent(s.date)+'">Visa / redigera träning</a></div></div></details>';}).join('');
       root.addEventListener('toggle',async event=>{
         const details=event.target;
         if(!(details instanceof HTMLDetailsElement)||!details.open||details.dataset.loaded==='pending')return;
@@ -45,5 +52,106 @@
       },true);
     }catch(error){root.textContent='Kunde inte läsa sparade träningar: '+(error.message||String(error));}
   }
-  document.addEventListener('DOMContentLoaded',render);
+  const monthNames=['januari','februari','mars','april','maj','juni','juli','augusti','september','oktober','november','december'];
+  function parseCalendar(text){
+    const lines=String(text).split(/\n/).map(x=>x.trim()).filter(Boolean);
+    let year=null,month=null,day=null;
+    const found=new Map();
+    for(let i=0;i<lines.length;i++){
+      const normalized=lines[i].toLocaleLowerCase('sv-SE');
+      const heading=normalized.match(/(januari|februari|mars|april|maj|juni|juli|augusti|september|oktober|november|december)\s+(20\d{2})/);
+      if(heading){month=monthNames.indexOf(heading[1])+1;year=Number(heading[2]);continue;}
+      const dayMatch=normalized.match(/^(\d{1,2})(?:\s+(?:mån|tis|ons|tor|fre|lör|sön))?\s*$/);
+      if(dayMatch&&Number(dayMatch[1])>=1&&Number(dayMatch[1])<=31){day=Number(dayMatch[1]);continue;}
+      if(!year||!month||!day)continue;
+      const isTraining=/\b(?:träning|is\s*17\s*[/\\]\s*18)\b/i.test(normalized);
+      const isPool=/\b(?:poolspel|intresseanmälan\s+poolspel)\b/i.test(normalized);
+      if(!isTraining&&!isPool)continue;
+      const context=lines.slice(i,i+4).join(' ').toLocaleLowerCase('sv-SE');
+      const hall=/\blilla\s+hallen\b/.test(context)?'Lilla Hallen':/\bstora\s+hallen\b/.test(context)?'Stora hallen':null;
+      const date=year+'-'+String(month).padStart(2,'0')+'-'+String(day).padStart(2,'0');
+      if(new Date(date+'T12:00:00').getDate()!==day)continue;
+      if(isPool){
+        const place=/södertälje/i.test(context)?'Södertälje':'';
+        const key='pool:'+date+':'+place;
+        if(!found.has(key))found.set(key,{type:'pool',date,hall:hall||'',place});
+      }else if(isTraining&&hall){
+        const key='training:'+date;
+        if(!found.has(key))found.set(key,{type:'training',date,hall});
+      }
+    }
+    return [...found.values()];
+  }
+  function setupCalendarImport(){
+    const open=document.getElementById('importTrainingsOpen');
+    const panel=document.getElementById('trainingCalendarImport');
+    const input=document.getElementById('trainingCalendarImage');
+    const status=document.getElementById('trainingCalendarStatus');
+    const review=document.getElementById('trainingCalendarReview');
+    const confirm=document.getElementById('trainingCalendarConfirm');
+    if(!open)return;
+    let candidates=[];
+    let knownPools=[];
+    open.addEventListener('click',()=>{panel.hidden=!panel.hidden;});
+    document.getElementById('trainingCalendarRead').addEventListener('click',async()=>{
+      confirm.disabled=true;review.replaceChildren();candidates=[];
+      const file=input.files?.[0];
+      if(!file){status.textContent='Välj en kalenderbild först.';return;}
+      if(!currentContext){status.textContent='Träningarna måste hämtas först. Försök ladda om startsidan.';input.value='';return;}
+      if(!window.Tesseract?.createWorker){status.textContent='Bildtolkningen kunde inte startas.';input.value='';return;}
+      let worker;
+      try{
+        status.textContent='Tolkar kalenderbilden…';
+        worker=await window.Tesseract.createWorker('swe');
+        const result=await worker.recognize(file);
+        candidates=parseCalendar(result.data?.text||'');
+        knownPools=await DB.listPools();
+        const unique=new Map(candidates.map(c=>[c.type+':'+c.date+':'+(c.place||''),c]));
+        candidates=[...unique.values()];
+        for(const item of candidates){
+          const exists=item.type==='training'?currentContext.dates.has(item.date):knownPools.some(p=>p.pool_date===item.date&&(!item.place||String(p.place||'').toLocaleLowerCase('sv-SE')===item.place.toLocaleLowerCase('sv-SE')));
+          const label=document.createElement('label');label.className='training-review-item';
+          const check=document.createElement('input');check.type='checkbox';check.value=item.type+':'+item.date+':'+(item.place||'');check.disabled=exists;check.checked=!exists;
+          const text=document.createElement('span');text.textContent=(item.type==='pool'?'Poolspel':'Träning')+' • '+item.date+' • '+(item.place||item.hall||'Plats ej angiven')+(exists?' – finns redan':'');
+          label.append(check,text);review.append(label);
+        }
+        const fresh=candidates.filter(c=>c.type==='training'?!currentContext.dates.has(c.date):!knownPools.some(p=>p.pool_date===c.date&&(!c.place||String(p.place||'').toLocaleLowerCase('sv-SE')===c.place.toLocaleLowerCase('sv-SE'))));
+        status.textContent=candidates.length?'Hittade '+candidates.length+' aktiviteter. '+fresh.length+' kan importeras. Granska datum och hall före import.':'Inga säkra aktiviteter hittades. Kontrollera att månad, år och hall syns tydligt.';
+        confirm.disabled=!fresh.length;
+      }catch(error){status.textContent='Bildtolkning misslyckades: '+(error.message||String(error));}
+      finally{input.value='';if(worker)await worker.terminate();}
+    });
+    confirm.addEventListener('click',async()=>{
+      if(!currentContext)return;
+      confirm.disabled=true;
+      const checked=new Set([...review.querySelectorAll('input:checked')].map(x=>x.value));
+      let created=0,skipped=0;
+      for(const item of candidates.filter(c=>checked.has(c.type+':'+c.date+':'+(c.place||'')))){
+        if(item.type==='training'&&currentContext.dates.has(item.date)){skipped++;continue;}
+        if(item.type==='pool'){
+          try{
+            const latest=await DB.listPools();
+            if(latest.some(p=>p.pool_date===item.date&&(!item.place||String(p.place||'').toLocaleLowerCase('sv-SE')===item.place.toLocaleLowerCase('sv-SE')))){skipped++;continue;}
+            await DB.addPool({title:'Poolspel',place:item.place,hall:item.hall,pool_date:item.date,status:'Aktiv',teams:2,matches:4,players_on_field:3,periods:1,period_time:15,sub_time:90});
+            created++;continue;
+          }catch(error){status.textContent='Importerade '+created+'. Poolspel '+item.date+' kunde inte sparas: '+error.message;return;}
+        }
+        try{
+          const url=currentContext.base+'/api/training?team_id='+encodeURIComponent(currentContext.teamId)+'&date='+encodeURIComponent(item.date);
+          const headers={Authorization:'Bearer '+currentContext.token};
+          const existing=await fetch(url,{headers,cache:'no-store'});
+          if(!existing.ok)throw Error('Kunde inte kontrollera befintlig träning ('+existing.status+')');
+          const existingData=await existing.json();
+          if(existingData.session){currentContext.dates.add(item.date);skipped++;continue;}
+          const response=await fetch(url,{method:'PUT',headers:{...headers,'Content-Type':'application/json'},body:JSON.stringify({selected:[],selectedCoaches:[],goalies:[],goalieCount:0,allocation:[],revision:0,hall:item.hall,shirtColorCount:3}),cache:'no-store'});
+          if(response.status===409){skipped++;continue;}
+          if(!response.ok)throw Error('Kunde inte spara '+item.date+' ('+response.status+')');
+          currentContext.dates.add(item.date);created++;
+        }catch(error){status.textContent='Importerade '+created+'. Avbröt vid '+item.date+': '+error.message;return;}
+      }
+      status.textContent='Importerade '+created+' aktiviteter. Hoppade över '+skipped+' befintliga. Bilder och bildtext sparades inte.';
+      await render();
+    });
+  }
+  document.addEventListener('DOMContentLoaded',()=>{setupCalendarImport();render();});
 })();

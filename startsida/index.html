@@ -6,6 +6,7 @@
 <script>document.documentElement.style.visibility='hidden';</script>
 <script src="../config.js"></script>
 <script src="../login-gate.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/tesseract.js@5.1.1/dist/tesseract.min.js" defer></script>
   <title>Startsida</title>
   <meta name="theme-color" content="#b11226">
 
@@ -53,7 +54,7 @@
           <p>Skapa ett poolspel och välj lag, matcher och tider.</p>
         </div>
       </div>
-      <a class="home-create-button" href="../skapapoolspel/">＋ Skapa poolspel</a>
+      <a class="home-create-button" href="../skapapoolspel/">＋ Skapa poolspel</a><button type="button" id="importTrainingsOpen" class="home-create-button" style="margin-top:12px">＋ Importera poolspel och träningar</button><div id="trainingCalendarImport" class="training-calendar-import" hidden>
     </section>
 
     <section class="card home-saved">
@@ -61,7 +62,7 @@
       <div id="savedPoolsList"></div>
     </section>
 
-    <section class="card home-saved"><h2>Träningar</h2><p class="small">Gemensamma träningar för valt lag.</p><div id="savedTrainingsList"></div><a class="home-create-button" href="../traningsgrupper/">＋ Ny träning</a></section>
+    <section class="card home-saved"><h2>Träningar</h2><label>Bild från SvenskaLag-kalendern (poolspel och träningar)<input type="file" id="trainingCalendarImage" accept="image/*"></label><button type="button" id="trainingCalendarRead">Läs kalenderbild</button><p id="trainingCalendarStatus" role="status"></p><div id="trainingCalendarReview"></div><button type="button" id="trainingCalendarConfirm" disabled>Importera valda aktiviteter</button></div><p class="small">Gemensamma träningar för valt lag.</p><div id="savedTrainingsList"></div><a class="home-create-button" href="../traningsgrupper/">＋ Ny träning</a></section>
 
     <div id="appError" class="small"></div>
     <script>
@@ -73,6 +74,7 @@
       
     </script>
   </div>
+<style>.training-heading-row{display:flex;justify-content:space-between;align-items:center;gap:12px}.training-heading-row h2{margin:0}.training-import-toggle{border:1px solid var(--line);border-radius:8px;background:transparent;color:inherit;padding:7px 10px;font-size:.8rem;cursor:pointer}.training-calendar-import{margin:12px 0;padding:12px;border:1px solid var(--line);border-radius:12px}.training-calendar-import input{display:block;margin:8px 0;max-width:100%}.training-calendar-import label{display:block}.training-calendar-import button{margin:8px 0}.training-calendar-import .training-review-item{display:flex;gap:8px;align-items:center;margin:8px 0}</style>
 <script>
 (() => {
   // Login and team selection live on /login/ and /mittkonto/.

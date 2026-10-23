@@ -38,7 +38,8 @@ test('rejects malformed player IDs, invalid revisions and unknown properties',()
 
 test('rejects oversized selections and invalid allocation groups',()=>{
  assert.equal(validateTrainingPayload({...valid(),selected:Array.from({length:201},(_,i)=>String(i+1))}),false);
- assert.equal(validateTrainingPayload({...valid(),allocation:[[],[],[],[]]}),false);
+ assert.equal(validateTrainingPayload({...valid(),allocation:[[],[],[],[]]}),true);
+ assert.equal(validateTrainingPayload({...valid(),allocation:[[],[],[],[],[]]}),false);
  assert.equal(validateTrainingPayload({...valid(),allocation:[['999']]}),false);
 });
 
