@@ -127,7 +127,7 @@
           label.append(check,text);review.append(label);
         }
         const fresh=candidates.filter(c=>c.type==='training'?!currentContext.dates.has(c.date):!knownPools.some(p=>p.pool_date===c.date&&(!c.place||String(p.place||'').toLocaleLowerCase('sv-SE')===c.place.toLocaleLowerCase('sv-SE'))));
-        status.textContent='Kalendermånad '+importMonth+': hittade '+candidates.length+' aktiviteter, '+fresh.length+' nya. Granska före import. Befintliga aktiviteter raderas inte förrän säker månadsvis synkronisering finns.';
+        status.textContent='Kalendermånad '+importMonth+': hittade '+candidates.length+' aktiviteter, '+fresh.length+' nya. Granska före import. Borttagning kräver separat bekräftelse av att hela månaden har lästs korrekt.';
         confirm.disabled=!fresh.length;
       }catch(error){status.textContent='Bildtolkning misslyckades: '+(error.message||String(error));}
       finally{input.value='';if(worker)await worker.terminate();}
@@ -166,7 +166,13 @@
         (c.type==='training'?currentContext.dates.has(c.date):knownPools.some(p=>p.pool_date===c.date)));
       const trainingDates=candidates.filter(c=>c.type==='training').map(c=>c.date);
       let removed=0;
-      if(selectedAll&&trainingDates.length){
+      // OCR can omit an entire day without reporting an error. Require an explicit
+      // full-month completeness confirmation before any destructive synchronization.
+      const approved=selectedAll&&trainingDates.length>0&&window.confirm(
+        'Kontrollera kalenderbilden noggrant: alla träningar för '+importMonth+
+        ' måste finnas i listan. Saknade framtida importerade träningar kan tas bort. '+
+        'Har du jämfört HELA månaden med originalbilden och bekräftat att alla datum finns med?');
+      if(approved){
         try{
           const response=await fetch(currentContext.base+'/api/training?team_id='+encodeURIComponent(currentContext.teamId)+'&action=sync-calendar',{
             method:'POST',headers:{Authorization:'Bearer '+currentContext.token,'Content-Type':'application/json'},
