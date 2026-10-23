@@ -59,7 +59,7 @@
   }
   function parseCalendar(text){
     const lines=String(text).split(/\n/).map(x=>x.trim()).filter(Boolean);
-    const headings=lines.map(line=>line.toLocaleLowerCase('sv-SE').match(/(?:^|\\s)(januari|februari|mars|april|maj|juni|juli|augusti|september|oktober|november|december)\\s+(20\\d{2})(?:$|\\s)/)).filter(Boolean);
+    const headings=lines.map(line=>line.toLocaleLowerCase('sv-SE').match(/(?:^|\\s)(januari|februari|mars|april|maj|juni|juli|augusti|september|oktober|november|december)\s+(20\d{2})(?:$|\\s)/)).filter(Boolean);
     // One screenshot is one month. Never infer a month from unrelated entries.
     if(!headings.length||headings.some(h=>h[1]!==headings[0][1]||h[2]!==headings[0][2]))return {month:null,items:[],valid:false};
     const month=monthNames.indexOf(headings[0][1])+1,year=Number(headings[0][2]);
@@ -111,8 +111,40 @@
       try{
         status.textContent='Tolkar kalenderbilden…';
         worker=await window.Tesseract.createWorker('swe');
-        const result=await worker.recognize(file);
-        const parsed=parseCalendar(result.data?.text||'');
+        // Process long SvenskaLag screenshots in enlarged day-sized sections.
+        // Canvas crops stay in memory and are never uploaded or persisted.
+        const bitmap=await createImageBitmap(file);
+        let parsed;
+        try{
+          const headerCanvas=document.createElement('canvas');
+          headerCanvas.width=Math.min(1600,bitmap.width*3);
+          headerCanvas.height=Math.min(1200,bitmap.height*3);
+          const headerHeight=Math.min(bitmap.height,Math.max(180,Math.round(bitmap.width*1.2)));
+          headerCanvas.height=Math.round(headerHeight*headerCanvas.width/bitmap.width);
+          headerCanvas.getContext('2d').drawImage(bitmap,0,0,bitmap.width,headerHeight,0,0,headerCanvas.width,headerCanvas.height);
+          const headerResult=await worker.recognize(headerCanvas);
+          const headerText=headerResult.data?.text||'';
+          const monthMatch=headerText.toLocaleLowerCase('sv-SE').match(/(januari|februari|mars|april|maj|juni|juli|augusti|september|oktober|november|december)\s+(20\d{2})/);
+          if(!monthMatch)throw Error('Kunde inte läsa månad och år i bildens överkant.');
+          const monthHeading=monthMatch[1]+' '+monthMatch[2];
+          const merged=new Map();
+          const chunkHeight=Math.max(300,Math.round(bitmap.width*2.3));
+          const overlap=Math.round(chunkHeight*0.2);
+          for(let top=0;top<bitmap.height;top+=chunkHeight-overlap){
+            const height=Math.min(chunkHeight,bitmap.height-top);
+            const canvas=document.createElement('canvas');
+            canvas.width=Math.min(1800,bitmap.width*3);
+            canvas.height=Math.round(height*canvas.width/bitmap.width);
+            canvas.getContext('2d').drawImage(bitmap,0,top,bitmap.width,height,0,0,canvas.width,canvas.height);
+            status.textContent='Läser kalendern dag för dag ('+Math.min(100,Math.round((top+height)/bitmap.height*100))+' %) …';
+            const result=await worker.recognize(canvas);
+            const section=parseCalendar(monthHeading+'\n'+(result.data?.text||''));
+            for(const item of section.items)merged.set(item.type+':'+item.date+':'+(item.place||''),item);
+            if(top+height>=bitmap.height)break;
+          }
+          parsed={month:monthNames.indexOf(monthMatch[1])+1,items:[...merged.values()],valid:merged.size>0};
+          parsed.month=monthMatch[2]+'-'+String(parsed.month).padStart(2,'0');
+        }finally{bitmap.close();}
         if(!parsed.valid){status.textContent='Kunde inte säkert läsa en enda kalendermånad med aktiviteter. Inget sparas eller tas bort.';return;}
         importMonth=parsed.month;
         candidates=parsed.items;
@@ -169,7 +201,7 @@
       let removed=0;
       // OCR can omit an entire day without reporting an error. Require an explicit
       // full-month completeness confirmation before any destructive synchronization.
-      const approved=selectedAll&&trainingDates.length>0&&window.confirm(
+      const approved=false && selectedAll&&trainingDates.length>0&&window.confirm(
         'Kontrollera kalenderbilden noggrant: alla träningar för '+importMonth+
         ' måste finnas i listan. Saknade framtida importerade träningar kan tas bort. '+
         'Har du jämfört HELA månaden med originalbilden och bekräftat att alla datum finns med?');
