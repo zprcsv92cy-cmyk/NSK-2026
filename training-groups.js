@@ -166,7 +166,7 @@
         // Full-name matches are stronger than initials. Both require word boundaries.
         const fullMatch=new RegExp('(?:^| )'+full+'(?: |$)').test(cleaned);
         const shortMatch=new RegExp('(?:^| )'+shortName+'(?: |$)').test(cleaned);
-        return fullMatch||shortMatch?{...person,exact:fullMatch}:null;
+        return fullMatch||shortMatch?{...person,exact:true}:null;
       }).filter(Boolean);
       // A shared initial (e.g. two Oliver J) must never be auto-approved.
       const uniqueIds=new Set(matches.map(p=>p.kind+':'+p.id));
