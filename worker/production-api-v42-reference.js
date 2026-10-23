@@ -530,9 +530,7 @@ var worker_default = { async fetch(req, env) {
     const dates = new Set(body.dates);
     const trackedRows = tracked.results || [];
     if (trackedRows.length > 100) return reply({ok:false,error:"För många importerade poolspel att kontrollera"},409);
-    const teams = await listTrustedRosterTeams(env).catch(()=>null);
-    const team = Array.isArray(teams) ? teams.find(t=>t.Namn===access.teamId && String(t["Säsong"])==="2026") : null;
-    if (!team || !Number.isSafeInteger(Number(team.id))) return reply({ok:false,error:"Laget kunde inte verifieras"},503);
+    const team = importTeams[0];
     // A pool with any related match or lineup is protected from future deletion.
     // Fetch every page; incomplete data fails closed rather than implying no dependencies.
     const relatedPoolIds = new Set();
@@ -572,10 +570,15 @@ var worker_default = { async fetch(req, env) {
       const validOwner = linked.length===1 && linked[0]===Number(team.id);
       const validDate = pool.Datum===row.pool_date && row.pool_date.slice(0,7)===body.month;
       const missing = !dates.has(row.pool_date);
-      const protectedRow = !validOwner || !validDate || row.pool_date<=today ||
-        pool.Aktiv===false || /avslut/i.test(String(pool.Status||"")) || relatedPoolIds.has(poolId);
+      const protection_reasons = [];
+      if (!validOwner) protection_reasons.push("team_mismatch");
+      if (!validDate) protection_reasons.push("date_changed");
+      if (row.pool_date<=today) protection_reasons.push("past_or_today");
+      if (pool.Aktiv===false || /avslut/i.test(String(pool.Status||""))) protection_reasons.push("finished_or_inactive");
+      if (relatedPoolIds.has(poolId)) protection_reasons.push("linked_match_or_lineup");
       checked.push({pool_id:poolId,pool_date:row.pool_date,present_in_calendar:!missing,
-        status:!missing?"present":protectedRow?"protected":"needs_manual_review"});
+        status:!missing?"present":protection_reasons.length?"protected":"needs_manual_review",
+        protection_reasons});
     }
     return reply({ok:true,month:body.month,tracked:checked,deletion_enabled:false});
   }
