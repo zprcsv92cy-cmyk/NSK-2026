@@ -130,31 +130,38 @@
 
   // Import is explicitly reviewed before any attendance state is changed.
   let importMatches=[];
+  // SvenskaLag screenshots include invitations, headings, roles and comments.
+  // Only use the 'Kommer' list under 'Anmälda' when those headings are detected.
+  const normalized = value => String(value||'').normalize('NFKD').replace(/[\u0300-\u036f]/g,'').toLocaleLowerCase('sv-SE').replace(/[^a-z0-9 ]/g,' ').replace(/\s+/g,' ').trim();
   const normalizeImportLine = line => String(line||'')
     .replace(/^\s*(?:[•*✓✔☑-]|\d+[.)])\s*/, '')
     .replace(/\s*\|.*$/, '')
-    .replace(/\s*[-–]\s*(ass\.?\s*tranare|huvudtranare|materialare|lagledare).*$/i, '')
+    .replace(/\s*[-–]\s*(ass\.?\s*tränare|huvudtränare|materialare|lagledare).*$/i, '')
     .replace(/\s*\((?:spelare|tränare|kommer)\)\s*$/i, '')
     .trim();
-  const normalized = value => String(value||'').normalize('NFKD').replace(/[\u0300-\u036f]/g,'').toLocaleLowerCase('sv-SE').replace(/[^a-z0-9 ]/g,' ').replace(/\s+/g,' ').trim();
   function importCandidates(text){
     const roster=[...players.map(p=>({...p,kind:'player'})),...coaches.map(p=>({...p,kind:'coach'}))];
     const lines=String(text||'').split(/\n/).map(x=>x.trim()).filter(Boolean);
+    const section=lines.findIndex(line=>normalized(line)==='anmalda');
+    const status=section<0?-1:lines.findIndex((line,i)=>i>section&&/^kommer(?:\s+\d+\s*\+\s*\d+)?$/i.test(normalized(line)));
+    // Do not infer attendance from invitations or other response columns.
+    const relevant=status>=0?lines.slice(status+1):section>=0?[]:lines;
     const found=new Map();
-    for(const line of lines){
+    for(const line of relevant){
       const cleaned=normalized(normalizeImportLine(line));
-      if(!cleaned||cleaned.length<3||/^(kommer|kan ej|kallade|anmalda|anmalan|kalender|samling|svara senast)$/.test(cleaned))continue;
+      if(!cleaned||cleaned.length<3||/^(kommer|kan ej|kallade|anmalda|anmalan|kalender|samling|svara senast|ej svarat)$/.test(cleaned))continue;
+      // Match a name at the start of an OCR line, even when a role/comment follows.
       const matches=roster.filter(p=>{
         const full=normalized(p.full_name);
         const parts=full.split(' ');
         const abbreviated=parts.length>1?parts[0]+' '+parts[parts.length-1][0]:'';
-        return cleaned===full||cleaned===abbreviated;
+        return cleaned===full||cleaned.startsWith(full+' ')||
+          (abbreviated&& (cleaned===abbreviated||cleaned.startsWith(abbreviated+' ')));
       });
       if(matches.length===1){
         const person=matches[0];
         const exact=cleaned===normalized(person.full_name);
         const key=person.kind+':'+person.id;
-        // Initial-only OCR matches require explicit opt-in during review.
         const previous=found.get(key);
         if(!previous||exact)found.set(key,{...person,exact});
       }
