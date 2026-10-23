@@ -1,42 +1,36 @@
-# Gemensam Träning – publiceringsplan
+# Gemensam Träning – verifierad status 2026-10-23
 
-Status: **INTE DRIFTSATT**. GitHub PR #269 har godkända bygg- och behörighetskontroller på commit `b762cc9` men var fortfarande blockerad av pågående säkerhetskontroll vid senaste granskningen. Detta är inte en produktionsverifiering. PR #269 är en releasekandidat, inte tillstånd att driftsätta. Följ stegen i ordning. Inga produktionsdata får kopieras till preview.
+**Produktion: INTE AKTIVERAD / INTE SLUTVERIFIERAD.** Den dedikerade isolerade Workern `nsk-api-isolated-preview` har `NSK_ENABLE_SHARED_TRAINING=true` och separat D1-bindning `AUTH_DB=b94c8dba-34be-4cff-a4e9-892caf4e3ddd`. Detta är **inte** produktionsworkern `nsk-api`.
 
-## 1. Förutsättningar (måste vara uppfyllda)
+## Vad som faktiskt har verifierats
 
-- Befintliga GitHub-kontroller för PR #269 måste vara godkända; ingen kringgång av branch protection.
-- Isolerad Baserow-databas med tio tabeller, syntetiska lag och en token utan åtkomst till produktion måste vara verifierad enligt [isolated-baserow-integration.md](isolated-baserow-integration.md).
-- Separata D1/KV/DO-bindningar och fungerande personliga inloggningar för två testledare ska vara verifierade i preview. Preview-workflowen är med avsikt låst tills dess.
-- Kontrollera att endast behöriga medlemmar i samma lag kan läsa och redigera samma träningsdatum, att ett annat lag nekas samt att konflikt (revision 409) inte skriver över någon annans ändring.
+- Cloudflare API bekräftade ovanstående isolerade Worker-bindning och flagga.
+- Ett syntetiskt träningspass skapades, lästes, uppdaterades och raderades i **isolerad D1**. En uppdatering med föråldrad revision gav 0 ändrade rader. Testposten rensades.
+- PR #278 lade till `scripts/training-payload-regression.test.mjs`.
+- PR #279 lade till `scripts/training-authorized-http.test.mjs` med två simulerade ledare, delad läsning/skrivning, lagisolering och revisionskonflikt.
+- PR #280 kopplade **båda** testfilerna till `.github/workflows/team-authorization-tests.yml`. GitHub Actions för PR #280 körde `security-checks` och `authorization` med godkänt resultat. PR #280 är mergad i `main` (commit `562ef4b1479376d0ccbb364d682600a311101cea`).
 
-## 2. Databasen före Worker
+**Viktig gräns:** Mockade identiteter och direkt D1-SQL bevisar inte att två faktiska personliga sessioner kan använda den publicerade HTTP-API:n. Det testet återstår.
 
-- Bekräfta backup/återställningsväg och rätt produktions-D1 innan någon migrering.
-- Granska `migrations/20261022_training_sessions.sql`; migreringen skapar `training_sessions` och index, utan att ändra befintliga tabeller.
-- Applicera migreringen på **bekräftad** produktions-D1 endast efter godkänd preview och uttryckligt produktionsbeslut. Bekräfta att tabellen finns efteråt.
-- Sätt inte flaggan till true före detta steg.
+## Kvar innan produktion
 
-## 3. API och webb
+1. Verifiera isolerad HTTP GET/PUT med **två verkliga syntetiska testledarsessioner**, inklusive att den andra ledaren ser första ledarens sparade träning.
+2. Verifiera att en obehörig användare/annat lag får 403, att en föråldrad revision får 409, samt att giltiga sessioner inte ger 503. Använd endast testidentiteter och isolerade resurser; inga autentiseringstoken i chatt eller loggar.
+3. Verifiera produktions-D1:s identitet, backup/återställning och migrationsplan. Kör migreringen först efter godkänd isolerad integration.
+4. Publicera produktions-Worker med träningsflaggan av, verifiera befintliga rutter, aktivera därefter flaggan och kontrollera behörig läsning/skrivning samt mobilflödet.
+5. Dokumentera faktiskt driftsatt commit, tidpunkt och återställningsåtgärd.
 
-1. Publicera Worker-koden med `NSK_ENABLE_SHARED_TRAINING = "false"` och verifiera att övriga befintliga API-rutter fungerar.
-2. Aktivera `NSK_ENABLE_SHARED_TRAINING = "true"` i Worker-konfigurationen **först efter** migrering och behörighetskontroll. Verifiera en läsning och en skrivning med ett behörigt testkonto, och ett avslag för fel lag.
-3. Merga PR #269 till `main` efter godkända kontroller. GitHub Pages-workflowen publicerar då `home-training.js`, `shared-training.js`, `training-groups.js` och respektive sidor.
-4. Kontrollera på mobil att Träning på startsidan är expanderbar, att vald dag öppnas och att två ledare i samma lag ser samma sparade uppgifter.
+## Säkerhetsgränser
 
-## 4. Återställning
+- Använd aldrig produktions-Baserow, produktions-D1, produktions-KV eller produktions-DO som testfixturer.
+- Ändra inte produktionsflaggan innan stegen ovan är verifierade.
+- Vid problem: slå av `NSK_ENABLE_SHARED_TRAINING` och återställ Worker/webbversion efter behov. **Radera inte** sparade produktionspass som rollback.
+- Ett grönt GitHub-test är inte ett bevis på att produktions-API:n fungerar.
 
-- Vid fel: sätt omedelbart `NSK_ENABLE_SHARED_TRAINING = "false"` och återställ senast fungerande Worker-/webbversion vid behov.
-- Radera **inte** `training_sessions` som snabb återställning: det skulle förstöra sparade träningsuppgifter. Återställ data separat utifrån verifierad backup vid behov.
-- Dokumentera faktiskt deployad commit, tidpunkt och vem som godkände utrullningen.
+## Relaterade filer
 
-## Nuvarande blockeringar
-
-Preview-workflowen är låst, Baserow-mappning och isolerad token saknas i manifestet, och produktionens D1-migrering är inte utförd. Att koden kan mergas tekniskt innebär inte att gemensamma träningar fungerar i produktion.
-
-## Kontroll utan Cloudflare-anslutning i ChatGPT
-
-GitHub-kodkontroll räcker inte för att slå på gemensam lagring. Cloudflare MCP:s `temporarily_unavailable` är ett anslutningsfel, inte bevis på fel i NSK API. Använd inte produktions-D1 eller produktionens Baserow för att ersätta isolerade tester.
-
-Före ny publiceringsåtgärd: kontrollera i GitHub Actions att isolerad preview verkligen är aktiverad (workflowen innehåller i nuläget `&& false` och kör inte preview), att en separat Baserow-token och tio syntetiska tabeller är verifierade, och att positiva läs-/skrivtester med två testledare samt nekad åtkomst från annat lag och revisionskonflikt har dokumenterade resultat. Först därefter kan operatören med Cloudflare-behörighet bekräfta produktions-D1, backup, migrering och flaggaktivering i den ordningen.
-
-Om dessa bevis saknas: håll `NSK_ENABLE_SHARED_TRAINING=false`, rapportera att sparandet ännu inte är driftsatt, och låt befintlig produktionsmiljö vara oförändrad. Kräv aldrig att användaren klistrar in hemliga token i chatten.
+- `worker/training-sessions-api.js`
+- `migrations/20261022_training_sessions.sql`
+- `scripts/training-authorized-http.test.mjs`
+- `scripts/training-payload-regression.test.mjs`
+- `.github/workflows/team-authorization-tests.yml`
