@@ -239,7 +239,7 @@
           const exists=item.type==='training'?currentContext.dates.has(item.date):knownPools.some(p=>p.pool_date===item.date&&(!item.place||String(p.place||'').toLocaleLowerCase('sv-SE')===item.place.toLocaleLowerCase('sv-SE')));
           const label=document.createElement('label');label.className='training-review-item';
           const check=document.createElement('input');check.type='checkbox';check.value=item.type+':'+item.date+':'+(item.place||'');check.disabled=exists;check.checked=!exists;
-          const text=document.createElement('span');text.textContent=(item.type==='pool'?'Poolspel':'Träning')+' • '+item.date+' • '+(item.place||item.hall||'Plats ej angiven')+(exists?' – finns redan':'');
+          const text=document.createElement('span');text.textContent=(item.type==='pool'?'Poolspel':'Träning')+' · '+(item.place||item.hall||'Plats ej angiven')+(exists?' – finns redan':'');
           // OCR can misalign the narrow date column. Require an editable date
           // for each candidate so the user can correct it before any write.
           const dateInput=document.createElement('input');dateInput.type='date';
