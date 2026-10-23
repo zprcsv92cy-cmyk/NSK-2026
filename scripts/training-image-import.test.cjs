@@ -8,11 +8,10 @@ test('image import requires explicit confirmation',()=>{
  assert.match(html,/id="trainingImportApply" disabled/);
  assert.match(js,/trainingImportApply'\)\.addEventListener\('click'/);
 });
-test('attendance import matches unique names and does not clear existing attendance',()=>{
+test('attendance import replaces old attendance with confirmed unique names',()=>{
  assert.match(js,/if\(uniqueIds\.size===1\)/);
- assert.match(js,/selected\.add\(String\(person\.id\)\)/);
- assert.match(js,/selectedCoaches\.add\(String\(person\.id\)\)/);
- assert.doesNotMatch(js.slice(js.indexOf("trainingImportApply').addEventListener")),/selected\.clear\(|selectedCoaches\.clear\(/);
+ assert.match(js,/selected=new Set\(approved\.filter\(p=>p\.kind==='player'\)/);
+ assert.match(js,/selectedCoaches=new Set\(approved\.filter\(p=>p\.kind==='coach'\)/);
 });
 test('OCR uses local worker and releases it',()=>{
  assert.match(js,/Tesseract\.createWorker\('swe'\)/);
@@ -129,4 +128,14 @@ test('SvenskaLag initials resolve compound surnames and Swedish names',()=>{
  const matches=context.parseAttendance('Anmälda\nKommer 14+9\nNoé B\nOliver J\nAgnes D\nTheo Y');
  assert.equal(matches.length,4);
  assert.ok(matches.every(p=>p.exact));
+});
+
+test('shirt colors support red/white, black and green in order',()=>{
+ assert.match(js,/let shirtColorCount = 3/);
+ assert.match(js,/const count=shirtColorCount/);
+ assert.match(js,/shirtColorCount=Number\(\$\('trainingShirtColorCount'\)\.value\)/);
+ for(const n of ['2','3','4'])assert.ok(html.includes('value="'+n+'"'));
+ assert.ok(js.indexOf("name:'Röd'")<js.indexOf("name:'Vit'"));
+ assert.ok(js.indexOf("name:'Vit'")<js.indexOf("name:'Svart'"));
+ assert.ok(js.indexOf("name:'Svart'")<js.indexOf("name:'Grön'"));
 });
