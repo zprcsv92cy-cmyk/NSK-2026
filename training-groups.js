@@ -1,6 +1,6 @@
 // Shared attendance; uploaded screenshots and OCR text are never persisted.
 (() => {
-  const palette = [{name:'Röd',hex:'#b11226',text:'#fff'},{name:'Vit',hex:'#fff',text:'#17181b'},{name:'Svart',hex:'#17181b',text:'#fff'}];
+  const palette = [{name:'Röd',hex:'#b11226',text:'#fff'},{name:'Vit',hex:'#fff',text:'#17181b'},{name:'Svart',hex:'#17181b',text:'#fff'},{name:'Grön',hex:'#17834b',text:'#fff'}];
   const $ = id => document.getElementById(id);
   let players = [], coaches = [], team = '';
   let selectedCoaches = new Set();
@@ -8,6 +8,7 @@
   let allocation = [];
   let goalies = [];
   let goalieCount = 0;
+  let shirtColorCount = 3;
   async function restore(){
     const date=$('trainingDate').value;
     const response=await SharedTraining.get(date);
@@ -20,6 +21,8 @@
     allocation=Array.isArray(data.allocation)?data.allocation:[];
     goalies=(data.goalies||[]).map(String).filter(id=>allowed.has(id)&&selected.has(id));
     goalieCount=Number(data.goalieCount)||0;
+    shirtColorCount=[2,3,4].includes(Number(data.shirtColorCount))?Number(data.shirtColorCount):3;
+    $('trainingShirtColorCount').value=String(shirtColorCount);
     revision=Number(data.revision)||0;
     loadedDate=$('trainingDate').value;
     $('trainingGoalieCount').value=String(goalieCount);
@@ -34,7 +37,7 @@
     if($('trainingDate').value!==loadedDate){$('trainingStatus').textContent='Vänta tills träningen för valt datum har lästs in.';return;}
     const date=$('trainingDate').value;
     if(goalies.filter(Boolean).length!==goalieCount){$('trainingStatus').textContent='Välj namn för alla målvakter innan träningen sparas.';return;}
-    const snapshot={selected:[...selected],selectedCoaches:[...selectedCoaches],allocation:allocation.map(group=>[...group]),goalies:[...goalies],goalieCount};
+    const snapshot={selected:[...selected],selectedCoaches:[...selectedCoaches],allocation:allocation.map(group=>[...group]),goalies:[...goalies],goalieCount,shirtColorCount};
     $('trainingStatus').textContent='Sparar träningen…';
     saveQueue=saveQueue.then(async()=>{
       if(saveBlocked)return;
@@ -121,7 +124,7 @@
     const ids=players.filter(p=>selected.has(String(p.id))&&!goalies.includes(String(p.id))).map(p=>String(p.id));
     if(!ids.length){$('trainingStatus').textContent='Det finns inga utespelare att dela in.';return;}
     for(let i=ids.length-1;i>0;i--){const j=Math.floor(Math.random()*(i+1));[ids[i],ids[j]]=[ids[j],ids[i]];}
-    const count=palette.length;
+    const count=shirtColorCount;
     allocation=Array.from({length:count},()=>[]);
     ids.forEach((id,i)=>allocation[i%count].push(id));
     persist();renderGroups();
@@ -321,16 +324,20 @@
         ?sourceSummary+countWarning+importMatches.filter(p=>p.exact).length+' säkra namn identifierade automatiskt. '+importMatches.filter(p=>!p.exact).length+' osäkra behöver granskas. Bekräfta för att uppdatera närvaron.'
          :sourceSummary+countWarning+'Inga namn matchade mot NSK-truppen. Skriv ett namn per rad som i NSK-truppen. Kontrollera att namnen står på egna rader.';
     });
+    $('trainingShirtColorCount').addEventListener('change',()=>{
+      shirtColorCount=Number($('trainingShirtColorCount').value);
+      allocation=[];persist();renderGroups();
+    });
     $('trainingImportApply').addEventListener('click',()=>{
       if(!importMatches.length)return;
       const checks=[...$('trainingImportReview').querySelectorAll('input:checked')];
       const approved=[...importMatches.filter(p=>p.exact),...checks.map(check=>importMatches.find(p=>p.kind===check.dataset.kind&&String(p.id)===check.dataset.id)).filter(Boolean)];
-      for(const person of approved){
-        if(person.kind==='player')selected.add(String(person.id));
-        else selectedCoaches.add(String(person.id));
-      }
+      // A new confirmed import replaces the previous attendance for this date.
+      selected=new Set(approved.filter(p=>p.kind==='player').map(p=>String(p.id)));
+      selectedCoaches=new Set(approved.filter(p=>p.kind==='coach').map(p=>String(p.id)));
+      goalies=goalies.filter(id=>selected.has(id));
       allocation=[];persist();renderRoster();renderCoaches();renderGoalieSelectors();renderGroups();
-      $('trainingImportStatus').textContent=approved.length+' deltagare markerade som Kommer. Tidigare markeringar har behållits.';
+      $('trainingImportStatus').textContent=approved.length+' deltagare markerade som Kommer. Tidigare närvaro har ersatts.';
       $('trainingImportApply').disabled=true;
       importMatches=[];
       $('trainingImportText').value='';
