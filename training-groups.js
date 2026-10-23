@@ -193,9 +193,59 @@
           $('trainingImportStatus').textContent='Läser bild '+(i+1)+' av '+files.length+'…';
           const result=await worker.recognize(files[i]);
           texts.push(result.data?.text||'');
+          // Retry with different in-memory image transformations until the
+          // independently verified SvenskaLag player total is matched.
+          let bitmap;
+          try{
+            bitmap=await createImageBitmap(files[i]);
+            const variants=[
+              {scale:2,contrast:false},
+              {scale:3,contrast:true},
+              {scale:2,contrast:true}
+            ];
+            const recognized=new Map();
+            const collect=()=>{
+              recognized.clear();
+              for(const pass of texts){
+                for(const person of importCandidates(pass)){
+                  recognized.set(person.kind+':'+person.id,person);
+                }
+              }
+            };
+            collect();
+            const header=()=>texts.join('\n').match(/kommer\s*(\d+)\s*\+\s*(\d+)/i);
+            for(let attempt=0;attempt<variants.length;attempt++){
+              const target=header();
+              const matchedPlayers=[...recognized.values()].filter(p=>p.kind==='player').length;
+              if(target&&matchedPlayers>=Number(target[1]))break;
+              const variant=variants[attempt];
+              $('trainingImportStatus').textContent='Förbättrar bildtolkning '+(attempt+2)+' av '+(variants.length+1)+'…';
+              const canvas=document.createElement('canvas');
+              canvas.width=Math.round(bitmap.width*variant.scale);
+              canvas.height=Math.round(bitmap.height*variant.scale);
+              const ctx=canvas.getContext('2d');
+              if(!ctx)break;
+              ctx.imageSmoothingEnabled=true;
+              ctx.imageSmoothingQuality='high';
+              ctx.drawImage(bitmap,0,0,canvas.width,canvas.height);
+              if(variant.contrast){
+                const pixels=ctx.getImageData(0,0,canvas.width,canvas.height);
+                for(let j=0;j<pixels.data.length;j+=4){
+                  for(let c=0;c<3;c++)pixels.data[j+c]=Math.max(0,Math.min(255,(pixels.data[j+c]-128)*1.65+128));
+                }
+                ctx.putImageData(pixels,0,0);
+              }
+              try{
+                const enlarged=await worker.recognize(canvas);
+                texts.push(enlarged.data?.text||'');
+                collect();
+              }finally{canvas.width=0;canvas.height=0;}
+            }
+          }catch(error){console.warn('Extra OCR pass unavailable',error);}
+          finally{bitmap?.close();}
         }
       }finally{await worker.terminate();}
-      return texts.join('\n');
+      return texts.join('\n__OCR_PASS__\n');
     }
     if(typeof window.TextDetector==='function'){
       const detector=new window.TextDetector();
@@ -241,7 +291,18 @@
       }finally{
         clearImportImages();
       }
-      importMatches=importCandidates(text);
+      // Parse each OCR pass independently: a 'Kan ej' tab in pass one must
+      // not hide the 'Kommer' names recovered by the enlarged second pass.
+      const passes=text.split(/\n__OCR_PASS__\n/);
+      const byPerson=new Map();
+      for(const pass of passes){
+        for(const person of importCandidates(pass)){
+          const key=person.kind+':'+person.id;
+          const existing=byPerson.get(key);
+          if(!existing||person.exact)byPerson.set(key,person);
+        }
+      }
+      importMatches=[...byPerson.values()];
       // SvenskaLag's "Kommer 14+9" is a source count, not an NSK roster count.
       // OCR may put the count on the following line.
       const attendanceHeader=String(text||'').match(/kommer\s*(\d+)\s*\+\s*(\d+)/i);
@@ -249,14 +310,16 @@
       const sourceStaff=attendanceHeader?Number(attendanceHeader[2]):null;
       const matchedPlayers=importMatches.filter(p=>p.kind==='player').length;
       const matchedStaff=importMatches.filter(p=>p.kind==='coach').length;
+      const playerCountMatches=sourcePlayers!==null&&matchedPlayers===sourcePlayers;
       const sourceSummary=attendanceHeader
         ?'SvenskaLag: '+sourcePlayers+' spelare och '+sourceStaff+' ledare/funktionärer. Matchade i NSK: '+matchedPlayers+' spelare och '+matchedStaff+' tränare. Ej matchade mot NSK: '+Math.max(0,sourcePlayers-matchedPlayers)+' spelare och '+Math.max(0,sourceStaff-matchedStaff)+' ledare/funktionärer (kan saknas i truppen). '
         :'Antalet anmälda kunde inte avläsas säkert. Matchade i NSK: '+matchedPlayers+' spelare och '+matchedStaff+' tränare. ';
+      const countWarning=sourcePlayers===null?'OBS: Kontrollera antalet spelare mot SvenskaLag innan du bekräftar. ':playerCountMatches?'Spelarantalet stämmer med SvenskaLag. ':'OBS: '+Math.abs(sourcePlayers-matchedPlayers)+' spelare skiljer mot SvenskaLag. Kontrollera saknade namn före bekräftelse. ';
       text=''; // OCR output is never copied to a field or persisted.
       showImportReview(importMatches);
       $('trainingImportStatus').textContent=importMatches.length
-        ?sourceSummary+importMatches.filter(p=>p.exact).length+' säkra namn identifierade automatiskt. '+importMatches.filter(p=>!p.exact).length+' osäkra behöver granskas. Bekräfta för att uppdatera närvaron.'
-         :sourceSummary+'Inga namn matchade mot NSK-truppen. Skriv ett namn per rad som i NSK-truppen. Kontrollera att namnen står på egna rader.';
+        ?sourceSummary+countWarning+importMatches.filter(p=>p.exact).length+' säkra namn identifierade automatiskt. '+importMatches.filter(p=>!p.exact).length+' osäkra behöver granskas. Bekräfta för att uppdatera närvaron.'
+         :sourceSummary+countWarning+'Inga namn matchade mot NSK-truppen. Skriv ett namn per rad som i NSK-truppen. Kontrollera att namnen står på egna rader.';
     });
     $('trainingImportApply').addEventListener('click',()=>{
       if(!importMatches.length)return;
