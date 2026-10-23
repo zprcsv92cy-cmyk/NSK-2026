@@ -27,16 +27,16 @@ function fixture(){
    },
    async run(){
     if(sql.startsWith('INSERT INTO training_sessions')){
-     const [team,date,selected,coaches,goalies,goalieCount,allocation,updatedBy]=params;
+     const [team,date,selected,coaches,goalies,goalieCount,allocation,updatedBy,hall,shirtColorCount]=params;
      const key=team+'|'+date;if(rows.has(key))return {meta:{changes:0}};
-     rows.set(key,{team_id:team,training_date:date,selected_players_json:selected,selected_coaches_json:coaches,goalies_json:goalies,goalie_count:goalieCount,allocation_json:allocation,revision:1,updated_by:updatedBy});
+     rows.set(key,{team_id:team,training_date:date,selected_players_json:selected,selected_coaches_json:coaches,goalies_json:goalies,goalie_count:goalieCount,allocation_json:allocation,revision:1,updated_by:updatedBy,hall,shirt_color_count:shirtColorCount});
      return {meta:{changes:1}};
     }
     if(sql.startsWith('UPDATE training_sessions')){
-     const [selected,coaches,goalies,goalieCount,allocation,updatedBy,team,date,revision]=params;
+     const [selected,coaches,goalies,goalieCount,allocation,updatedBy,hall,shirtColorCount,team,date,revision]=params;
      const key=team+'|'+date,r=rows.get(key);
      if(!r||r.revision!==revision)return {meta:{changes:0}};
-     Object.assign(r,{selected_players_json:selected,selected_coaches_json:coaches,goalies_json:goalies,goalie_count:goalieCount,allocation_json:allocation,updated_by:updatedBy,revision:revision+1});
+     Object.assign(r,{selected_players_json:selected,selected_coaches_json:coaches,goalies_json:goalies,goalie_count:goalieCount,allocation_json:allocation,updated_by:updatedBy,hall,shirt_color_count:shirtColorCount,revision:revision+1});
      return {meta:{changes:1}};
     }
     throw Error('Unexpected write: '+sql);
@@ -57,7 +57,7 @@ test('two synthetic authorized leaders can create, read, update and list one tea
  r=await f.handler(req('GET',18,date));assert.equal(r.status,200);assert.deepEqual((await r.json()).session.selected,['101']);
  r=await f.handler(req('PUT',18,date,{...players(),selected:['102'],allocation:[['102']],revision:1}));
  assert.equal(r.status,200);assert.equal((await r.json()).revision,2);
- r=await f.handler(req('GET',18));assert.equal(r.status,200);assert.deepEqual((await r.json()).sessions,[{date,players:1,coaches:1}]);
+ r=await f.handler(req('GET',18));assert.equal(r.status,200);assert.deepEqual((await r.json()).sessions,[{date,players:1,coaches:1,hall:''}]);
  r=await f.handler(req('PUT',18,date,{...players(),revision:1}));assert.equal(r.status,409);
 });
 test('team outsider cannot read or write another team training',async()=>{
