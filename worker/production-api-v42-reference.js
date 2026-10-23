@@ -525,11 +525,31 @@ var worker_default = { async fetch(req, env) {
       tracked = await env.AUTH_DB.prepare("SELECT pool_id,pool_date FROM pool_calendar_imports WHERE team_id=? AND import_month=? ORDER BY pool_date,pool_id").bind(access.teamId,body.month).all();
     } catch { return reply({ok:false,error:"Importregistreringen kunde inte läsas"},503); }
     const dates = new Set(body.dates);
-    return reply({ok:true,month:body.month,tracked:(tracked.results||[]).map(row=>({
-      pool_id:row.pool_id,pool_date:row.pool_date,
-      present_in_calendar:dates.has(row.pool_date),
-      status:dates.has(row.pool_date)?"present":"needs_manual_review"
-    })),deletion_enabled:false});
+    const trackedRows = tracked.results || [];
+    if (trackedRows.length > 100) return reply({ok:false,error:"För många importerade poolspel att kontrollera"},409);
+    const teams = await listTrustedRosterTeams(env).catch(()=>null);
+    const team = Array.isArray(teams) ? teams.find(t=>t.Namn===access.teamId && String(t["Säsong"])==="2026") : null;
+    if (!team || !Number.isSafeInteger(Number(team.id))) return reply({ok:false,error:"Laget kunde inte verifieras"},503);
+    const checked = [];
+    for (const row of trackedRows) {
+      const poolId = Number(row.pool_id);
+      if (!Number.isSafeInteger(poolId) || poolId<=0) return reply({ok:false,error:"Ogiltig importregistrering"},503);
+      const res = await fetch(`https://api.baserow.io/api/database/rows/table/${TABLES.poolspel}/${poolId}/?user_field_names=true`,{
+        headers:{Authorization:`Token ${env.BASEROW_TOKEN}`}
+      }).catch(()=>null);
+      if (!res || !res.ok) return reply({ok:false,error:"Poolspel kunde inte verifieras"},503);
+      const pool = await res.json().catch(()=>null);
+      if (!pool || Number(pool.id)!==poolId) return reply({ok:false,error:"Felaktig poolspelsinformation"},503);
+      const linked = Array.isArray(pool.Lag) ? pool.Lag.map(t=>Number(typeof t==="object"?t.id:t)) : [];
+      const validOwner = linked.length===1 && linked[0]===Number(team.id);
+      const validDate = pool.Datum===row.pool_date && row.pool_date.slice(0,7)===body.month;
+      const missing = !dates.has(row.pool_date);
+      const protectedRow = !validOwner || !validDate || row.pool_date<=today ||
+        pool.Aktiv===false || /avslut/i.test(String(pool.Status||""));
+      checked.push({pool_id:poolId,pool_date:row.pool_date,present_in_calendar:!missing,
+        status:!missing?"present":protectedRow?"protected":"needs_manual_review"});
+    }
+    return reply({ok:true,month:body.month,tracked:checked,deletion_enabled:false});
   }
   if (url.pathname === "/api/poolspel" && req.method === "POST" || /^\/api\/poolspel\/\d+$/.test(url.pathname) && req.method === "PATCH") {
     if (personalPoolWritesEnabled) {
