@@ -150,24 +150,27 @@
     // If the Anmälda heading was recognized, skip the invitation section.
     const relevant=lines.slice(status>=0?status+1:section>=0?section+1:0);
     const found=new Map();
-    // OCR may place a name after a bullet, a number, or another UI fragment.
-    // Only accept a name at a token boundary, and require a unique roster match.
     const skip=/^(kommer|kan ej|kallade|anmalda|anmalan|kalender|samling|svara senast|ej svarat)(?: |$)/;
+    // Match each attendance entry against the active roster. Do not treat names
+    // in comments, other response tabs, or invitations as confirmed attendees.
     for(const line of relevant){
       const cleaned=normalized(normalizeImportLine(line));
-      if(!cleaned||cleaned.length<3||skip.test(cleaned))continue;
+      if(!cleaned||cleaned.length<3)continue;
+      if(/^(kan ej|kallade|ej svarat)(?: |$)/.test(cleaned))break;
+      if(skip.test(cleaned))continue;
       const matches=roster.map(person=>{
         const full=normalized(person.full_name);
         const parts=full.split(' ');
         if(parts.length<2)return null;
         const shortName=parts[0]+' '+parts[parts.length-1][0];
-        // Prefer a complete name; otherwise match first name plus surname initial.
-        // An OCR line can contain role labels and other text before or after a name.
+        // Full-name matches are stronger than initials. Both require word boundaries.
         const fullMatch=new RegExp('(?:^| )'+full+'(?: |$)').test(cleaned);
         const shortMatch=new RegExp('(?:^| )'+shortName+'(?: |$)').test(cleaned);
         return fullMatch||shortMatch?{...person,exact:fullMatch}:null;
       }).filter(Boolean);
-      if(matches.length===1){
+      // A shared initial (e.g. two Oliver J) must never be auto-approved.
+      const uniqueIds=new Set(matches.map(p=>p.kind+':'+p.id));
+      if(uniqueIds.size===1){
         const person=matches[0],key=person.kind+':'+person.id;
         const previous=found.get(key);
         if(!previous||person.exact)found.set(key,person);
