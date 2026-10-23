@@ -53,6 +53,10 @@
     }catch(error){root.textContent='Kunde inte läsa sparade träningar: '+(error.message||String(error));}
   }
   const monthNames=['januari','februari','mars','april','maj','juni','juli','augusti','september','oktober','november','december'];
+  function todayLocalDate(){
+    const now=new Date();
+    return now.getFullYear()+'-'+String(now.getMonth()+1).padStart(2,'0')+'-'+String(now.getDate()).padStart(2,'0');
+  }
   function parseCalendar(text){
     const lines=String(text).split(/\n/).map(x=>x.trim()).filter(Boolean);
     let year=null,month=null,day=null;
@@ -127,6 +131,7 @@
       const checked=new Set([...review.querySelectorAll('input:checked')].map(x=>x.value));
       let created=0,skipped=0;
       for(const item of candidates.filter(c=>checked.has(c.type+':'+c.date+':'+(c.place||'')))){
+        if(item.date<todayLocalDate()){skipped++;continue;}
         if(item.type==='training'&&currentContext.dates.has(item.date)){skipped++;continue;}
         if(item.type==='pool'){
           try{
