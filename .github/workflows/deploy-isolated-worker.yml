@@ -35,7 +35,7 @@ jobs:
           assert.match(config,/^BASEROW_DATABASE_ID = "599495"$/m);
           assert.match(config,/^NSK_ISOLATED_MODE = "true"$/m);
           assert.match(config,/^NSK_PREVIEW_ISOLATED = "true"$/m);
-          assert.match(config,/^NSK_ENABLE_SHARED_TRAINING = "false"$/m);
+          assert.match(config,/^NSK_ENABLE_SHARED_TRAINING = "true"$/m);
           assert.match(config,/^name = "SHIFT_LOCK"$/m);
           assert.doesNotMatch(config,/^BASEROW_DATABASE_ID = "589073"$/m);
           NODE
