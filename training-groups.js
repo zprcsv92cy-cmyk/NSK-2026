@@ -193,6 +193,25 @@
           $('trainingImportStatus').textContent='Läser bild '+(i+1)+' av '+files.length+'…';
           const result=await worker.recognize(files[i]);
           texts.push(result.data?.text||'');
+          // SvenskaLag screenshots contain tiny initials. A second, enlarged
+          // OCR pass helps recover short names missed at native resolution.
+          // All processing stays in memory; no image or OCR text is persisted.
+          const bitmap=await createImageBitmap(files[i]);
+          try{
+            const scale=bitmap.width<1200?2:1.5;
+            const canvas=document.createElement('canvas');
+            canvas.width=Math.round(bitmap.width*scale);
+            canvas.height=Math.round(bitmap.height*scale);
+            const ctx=canvas.getContext('2d');
+            if(ctx){
+              ctx.imageSmoothingEnabled=true;
+              ctx.imageSmoothingQuality='high';
+              ctx.drawImage(bitmap,0,0,canvas.width,canvas.height);
+              const enlarged=await worker.recognize(canvas);
+              texts.push(enlarged.data?.text||'');
+            }
+            canvas.width=0;canvas.height=0;
+          }finally{bitmap.close();}
         }
       }finally{await worker.terminate();}
       return texts.join('\n');
