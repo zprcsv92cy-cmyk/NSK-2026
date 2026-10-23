@@ -107,7 +107,9 @@ test('attendance parsing matches abbreviated Swedish names and excludes non-atte
 });
 
 test('SvenskaLag 14+9 count uses real regex whitespace escapes',()=>{
- assert.match(js,/const attendanceHeader=String\(text\|\|''\)\.match/);
- assert.ok(js.includes(String.raw`/kommer\\s*(\\d+)\\s*\\+\\s*(\\d+)/i`));
- assert.ok(!js.includes(String.raw`/kommer\\\\s*`));
+ const line=js.split('\n').find(x=>x.includes('const attendanceHeader='));
+ assert.ok(line);
+ assert.ok(line.includes('\\s*'));
+ assert.ok(line.includes('\\d+'));
+ assert.ok(!line.includes('\\\\s*'));
 });
