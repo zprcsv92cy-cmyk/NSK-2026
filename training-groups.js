@@ -242,8 +242,7 @@
       importMatches=importCandidates(text);
       // SvenskaLag's "Kommer 14+9" is a source count, not an NSK roster count.
       // OCR may put the count on the following line.
-      const attendanceHeader=String(text||'').match(/kommer\\s*(\\d+)\\s*\\+\\s*(\\d+)/i)
-        ||String(text||'').match(/kommer\\s*\\n\\s*(\\d+)\\s*\\+\\s*(\\d+)/i);
+      const attendanceHeader=String(text||'').match(/kommer\s*(\d+)\s*\+\s*(\d+)/i);
       const sourcePlayers=attendanceHeader?Number(attendanceHeader[1]):null;
       const sourceStaff=attendanceHeader?Number(attendanceHeader[2]):null;
       const matchedPlayers=importMatches.filter(p=>p.kind==='player').length;
