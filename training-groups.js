@@ -197,7 +197,7 @@
   }
   function showImportReview(matches){
     const root=$('trainingImportReview');root.replaceChildren();
-    for(const person of matches){
+    for(const person of matches.filter(p=>!p.exact)){
       const label=document.createElement('label'),check=document.createElement('input');
       check.type='checkbox';check.checked=person.exact===true;check.dataset.kind=person.kind;check.dataset.id=String(person.id);
       label.append(check,document.createTextNode(person.full_name+' ('+(person.kind==='player'?'spelare':'tränare')+')'+(person.exact?'':' – kontrollera, endast initial matchade')));
@@ -232,18 +232,19 @@
       text=''; // OCR output is never copied to a field or persisted.
       showImportReview(importMatches);
       $('trainingImportStatus').textContent=importMatches.length
-        ?importMatches.length+' unika namn matchade. Kontrollera markeringarna och bekräfta. Övriga närvaroval ändras inte.'
+        ?importMatches.filter(p=>p.exact).length+' säkra namn identifierade automatiskt. '+importMatches.filter(p=>!p.exact).length+' osäkra behöver granskas. Bekräfta för att uppdatera närvaron.'
         :'Inga säkra namnmatchningar. Skriv ett namn per rad som i NSK-truppen. Kontrollera att namnen står på egna rader.';
     });
     $('trainingImportApply').addEventListener('click',()=>{
       if(!importMatches.length)return;
       const checks=[...$('trainingImportReview').querySelectorAll('input:checked')];
-      for(const check of checks){
-        if(check.dataset.kind==='player')selected.add(check.dataset.id);
-        else selectedCoaches.add(check.dataset.id);
+      const approved=[...importMatches.filter(p=>p.exact),...checks.map(check=>importMatches.find(p=>p.kind===check.dataset.kind&&String(p.id)===check.dataset.id)).filter(Boolean)];
+      for(const person of approved){
+        if(person.kind==='player')selected.add(String(person.id));
+        else selectedCoaches.add(String(person.id));
       }
       allocation=[];persist();renderRoster();renderCoaches();renderGoalieSelectors();renderGroups();
-      $('trainingImportStatus').textContent=checks.length+' deltagare markerade som Kommer. Tidigare markeringar har behållits.';
+      $('trainingImportStatus').textContent=approved.length+' deltagare markerade som Kommer. Tidigare markeringar har behållits.';
       $('trainingImportApply').disabled=true;
       importMatches=[];
       $('trainingImportText').value='';
