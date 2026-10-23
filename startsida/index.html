@@ -54,7 +54,7 @@
           <p>Skapa ett poolspel och välj lag, matcher och tider.</p>
         </div>
       </div>
-      <a class="home-create-button" href="../skapapoolspel/">＋ Skapa poolspel</a>
+      <a class="home-create-button" href="../skapapoolspel/">＋ Skapa poolspel</a><button type="button" id="importTrainingsOpen" class="home-create-button" style="margin-top:12px">＋ Importera poolspel och träningar</button><div id="trainingCalendarImport" class="training-calendar-import" hidden>
     </section>
 
     <section class="card home-saved">
@@ -62,7 +62,7 @@
       <div id="savedPoolsList"></div>
     </section>
 
-    <section class="card home-saved"><div class="training-heading-row"><h2>Träningar</h2><button type="button" id="importTrainingsOpen" class="training-import-toggle">Importera träningar</button></div><div id="trainingCalendarImport" class="training-calendar-import" hidden><label>Bild från SvenskaLag-kalendern<input type="file" id="trainingCalendarImage" accept="image/*"></label><button type="button" id="trainingCalendarRead">Läs kalenderbild</button><p id="trainingCalendarStatus" role="status"></p><div id="trainingCalendarReview"></div><button type="button" id="trainingCalendarConfirm" disabled>Importera valda träningar</button></div><p class="small">Gemensamma träningar för valt lag.</p><div id="savedTrainingsList"></div><a class="home-create-button" href="../traningsgrupper/">＋ Ny träning</a></section>
+    <section class="card home-saved"><h2>Träningar</h2><label>Bild från SvenskaLag-kalendern (poolspel och träningar)<input type="file" id="trainingCalendarImage" accept="image/*"></label><button type="button" id="trainingCalendarRead">Läs kalenderbild</button><p id="trainingCalendarStatus" role="status"></p><div id="trainingCalendarReview"></div><button type="button" id="trainingCalendarConfirm" disabled>Importera valda aktiviteter</button></div><p class="small">Gemensamma träningar för valt lag.</p><div id="savedTrainingsList"></div><a class="home-create-button" href="../traningsgrupper/">＋ Ny träning</a></section>
 
     <div id="appError" class="small"></div>
     <script>
