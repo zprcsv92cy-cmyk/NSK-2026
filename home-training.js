@@ -1,6 +1,7 @@
 // Saved training sessions are fetched from team-scoped shared storage.
 (() => {
   const escapeHtml=s=>String(s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+  const displayDate=date=>{const parsed=new Date(date+'T12:00:00');return Number.isNaN(parsed.getTime())?date:parsed.toLocaleDateString('sv-SE',{weekday:'long',day:'numeric',month:'long',year:'numeric'}).replace(/^./,c=>c.toUpperCase());};
   async function render(){
     const root=document.getElementById('savedTrainingsList');
     if(!root)return;
