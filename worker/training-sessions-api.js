@@ -35,10 +35,11 @@ export function createTrainingHandler(env,listTeams){
    if(request.method==='POST'){
     // Only imported, untouched future sessions in the explicitly selected month may be pruned.
     if(url.searchParams.get('action')!=='sync-calendar')return fail(400,'Unknown action');
-    let body;try{body=await request.json()}catch{return fail(400,'Invalid JSON')}
-    if(!/^20\\d{2}-(0[1-9]|1[0-2])$/.test(body?.month||'')||
+    const rawSync=await request.text();if(rawSync.length>4096)return fail(413,'Too large');
+    let body;try{body=JSON.parse(rawSync)}catch{return fail(400,'Invalid JSON')}
+    if(!/^20\d{2}-(0[1-9]|1[0-2])$/.test(body?.month||'')||
        !Array.isArray(body.dates)||body.dates.length===0||body.dates.length>31||
-       body.dates.some(d=>typeof d!=='string'||!/^20\\d{2}-\\d{2}-\\d{2}$/.test(d)||!d.startsWith(body.month+'-'))||
+       body.dates.some(d=>typeof d!=='string'||!/^20\d{2}-\d{2}-\d{2}$/.test(d)||!d.startsWith(body.month+'-'))||
        new Set(body.dates).size!==body.dates.length)return fail(400,'Invalid calendar month');
     const today=new Intl.DateTimeFormat('sv-SE',{timeZone:'Europe/Stockholm',year:'numeric',month:'2-digit',day:'2-digit'}).format(new Date());
     const rows=await db.prepare("SELECT training_date FROM training_calendar_imports WHERE team_id=? AND training_date LIKE ?").bind(team[0],body.month+'-%').all();
