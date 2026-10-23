@@ -30,5 +30,27 @@
     if(!response.ok)throw Error(response.status===409?'Träningen ändrades av en annan ledare. Ladda om sidan.':data.error||'Träningen kunde inte sparas.');
     return data;
   }
-  window.SharedTraining={list:()=>request(),get:date=>request(date),save:(date,data)=>request(date,data)};
+  async function roster(kind){
+    if(!['spelare','tranare'].includes(kind))throw Error('Ogiltig trupptyp');
+    const id=await resolveTeam();
+    const token=Auth.getToken();
+    const result=[];
+    for(let page=1;page<=100;page++){
+      const response=await fetch(base()+'/api/'+kind+'?page='+page+'&size=200&team_id='+encodeURIComponent(id),{
+        headers:{Authorization:'Bearer '+token},cache:'no-store'
+      });
+      if(!response.ok)throw Error('Kunde inte hämta '+(kind==='spelare'?'spelare':'tränare')+': '+response.status);
+      const data=await response.json();
+      if(!data.ok||!Array.isArray(data.results))throw Error('Ogiltigt truppsvar');
+      for(const person of data.results){
+        const teams=Array.isArray(person.Lag)?person.Lag:[];
+        if(!teams.some(team=>String(typeof team==='object'?team.id:team)===id))continue;
+        result.push({id:person.id,full_name:person.Namn,team_id:id});
+      }
+      if(!data.next)return result.sort((a,b)=>String(a.full_name||'').localeCompare(String(b.full_name||''),'sv'));
+    }
+    throw Error('För många sidor i truppsvaret');
+  }
+  window.SharedTraining={list:()=>request(),get:date=>request(date),save:(date,data)=>request(date,data),
+    listPlayers:()=>roster('spelare'),listCoaches:()=>roster('tranare')};
 })();

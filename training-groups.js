@@ -256,7 +256,7 @@
       if(!Auth.activeTeam() && session.memberships?.length)Auth.selectTeam(session.memberships[0].team_id);
       team=Auth.activeTeam();
       if(!team)throw Error('Välj ett aktivt lag under Mitt konto.');
-      [players,coaches]=await Promise.all([DB.listPlayers(),DB.listCoaches()]);
+      [players,coaches]=await Promise.all([SharedTraining.listPlayers(),SharedTraining.listCoaches()]);
       await restore();saveBlocked=false;renderRoster();renderCoaches();renderGoalieSelectors();renderGroups();
       $('trainingStatus').textContent=players.length+' spelare och '+coaches.length+' tränare hämtade från NSK-truppen.';
     }catch(error){$('trainingStatus').textContent=error.message||'Kunde inte läsa truppen.';}
