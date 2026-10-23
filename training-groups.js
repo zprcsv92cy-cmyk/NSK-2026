@@ -397,15 +397,32 @@
     });
     $('trainingGroupButton').addEventListener('click',distribute);
     $('trainingPrintButton').addEventListener('click',()=>window.print());
-    try{
-      const session=await Auth.init();
-      if(!session)throw Error('Du måste vara inloggad.');
-      if(!Auth.activeTeam() && session.memberships?.length)Auth.selectTeam(session.memberships[0].team_id);
-      team=Auth.activeTeam();
-      if(!team)throw Error('Välj ett aktivt lag under Mitt konto.');
-      [players,coaches]=await Promise.all([SharedTraining.listPlayers(),SharedTraining.listCoaches()]);
-      await restore();saveBlocked=false;renderRoster();renderCoaches();renderGoalieSelectors();renderGroups();
-      $('trainingStatus').textContent=players.length+' spelare och '+coaches.length+' tränare hämtade från NSK-truppen.';
-    }catch(error){$('trainingStatus').textContent=error.message||'Kunde inte läsa truppen.';}
+    const withTimeout=(promise,label)=>Promise.race([
+      promise,new Promise((_,reject)=>setTimeout(()=>reject(Error(label+' tog för lång tid. Försök igen.')),15000))
+    ]);
+    async function loadTrainingRoster(){
+      const retry=$('trainingRosterRetry');
+      retry.hidden=true;
+      $('trainingStatus').textContent='Kontrollerar inloggning…';
+      try{
+        const session=await withTimeout(Auth.init(),'Inloggningen');
+        if(!session)throw Error('Du måste vara inloggad.');
+        if(!Auth.activeTeam()&&session.memberships?.length)Auth.selectTeam(session.memberships[0].team_id);
+        team=Auth.activeTeam();
+        if(!team)throw Error('Välj ett aktivt lag under Mitt konto.');
+        $('trainingStatus').textContent='Hämtar spelartruppen…';
+        const roster=await withTimeout(Promise.all([SharedTraining.listPlayers(),SharedTraining.listCoaches()]),'Hämtning av truppen');
+        players=roster[0];coaches=roster[1];
+        $('trainingStatus').textContent='Hämtar sparad träning…';
+        await withTimeout(restore(),'Hämtning av träningen');
+        saveBlocked=false;renderRoster();renderCoaches();renderGoalieSelectors();renderGroups();
+        $('trainingStatus').textContent=players.length+' spelare och '+coaches.length+' tränare hämtade från NSK-truppen.';
+      }catch(error){
+        $('trainingStatus').textContent='Kunde inte läsa Träning: '+(error.message||'Okänt fel');
+        retry.hidden=false;
+      }
+    }
+    $('trainingRosterRetry').addEventListener('click',loadTrainingRoster);
+    await loadTrainingRoster();
   });
 })();
