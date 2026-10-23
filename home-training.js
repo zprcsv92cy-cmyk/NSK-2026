@@ -105,6 +105,18 @@
   }
   // Tesseract v6 returns block/paragraph/line/word geometry when requested.
   // Read day numbers from the left column, never from the previous OCR text line.
+  // Hall names appear on the line BELOW the activity in Svenskalag calendars.
+  // OCR can split the two words or confuse 'hallen' with 'hallen.'.
+  function detectCalendarHall(words){
+    const normalized=words.map(w=>String(w.text||'').toLocaleLowerCase('sv-SE').replace(/[^a-zåäö]/g,'')).filter(Boolean);
+    for(let i=0;i<normalized.length;i++){
+      const token=normalized[i];
+      const next=normalized[i+1]||'';
+      if(/^stora?hallen$/.test(token)||(token==='stora'&&/^hall(?:en)?$/.test(next)))return 'Stora hallen';
+      if(/^lillahallen$/.test(token)||(token==='lilla'&&/^hall(?:en)?$/.test(next)))return 'Lilla Hallen';
+    }
+    return null;
+  }
   function parseCalendarLayout(data,monthKey,imageWidth){
     const words=[];
     function collect(node){
@@ -158,7 +170,7 @@
       const day=String(date.day).padStart(2,'0');
       const fullDate=monthKey+'-'+day;
       if(new Date(fullDate+'T12:00:00').getDate()!==date.day||fullDate<todayLocalDate())continue;
-      const hall=/lilla\s+hallen/.test(content)?'Lilla Hallen':/stora\s+hallen/.test(content)?'Stora hallen':null;
+      const hall=detectCalendarHall(eventWords);
       const place=isPool&&/södertälje/.test(content)?'Södertälje':'';
       const item=isPool?{type:'pool',date:fullDate,hall:hall||'',place}:{type:'training',date:fullDate,hall};
       items.set(item.type+':'+fullDate+':'+(item.place||''),item);
@@ -221,7 +233,7 @@
             // the date column can be read one day ahead of an activity.
             if(layoutItems===null){chunksWithoutGeometry++;continue;}
             chunksWithGeometry++;
-            for(const item of layoutItems)merged.set(item.type+':'+item.date+':'+(item.place||''),item);
+            for(const item of layoutItems){const key=item.type+':'+item.date+':'+(item.place||'');const previous=merged.get(key);merged.set(key,previous&&previous.hall&&!item.hall?previous:item);}
             if(top+height>=bitmap.height)break;
           }
           if(!chunksWithGeometry)throw Error('OCR-motorn gav inga läsbara positionsdata i någon bilddel. Ingen import har gjorts.');
