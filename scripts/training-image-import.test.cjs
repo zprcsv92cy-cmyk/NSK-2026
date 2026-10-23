@@ -79,3 +79,9 @@ test('only uncertain OCR matches require review',()=>{
  assert.match(js,/importMatches\.filter\(p=>p\.exact\)/);
  assert.match(js,/const approved=/);
 });
+
+test('OCR matches first name and surname initial within noisy lines',()=>{
+ assert.match(js,/const shortName=parts\[0\]\+' '\+parts\[parts\.length-1\]\[0\]/);
+ assert.match(js,/matches\.length===1/);
+ assert.match(js,/fullMatch\|\|shortMatch/);
+});
