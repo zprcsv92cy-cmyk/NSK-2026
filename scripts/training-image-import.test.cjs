@@ -81,7 +81,7 @@ test('only uncertain OCR matches require review',()=>{
 });
 
 test('OCR matches first name and surname initial within noisy lines',()=>{
- assert.match(js,/const shortName=parts\[0\]\+' '\+parts\[parts\.length-1\]\[0\]/);
+ assert.match(js,/const surnameInitials=new Set/);
  assert.match(js,/uniqueIds\.size===1/);
  assert.match(js,/fullMatch\|\|shortMatch/);
 });
@@ -112,4 +112,21 @@ test('SvenskaLag 14+9 count uses real regex whitespace escapes',()=>{
  assert.ok(line.includes('\\s*'));
  assert.ok(line.includes('\\d+'));
  assert.ok(!line.includes('\\\\s*'));
+});
+
+test('SvenskaLag initials resolve compound surnames and Swedish names',()=>{
+ const vm=require('node:vm');
+ const begin=js.indexOf('  const normalized =');
+ const end=js.indexOf('  async function readImageText()',begin);
+ const context={players:[
+  {id:1,full_name:'Noé Bonafous Sand'},
+  {id:2,full_name:'Oliver Johansson Zoumbios'},
+  {id:3,full_name:'Agnes Danielsson'},
+  {id:4,full_name:'Theo Ydrenius'}
+ ],coaches:[]};
+ vm.createContext(context);
+ vm.runInContext(js.slice(begin,end)+';globalThis.parseAttendance=importCandidates;',context);
+ const matches=context.parseAttendance('Anmälda\nKommer 14+9\nNoé B\nOliver J\nAgnes D\nTheo Y');
+ assert.equal(matches.length,4);
+ assert.ok(matches.every(p=>p.exact));
 });

@@ -163,10 +163,12 @@
         const full=normalized(person.full_name);
         const parts=full.split(' ');
         if(parts.length<2)return null;
-        const shortName=parts[0]+' '+parts[parts.length-1][0];
-        // Full-name matches are stronger than initials. Both require word boundaries.
+        // SvenskaLag abbreviates the first surname part; NSK may contain
+        // compound surnames or a middle name (e.g. Oliver Johansson Zoumbios).
+        const surnameInitials=new Set(parts.slice(1).map(part=>part[0]));
         const fullMatch=new RegExp('(?:^| )'+full+'(?: |$)').test(cleaned);
-        const shortMatch=new RegExp('(?:^| )'+shortName+'(?: |$)').test(cleaned);
+        const shortMatch=[...surnameInitials].some(initial=>
+          new RegExp('(?:^| )'+parts[0]+' '+initial+'(?: |$)').test(cleaned));
         return fullMatch||shortMatch?{...person,exact:true}:null;
       }).filter(Boolean);
       // A shared initial (e.g. two Oliver J) must never be auto-approved.
