@@ -59,7 +59,7 @@
   }
   function parseCalendar(text){
     const lines=String(text).split(/\n/).map(x=>x.trim()).filter(Boolean);
-    const headings=lines.map(line=>line.toLocaleLowerCase('sv-SE').match(/(?:^|\\s)(januari|februari|mars|april|maj|juni|juli|augusti|september|oktober|november|december)\s+(20\d{2})(?:$|\\s)/)).filter(Boolean);
+    const headings=lines.map(line=>line.toLocaleLowerCase('sv-SE').match(/(?:^|\s)(januari|februari|mars|april|maj|juni|juli|augusti|september|oktober|november|december)\s+(20\d{2})(?:$|\s)/)).filter(Boolean);
     // One screenshot is one month. Never infer a month from unrelated entries.
     if(!headings.length||headings.some(h=>h[1]!==headings[0][1]||h[2]!==headings[0][2]))return {month:null,items:[],valid:false};
     const month=monthNames.indexOf(headings[0][1])+1,year=Number(headings[0][2]);
@@ -68,21 +68,21 @@
     let day=null;
     for(let i=0;i<lines.length;i++){
       const normalized=lines[i].toLocaleLowerCase('sv-SE');
-      if(/(?:^|\\s)(januari|februari|mars|april|maj|juni|juli|augusti|september|oktober|november|december)\\s+20\\d{2}/.test(normalized)){day=null;continue;}
-      const dayMatch=normalized.match(/^(\\d{1,2})(?:\\s+(?:mån|tis|ons|tor|fre|lör|sön))?\\s*$/);
+      if(/(?:^|\s)(januari|februari|mars|april|maj|juni|juli|augusti|september|oktober|november|december)\s+20\d{2}/.test(normalized)){day=null;continue;}
+      const dayMatch=normalized.match(/^(?:(?:mån|tis|ons|tor|fre|lör|sön)(?:dag)?\s+)?(\d{1,2})(?:\s+(?:mån|tis|ons|tor|fre|lör|sön))?\s*$/);
       if(dayMatch){day=Number(dayMatch[1]);continue;}
       if(!day)continue;
-      const isTraining=/\\b(?:träning|is\\s*17\\s*[/\\\\]\\s*18)\\b/i.test(normalized);
-      const isPool=/\\b(?:poolspel|intresseanmälan\\s+poolspel)\\b/i.test(normalized);
+      const isTraining=/\b(?:träning|is(?:\s*1[789](?:\s*\/\s*1[789])?)?|hockeyfritids|open\s*ice)\b/i.test(normalized);
+      const isPool=/\b(?:poolspel|intresseanmälan\s+poolspel)\b/i.test(normalized);
       if(!isTraining&&!isPool)continue;
       const date=monthKey+'-'+String(day).padStart(2,'0');
       if(new Date(date+'T12:00:00').getDate()!==day||date<todayLocalDate()){day=null;continue;}
-      const context=lines.slice(i,Math.min(i+4,lines.length)).filter(line=>!/^\\d{1,2}(?:\\s+(?:mån|tis|ons|tor|fre|lör|sön))?\\s*$/i.test(line)).join(' ').toLocaleLowerCase('sv-SE');
-      const hall=/\\blilla\\s+hallen\\b/.test(context)?'Lilla Hallen':/\\bstora\\s+hallen\\b/.test(context)?'Stora hallen':null;
+      const context=lines.slice(i,Math.min(i+4,lines.length)).filter(line=>!/^\d{1,2}(?:\s+(?:mån|tis|ons|tor|fre|lör|sön))?\s*$/i.test(line)).join(' ').toLocaleLowerCase('sv-SE');
+      const hall=/\blilla\s+hallen\b/.test(context)?'Lilla Hallen':/\bstora\s+hallen\b/.test(context)?'Stora hallen':null;
       if(isPool){
         const place=/södertälje/i.test(context)?'Södertälje':'';
         found.set('pool:'+date+':'+place,{type:'pool',date,hall:hall||'',place});
-      }else if(hall){
+      }else{
         found.set('training:'+date,{type:'training',date,hall});
       }
       day=null;
