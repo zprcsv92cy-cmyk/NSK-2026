@@ -69,7 +69,9 @@
     for(let i=0;i<lines.length;i++){
       const normalized=lines[i].toLocaleLowerCase('sv-SE');
       if(/(?:^|\s)(januari|februari|mars|april|maj|juni|juli|augusti|september|oktober|november|december)\s+20\d{2}/.test(normalized)){day=null;continue;}
-      const inlineDay=normalized.match(/^(\d{1,2})\s+(?:(?:mån|tis|ons|tor|fre|lör|sön)\s+)?(?:\d{1,2}[:.]\d{2}\s+)?(?:is\b|träning\b|poolspel\b|hockeyfritids\b)/i);\n      if(inlineDay)day=Number(inlineDay[1]);\n      const dayMatch=normalized.match(/^(?:(?:mån|tis|ons|tor|fre|lör|sön)(?:dag)?\s+)?(\d{1,2})(?:\s+(?:mån|tis|ons|tor|fre|lör|sön))?\s*$/);
+      const inlineDay=normalized.match(/^(\d{1,2})\s+(?:(?:mån|tis|ons|tor|fre|lör|sön)\s+)?(?:\d{1,2}[:.]\d{2}\s+)?(?:is\b|träning\b|poolspel\b|hockeyfritids\b)/i);
+      if(inlineDay)day=Number(inlineDay[1]);
+      const dayMatch=normalized.match(/^(?:(?:mån|tis|ons|tor|fre|lör|sön)(?:dag)?\s+)?(\d{1,2})(?:\s+(?:mån|tis|ons|tor|fre|lör|sön))?\s*$/);
       if(dayMatch){
         const proposed=Number(dayMatch[1]);
         const date=monthKey+'-'+String(proposed).padStart(2,'0');
