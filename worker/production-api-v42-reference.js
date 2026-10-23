@@ -515,8 +515,9 @@ var worker_default = { async fetch(req, env) {
     } catch {
       return reply({ ok: false, error: "Ogiltig JSON" }, 400);
     }
-    const keys = ["title", "place", "hall", "pool_date", "status", "teams", "matches", "players_on_field", "periods", "period_time", "sub_time"];
+    const keys = ["title", "place", "hall", "pool_date", "status", "teams", "matches", "players_on_field", "periods", "period_time", "sub_time", "calendarImport"];
     if (!body || typeof body !== "object" || Array.isArray(body) || Object.keys(body).some((k) => !keys.includes(k))) return reply({ ok: false, error: "Ogiltiga f\xE4lt" }, 400);
+    if (body.calendarImport !== undefined && (req.method !== "POST" || body.calendarImport !== true)) return reply({ok:false,error:"Ogiltig kalenderimport"},400);
     const place = typeof body.place === "string" ? body.place.trim() : "";
     const hall = typeof body.hall === "string" ? body.hall.trim() : "";
     const title = typeof body.title === "string" ? body.title.trim() : "";
@@ -559,7 +560,18 @@ var worker_default = { async fetch(req, env) {
         const details = await r.json().catch(() => ({}));
         return reply({ ok: false, error: "Baserow kunde inte spara poolspel", status: r.status, baserow_error: details.error || null, baserow_detail: details.detail || null }, 502);
       }
-      return reply({ ok: true, row: await r.json() }, rowId ? 200 : 201);
+      const saved = await r.json();
+      if (!rowId && body.calendarImport === true) {
+        if (!env.AUTH_DB || !Number.isSafeInteger(Number(saved.id)) || Number(saved.id) < 1)
+          return reply({ok:false,error:"Poolspel skapades men kunde inte registreras som importerat. Kontrollera listan innan nytt försök."},503);
+        try {
+          await env.AUTH_DB.prepare("INSERT INTO pool_calendar_imports (pool_id, team_id, pool_date, import_month) VALUES (?, ?, ?, ?)")
+            .bind(Number(saved.id), String(team.id), date, date.slice(0,7)).run();
+        } catch {
+          return reply({ok:false,error:"Poolspel skapades men importregistreringen misslyckades. Kontrollera listan innan nytt försök."},503);
+        }
+      }
+      return reply({ok:true,row:saved},rowId?200:201);
     } catch {
       return reply({ ok: false, error: "Baserow kunde inte n\xE5s" }, 502);
     }
