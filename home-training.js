@@ -124,7 +124,7 @@
           headerCanvas.getContext('2d').drawImage(bitmap,0,0,bitmap.width,headerHeight,0,0,headerCanvas.width,headerCanvas.height);
           const headerResult=await worker.recognize(headerCanvas);
           const headerText=headerResult.data?.text||'';
-          const monthMatch=headerText.toLocaleLowerCase('sv-SE').match(/(januari|februari|mars|april|maj|juni|juli|augusti|september|oktober|november|december)\\s+(20\\d{2})/);
+          const monthMatch=headerText.toLocaleLowerCase('sv-SE').match(/(januari|februari|mars|april|maj|juni|juli|augusti|september|oktober|november|december)\s+(20\d{2})/);
           if(!monthMatch)throw Error('Kunde inte läsa månad och år i bildens överkant.');
           const monthHeading=monthMatch[1]+' '+monthMatch[2];
           const merged=new Map();
