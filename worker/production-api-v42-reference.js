@@ -502,6 +502,35 @@ var worker_default = { async fetch(req, env) {
       return reply({ok:true,row:await res.json()});
     } catch { return reply({ok:false,error:"Databasfel"},502); }
   }
+  // Authorized read-only reconciliation preview. Never deletes poolspels.
+  if (url.pathname === "/api/poolspel/calendar-sync-preview" && req.method === "POST") {
+    const authRequest = new Request(new URL("/api/poolspel", req.url), { method: "POST", headers: req.headers });
+    const access = await checkPersonalPoolWrite(authRequest);
+    if (!access.allowed) return reply({ok:false,error:access.error},access.status);
+    if (!env.AUTH_DB) return reply({ok:false,error:"Importdatabasen saknas"},503);
+    if (!(req.headers.get("Content-Type") || "").startsWith("application/json")) return reply({ok:false,error:"JSON krävs"},415);
+    let body;
+    try { body = await req.json(); } catch { return reply({ok:false,error:"Ogiltig JSON"},400); }
+    if (!body || typeof body !== "object" || Array.isArray(body) ||
+        Object.keys(body).some(k=>!["month","dates"].includes(k)) ||
+        typeof body.month !== "string" || !/^20\d{2}-(0[1-9]|1[0-2])$/.test(body.month) ||
+        !Array.isArray(body.dates) || body.dates.length > 31 ||
+        body.dates.some(d=>typeof d!=="string" || !/^20\d{2}-(0[1-9]|1[0-2])-(0[1-9]|[12]\d|3[01])$/.test(d) ||
+          d.slice(0,7)!==body.month || new Date(d).toISOString().slice(0,10)!==d) ||
+        new Set(body.dates).size!==body.dates.length) return reply({ok:false,error:"Ogiltig månadslista"},400);
+    const today = new Intl.DateTimeFormat("sv-SE",{timeZone:"Europe/Stockholm",year:"numeric",month:"2-digit",day:"2-digit"}).format(new Date());
+    if (body.month < today.slice(0,7)) return reply({ok:false,error:"Passerad månad"},400);
+    let tracked;
+    try {
+      tracked = await env.AUTH_DB.prepare("SELECT pool_id,pool_date FROM pool_calendar_imports WHERE team_id=? AND import_month=? ORDER BY pool_date,pool_id").bind(access.teamId,body.month).all();
+    } catch { return reply({ok:false,error:"Importregistreringen kunde inte läsas"},503); }
+    const dates = new Set(body.dates);
+    return reply({ok:true,month:body.month,tracked:(tracked.results||[]).map(row=>({
+      pool_id:row.pool_id,pool_date:row.pool_date,
+      present_in_calendar:dates.has(row.pool_date),
+      status:dates.has(row.pool_date)?"present":"needs_manual_review"
+    })),deletion_enabled:false});
+  }
   if (url.pathname === "/api/poolspel" && req.method === "POST" || /^\/api\/poolspel\/\d+$/.test(url.pathname) && req.method === "PATCH") {
     if (personalPoolWritesEnabled) {
       const access = await checkPersonalPoolWrite(req);
