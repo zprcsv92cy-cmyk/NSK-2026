@@ -70,7 +70,18 @@
       const normalized=lines[i].toLocaleLowerCase('sv-SE');
       if(/(?:^|\s)(januari|februari|mars|april|maj|juni|juli|augusti|september|oktober|november|december)\s+20\d{2}/.test(normalized)){day=null;continue;}
       const dayMatch=normalized.match(/^(?:(?:mån|tis|ons|tor|fre|lör|sön)(?:dag)?\s+)?(\d{1,2})(?:\s+(?:mån|tis|ons|tor|fre|lör|sön))?\s*$/);
-      if(dayMatch){day=Number(dayMatch[1]);continue;}
+      if(dayMatch){
+        const proposed=Number(dayMatch[1]);
+        const date=monthKey+'-'+String(proposed).padStart(2,'0');
+        const weekdayNames=['sön','mån','tis','ons','tor','fre','lör'];
+        const weekdayLine=(lines[i+1]||'').toLocaleLowerCase('sv-SE');
+        const weekday=normalized.match(/(?:mån|tis|ons|tor|fre|lör|sön)/)?.[0]||weekdayLine.match(/^(mån|tis|ons|tor|fre|lör|sön)(?:dag)?$/)?.[1];
+        // Never attach an event to the preceding calendar day when OCR
+        // loses the date in a multi-column screenshot.
+        const validDate=new Date(date+'T12:00:00');
+        day=validDate.getDate()===proposed&&(!weekday||weekdayNames[validDate.getDay()]===weekday)?proposed:null;
+        continue;
+      }
       if(!day)continue;
       const isTraining=/\b(?:träning|is(?:\s*1[789](?:\s*\/\s*1[789])?)?|hockeyfritids|open\s*ice)\b/i.test(normalized);
       const isPool=/\b(?:poolspel|intresseanmälan\s+poolspel)\b/i.test(normalized);
