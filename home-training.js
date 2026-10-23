@@ -59,7 +59,7 @@
   }
   function parseCalendar(text){
     const lines=String(text).split(/\n/).map(x=>x.trim()).filter(Boolean);
-    const headings=lines.map(line=>line.toLocaleLowerCase('sv-SE').match(/(?:^|\\s)(januari|februari|mars|april|maj|juni|juli|augusti|september|oktober|november|december)\\s+(20\\d{2})(?:$|\\s)/)).filter(Boolean);
+    const headings=lines.map(line=>line.toLocaleLowerCase('sv-SE').match(/(?:^|\\s)(januari|februari|mars|april|maj|juni|juli|augusti|september|oktober|november|december)\s+(20\d{2})(?:$|\\s)/)).filter(Boolean);
     // One screenshot is one month. Never infer a month from unrelated entries.
     if(!headings.length||headings.some(h=>h[1]!==headings[0][1]||h[2]!==headings[0][2]))return {month:null,items:[],valid:false};
     const month=monthNames.indexOf(headings[0][1])+1,year=Number(headings[0][2]);
@@ -138,7 +138,7 @@
             canvas.getContext('2d').drawImage(bitmap,0,top,bitmap.width,height,0,0,canvas.width,canvas.height);
             status.textContent='Läser kalendern dag för dag ('+Math.min(100,Math.round((top+height)/bitmap.height*100))+' %) …';
             const result=await worker.recognize(canvas);
-            const section=parseCalendar(monthHeading+'\\n'+(result.data?.text||''));
+            const section=parseCalendar(monthHeading+'\n'+(result.data?.text||''));
             for(const item of section.items)merged.set(item.type+':'+item.date+':'+(item.place||''),item);
             if(top+height>=bitmap.height)break;
           }
