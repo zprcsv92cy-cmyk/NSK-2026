@@ -101,7 +101,7 @@ test('attendance parsing matches abbreviated Swedish names and excludes non-atte
  const context={players:roster,coaches:[]};
  vm.createContext(context);
  vm.runInContext(js.slice(begin,end)+';globalThis.parseAttendance=importCandidates;',context);
- const matches=context.parseAttendance('Anmälan\\nPeter H Kommer\\nAnmälda\\nKommer 14+9\\nPeter H\\nViggo K\\nOlle Å | Huvudtränare\\nOliver E\\nOliver J\\nKan ej 4+4\\nPeter H');
+ const matches=context.parseAttendance('Anmälan\nPeter H Kommer\nAnmälda\nKommer 14+9\nPeter H\nViggo K\nOlle Å | Huvudtränare\nOliver E\nOliver J\nKan ej 4+4\nPeter H');
  assert.equal(matches.length,5);
  assert.deepEqual([...matches.map(p=>p.id)].sort((a,b)=>a-b),[1,2,3,4,5]);
 });
