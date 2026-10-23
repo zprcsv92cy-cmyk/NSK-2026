@@ -117,6 +117,23 @@
       if(node.text&&node.bbox&&Number.isFinite(node.bbox.x0))words.push(node);
     }
     collect(data.blocks||data.words||[]);
+    // Some browser builds return OCR text but omit block geometry.
+    // TSV is a second, explicit coordinate output supported by Tesseract.js.
+    if(!words.length&&typeof data.tsv==='string'){
+      const lines=data.tsv.trim().split(/\r?\n/);
+      const header=lines.shift()?.split('\t')||[];
+      const col=name=>header.indexOf(name);
+      const left=col('left'),top=col('top'),width=col('width'),height=col('height'),value=col('text');
+      if([left,top,width,height,value].every(n=>n>=0)){
+        for(const line of lines){
+          const fields=line.split('\t');
+          const x=Number(fields[left]),y=Number(fields[top]);
+          const w=Number(fields[width]),h=Number(fields[height]);
+          const t=fields.slice(value).join('\t').trim();
+          if(t&&[x,y,w,h].every(Number.isFinite))words.push({text:t,bbox:{x0:x,y0:y,x1:x+w,y1:y+h}});
+        }
+      }
+    }
     if(!words.length)return null;
     const dayColumn=imageWidth*0.115;
     const dates=words.filter(w=>w.bbox.x0<dayColumn&&/^\d{1,2}$/.test(w.text.trim()))
@@ -194,11 +211,11 @@
             canvas.height=Math.round(height*canvas.width/bitmap.width);
             canvas.getContext('2d').drawImage(bitmap,0,top,bitmap.width,height,0,0,canvas.width,canvas.height);
             status.textContent='Läser kalendern dag för dag ('+Math.min(100,Math.round((top+height)/bitmap.height*100))+' %) …';
-            const result=await worker.recognize(canvas,{}, {blocks:true});
+            const result=await worker.recognize(canvas,{}, {blocks:true,tsv:true});
             const layoutItems=parseCalendarLayout(result.data,monthMatch[2]+'-'+String(monthNames.indexOf(monthMatch[1])+1).padStart(2,'0'),canvas.width);
             // If geometry is unavailable, do not silently trust text ordering:
             // the date column can be read one day ahead of an activity.
-            if(layoutItems===null)throw Error('Bildtolkningen saknar positionsdata. Ingen import tillåts. Försök med en tydligare skärmbild.');
+            if(layoutItems===null)throw Error('OCR-motorn gav varken blockpositioner eller TSV-koordinater. Importen stoppades utan ändringar.');
             for(const item of layoutItems)merged.set(item.type+':'+item.date+':'+(item.place||''),item);
             if(top+height>=bitmap.height)break;
           }
