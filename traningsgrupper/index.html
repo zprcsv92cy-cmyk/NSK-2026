@@ -28,7 +28,7 @@ document.write('<script src="../training-groups.js?v='+window.NSK_VERSION+'"><\/
 .training-group{border:1px solid var(--line);border-radius:12px;overflow:hidden}
 .training-group h3{padding:12px;margin:0;color:white}
 .training-group ul{padding:6px 12px 12px 28px;margin:0}
-.training-group li{padding:4px 0}
+.training-group li{padding:4px 0}.training-player{cursor:grab;display:flex;align-items:center;justify-content:space-between;gap:6px;flex-wrap:wrap}.training-player select{max-width:110px;min-height:36px;font-size:14px}.training-player:active{cursor:grabbing}@media print{.training-player select{display:none!important}}
 @media print {nav,.training-controls,.training-roster,.training-actions,.no-print{display:none!important}body{background:white;color:black}.card{border:0;box-shadow:none}}
 </style>
 <script src="../navigation.js?v=training-menu-20261022" defer></script>
@@ -60,7 +60,7 @@ document.write('<script src="../training-groups.js?v='+window.NSK_VERSION+'"><\/
 <div class="training-roster" id="trainingCoachRoster"></div>
 <h2 style="margin-top:18px">Välj målvakter</h2>
 <div class="training-controls" id="trainingGoalies"></div>
-<p class="small">Målvakterna väljs bland spelarna som kommer och visas separat från utespelarnas tröjfärger.</p>
+<p class="small">Målvakterna väljs bland spelarna som kommer och visas separat från utespelarnas tröjfärger. Dra spelare mellan färgerna på datorn eller välj ny färg i listan på mobilen.</p>
 <div class="training-actions"><button type="button" id="trainingGroupButton">Dela in i tröjfärger</button><button type="button" id="trainingPrintButton">Skriv ut grupper</button></div>
 </section>
 <section class="card"><h2>Tränare</h2><div id="trainingCoachSummary">Inga tränare markerade</div><h2 style="margin-top:18px">Målvakter</h2><div id="trainingGoalieSummary">Inga målvakter valda</div><h2 style="margin-top:18px">Tröjfärger</h2><div class="training-groups" id="trainingGroups"></div></section>
