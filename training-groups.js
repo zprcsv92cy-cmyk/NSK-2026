@@ -9,6 +9,7 @@
   let goalies = [];
   let goalieCount = 0;
   let shirtColorCount = 3;
+  let trainingHall = '';
   async function restore(){
     const date=$('trainingDate').value;
     const response=await SharedTraining.get(date);
@@ -21,6 +22,8 @@
     allocation=Array.isArray(data.allocation)?data.allocation:[];
     goalies=(data.goalies||[]).map(String).filter(id=>allowed.has(id)&&selected.has(id));
     goalieCount=Number(data.goalieCount)||0;
+    trainingHall=['Lilla Hallen','Stora hallen'].includes(data.hall)?data.hall:'';
+    $('trainingHall').value=trainingHall;
     shirtColorCount=[2,3,4].includes(Number(data.shirtColorCount))?Number(data.shirtColorCount):3;
     $('trainingShirtColorCount').value=String(shirtColorCount);
     revision=Number(data.revision)||0;
@@ -37,7 +40,7 @@
     if($('trainingDate').value!==loadedDate){$('trainingStatus').textContent='Vänta tills träningen för valt datum har lästs in.';return;}
     const date=$('trainingDate').value;
     if(goalies.filter(Boolean).length!==goalieCount){$('trainingStatus').textContent='Välj namn för alla målvakter innan träningen sparas.';return;}
-    const snapshot={selected:[...selected],selectedCoaches:[...selectedCoaches],allocation:allocation.map(group=>[...group]),goalies:[...goalies],goalieCount,shirtColorCount};
+    const snapshot={selected:[...selected],selectedCoaches:[...selectedCoaches],allocation:allocation.map(group=>[...group]),goalies:[...goalies],goalieCount,shirtColorCount,hall:trainingHall};
     $('trainingStatus').textContent='Sparar träningen…';
     saveQueue=saveQueue.then(async()=>{
       if(saveBlocked)return;
@@ -357,6 +360,10 @@
       $('trainingImportStatus').textContent=importMatches.length
         ?sourceSummary+countWarning+importMatches.filter(p=>p.exact).length+' säkra namn identifierade automatiskt. '+importMatches.filter(p=>!p.exact).length+' osäkra behöver granskas. Bekräfta för att uppdatera närvaron.'
          :sourceSummary+countWarning+'Inga namn matchade mot NSK-truppen. Skriv ett namn per rad som i NSK-truppen. Kontrollera att namnen står på egna rader.';
+    });
+    $('trainingHall').addEventListener('change',()=>{
+      trainingHall=$('trainingHall').value;
+      persist();
     });
     $('trainingShirtColorCount').addEventListener('change',()=>{
       shirtColorCount=Number($('trainingShirtColorCount').value);
