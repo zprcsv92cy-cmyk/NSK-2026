@@ -9,7 +9,7 @@ test('image import requires explicit confirmation',()=>{
  assert.match(js,/trainingImportApply'\)\.addEventListener\('click'/);
 });
 test('attendance import matches unique names and does not clear existing attendance',()=>{
- assert.match(js,/if\(matches\.length===1\)/);
+ assert.match(js,/if\(uniqueIds\.size===1\)/);
  assert.match(js,/selected\.add\(String\(person\.id\)\)/);
  assert.match(js,/selectedCoaches\.add\(String\(person\.id\)\)/);
  assert.doesNotMatch(js.slice(js.indexOf("trainingImportApply').addEventListener")),/selected\.clear\(|selectedCoaches\.clear\(/);
@@ -78,4 +78,30 @@ test('only uncertain OCR matches require review',()=>{
  assert.match(js,/matches\.filter\(p=>!p\.exact\)/);
  assert.match(js,/importMatches\.filter\(p=>p\.exact\)/);
  assert.match(js,/const approved=/);
+});
+
+test('OCR matches first name and surname initial within noisy lines',()=>{
+ assert.match(js,/const shortName=parts\[0\]\+' '\+parts\[parts\.length-1\]\[0\]/);
+ assert.match(js,/uniqueIds\.size===1/);
+ assert.match(js,/fullMatch\|\|shortMatch/);
+});
+
+test('attendance parsing matches abbreviated Swedish names and excludes non-attendees',()=>{
+ const vm=require('node:vm');
+ const begin=js.indexOf('  const normalized =');
+ const end=js.indexOf('  async function readImageText()',begin);
+ assert.ok(begin>=0&&end>begin);
+ const roster=[
+  {id:1,full_name:'Peter Hasselberg'},
+  {id:2,full_name:'Viggo Kronvall'},
+  {id:3,full_name:'Olle Åstrand'},
+  {id:4,full_name:'Oliver Englund'},
+  {id:5,full_name:'Oliver Johansson'}
+ ];
+ const context={players:roster,coaches:[]};
+ vm.createContext(context);
+ vm.runInContext(js.slice(begin,end)+';globalThis.parseAttendance=importCandidates;',context);
+ const matches=context.parseAttendance('Anmälan\nPeter H Kommer\nAnmälda\nKommer 14+9\nPeter H\nViggo K\nOlle Å | Huvudtränare\nOliver E\nOliver J\nKan ej 4+4\nPeter H');
+ assert.equal(matches.length,5);
+ assert.deepEqual([...matches.map(p=>p.id)].sort((a,b)=>a-b),[1,2,3,4,5]);
 });

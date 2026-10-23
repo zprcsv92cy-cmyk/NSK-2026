@@ -150,26 +150,30 @@
     // If the Anmälda heading was recognized, skip the invitation section.
     const relevant=lines.slice(status>=0?status+1:section>=0?section+1:0);
     const found=new Map();
+    const skip=/^(kommer|kan ej|kallade|anmalda|anmalan|kalender|samling|svara senast|ej svarat)(?: |$)/;
+    // Match each attendance entry against the active roster. Do not treat names
+    // in comments, other response tabs, or invitations as confirmed attendees.
     for(const line of relevant){
       const cleaned=normalized(normalizeImportLine(line));
-      if(!cleaned||cleaned.length<3||/^(kommer|kan ej|kallade|anmalda|anmalan|kalender|samling|svara senast|ej svarat)$/.test(cleaned))continue;
-      // Match a name at the start of an OCR line, even when a role/comment follows.
-      const matches=roster.filter(p=>{
-        const full=normalized(p.full_name);
+      if(!cleaned||cleaned.length<3)continue;
+      if(/^(kan ej|kallade|ej svarat)(?: |$)/.test(cleaned))break;
+      if(skip.test(cleaned))continue;
+      const matches=roster.map(person=>{
+        const full=normalized(person.full_name);
         const parts=full.split(' ');
-        const abbreviated=parts.length>1?parts[0]+' '+parts[parts.length-1][0]:'';
-        return cleaned===full||cleaned.startsWith(full+' ')||
-          (abbreviated&& (cleaned===abbreviated||cleaned.startsWith(abbreviated+' ')));
-      });
-      if(matches.length===1){
-        const person=matches[0];
-        const fullName=normalized(person.full_name);
-        const nameParts=fullName.split(' ');
-        const shortName=nameParts.length>1?nameParts[0]+' '+nameParts[nameParts.length-1][0]:'';
-        const exact=cleaned===fullName||Boolean(shortName&&(cleaned===shortName||cleaned.startsWith(shortName+' ')));
-        const key=person.kind+':'+person.id;
+        if(parts.length<2)return null;
+        const shortName=parts[0]+' '+parts[parts.length-1][0];
+        // Full-name matches are stronger than initials. Both require word boundaries.
+        const fullMatch=new RegExp('(?:^| )'+full+'(?: |$)').test(cleaned);
+        const shortMatch=new RegExp('(?:^| )'+shortName+'(?: |$)').test(cleaned);
+        return fullMatch||shortMatch?{...person,exact:fullMatch}:null;
+      }).filter(Boolean);
+      // A shared initial (e.g. two Oliver J) must never be auto-approved.
+      const uniqueIds=new Set(matches.map(p=>p.kind+':'+p.id));
+      if(uniqueIds.size===1){
+        const person=matches[0],key=person.kind+':'+person.id;
         const previous=found.get(key);
-        if(!previous||exact)found.set(key,{...person,exact});
+        if(!previous||person.exact)found.set(key,person);
       }
     }
     return [...found.values()];
