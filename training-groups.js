@@ -193,25 +193,54 @@
           $('trainingImportStatus').textContent='Läser bild '+(i+1)+' av '+files.length+'…';
           const result=await worker.recognize(files[i]);
           texts.push(result.data?.text||'');
-          // SvenskaLag screenshots contain tiny initials. A second, enlarged
-          // OCR pass helps recover short names missed at native resolution.
-          // All processing stays in memory; no image or OCR text is persisted.
+          // Retry with different in-memory image transformations until the
+          // independently verified SvenskaLag player total is matched.
           let bitmap;
           try{
             bitmap=await createImageBitmap(files[i]);
-            const scale=bitmap.width<1200?2:1.5;
-            const canvas=document.createElement('canvas');
-            canvas.width=Math.round(bitmap.width*scale);
-            canvas.height=Math.round(bitmap.height*scale);
-            const ctx=canvas.getContext('2d');
-            if(ctx){
+            const variants=[
+              {scale:2,contrast:false},
+              {scale:3,contrast:true},
+              {scale:2,contrast:true}
+            ];
+            const recognized=new Map();
+            const collect=()=>{
+              recognized.clear();
+              for(const pass of texts){
+                for(const person of importCandidates(pass)){
+                  recognized.set(person.kind+':'+person.id,person);
+                }
+              }
+            };
+            collect();
+            const header=()=>texts.join('\n').match(/kommer\s*(\d+)\s*\+\s*(\d+)/i);
+            for(let attempt=0;attempt<variants.length;attempt++){
+              const target=header();
+              const matchedPlayers=[...recognized.values()].filter(p=>p.kind==='player').length;
+              if(target&&matchedPlayers>=Number(target[1]))break;
+              const variant=variants[attempt];
+              $('trainingImportStatus').textContent='Förbättrar bildtolkning '+(attempt+2)+' av '+(variants.length+1)+'…';
+              const canvas=document.createElement('canvas');
+              canvas.width=Math.round(bitmap.width*variant.scale);
+              canvas.height=Math.round(bitmap.height*variant.scale);
+              const ctx=canvas.getContext('2d');
+              if(!ctx)break;
               ctx.imageSmoothingEnabled=true;
               ctx.imageSmoothingQuality='high';
               ctx.drawImage(bitmap,0,0,canvas.width,canvas.height);
-              const enlarged=await worker.recognize(canvas);
-              texts.push(enlarged.data?.text||'');
+              if(variant.contrast){
+                const pixels=ctx.getImageData(0,0,canvas.width,canvas.height);
+                for(let j=0;j<pixels.data.length;j+=4){
+                  for(let c=0;c<3;c++)pixels.data[j+c]=Math.max(0,Math.min(255,(pixels.data[j+c]-128)*1.65+128));
+                }
+                ctx.putImageData(pixels,0,0);
+              }
+              try{
+                const enlarged=await worker.recognize(canvas);
+                texts.push(enlarged.data?.text||'');
+                collect();
+              }finally{canvas.width=0;canvas.height=0;}
             }
-            canvas.width=0;canvas.height=0;
           }catch(error){console.warn('Extra OCR pass unavailable',error);}
           finally{bitmap?.close();}
         }
