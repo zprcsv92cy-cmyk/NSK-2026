@@ -103,6 +103,49 @@
     }
     return {month:monthKey,items:[...found.values()],valid:found.size>0};
   }
+  // Tesseract v6 returns block/paragraph/line/word geometry when requested.
+  // Read day numbers from the left column, never from the previous OCR text line.
+  function parseCalendarLayout(data,monthKey,imageWidth){
+    const words=[];
+    function collect(node){
+      if(!node)return;
+      if(Array.isArray(node)){node.forEach(collect);return;}
+      if(Array.isArray(node.words)){node.words.forEach(collect);return;}
+      if(Array.isArray(node.lines)){node.lines.forEach(collect);return;}
+      if(Array.isArray(node.paragraphs)){node.paragraphs.forEach(collect);return;}
+      if(Array.isArray(node.blocks)){node.blocks.forEach(collect);return;}
+      if(node.text&&node.bbox&&Number.isFinite(node.bbox.x0))words.push(node);
+    }
+    collect(data.blocks||data.words||[]);
+    if(!words.length)return null;
+    const dayColumn=imageWidth*0.115;
+    const dates=words.filter(w=>w.bbox.x0<dayColumn&&/^\d{1,2}$/.test(w.text.trim()))
+      .map(w=>({day:Number(w.text.trim()),y:w.bbox.y0,x:w.bbox.x0}))
+      .filter(w=>w.day>=1&&w.day<=31)
+      .sort((a,b)=>a.y-b.y);
+    if(!dates.length)return null;
+    const items=new Map();
+    const rows=words.filter(w=>w.bbox.x0>=dayColumn)
+      .sort((a,b)=>a.bbox.y0-b.bbox.y0);
+    for(const date of dates){
+      const next=dates.find(d=>d.y>date.y+3);
+      const lower=next?next.y:Infinity;
+      const eventWords=rows.filter(w=>w.bbox.y0>=date.y-8&&w.bbox.y0<lower);
+      if(!eventWords.length)continue;
+      const content=eventWords.map(w=>w.text).join(' ').toLocaleLowerCase('sv-SE');
+      const isPool=/\bpoolspel\b/.test(content);
+      const isTraining=/\b(?:träning|is|hockeyfritids|open)\b/.test(content);
+      if(!isPool&&!isTraining)continue;
+      const day=String(date.day).padStart(2,'0');
+      const fullDate=monthKey+'-'+day;
+      if(new Date(fullDate+'T12:00:00').getDate()!==date.day||fullDate<todayLocalDate())continue;
+      const hall=/lilla\s+hallen/.test(content)?'Lilla Hallen':/stora\s+hallen/.test(content)?'Stora hallen':null;
+      const place=isPool&&/södertälje/.test(content)?'Södertälje':'';
+      const item=isPool?{type:'pool',date:fullDate,hall:hall||'',place}:{type:'training',date:fullDate,hall};
+      items.set(item.type+':'+fullDate+':'+(item.place||''),item);
+    }
+    return [...items.values()];
+  }
   function setupCalendarImport(){
     const open=document.getElementById('importTrainingsOpen');
     const panel=document.getElementById('trainingCalendarImport');
@@ -151,9 +194,12 @@
             canvas.height=Math.round(height*canvas.width/bitmap.width);
             canvas.getContext('2d').drawImage(bitmap,0,top,bitmap.width,height,0,0,canvas.width,canvas.height);
             status.textContent='Läser kalendern dag för dag ('+Math.min(100,Math.round((top+height)/bitmap.height*100))+' %) …';
-            const result=await worker.recognize(canvas);
-            const section=parseCalendar(monthHeading+'\n'+(result.data?.text||''));
-            for(const item of section.items)merged.set(item.type+':'+item.date+':'+(item.place||''),item);
+            const result=await worker.recognize(canvas,{}, {blocks:true});
+            const layoutItems=parseCalendarLayout(result.data,monthMatch[2]+'-'+String(monthNames.indexOf(monthMatch[1])+1).padStart(2,'0'),canvas.width);
+            // If geometry is unavailable, do not silently trust text ordering:
+            // the date column can be read one day ahead of an activity.
+            if(layoutItems===null)throw Error('Bildtolkningen saknar positionsdata. Ingen import tillåts. Försök med en tydligare skärmbild.');
+            for(const item of layoutItems)merged.set(item.type+':'+item.date+':'+(item.place||''),item);
             if(top+height>=bitmap.height)break;
           }
           parsed={month:monthNames.indexOf(monthMatch[1])+1,items:[...merged.values()],valid:merged.size>0};
