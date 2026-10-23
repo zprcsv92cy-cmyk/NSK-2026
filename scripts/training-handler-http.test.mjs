@@ -6,7 +6,7 @@ const handler=createTrainingHandler({AUTH_DB:{}},async()=>[]);
 const request=(path,method='GET',token)=>new Request('https://preview.example'+path,{method,headers:token?{Authorization:token}:undefined});
 
 test('training API denies unauthenticated reads and writes',async()=>{
- for(const method of ['GET','PUT']){
+ for(const method of ['GET','PUT','POST']){
   const path='/api/training?team_id=18'+(method==='PUT'?'&date=2026-10-22':'');
   const response=await handler(request(path,method));
   assert.equal(response.status,401,method);
@@ -34,4 +34,10 @@ test('training API denies malformed Bearer credentials before database access',a
 
 test('training API rejects writes without a date before authorization',async()=>{
  assert.equal((await handler(request('/api/training?team_id=18','PUT','Bearer token'))).status,400);
+});
+
+test('monthly sync requires one team, no date and a personal login',async()=>{
+ assert.equal((await handler(request('/api/training?team_id=18&action=sync-calendar','POST'))).status,401);
+ assert.equal((await handler(request('/api/training?team_id=18&date=2026-10-26&action=sync-calendar','POST'))).status,400);
+ assert.equal((await handler(request('/api/training?team_id=18&team_id=19&action=sync-calendar','POST'))).status,400);
 });
