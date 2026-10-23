@@ -235,11 +235,22 @@
         clearImportImages();
       }
       importMatches=importCandidates(text);
+      // SvenskaLag's "Kommer 14+9" is a source count, not an NSK roster count.
+      // OCR may put the count on the following line.
+      const attendanceHeader=String(text||'').match(/kommer\\s*(\\d+)\\s*\\+\\s*(\\d+)/i)
+        ||String(text||'').match(/kommer\\s*\\n\\s*(\\d+)\\s*\\+\\s*(\\d+)/i);
+      const sourcePlayers=attendanceHeader?Number(attendanceHeader[1]):null;
+      const sourceStaff=attendanceHeader?Number(attendanceHeader[2]):null;
+      const matchedPlayers=importMatches.filter(p=>p.kind==='player').length;
+      const matchedStaff=importMatches.filter(p=>p.kind==='coach').length;
+      const sourceSummary=attendanceHeader
+        ?'SvenskaLag: '+sourcePlayers+' spelare och '+sourceStaff+' ledare/funktionärer. Matchade i NSK: '+matchedPlayers+' spelare och '+matchedStaff+' tränare. Ej matchade mot NSK: '+Math.max(0,sourcePlayers-matchedPlayers)+' spelare och '+Math.max(0,sourceStaff-matchedStaff)+' ledare/funktionärer (kan saknas i truppen). '
+        :'Antalet anmälda kunde inte avläsas säkert. Matchade i NSK: '+matchedPlayers+' spelare och '+matchedStaff+' tränare. ';
       text=''; // OCR output is never copied to a field or persisted.
       showImportReview(importMatches);
       $('trainingImportStatus').textContent=importMatches.length
-        ?importMatches.filter(p=>p.exact).length+' säkra namn identifierade automatiskt. '+importMatches.filter(p=>!p.exact).length+' osäkra behöver granskas. Bekräfta för att uppdatera närvaron.'
-        :'Inga säkra namnmatchningar. Skriv ett namn per rad som i NSK-truppen. Kontrollera att namnen står på egna rader.';
+        ?sourceSummary+importMatches.filter(p=>p.exact).length+' säkra namn identifierade automatiskt. '+importMatches.filter(p=>!p.exact).length+' osäkra behöver granskas. Bekräfta för att uppdatera närvaron.'
+         :sourceSummary+'Inga namn matchade mot NSK-truppen. Skriv ett namn per rad som i NSK-truppen. Kontrollera att namnen står på egna rader.';
     });
     $('trainingImportApply').addEventListener('click',()=>{
       if(!importMatches.length)return;
