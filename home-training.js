@@ -255,7 +255,22 @@
             check.disabled=already;check.checked=!already;
             text.textContent=(item.type==='pool'?'Poolspel':'Träning')+' • '+next+' • '+(item.place||item.hall||'Plats ej angiven')+(already?' – finns redan':'');
           });
-          label.append(check,text,dateInput);review.append(label);
+          const hallSelect=document.createElement('select');
+          hallSelect.setAttribute('aria-label','Hall för '+item.date);
+          for(const hall of ['','Stora hallen','Lilla Hallen']){
+            const option=document.createElement('option');
+            option.value=hall;
+            option.textContent=hall||'Plats ej angiven';
+            hallSelect.append(option);
+          }
+          hallSelect.value=item.hall||'';
+          hallSelect.addEventListener('change',()=>{
+            item.hall=hallSelect.value;
+            text.textContent=(item.type==='pool'?'Poolspel':'Träning')+' • '+item.date+' • '+(item.place||item.hall||'Plats ej angiven');
+          });
+          label.append(check,text,dateInput);
+          if(item.type==='training')label.append(hallSelect);
+          review.append(label);
         }
         // A narrow calendar screenshot can omit a complete day during OCR.
         // Let the user restore a missing training in the same review, without
