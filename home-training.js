@@ -155,13 +155,27 @@
           if(!existing.ok)throw Error('Kunde inte kontrollera befintlig träning ('+existing.status+')');
           const existingData=await existing.json();
           if(existingData.session){currentContext.dates.add(item.date);skipped++;continue;}
-          const response=await fetch(url,{method:'PUT',headers:{...headers,'Content-Type':'application/json'},body:JSON.stringify({selected:[],selectedCoaches:[],goalies:[],goalieCount:0,allocation:[],revision:0,hall:item.hall,shirtColorCount:3}),cache:'no-store'});
+          const response=await fetch(url,{method:'PUT',headers:{...headers,'Content-Type':'application/json'},body:JSON.stringify({selected:[],selectedCoaches:[],goalies:[],goalieCount:0,allocation:[],revision:0,hall:item.hall,shirtColorCount:3,calendarImport:true}),cache:'no-store'});
           if(response.status===409){skipped++;continue;}
           if(!response.ok)throw Error('Kunde inte spara '+item.date+' ('+response.status+')');
           currentContext.dates.add(item.date);created++;
         }catch(error){status.textContent='Importerade '+created+'. Avbröt vid '+item.date+': '+error.message;return;}
       }
-      status.textContent='Importerade '+created+' aktiviteter. Hoppade över '+skipped+' befintliga. Bilder och bildtext sparades inte.';
+      // Never delete when the user selected only a subset or OCR found no training.
+      const selectedAll=candidates.every(c=>checked.has(c.type+':'+c.date+':'+(c.place||''))||
+        (c.type==='training'?currentContext.dates.has(c.date):knownPools.some(p=>p.pool_date===c.date)));
+      const trainingDates=candidates.filter(c=>c.type==='training').map(c=>c.date);
+      let removed=0;
+      if(selectedAll&&trainingDates.length){
+        try{
+          const response=await fetch(currentContext.base+'/api/training?team_id='+encodeURIComponent(currentContext.teamId)+'&action=sync-calendar',{
+            method:'POST',headers:{Authorization:'Bearer '+currentContext.token,'Content-Type':'application/json'},
+            body:JSON.stringify({month:importMonth,dates:trainingDates}),cache:'no-store'});
+          if(!response.ok)throw Error('Synkronisering misslyckades ('+response.status+')');
+          removed=Number((await response.json()).removed)||0;
+        }catch(error){status.textContent='Importerade '+created+' aktiviteter. Ingen borttagning genomförd: '+error.message;await render();return;}
+      }
+      status.textContent='Importerade '+created+' aktiviteter. Hoppade över '+skipped+'. Tog bort '+removed+' framtida kalenderträningar. Bilder och bildtext sparades inte.';
       await render();
     });
   }
