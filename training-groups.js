@@ -212,7 +212,8 @@
               texts.push(enlarged.data?.text||'');
             }
             canvas.width=0;canvas.height=0;
-          }finally{bitmap.close();}
+          }catch(error){console.warn('Extra OCR pass unavailable',error);}
+          finally{bitmap?.close();}
         }
       }finally{await worker.terminate();}
       return texts.join('\n');
