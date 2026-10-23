@@ -140,7 +140,8 @@
     .replace(/\s*\((?:spelare|tränare|kommer)\)\s*$/i, '')
     .trim();
   function importCandidates(text){
-    const roster=[...players.map(p=>({...p,kind:'player'})),...coaches.map(p=>({...p,kind:'coach'}))];
+    const coachNames=new Set(coaches.map(p=>normalized(p.full_name)));
+    const roster=[...players.filter(p=>!coachNames.has(normalized(p.full_name))).map(p=>({...p,kind:'player'})),...coaches.map(p=>({...p,kind:'coach'}))];
     const lines=String(text||'').split(/\n/).map(x=>x.trim()).filter(Boolean);
     const section=lines.findIndex(line=>/^anmalda(?:\s|$)/.test(normalized(line)));
     // OCR often separates "Kommer" and "14+9" into different lines, or
