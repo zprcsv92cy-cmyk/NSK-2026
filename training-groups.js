@@ -216,7 +216,7 @@
           finally{bitmap?.close();}
         }
       }finally{await worker.terminate();}
-      return texts.join('\n');
+      return texts.join('\n__OCR_PASS__\n');
     }
     if(typeof window.TextDetector==='function'){
       const detector=new window.TextDetector();
@@ -262,7 +262,18 @@
       }finally{
         clearImportImages();
       }
-      importMatches=importCandidates(text);
+      // Parse each OCR pass independently: a 'Kan ej' tab in pass one must
+      // not hide the 'Kommer' names recovered by the enlarged second pass.
+      const passes=text.split(/\n__OCR_PASS__\n/);
+      const byPerson=new Map();
+      for(const pass of passes){
+        for(const person of importCandidates(pass)){
+          const key=person.kind+':'+person.id;
+          const existing=byPerson.get(key);
+          if(!existing||person.exact)byPerson.set(key,person);
+        }
+      }
+      importMatches=[...byPerson.values()];
       // SvenskaLag's "Kommer 14+9" is a source count, not an NSK roster count.
       // OCR may put the count on the following line.
       const attendanceHeader=String(text||'').match(/kommer\s*(\d+)\s*\+\s*(\d+)/i);
@@ -270,14 +281,16 @@
       const sourceStaff=attendanceHeader?Number(attendanceHeader[2]):null;
       const matchedPlayers=importMatches.filter(p=>p.kind==='player').length;
       const matchedStaff=importMatches.filter(p=>p.kind==='coach').length;
+      const playerCountMatches=sourcePlayers!==null&&matchedPlayers===sourcePlayers;
       const sourceSummary=attendanceHeader
         ?'SvenskaLag: '+sourcePlayers+' spelare och '+sourceStaff+' ledare/funktionärer. Matchade i NSK: '+matchedPlayers+' spelare och '+matchedStaff+' tränare. Ej matchade mot NSK: '+Math.max(0,sourcePlayers-matchedPlayers)+' spelare och '+Math.max(0,sourceStaff-matchedStaff)+' ledare/funktionärer (kan saknas i truppen). '
         :'Antalet anmälda kunde inte avläsas säkert. Matchade i NSK: '+matchedPlayers+' spelare och '+matchedStaff+' tränare. ';
+      const countWarning=sourcePlayers===null?'OBS: Kontrollera antalet spelare mot SvenskaLag innan du bekräftar. ':playerCountMatches?'Spelarantalet stämmer med SvenskaLag. ':'OBS: '+Math.abs(sourcePlayers-matchedPlayers)+' spelare skiljer mot SvenskaLag. Kontrollera saknade namn före bekräftelse. ';
       text=''; // OCR output is never copied to a field or persisted.
       showImportReview(importMatches);
       $('trainingImportStatus').textContent=importMatches.length
-        ?sourceSummary+importMatches.filter(p=>p.exact).length+' säkra namn identifierade automatiskt. '+importMatches.filter(p=>!p.exact).length+' osäkra behöver granskas. Bekräfta för att uppdatera närvaron.'
-         :sourceSummary+'Inga namn matchade mot NSK-truppen. Skriv ett namn per rad som i NSK-truppen. Kontrollera att namnen står på egna rader.';
+        ?sourceSummary+countWarning+importMatches.filter(p=>p.exact).length+' säkra namn identifierade automatiskt. '+importMatches.filter(p=>!p.exact).length+' osäkra behöver granskas. Bekräfta för att uppdatera närvaron.'
+         :sourceSummary+countWarning+'Inga namn matchade mot NSK-truppen. Skriv ett namn per rad som i NSK-truppen. Kontrollera att namnen står på egna rader.';
     });
     $('trainingImportApply').addEventListener('click',()=>{
       if(!importMatches.length)return;
