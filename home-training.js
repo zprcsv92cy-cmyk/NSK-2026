@@ -59,32 +59,35 @@
   }
   function parseCalendar(text){
     const lines=String(text).split(/\n/).map(x=>x.trim()).filter(Boolean);
-    let year=null,month=null,day=null;
+    const headings=lines.map(line=>line.toLocaleLowerCase('sv-SE').match(/(?:^|\\s)(januari|februari|mars|april|maj|juni|juli|augusti|september|oktober|november|december)\\s+(20\\d{2})(?:$|\\s)/)).filter(Boolean);
+    // One screenshot is one month. Never infer a month from unrelated entries.
+    if(!headings.length||headings.some(h=>h[1]!==headings[0][1]||h[2]!==headings[0][2]))return {month:null,items:[],valid:false};
+    const month=monthNames.indexOf(headings[0][1])+1,year=Number(headings[0][2]);
+    const monthKey=year+'-'+String(month).padStart(2,'0');
     const found=new Map();
+    let day=null;
     for(let i=0;i<lines.length;i++){
       const normalized=lines[i].toLocaleLowerCase('sv-SE');
-      const heading=normalized.match(/(januari|februari|mars|april|maj|juni|juli|augusti|september|oktober|november|december)\s+(20\d{2})/);
-      if(heading){month=monthNames.indexOf(heading[1])+1;year=Number(heading[2]);continue;}
-      const dayMatch=normalized.match(/^(\d{1,2})(?:\s+(?:mån|tis|ons|tor|fre|lör|sön))?\s*$/);
-      if(dayMatch&&Number(dayMatch[1])>=1&&Number(dayMatch[1])<=31){day=Number(dayMatch[1]);continue;}
-      if(!year||!month||!day)continue;
-      const isTraining=/\b(?:träning|is\s*17\s*[/\\]\s*18)\b/i.test(normalized);
-      const isPool=/\b(?:poolspel|intresseanmälan\s+poolspel)\b/i.test(normalized);
+      if(/(?:^|\\s)(januari|februari|mars|april|maj|juni|juli|augusti|september|oktober|november|december)\\s+20\\d{2}/.test(normalized)){day=null;continue;}
+      const dayMatch=normalized.match(/^(\\d{1,2})(?:\\s+(?:mån|tis|ons|tor|fre|lör|sön))?\\s*$/);
+      if(dayMatch){day=Number(dayMatch[1]);continue;}
+      if(!day)continue;
+      const isTraining=/\\b(?:träning|is\\s*17\\s*[/\\\\]\\s*18)\\b/i.test(normalized);
+      const isPool=/\\b(?:poolspel|intresseanmälan\\s+poolspel)\\b/i.test(normalized);
       if(!isTraining&&!isPool)continue;
-      const context=lines.slice(i,i+4).join(' ').toLocaleLowerCase('sv-SE');
-      const hall=/\blilla\s+hallen\b/.test(context)?'Lilla Hallen':/\bstora\s+hallen\b/.test(context)?'Stora hallen':null;
-      const date=year+'-'+String(month).padStart(2,'0')+'-'+String(day).padStart(2,'0');
-      if(new Date(date+'T12:00:00').getDate()!==day)continue;
+      const date=monthKey+'-'+String(day).padStart(2,'0');
+      if(new Date(date+'T12:00:00').getDate()!==day||date<todayLocalDate()){day=null;continue;}
+      const context=lines.slice(i,Math.min(i+4,lines.length)).filter(line=>!/^\\d{1,2}(?:\\s+(?:mån|tis|ons|tor|fre|lör|sön))?\\s*$/i.test(line)).join(' ').toLocaleLowerCase('sv-SE');
+      const hall=/\\blilla\\s+hallen\\b/.test(context)?'Lilla Hallen':/\\bstora\\s+hallen\\b/.test(context)?'Stora hallen':null;
       if(isPool){
         const place=/södertälje/i.test(context)?'Södertälje':'';
-        const key='pool:'+date+':'+place;
-        if(!found.has(key))found.set(key,{type:'pool',date,hall:hall||'',place});
-      }else if(isTraining&&hall){
-        const key='training:'+date;
-        if(!found.has(key))found.set(key,{type:'training',date,hall});
+        found.set('pool:'+date+':'+place,{type:'pool',date,hall:hall||'',place});
+      }else if(hall){
+        found.set('training:'+date,{type:'training',date,hall});
       }
+      day=null;
     }
-    return [...found.values()];
+    return {month:monthKey,items:[...found.values()],valid:found.size>0};
   }
   function setupCalendarImport(){
     const open=document.getElementById('importTrainingsOpen');
@@ -96,9 +99,10 @@
     if(!open)return;
     let candidates=[];
     let knownPools=[];
+    let importMonth=null;
     open.addEventListener('click',()=>{panel.hidden=!panel.hidden;});
     document.getElementById('trainingCalendarRead').addEventListener('click',async()=>{
-      confirm.disabled=true;review.replaceChildren();candidates=[];
+      confirm.disabled=true;review.replaceChildren();candidates=[];importMonth=null;
       const file=input.files?.[0];
       if(!file){status.textContent='Välj en kalenderbild först.';return;}
       if(!currentContext){status.textContent='Träningarna måste hämtas först. Försök ladda om startsidan.';input.value='';return;}
@@ -108,7 +112,10 @@
         status.textContent='Tolkar kalenderbilden…';
         worker=await window.Tesseract.createWorker('swe');
         const result=await worker.recognize(file);
-        candidates=parseCalendar(result.data?.text||'');
+        const parsed=parseCalendar(result.data?.text||'');
+        if(!parsed.valid){status.textContent='Kunde inte säkert läsa en enda kalendermånad med aktiviteter. Inget sparas eller tas bort.';return;}
+        importMonth=parsed.month;
+        candidates=parsed.items;
         knownPools=await DB.listPools();
         const unique=new Map(candidates.map(c=>[c.type+':'+c.date+':'+(c.place||''),c]));
         candidates=[...unique.values()];
@@ -120,13 +127,13 @@
           label.append(check,text);review.append(label);
         }
         const fresh=candidates.filter(c=>c.type==='training'?!currentContext.dates.has(c.date):!knownPools.some(p=>p.pool_date===c.date&&(!c.place||String(p.place||'').toLocaleLowerCase('sv-SE')===c.place.toLocaleLowerCase('sv-SE'))));
-        status.textContent=candidates.length?'Hittade '+candidates.length+' aktiviteter. '+fresh.length+' kan importeras. Granska datum och hall före import.':'Inga säkra aktiviteter hittades. Kontrollera att månad, år och hall syns tydligt.';
+        status.textContent='Kalendermånad '+importMonth+': hittade '+candidates.length+' aktiviteter, '+fresh.length+' nya. Granska före import. Befintliga aktiviteter raderas inte förrän säker månadsvis synkronisering finns.';
         confirm.disabled=!fresh.length;
       }catch(error){status.textContent='Bildtolkning misslyckades: '+(error.message||String(error));}
       finally{input.value='';if(worker)await worker.terminate();}
     });
     confirm.addEventListener('click',async()=>{
-      if(!currentContext)return;
+      if(!currentContext||!importMonth||!candidates.length)return;
       confirm.disabled=true;
       const checked=new Set([...review.querySelectorAll('input:checked')].map(x=>x.value));
       let created=0,skipped=0;
