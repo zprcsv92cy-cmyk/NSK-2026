@@ -8,12 +8,12 @@ export function createTrainingHandler(env,listTeams){
  return async request=>{
   const url=new URL(request.url);
   if(url.pathname!=='/api/training')return fail(404,'Unknown route');
-  if(!['GET','PUT'].includes(request.method))return fail(405,'Method not allowed');
+  if(!['GET','PUT','POST'].includes(request.method))return fail(405,'Method not allowed');
   const team=url.searchParams.getAll('team_id');
   const dates=url.searchParams.getAll('date');
   if(team.length!==1||! /^[1-9][0-9]*$/.test(team[0])||dates.length>1||
     (dates.length===1&&!/^\d{4}-\d{2}-\d{2}$/.test(dates[0]))||
-    (request.method==='PUT'&&dates.length!==1))return fail(400,'Invalid team or date');
+    (request.method==='PUT'&&dates.length!==1)||(request.method==='POST'&&dates.length!==0))return fail(400,'Invalid team or date');
   const token=/^Bearer ([^\s]+)$/.exec(request.headers.get('Authorization')||'')?.[1];
   if(!token)return fail(401,'Login required');
   if(!env.AUTH_DB||typeof listTeams!=='function')return fail(503,'Unavailable');
@@ -32,6 +32,30 @@ export function createTrainingHandler(env,listTeams){
     return Response.json({ok:true,session:row?{selected:JSON.parse(row.selected_players_json),selectedCoaches:JSON.parse(row.selected_coaches_json),goalies:JSON.parse(row.goalies_json),goalieCount:row.goalie_count,hall:row.hall||'',shirtColorCount:row.shirt_color_count||3,allocation:JSON.parse(row.allocation_json),revision:row.revision}:null});
    }
    if(!authorizeTeamFeature(access,team[0],'lineup').allowed)return fail(403,'Edit permission required');
+   if(request.method==='POST'){
+    // Only imported, untouched future sessions in the explicitly selected month may be pruned.
+    if(url.searchParams.get('action')!=='sync-calendar')return fail(400,'Unknown action');
+    const rawSync=await request.text();if(rawSync.length>4096)return fail(413,'Too large');
+    let body;try{body=JSON.parse(rawSync)}catch{return fail(400,'Invalid JSON')}
+    if(!/^20\d{2}-(0[1-9]|1[0-2])$/.test(body?.month||'')||
+       !Array.isArray(body.dates)||body.dates.length===0||body.dates.length>31||
+       body.dates.some(d=>typeof d!=='string'||!/^20\d{2}-\d{2}-\d{2}$/.test(d)||!d.startsWith(body.month+'-'))||
+       new Set(body.dates).size!==body.dates.length)return fail(400,'Invalid calendar month');
+    const today=new Intl.DateTimeFormat('sv-SE',{timeZone:'Europe/Stockholm',year:'numeric',month:'2-digit',day:'2-digit'}).format(new Date());
+    const rows=await db.prepare("SELECT training_date FROM training_calendar_imports WHERE team_id=? AND training_date LIKE ?").bind(team[0],body.month+'-%').all();
+    const keep=new Set(body.dates);
+    let removed=0;
+    for(const row of rows.results||[]){
+      if(row.training_date<=today||keep.has(row.training_date))continue;
+      const deleted=await db.prepare("DELETE FROM training_sessions WHERE team_id=? AND training_date=? AND revision=1 AND selected_players_json='[]' AND selected_coaches_json='[]' AND allocation_json='[]' AND EXISTS (SELECT 1 FROM training_calendar_imports WHERE team_id=? AND training_date=?)")
+        .bind(team[0],row.training_date,team[0],row.training_date).run();
+      if(deleted.meta?.changes){
+        await db.prepare('DELETE FROM training_calendar_imports WHERE team_id=? AND training_date=?').bind(team[0],row.training_date).run();
+        removed++;
+      }
+    }
+    return Response.json({ok:true,removed});
+   }
    const raw=await request.text();
    if(raw.length>16000)return fail(413,'Too large');
    let data;try{data=JSON.parse(raw)}catch{return fail(400,'Invalid JSON')}
@@ -46,6 +70,9 @@ export function createTrainingHandler(env,listTeams){
       .bind(...values,team[0],dates[0],data.revision).run();
    }
    if(!result.meta?.changes)return fail(409,'Concurrent update');
+   if(data.revision===0&&data.calendarImport===true){
+    await db.prepare('INSERT OR IGNORE INTO training_calendar_imports (team_id,training_date) VALUES (?,?)').bind(team[0],dates[0]).run();
+   }
    return Response.json({ok:true,revision:data.revision+1});
   }catch{return fail(503,'Training storage unavailable')}
  };
