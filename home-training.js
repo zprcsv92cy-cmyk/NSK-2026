@@ -61,20 +61,24 @@
       const normalized=lines[i].toLocaleLowerCase('sv-SE');
       const heading=normalized.match(/(januari|februari|mars|april|maj|juni|juli|augusti|september|oktober|november|december)\s+(20\d{2})/);
       if(heading){month=monthNames.indexOf(heading[1])+1;year=Number(heading[2]);continue;}
-      const dayMatch=normalized.match(/^(?:mån|tis|ons|tor|fre|lör|sön)?\s*(\d{1,2})(?:\s|$)/);
-      if(dayMatch&&Number(dayMatch[1])>=1&&Number(dayMatch[1])<=31&&!/\d{1,2}:\d{2}/.test(normalized)){
-        day=Number(dayMatch[1]);
-      }
+      const dayMatch=normalized.match(/^(\d{1,2})(?:\s+(?:mån|tis|ons|tor|fre|lör|sön))?\s*$/);
+      if(dayMatch&&Number(dayMatch[1])>=1&&Number(dayMatch[1])<=31){day=Number(dayMatch[1]);continue;}
       if(!year||!month||!day)continue;
-      if(!/(?:\bis\s*17\s*[/\\]\s*18\b|\bträning\b)/i.test(normalized))continue;
-      if(/\bmatch\b|poolspel|klasspass/i.test(normalized))continue;
-      const nearby=lines.slice(i,i+4).join(' ').toLocaleLowerCase('sv-SE');
-      const hall=/\blilla\s+hallen\b/.test(nearby)?'Lilla Hallen':/\bstora\s+hallen\b/.test(nearby)?'Stora hallen':null;
-      if(!hall)continue;
+      const isTraining=/\b(?:träning|is\s*17\s*[/\\]\s*18)\b/i.test(normalized);
+      const isPool=/\b(?:poolspel|intresseanmälan\s+poolspel)\b/i.test(normalized);
+      if(!isTraining&&!isPool)continue;
+      const context=lines.slice(i,i+4).join(' ').toLocaleLowerCase('sv-SE');
+      const hall=/\blilla\s+hallen\b/.test(context)?'Lilla Hallen':/\bstora\s+hallen\b/.test(context)?'Stora hallen':null;
       const date=year+'-'+String(month).padStart(2,'0')+'-'+String(day).padStart(2,'0');
       if(new Date(date+'T12:00:00').getDate()!==day)continue;
-      const key=date;
-      if(!found.has(key))found.set(key,{date,hall});
+      if(isPool){
+        const place=/södertälje/i.test(context)?'Södertälje':'';
+        const key='pool:'+date+':'+place;
+        if(!found.has(key))found.set(key,{type:'pool',date,hall:hall||'',place});
+      }else if(isTraining&&hall){
+        const key='training:'+date;
+        if(!found.has(key))found.set(key,{type:'training',date,hall});
+      }
     }
     return [...found.values()];
   }
@@ -87,6 +91,7 @@
     const confirm=document.getElementById('trainingCalendarConfirm');
     if(!open)return;
     let candidates=[];
+    let knownPools=[];
     open.addEventListener('click',()=>{panel.hidden=!panel.hidden;});
     document.getElementById('trainingCalendarRead').addEventListener('click',async()=>{
       confirm.disabled=true;review.replaceChildren();candidates=[];
@@ -100,17 +105,18 @@
         worker=await window.Tesseract.createWorker('swe');
         const result=await worker.recognize(file);
         candidates=parseCalendar(result.data?.text||'');
-        const unique=new Map(candidates.map(c=>[c.date,c]));
+        knownPools=await DB.listPools();
+        const unique=new Map(candidates.map(c=>[c.type+':'+c.date+':'+(c.place||''),c]));
         candidates=[...unique.values()];
         for(const item of candidates){
-          const exists=currentContext.dates.has(item.date);
+          const exists=item.type==='training'?currentContext.dates.has(item.date):knownPools.some(p=>p.pool_date===item.date&&(!item.place||String(p.place||'').toLocaleLowerCase('sv-SE')===item.place.toLocaleLowerCase('sv-SE')));
           const label=document.createElement('label');label.className='training-review-item';
-          const check=document.createElement('input');check.type='checkbox';check.value=item.date;check.disabled=exists;check.checked=!exists;
-          const text=document.createElement('span');text.textContent=item.date+' • '+item.hall+(exists?' – finns redan':'');
+          const check=document.createElement('input');check.type='checkbox';check.value=item.type+':'+item.date+':'+(item.place||'');check.disabled=exists;check.checked=!exists;
+          const text=document.createElement('span');text.textContent=(item.type==='pool'?'Poolspel':'Träning')+' • '+item.date+' • '+(item.place||item.hall||'Plats ej angiven')+(exists?' – finns redan':'');
           label.append(check,text);review.append(label);
         }
-        const fresh=candidates.filter(c=>!currentContext.dates.has(c.date));
-        status.textContent=candidates.length?'Hittade '+candidates.length+' träningar. '+fresh.length+' kan importeras. Granska datum och hall före import.':'Inga säkra träningar hittades. Kontrollera att månad, år och hall syns tydligt.';
+        const fresh=candidates.filter(c=>c.type==='training'?!currentContext.dates.has(c.date):!knownPools.some(p=>p.pool_date===c.date&&(!c.place||String(p.place||'').toLocaleLowerCase('sv-SE')===c.place.toLocaleLowerCase('sv-SE'))));
+        status.textContent=candidates.length?'Hittade '+candidates.length+' aktiviteter. '+fresh.length+' kan importeras. Granska datum och hall före import.':'Inga säkra aktiviteter hittades. Kontrollera att månad, år och hall syns tydligt.';
         confirm.disabled=!fresh.length;
       }catch(error){status.textContent='Bildtolkning misslyckades: '+(error.message||String(error));}
       finally{input.value='';if(worker)await worker.terminate();}
@@ -120,8 +126,16 @@
       confirm.disabled=true;
       const checked=new Set([...review.querySelectorAll('input:checked')].map(x=>x.value));
       let created=0,skipped=0;
-      for(const item of candidates.filter(c=>checked.has(c.date))){
-        if(currentContext.dates.has(item.date)){skipped++;continue;}
+      for(const item of candidates.filter(c=>checked.has(c.type+':'+c.date+':'+(c.place||'')))){
+        if(item.type==='training'&&currentContext.dates.has(item.date)){skipped++;continue;}
+        if(item.type==='pool'){
+          try{
+            const latest=await DB.listPools();
+            if(latest.some(p=>p.pool_date===item.date&&(!item.place||String(p.place||'').toLocaleLowerCase('sv-SE')===item.place.toLocaleLowerCase('sv-SE')))){skipped++;continue;}
+            await DB.addPool({title:'Poolspel',place:item.place,hall:item.hall,pool_date:item.date,status:'Aktiv',teams:2,matches:4,players_on_field:3,periods:1,period_time:15,sub_time:90});
+            created++;continue;
+          }catch(error){status.textContent='Importerade '+created+'. Poolspel '+item.date+' kunde inte sparas: '+error.message;return;}
+        }
         try{
           const url=currentContext.base+'/api/training?team_id='+encodeURIComponent(currentContext.teamId)+'&date='+encodeURIComponent(item.date);
           const headers={Authorization:'Bearer '+currentContext.token};
@@ -135,7 +149,7 @@
           currentContext.dates.add(item.date);created++;
         }catch(error){status.textContent='Importerade '+created+'. Avbröt vid '+item.date+': '+error.message;return;}
       }
-      status.textContent='Importerade '+created+' träningar. Hoppade över '+skipped+' befintliga. Bilder och bildtext sparades inte.';
+      status.textContent='Importerade '+created+' aktiviteter. Hoppade över '+skipped+' befintliga. Bilder och bildtext sparades inte.';
       await render();
     });
   }
