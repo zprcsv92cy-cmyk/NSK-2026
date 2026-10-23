@@ -336,6 +336,11 @@
       selected=new Set(approved.filter(p=>p.kind==='player').map(p=>String(p.id)));
       selectedCoaches=new Set(approved.filter(p=>p.kind==='coach').map(p=>String(p.id)));
       goalies=goalies.filter(id=>selected.has(id));
+      if(goalies.length<goalieCount){
+        goalies=[];
+        goalieCount=0;
+        $('trainingGoalieCount').value='0';
+      }
       allocation=[];persist();renderRoster();renderCoaches();renderGoalieSelectors();renderGroups();
       $('trainingImportStatus').textContent=approved.length+' deltagare markerade som Kommer. Tidigare närvaro har ersatts.';
       $('trainingImportApply').disabled=true;
