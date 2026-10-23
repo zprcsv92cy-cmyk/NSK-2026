@@ -69,6 +69,8 @@
     for(let i=0;i<lines.length;i++){
       const normalized=lines[i].toLocaleLowerCase('sv-SE');
       if(/(?:^|\s)(januari|februari|mars|april|maj|juni|juli|augusti|september|oktober|november|december)\s+20\d{2}/.test(normalized)){day=null;continue;}
+      const inlineDay=normalized.match(/^(\d{1,2})\s+(?:(?:mån|tis|ons|tor|fre|lör|sön)\s+)?(?:\d{1,2}[:.]\d{2}\s+)?(?:is\b|träning\b|poolspel\b|hockeyfritids\b)/i);
+      if(inlineDay)day=Number(inlineDay[1]);
       const dayMatch=normalized.match(/^(?:(?:mån|tis|ons|tor|fre|lör|sön)(?:dag)?\s+)?(\d{1,2})(?:\s+(?:mån|tis|ons|tor|fre|lör|sön))?\s*$/);
       if(dayMatch){
         const proposed=Number(dayMatch[1]);
@@ -82,7 +84,7 @@
         day=validDate.getDate()===proposed&&(!weekday||weekdayNames[validDate.getDay()]===weekday)?proposed:null;
         continue;
       }
-      if(!day)continue;
+      // A new date on the activity line overrides any earlier OCR day header.\n      if(!day)continue;
       const isTraining=/\b(?:träning|is(?:\s*1[789](?:\s*\/\s*1[789])?)?|hockeyfritids|open\s*ice)\b/i.test(normalized);
       const isPool=/\b(?:poolspel|intresseanmälan\s+poolspel)\b/i.test(normalized);
       if(!isTraining&&!isPool)continue;
