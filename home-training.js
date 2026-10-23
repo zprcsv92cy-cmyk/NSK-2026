@@ -158,7 +158,7 @@
       const day=String(date.day).padStart(2,'0');
       const fullDate=monthKey+'-'+day;
       if(new Date(fullDate+'T12:00:00').getDate()!==date.day||fullDate<todayLocalDate())continue;
-      const hall=/lilla\s+hallen/.test(content)?'Lilla Hallen':/stora\s+hallen/.test(content)?'Stora hallen':null;
+      const hall=/lilla\s+hall(?:en)?/.test(content)?'Lilla Hallen':/stora\s+hall(?:en)?/.test(content)?'Stora hallen':null;
       const place=isPool&&/södertälje/.test(content)?'Södertälje':'';
       const item=isPool?{type:'pool',date:fullDate,hall:hall||'',place}:{type:'training',date:fullDate,hall};
       items.set(item.type+':'+fullDate+':'+(item.place||''),item);
@@ -255,7 +255,22 @@
             check.disabled=already;check.checked=!already;
             text.textContent=(item.type==='pool'?'Poolspel':'Träning')+' • '+next+' • '+(item.place||item.hall||'Plats ej angiven')+(already?' – finns redan':'');
           });
-          label.append(check,text,dateInput);review.append(label);
+          const hallSelect=document.createElement('select');
+          hallSelect.setAttribute('aria-label','Hall för '+item.date);
+          for(const hall of ['','Stora hallen','Lilla Hallen']){
+            const option=document.createElement('option');
+            option.value=hall;
+            option.textContent=hall||'Plats ej angiven';
+            hallSelect.append(option);
+          }
+          hallSelect.value=item.hall||'';
+          hallSelect.addEventListener('change',()=>{
+            item.hall=hallSelect.value;
+            text.textContent=(item.type==='pool'?'Poolspel':'Träning')+' • '+item.date+' • '+(item.place||item.hall||'Plats ej angiven');
+          });
+          label.append(check,text,dateInput);
+          if(item.type==='training')label.append(hallSelect);
+          review.append(label);
         }
         // A narrow calendar screenshot can omit a complete day during OCR.
         // Let the user restore a missing training in the same review, without
