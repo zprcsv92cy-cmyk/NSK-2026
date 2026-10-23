@@ -106,16 +106,50 @@
     $('trainingGoalieSummary').textContent=count?goalies.filter(Boolean).map(id=>attendees.find(p=>String(p.id)===id)?.full_name).filter(Boolean).join(', '):'Inga målvakter valda';
   }
   function renderCount(){$('trainingCount').textContent=selected.size+' av '+players.length+' spelare kommer';}
+  function movePlayerToColor(playerId,targetIndex){
+    const id=String(playerId);
+    if(!selected.has(id)||goalies.includes(id)||targetIndex<0||targetIndex>=shirtColorCount)return;
+    const current=allocation.findIndex(group=>Array.isArray(group)&&group.map(String).includes(id));
+    if(current<0||current===targetIndex)return;
+    allocation=Array.from({length:shirtColorCount},(_,i)=>Array.isArray(allocation[i])?[...allocation[i]].map(String).filter(x=>x!==id):[]);
+    allocation[targetIndex].push(id);
+    persist();renderGroups();
+  }
   function renderGroups(){
     const root=$('trainingGroups');root.replaceChildren();
     const available=new Map(players.map(p=>[String(p.id),p.full_name]));
-    for(const [i,ids] of allocation.entries()){
+    for(let i=0;i<shirtColorCount;i++){
+      const ids=allocation[i];
       if(!Array.isArray(ids))continue;
       const section=document.createElement('section');section.className='training-group';
+      section.dataset.colorIndex=String(i);
       const heading=document.createElement('h3');heading.textContent=palette[i].name;heading.style.background=palette[i].hex;heading.style.color=palette[i].text;
       const ul=document.createElement('ul');
-      for(const id of ids){const key=String(id);if(!selected.has(key)||goalies.includes(key)||!available.has(key))continue;
-        const li=document.createElement('li');li.textContent=available.get(key);ul.append(li);}
+      section.addEventListener('dragover',event=>{if(event.dataTransfer?.types.includes('text/plain'))event.preventDefault();});
+      section.addEventListener('drop',event=>{
+        event.preventDefault();
+        const id=event.dataTransfer?.getData('text/plain');
+        if(id)movePlayerToColor(id,i);
+      });
+      for(const id of ids){
+        const key=String(id);
+        if(!selected.has(key)||goalies.includes(key)||!available.has(key))continue;
+        const li=document.createElement('li');li.className='training-player';li.draggable=true;
+        li.addEventListener('dragstart',event=>{
+          event.dataTransfer.setData('text/plain',key);
+          event.dataTransfer.effectAllowed='move';
+        });
+        const name=document.createElement('span');name.textContent=available.get(key);
+        const select=document.createElement('select');
+        select.setAttribute('aria-label','Flytta '+available.get(key)+' till tröjfärg');
+        for(let color=0;color<shirtColorCount;color++){
+          const option=document.createElement('option');option.value=String(color);option.textContent=palette[color].name;
+          select.append(option);
+        }
+        select.value=String(i);
+        select.addEventListener('change',()=>movePlayerToColor(key,Number(select.value)));
+        li.append(name,select);ul.append(li);
+      }
       section.append(heading,ul);root.append(section);
     }
   }
