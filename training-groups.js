@@ -196,8 +196,9 @@
           // SvenskaLag screenshots contain tiny initials. A second, enlarged
           // OCR pass helps recover short names missed at native resolution.
           // All processing stays in memory; no image or OCR text is persisted.
-          const bitmap=await createImageBitmap(files[i]);
+          let bitmap;
           try{
+            bitmap=await createImageBitmap(files[i]);
             const scale=bitmap.width<1200?2:1.5;
             const canvas=document.createElement('canvas');
             canvas.width=Math.round(bitmap.width*scale);
