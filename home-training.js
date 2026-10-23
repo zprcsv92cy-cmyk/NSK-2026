@@ -187,6 +187,38 @@
           });
           label.append(check,text,dateInput);review.append(label);
         }
+        // A narrow calendar screenshot can omit a complete day during OCR.
+        // Let the user restore a missing training in the same review, without
+        // uploading the image or modifying saved activities automatically.
+        const missing=document.createElement('div');missing.className='training-review-item';
+        const missingDate=document.createElement('input');missingDate.type='date';
+        missingDate.min=importMonth+'-01';
+        missingDate.max=importMonth+'-'+String(new Date(Number(importMonth.slice(0,4)),Number(importMonth.slice(5,7)),0).getDate()).padStart(2,'0');
+        missingDate.setAttribute('aria-label','Datum för saknad träning');
+        const missingHall=document.createElement('select');
+        for(const hall of ['Stora hallen','Lilla Hallen']){
+          const option=document.createElement('option');option.value=hall;option.textContent=hall;missingHall.append(option);
+        }
+        const addMissing=document.createElement('button');addMissing.type='button';addMissing.textContent='Lägg till saknad träning';
+        addMissing.addEventListener('click',()=>{
+          const date=missingDate.value;
+          if(!date||!date.startsWith(importMonth+'-')||date<todayLocalDate()){
+            status.textContent='Välj ett giltigt framtida datum i '+importMonth+'.';return;
+          }
+          if(candidates.some(c=>c.type==='training'&&c.date===date)||currentContext.dates.has(date)){
+            status.textContent='Träningen '+date+' finns redan i listan eller är sparad.';return;
+          }
+          const item={type:'training',date,hall:missingHall.value};
+          candidates.push(item);
+          const label=document.createElement('label');label.className='training-review-item';
+          const check=document.createElement('input');check.type='checkbox';check.checked=true;
+          check.value='training:'+date+':';
+          const name=document.createElement('span');name.textContent='Träning • '+date+' • '+item.hall+' (tillagd manuellt)';
+          label.append(check,name);review.insertBefore(label,missing);
+          confirm.disabled=false;missingDate.value='';
+          status.textContent='Träning '+date+' tillagd i förhandsgranskningen. Kontrollera innan import.';
+        });
+        missing.append(missingDate,missingHall,addMissing);review.append(missing);
         const fresh=candidates.filter(c=>c.type==='training'?!currentContext.dates.has(c.date):!knownPools.some(p=>p.pool_date===c.date&&(!c.place||String(p.place||'').toLocaleLowerCase('sv-SE')===c.place.toLocaleLowerCase('sv-SE'))));
         status.textContent='Kalendermånad '+importMonth+': hittade '+candidates.length+' aktiviteter, '+fresh.length+' nya. Granska före import. Borttagning kräver separat bekräftelse av att hela månaden har lästs korrekt.';
         confirm.disabled=!fresh.length;
