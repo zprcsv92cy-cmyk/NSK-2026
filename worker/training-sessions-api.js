@@ -3,6 +3,7 @@ import {mapTrustedMembershipsToLegacyTeams} from './production-team-id-map.js';
 import {validateTrainingPayload} from './training-session-validation.js';
 import {authorizeTeamFeature} from './team-authorization-policy.js';
 import {parseSvenskalagIcal} from './svenskalag-ical.js';
+import {runSvenskalagScheduledSync} from './svenskalag-scheduled-sync.js';
 
 const fail=(status,error)=>Response.json({ok:false,error},{status,headers:{'cache-control':'no-store'}});
 export function createTrainingHandler(env,listTeams){
@@ -24,6 +25,19 @@ export function createTrainingHandler(env,listTeams){
    const access=mapTrustedMembershipsToLegacyTeams(actor,await listTeams());
    if(!access.memberships.some(m=>m.team_id===team[0])||!access.permissions.includes('read'))return fail(403,'No team access');
    const db=env.AUTH_DB;
+   if(request.method==='POST'&&url.searchParams.get('action')==='svenskalag-refresh'){
+    if(dates.length)return fail(400,'Calendar is team-scoped');
+    if(!authorizeTeamFeature(access,team[0],'lineup').allowed)return fail(403,'Edit permission required');
+    const trusted=await listTeams();
+    if(!trusted.some(t=>String(t.id)===team[0]&&t.Namn==='NSK Team 18'&&String(t['Säsong'])==='2026'))return fail(403,'Wrong team');
+    if(request.headers.get('content-length')&&Number(request.headers.get('content-length'))>0)return fail(400,'No body allowed');
+    try{
+     const result=await runSvenskalagScheduledSync(env);
+     return Response.json({ok:true,...result},{headers:{'cache-control':'no-store'}});
+    }catch{
+     return fail(502,'SvenskaLag-hämtningen misslyckades');
+    }
+   }
    if(request.method==='GET'&&url.searchParams.get('action')==='svenskalag-saved'){
     if(dates.length)return fail(400,'Calendar is team-scoped');
     const trusted=await listTeams();
