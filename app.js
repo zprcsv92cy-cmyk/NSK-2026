@@ -762,9 +762,9 @@ window.NSK2App = (() => {
           sessionStorage.setItem("nsk2_pool_id", pool.id);
           const pending=sessionStorage.getItem('nsk2_calendar_match_pending');
           if(pending){
-            sessionStorage.setItem('nsk2_calendar_match_schedule',JSON.stringify({poolId:String(pool.id),matches:JSON.parse(pending),teams:payload.teams}));
-            sessionStorage.removeItem('nsk2_calendar_match_pending');
             const importedMatches=JSON.parse(pending);
+            sessionStorage.setItem('nsk2_calendar_match_schedule',JSON.stringify({poolId:String(pool.id),matches:importedMatches,teams:payload.teams}));
+            sessionStorage.removeItem('nsk2_calendar_match_pending');
             const groupSize=Math.ceil(importedMatches.length/payload.teams);
             const errors=[];
             for(let i=0;i<importedMatches.length;i++){
