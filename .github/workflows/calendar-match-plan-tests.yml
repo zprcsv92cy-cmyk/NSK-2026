@@ -1,0 +1,25 @@
+name: Calendar match planning tests
+
+on:
+  pull_request:
+    paths:
+      - 'calendar-match-plan.mjs'
+      - 'scripts/calendar-match-plan.test.mjs'
+      - '.github/workflows/calendar-match-plan-tests.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  calendar-match-plan:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Verify calendar match mapping
+        run: node --test scripts/calendar-match-plan.test.mjs
