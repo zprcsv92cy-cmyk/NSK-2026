@@ -340,7 +340,7 @@
             item.date=next;
             const already=item.type==='training'?currentContext.dates.has(next):knownPools.some(p=>p.pool_date===next);
             check.value=item.type+':'+next+':'+(item.place||'');
-            check.disabled=already;check.checked=!already;
+            check.disabled=already||(item.type==='training'&&!item.hall);check.checked=!check.disabled;
             text.textContent=(item.type==='pool'?'Poolspel':'Träning')+' • '+next+' • '+(item.place||item.hall||'Plats ej angiven')+(already?' – finns redan':'');
           });
           // Hall names are never inferred from another date. An unknown hall
