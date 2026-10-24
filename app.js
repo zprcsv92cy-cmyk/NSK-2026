@@ -559,6 +559,7 @@ window.NSK2App = (() => {
           if(/^20\d{2}-\d{2}-\d{2}$/.test(imported.date)){
             if(byId('poolDate'))byId('poolDate').value=imported.date;
             if(byId('poolPlace'))byId('poolPlace').value=String(imported.place||'').slice(0,120);
+            if(byId('poolHall'))byId('poolHall').value=String(imported.hall||'').slice(0,120);
           }
         }catch{}
       }
