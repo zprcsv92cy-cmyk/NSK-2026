@@ -15,8 +15,8 @@ test('SvenskaLag feed includes only actual trainings and pools',()=>{
  ['SUMMARY:Match mot Södertälje','DTSTART:20261129T120000','LOCATION:Annan hall']
  ];
  const result=parseSvenskalagIcal(ical(events),'2026-10-24');
- assert.equal(result.length,3);
- assert.deepEqual(result.map(x=>x.type),['training','training','pool']);
+ assert.equal(result.length,4);
+ assert.deepEqual(result.map(x=>x.type),['training','training','pool','match']);
  assert.equal(result[2].place,'Månsbrorinken');
  assert.equal(result[0].hall,'Lilla Hallen');
 });
