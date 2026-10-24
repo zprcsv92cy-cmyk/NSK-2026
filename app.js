@@ -558,7 +558,10 @@ window.NSK2App = (() => {
 
     if (!editId) {
       const draft=sessionStorage.getItem('nsk2_svenskalag_pool_draft');
-      if(draft){
+      if(draft && interruptedImport){
+        // Den äldre importens matchunderlag får inte skrivas över av en ny kalenderpost.
+        setText('appError','Slutför först den avbrutna kalenderimporten. Nytt kalenderutkast har inte öppnats.');
+      } else if(draft){
         sessionStorage.removeItem('nsk2_svenskalag_pool_draft');
         try{
           const imported=JSON.parse(draft);
