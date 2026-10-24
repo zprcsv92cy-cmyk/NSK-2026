@@ -11,6 +11,8 @@ on:
       - 'scripts/calendar-pool-idempotency.test.mjs'
       - 'scripts/calendar-pool-reload.test.mjs'
       - 'scripts/calendar-isolated-worker-gate.mjs'
+      - 'scripts/calendar-isolated-positive-e2e.mjs'
+      - '.github/workflows/calendar-isolated-positive-e2e.yml'
       - 'wrangler.api.isolated-worker.toml'
       - 'db.js'
       - 'worker/production-api-v42-reference.js'
@@ -30,6 +32,8 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: '22'
+      - name: Syntax check manual isolated positive E2E
+        run: node --check scripts/calendar-isolated-positive-e2e.mjs
       - name: Verify isolated Worker release gate
         run: node scripts/calendar-isolated-worker-gate.mjs
       - name: Check app syntax
