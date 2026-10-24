@@ -312,7 +312,12 @@
           for(const item of globalItems){
             const key=item.type+':'+item.date+':'+(item.place||'');
             const previous=merged.get(key);
-            if(!previous||item.hall&&!previous.hall)merged.set(key,item);
+            if(previous?.hall&&item.hall&&previous.hall!==item.hall){
+              // Conflicting OCR readings must not silently overwrite one another.
+              merged.set(key,{...item,hall:null,hallConflict:true});
+            }else if(previous?.hallConflict){
+              merged.set(key,{...item,hall:null,hallConflict:true});
+            }else if(!previous||item.hall&&!previous.hall)merged.set(key,item);
           }
           parsed={month:monthNames.indexOf(monthMatch[1])+1,items:[...merged.values()],valid:merged.size>0};
           parsed.month=monthMatch[2]+'-'+String(parsed.month).padStart(2,'0');
@@ -352,13 +357,14 @@
               const option=document.createElement('option');option.value=value;option.textContent=title;hallSelect.append(option);
             }
             hallSelect.value=item.hall||'';
-            if(!item.hall){check.checked=false;check.disabled=true;}
+            if(!item.hall){check.checked=false;check.disabled=true;text.textContent=item.hallConflict?'Motstridiga halltolkningar – kontroll krävs':'Hall kunde inte läsas – kontroll krävs';}
             hallSelect.addEventListener('change',()=>{
               item.hall=hallSelect.value||null;
               const already=currentContext.dates.has(item.date);
               check.disabled=already||!item.hall;
               check.checked=!already&&!!item.hall;
               text.textContent='Träning · '+(item.hall||'Hall måste kontrolleras')+(already?' – finns redan':'');
+              if(item.hall)item.hallConflict=false;
             });
             label.append(check,text,dateInput,hallSelect);
           }else label.append(check,text,dateInput);
