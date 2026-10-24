@@ -46,7 +46,8 @@ export function parseSvenskalagIcal(text,today){
         const training=/(^|[^\p{L}])träning([^\p{L}]|$)|(^|[^\p{L}])is\s*1[789]\s*\/\s*1[789]([^\p{L}]|$)/iu.test(lower);
         const pool=/(^|[^\p{L}])poolspel([^\p{L}]|$)/iu.test(lower);
         const opponent=!pool&&!training?calendarOpponent(title):'';
-        const startTime=opponent?stockholmStartTime(event.DTSTART||''):'';
+        const startTime=stockholmStartTime(event.DTSTART||'');
+        const endTime=stockholmStartTime(event.DTEND||'');
         if(!exclude&&event.STATUS!=='CANCELLED'&&date&&date>=today&&(training||pool||(opponent&&startTime))){
           const place=normalizePlace(decode(event.LOCATION));
           // Never infer a venue from an opponent or from a free-form description.
@@ -54,7 +55,7 @@ export function parseSvenskalagIcal(text,today){
           const hasLilla=/\blilla\s+hallen\b/.test(hallText);
           const hasStora=/\bstora\s+hallen\b/.test(hallText);
           const hall=hasLilla!==hasStora?(hasLilla?'Lilla Hallen':'Stora hallen'):'';
-          items.push(pool?{type:'pool',date,place,hall:''}:training?{type:'training',date,hall}:{type:'match',date,startTime,opponent,place});
+          items.push(pool?{type:'pool',date,place,hall:''}:training?{type:'training',date,hall,startTime,endTime}:{type:'match',date,startTime,opponent,place});
         }
       }
       event=null;continue;
@@ -63,7 +64,7 @@ export function parseSvenskalagIcal(text,today){
     const colon=line.indexOf(':');
     if(colon<0)continue;
     const key=line.slice(0,colon).split(';')[0].toUpperCase();
-    if(['SUMMARY','DTSTART','LOCATION','STATUS'].includes(key)&&event[key]===undefined)event[key]=line.slice(colon+1);
+    if(['SUMMARY','DTSTART','DTEND','LOCATION','STATUS'].includes(key)&&event[key]===undefined)event[key]=line.slice(colon+1);
   }
   const unique=new Map();
   for(const item of items){
