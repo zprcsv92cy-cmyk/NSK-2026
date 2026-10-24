@@ -713,6 +713,8 @@ var worker_default = { async fetch(req, env) {
     const ranges = { teams: [1, 20], matches: [1, 20], players_on_field: [1, 20], periods: [1, 10], period_time: [1, 120], sub_time: [1, 3600] };
     for (const [k, [min, max]] of Object.entries(ranges)) if (!Number.isInteger(body[k]) || body[k] < min || body[k] > max) return reply({ ok: false, error: "Ogiltigt v\xE4rde: " + k }, 400);
     if (body.status !== "Aktiv") return reply({ ok: false, error: "Ogiltig status" }, 400);
+    if (body.calendar_import_key && (body.teams > 2 || body.matches > 8))
+      return reply({ok:false,error:"Kalenderimport stöder högst två lag och åtta matcher per lag"},400);
     if (body.calendarImport === true) {
       const today = new Intl.DateTimeFormat("sv-SE", { timeZone: "Europe/Stockholm", year: "numeric", month: "2-digit", day: "2-digit" }).format(new Date());
       if (date < today) return reply({ ok: false, error: "Passerade datum får inte kalenderimporteras" }, 400);
