@@ -15,14 +15,14 @@ test('schedule-only Baserow writes exclude lineup and goalie fields',()=>{
   assert.match(branch,/const draftPayload=/);
   assert.doesNotMatch(branch,/draftPayload[^;]*?(?:Målvakt|Spelare på plan|Antal spelare)/);
   assert.match(branch,/if\(duplicate\)/);
-  assert.match(branch,/draftResp\\.ok/);
+  assert.match(branch,/draftResp\.ok/);
   const payloadStart=branch.indexOf('const draftPayload=');
   const payloadEnd=branch.indexOf(';',payloadStart);
   const payload=branch.slice(payloadStart,payloadEnd);
   for(const field of ['Poolspel','Lagnummer','Matchnummer','Starttid','Plan']){
     assert.ok(payload.includes(field),'required schedule field '+field);
   }
-  assert.match(payload,/Motst\\\\xE5ndare/);
+  assert.ok(payload.includes('Motst\\xE5ndare') || payload.includes('Motståndare'));
   for(const field of ['player_count','goalie_player_id','players_on_field','Antal spelare','Målvakt','Spelare på plan']){
     assert.ok(!payload.includes(field),'schedule must not require '+field);
   }
