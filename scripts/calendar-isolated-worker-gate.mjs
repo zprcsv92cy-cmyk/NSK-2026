@@ -16,7 +16,7 @@ export function verifyDedicatedIsolatedWorker(manifest,production) {
   assert.ok(productionId && productionId!==read(manifest,'BASEROW_DATABASE_ID'));
   const tableSource=read(manifest,'BASEROW_TABLE_IDS');
   assert.ok(tableSource,'Isolated Baserow table mapping missing');
-  const mapping=JSON.parse(tableSource.replace(/\\"/g,'"'));
+  const mapping=JSON.parse(JSON.parse('"'+tableSource+'"'));
   const required=['lag','spelare','tranare','poolspel','matcher','laguppstallningar','bytesschema','malvaktsstatistik','spelaretranare','matchkonfiguration'];
   assert.deepEqual(Object.keys(mapping).sort(),[...required].sort());
   assert.equal(new Set(Object.values(mapping)).size,10);
