@@ -37,6 +37,16 @@
    const note=document.createElement('p');
    note.textContent='Importerat från SvenskaLag. Matchschema och laguppställning är ännu inte skapade i NSK.';
    content.append(note);
+   const create=document.createElement('button');
+   create.type='button';
+   create.className='nsk-action nsk-action--primary';
+   create.textContent='Skapa och redigera poolspel';
+   create.addEventListener('click',()=>{
+    sessionStorage.removeItem('nsk2_edit_pool_id');
+    sessionStorage.setItem('nsk2_svenskalag_pool_draft',JSON.stringify({date:item.date,place:item.place||''}));
+    location.href='../skapapoolspel/';
+   });
+   content.append(create);
    row.append(summary,content);
    fragment.append(row);
   }
