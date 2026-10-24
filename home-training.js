@@ -112,7 +112,7 @@
     for(let i=0;i<normalized.length;i++){
       const token=normalized[i];
       const next=normalized[i+1]||'';
-      if(/^stora?hallen$/.test(token)||(token==='stora'&&/^hall(?:en)?$/.test(next)))return 'Stora hallen';
+      if(/^stora?(?:is)?hallen$/.test(token)||(token==='stora'&&/^(?:is)?hall(?:en)?$/.test(next)))return 'Stora hallen';
       if(/^lillahallen$/.test(token)||(token==='lilla'&&/^hall(?:en)?$/.test(next)))return 'Lilla Hallen';
     }
     return null;
@@ -170,6 +170,9 @@
       const day=String(date.day).padStart(2,'0');
       const fullDate=monthKey+'-'+day;
       if(new Date(fullDate+'T12:00:00').getDate()!==date.day||fullDate<todayLocalDate())continue;
+      // Hall text may sit below the time and be split by OCR into separate rows.
+      // First inspect the date's words, then retry the same day with a focused,
+      // higher-resolution OCR pass when the hall is missing.
       const hall=detectCalendarHall(eventWords);
       const place=isPool&&/södertälje/.test(content)?'Södertälje':'';
       const item=isPool?{type:'pool',date:fullDate,hall:hall||'',place}:{type:'training',date:fullDate,hall};
@@ -229,6 +232,26 @@
             status.textContent='Läser kalendern dag för dag ('+Math.min(100,Math.round((top+height)/bitmap.height*100))+' %) …';
             const result=await worker.recognize(canvas,{}, {blocks:true,tsv:true});
             const layoutItems=parseCalendarLayout(result.data,monthMatch[2]+'-'+String(monthNames.indexOf(monthMatch[1])+1).padStart(2,'0'),canvas.width);
+            // A second pass helps iPhone screenshots where the small venue line
+            // disappears from the first OCR result. Both canvases remain in memory.
+            if(layoutItems?.some(item=>item.type==='training'&&!item.hall)){
+              const retryCanvas=document.createElement('canvas');
+              retryCanvas.width=Math.min(3000,bitmap.width*5);
+              retryCanvas.height=Math.round(height*retryCanvas.width/bitmap.width);
+              const retryContext=retryCanvas.getContext('2d');
+              retryContext.imageSmoothingEnabled=true;
+              retryContext.imageSmoothingQuality='high';
+              retryContext.drawImage(bitmap,0,top,bitmap.width,height,0,0,retryCanvas.width,retryCanvas.height);
+              const retryResult=await worker.recognize(retryCanvas,{}, {blocks:true,tsv:true});
+              const retryItems=parseCalendarLayout(retryResult.data,monthMatch[2]+'-'+String(monthNames.indexOf(monthMatch[1])+1).padStart(2,'0'),retryCanvas.width);
+              if(retryItems){
+                for(const item of layoutItems){
+                  if(item.hall)continue;
+                  const better=retryItems.find(candidate=>candidate.type===item.type&&candidate.date===item.date&&candidate.hall);
+                  if(better)item.hall=better.hall;
+                }
+              }
+            }
             // If geometry is unavailable, do not silently trust text ordering:
             // the date column can be read one day ahead of an activity.
             if(layoutItems===null){chunksWithoutGeometry++;continue;}
