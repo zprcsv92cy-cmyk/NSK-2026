@@ -370,3 +370,12 @@ test('Failed training save re-enables calendar import for retry',()=>{
   const save=source.slice(source.indexOf("confirm.addEventListener('click'"));
   assert.match(save,/Avbröt vid '\+item\.date\+': '\+error\.message;confirm\.disabled=false;return;/);
 });
+
+test('Empty calendar import selection stops before any write',()=>{
+  const confirmation=source.slice(source.indexOf("confirm.addEventListener('click'"));
+  const selectedAt=confirmation.indexOf('const selected=candidates.filter');
+  const guardAt=confirmation.indexOf("if(!selected.length)");
+  const writeAt=confirmation.indexOf('await DB.addPool');
+  assert.ok(selectedAt>=0&&guardAt>selectedAt&&writeAt>guardAt);
+  assert.match(confirmation.slice(guardAt,writeAt),/confirm\.disabled=false;return;/);
+});
