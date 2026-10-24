@@ -117,7 +117,7 @@
     }
     return null;
   }
-  function parseCalendarLayout(data,monthKey,imageWidth){
+  function extractCalendarWords(data){
     const words=[];
     function collect(node){
       if(!node)return;
@@ -146,6 +146,10 @@
         }
       }
     }
+    return words;
+  }
+  function parseCalendarLayout(data,monthKey,imageWidth){
+    const words=Array.isArray(data)?data:extractCalendarWords(data);
     if(!words.length)return null;
     const dayColumn=imageWidth*0.115;
     const dates=words.filter(w=>w.bbox.x0<dayColumn&&/^\d{1,2}$/.test(w.text.trim()))
@@ -221,6 +225,8 @@
           const merged=new Map();
           let chunksWithGeometry=0;
           let chunksWithoutGeometry=0;
+          const globalWords=[];
+          const globalWidth=Math.min(1800,bitmap.width*3);
           const chunkHeight=Math.max(300,Math.round(bitmap.width*2.3));
           const overlap=Math.round(chunkHeight*0.2);
           for(let top=0;top<bitmap.height;top+=chunkHeight-overlap){
@@ -231,6 +237,17 @@
             canvas.getContext('2d').drawImage(bitmap,0,top,bitmap.width,height,0,0,canvas.width,canvas.height);
             status.textContent='Läser kalendern dag för dag ('+Math.min(100,Math.round((top+height)/bitmap.height*100))+' %) …';
             const result=await worker.recognize(canvas,{}, {blocks:true,tsv:true});
+            // Normalize all crop coordinates to the full screenshot. This keeps a
+            // hall line with its date even when they fall in different OCR crops.
+            const cropWords=extractCalendarWords(result.data);
+            for(const word of cropWords){
+              const factor=globalWidth/canvas.width;
+              globalWords.push({text:word.text,bbox:{
+                x0:word.bbox.x0*factor,x1:word.bbox.x1*factor,
+                y0:word.bbox.y0*factor+top*globalWidth/bitmap.width,
+                y1:word.bbox.y1*factor+top*globalWidth/bitmap.width
+              }});
+            }
             const layoutItems=parseCalendarLayout(result.data,monthMatch[2]+'-'+String(monthNames.indexOf(monthMatch[1])+1).padStart(2,'0'),canvas.width);
             // A second pass helps iPhone screenshots where the small venue line
             // disappears from the first OCR result. Both canvases remain in memory.
@@ -261,6 +278,15 @@
           }
           if(!chunksWithGeometry)throw Error('OCR-motorn gav inga läsbara positionsdata i någon bilddel. Ingen import har gjorts.');
           if(chunksWithoutGeometry)throw Error('Positionsdata saknades i '+chunksWithoutGeometry+' bilddelar. Importen stoppades för att inte missa aktiviteter.');
+          // Parse the entire vertical calendar once, so overlapping crops cannot
+          // truncate the date-to-venue association. Keep higher-resolution
+          // per-crop matches as a fallback when the global read lacks a hall.
+          const globalItems=parseCalendarLayout(globalWords,monthMatch[2]+'-'+String(monthNames.indexOf(monthMatch[1])+1).padStart(2,'0'),globalWidth)||[];
+          for(const item of globalItems){
+            const key=item.type+':'+item.date+':'+(item.place||'');
+            const previous=merged.get(key);
+            if(!previous||item.hall&&!previous.hall)merged.set(key,item);
+          }
           parsed={month:monthNames.indexOf(monthMatch[1])+1,items:[...merged.values()],valid:merged.size>0};
           parsed.month=monthMatch[2]+'-'+String(parsed.month).padStart(2,'0');
         }finally{bitmap.close();}
