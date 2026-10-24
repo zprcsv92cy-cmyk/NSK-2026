@@ -289,6 +289,11 @@
     return items.map(item=>item.type==='pool'&&!String(item.place||'').trim()&&datesWithKnownVenue.has(item.date)
       ?{...item,possibleDuplicate:true}:item);
   }
+  function calendarImportIdentity(item){
+    return item.type==='pool'
+      ?'pool:'+item.date+':'+normalizeCalendarPoolPlace(item.place)
+      :'training:'+item.date;
+  }
   function validCalendarImportDate(date,month){
     if(!/^\d{4}-\d{2}-\d{2}$/.test(String(date||''))||!/^\d{4}-\d{2}$/.test(String(month||'')))return false;
     if(!date.startsWith(month+'-')||date<todayLocalDate())return false;
@@ -624,8 +629,8 @@
         status.textContent='Import stoppad: välj hall för alla markerade träningar.';
         confirm.disabled=false;return;
       }
-      if(new Set(selected.map(c=>c.type+':'+c.date)).size!==selected.length){
-        status.textContent='Import stoppad: flera aktiviteter har samma datum och typ. Kontrollera datumen.';
+      if(new Set(selected.map(calendarImportIdentity)).size!==selected.length){
+        status.textContent='Import stoppad: dubbla aktiviteter med samma datum och spelplats. Kontrollera uppgifterna.';
         confirm.disabled=false;return;
       }
       const knownTrainingDates=new Set(currentContext.dates);
