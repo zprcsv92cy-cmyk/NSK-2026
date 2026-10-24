@@ -6,6 +6,8 @@ on:
       - 'calendar-match-plan.mjs'
       - 'app.js'
       - 'scripts/calendar-match-plan.test.mjs'
+      - 'scripts/calendar-match-baserow-fields.test.mjs'
+      - 'worker/production-api-v42-reference.js'
       - '.github/workflows/calendar-match-plan-tests.yml'
   workflow_dispatch:
 
@@ -24,5 +26,5 @@ jobs:
           node-version: '22'
       - name: Check app syntax
         run: node --check app.js
-      - name: Verify calendar match mapping
-        run: node --test scripts/calendar-match-plan.test.mjs
+      - name: Verify calendar mapping and Baserow fields
+        run: node --test scripts/calendar-match-plan.test.mjs scripts/calendar-match-baserow-fields.test.mjs
