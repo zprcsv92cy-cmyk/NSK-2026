@@ -560,28 +560,29 @@ window.NSK2App = (() => {
             if(byId('poolDate'))byId('poolDate').value=imported.date;
             if(byId('poolPlace'))byId('poolPlace').value=String(imported.place||'').slice(0,120);
             if(byId('poolHall'))byId('poolHall').value=String(imported.hall||'').slice(0,120);
-             const halls=(String(imported.hall||'')+' '+String(imported.place||'')).toLocaleLowerCase('sv-SE');
-             if(byId('teams'))byId('teams').value=/lilla\s+hallen|stora\s+hallen/.test(halls)?'2':'1';
-             const calendarMatches=Array.isArray(imported.matches)?imported.matches.filter(m=>/^\d{2}:\d{2}$/.test(m.startTime||'')&&typeof m.opponent==='string'&&m.opponent.trim()).slice(0,24):[];
+             const calendarMatches=Array.isArray(imported.matches)?imported.matches.filter(m=>/^\d{2}:\d{2}$/.test(m.startTime||'')&&typeof m.opponent==='string'&&m.opponent.trim()).slice(0,24).sort((a,b)=>a.startTime.localeCompare(b.startTime)):[];
+             const count=calendarMatches.length;
+             // Antal matcher i NSK är per lag, inte totalt i kalendern.
+             const teamCount=count>4?2:1;
+             if(byId('teams'))byId('teams').value=String(teamCount);
+             const perTeamMatches=teamCount===2?Math.ceil(count/2):count;
              const matchesSelect=byId('matches');
-             if(matchesSelect&&calendarMatches.length){
-               const count=calendarMatches.length;
-               if(count<=6)matchesSelect.value=String(count);
-             }
+             if(matchesSelect&&count&&perTeamMatches<=6)matchesSelect.value=String(perTeamMatches);
              const preview=byId('calendarPoolMatches');
              if(preview){
                preview.hidden=false;
                const heading=document.createElement('strong');
                heading.textContent=calendarMatches.length?'Matcher från SvenskaLag ('+calendarMatches.length+')':'Inga matchtider eller motståndare finns angivna i kalendern.';
                preview.append(heading);
-               for(const match of calendarMatches){
+               calendarMatches.forEach((match,index)=>{
                  const row=document.createElement('div');
-                 row.textContent=match.startTime+' – '+match.opponent;
+                 const team=teamCount===2&&index>=perTeamMatches?2:1;
+                 row.textContent='Lag '+team+' • Match '+(team===2?index-perTeamMatches+1:index+1)+' • '+match.startTime+' – '+match.opponent;
                  preview.append(row);
-               }
+               });
                const note=document.createElement('p');
                note.className='small';
-               note.textContent='Antal NSK-lag måste väljas av dig. Matcherna visas som underlag; koppla dem till rätt lag och målvakt i Laguppställning efter att poolspelet sparats.';
+               note.textContent='Högst fyra kalendermatcher ger ett lag; fler ger två. Vid sex matcher får lag 1 de tre första och lag 2 de tre sista. Fördelningen visas som underlag och behöver sparas i matchkonfiguration efter att målvakt och spelare valts.';
                preview.append(note);
              }
           }
