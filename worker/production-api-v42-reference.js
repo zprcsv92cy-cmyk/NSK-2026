@@ -60,6 +60,7 @@ var ShiftLock = class {
   }
   constructor(ctx, env) {
     this.env = env;
+    this.storage = ctx?.storage;
     this.queue = Promise.resolve();
   }
   async fetch(request) {
@@ -73,12 +74,48 @@ var ShiftLock = class {
       }
       if (body?.action === "save") return this.save(body);
       if (body?.action === "scheduleCreate") return this.scheduleCreate(body);
+      if (body?.action === "calendarPoolCreate") return this.calendarPoolCreate(body);
       if (body?.action === "done") return this.done(body);
       return json({ ok: false, error: "Ogiltig \xE5tg\xE4rd" }, 400);
     }, "operation");
     const result = this.queue.then(operation);
     this.queue = result.then(() => void 0, () => void 0);
     return result;
+  }
+  async calendarPoolCreate(body) {
+    // A durable reservation is written BEFORE the Baserow POST.
+    // If Baserow succeeds but the Worker crashes before storing its ID,
+    // retries fail closed rather than creating a second pool.
+    if (!this.storage || !this.env.BASEROW_TOKEN) return json({ok:false,error:"Importlås saknas"},503);
+    const {key, payload, teamId} = body || {};
+    if (typeof key !== 'string' || !/^[0-9a-f-]{36}$/.test(key) ||
+        !Number.isSafeInteger(teamId) || teamId <= 0 || !payload ||
+        typeof payload !== 'object' || Array.isArray(payload))
+      return json({ok:false,error:"Ogiltig kalenderimport"},400);
+    const fingerprint=JSON.stringify({teamId,payload});
+    const prior=await this.storage.get('calendar-pool');
+    if (prior) {
+      if (prior.key !== key || prior.fingerprint !== fingerprint)
+        return json({ok:false,error:"Importnyckeln används redan för ett annat poolspel"},409);
+      if (prior.status==='complete' && Number.isSafeInteger(prior.row?.id))
+        return json({ok:true,row:prior.row,reused:true},200);
+      return json({ok:false,error:"Poolspel kan redan ha skapats. Kontrollera importen manuellt; ett nytt poolspel skapas inte.",uncertain:true},409);
+    }
+    await this.storage.put('calendar-pool',{status:'pending',key,fingerprint});
+    try {
+      const tables=resolveBaserowTables(this.env);
+      const response=await fetch(`https://api.baserow.io/api/database/rows/table/${tables.poolspel}/?user_field_names=true`,{
+        method:'POST',headers:{Authorization:`Token ${this.env.BASEROW_TOKEN}`,'Content-Type':'application/json'},
+        body:JSON.stringify({...payload,Lag:[teamId]})
+      });
+      const record=await response.json().catch(()=>({}));
+      if (!response.ok || !Number.isSafeInteger(Number(record.id)) || Number(record.id)<=0)
+        return json({ok:false,error:"Osäkert svar från Baserow. Nytt försök spärrat för att förhindra dubbletter.",uncertain:true},502);
+      await this.storage.put('calendar-pool',{status:'complete',key,fingerprint,row:record});
+      return json({ok:true,row:record},201);
+    } catch {
+      return json({ok:false,error:"Poolspel kan ha skapats. Nytt försök spärrat för att förhindra dubbletter.",uncertain:true},503);
+    }
   }
   async scheduleCreate(body) {
     const validId = n => Number.isSafeInteger(n) && n > 0;
@@ -652,8 +689,13 @@ var worker_default = { async fetch(req, env) {
     } catch {
       return reply({ ok: false, error: "Ogiltig JSON" }, 400);
     }
-    const keys = ["title", "place", "hall", "pool_date", "status", "teams", "matches", "players_on_field", "periods", "period_time", "sub_time", "calendarImport"];
+    const keys = ["title", "place", "hall", "pool_date", "status", "teams", "matches", "players_on_field", "periods", "period_time", "sub_time", "calendarImport", "calendar_import_key"];
     if (!body || typeof body !== "object" || Array.isArray(body) || Object.keys(body).some((k) => !keys.includes(k))) return reply({ ok: false, error: "Ogiltiga f\xE4lt" }, 400);
+    if (body.calendar_import_key !== undefined &&
+        (req.method!=="POST" || body.calendarImport===true || !personalPoolWritesEnabled ||
+         typeof body.calendar_import_key!=="string" ||
+         !/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/.test(body.calendar_import_key)))
+      return reply({ok:false,error:"Ogiltig importnyckel eller behörighet"},400);
     if (body.calendarImport !== undefined && (req.method !== "POST" || body.calendarImport !== true)) return reply({ok:false,error:"Ogiltig kalenderimport"},400);
     const place = typeof body.place === "string" ? body.place.trim() : "";
     const hall = typeof body.hall === "string" ? body.hall.trim() : "";
@@ -701,6 +743,17 @@ var worker_default = { async fetch(req, env) {
       }
       const payload = { Namn: title, Plats: place, Ishall: hall, Datum: date, "Antal lag": body.teams, "Antal matcher": body.matches, "Spelare p\xE5 plan": body.players_on_field, Perioder: body.periods, Periodtid: body.period_time, Bytestid: body.sub_time };
       if (!rowId) payload.Lag = [team.id];
+      if (!rowId && body.calendar_import_key) {
+        if (!env.SHIFT_LOCK) return reply({ok:false,error:"Importlås saknas"},503);
+        const stub=env.SHIFT_LOCK.get(env.SHIFT_LOCK.idFromName('calendar-pool:'+body.calendar_import_key));
+        try {
+          const response=await stub.fetch('https://shift-lock.internal/',{
+            method:'POST',headers:{'Content-Type':'application/json'},
+            body:JSON.stringify({action:'calendarPoolCreate',key:body.calendar_import_key,teamId:Number(team.id),payload})
+          });
+          return new Response(response.body,{status:response.status,headers:{...cors,'Content-Type':'application/json','Cache-Control':'no-store'}});
+        } catch { return reply({ok:false,error:"Importlås kunde inte nås; skapa inte nytt poolspel"},503); }
+      }
       const endpoint = `https://api.baserow.io/api/database/rows/table/${TABLES.poolspel}/${rowId ? rowId + "/" : ""}?user_field_names=true`;
       const r = await fetch(endpoint, { method: req.method, headers: { ...auth, "Content-Type": "application/json" }, body: JSON.stringify(payload) });
       if (!r.ok) {
