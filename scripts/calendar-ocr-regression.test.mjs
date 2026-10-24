@@ -139,7 +139,7 @@ test('Explicit venue label resolves place without opponent guessing',()=>{
   const words=[word('22',15,100),word('Poolspel',180,112),
     word('Plats:',180,147),word('Månsbrorinken',270,147),word('23',15,280)];
   const items=JSON.parse(JSON.stringify(sandbox.parseCalendarLayout(words,'2026-11',1000)));
-  assert.equal(items[0]?.place,'månsbrorinken');
+  assert.equal(items[0]?.place?.toLocaleLowerCase('sv-SE'),'månsbrorinken');
 });
 
 test('Training hall is not borrowed from a following poolspel',()=>{
@@ -402,4 +402,26 @@ test('Changing date with unknown pool venue cannot falsely match an existing bla
   const review=source.slice(source.indexOf("dateInput.addEventListener('change'"),source.indexOf("// Hall names are never inferred"));
   assert.match(review,/p\.pool_date===next&&!!normalizeCalendarPoolPlace\(item\.place\)/);
   assert.match(review,/\(item\.type==='pool'&&!item\.place\)/);
+});
+
+test('Explicit pool venue is limited to its own OCR line',()=>{
+  const words=[
+    word('21',15,100),word('Poolspel',180,110),
+    word('Plats:',180,140),word('Strängnäs',255,140),word('Ishall',360,140),
+    word('Motståndare',180,170),word('Södertälje',300,170),
+    word('22',15,260)
+  ];
+  const items=JSON.parse(JSON.stringify(sandbox.parseCalendarLayout(words,'2026-11',1000)));
+  assert.equal(items.length,1);
+  assert.equal(items[0].place,'Strängnäs Ishall');
+});
+test('Conflicting pool venue interpretations require manual confirmation',()=>{
+  const words=[
+    word('21',15,100),word('Poolspel',180,110),
+    word('Plats:',180,140),word('Annan',250,140),word('hall',340,140),
+    word('Strängnäs',180,170),word('Ishall',280,170),word('22',15,260)
+  ];
+  const items=JSON.parse(JSON.stringify(sandbox.parseCalendarLayout(words,'2026-11',1000)));
+  assert.equal(items.length,1);
+  assert.equal(items[0].place,'');
 });

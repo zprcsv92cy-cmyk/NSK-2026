@@ -179,6 +179,26 @@
     }
     return [...new Set(venues.map(v=>v.toLocaleLowerCase('sv-SE')))].length===1?venues[0]:'';
   }
+  function detectExplicitCalendarPoolPlace(words){
+    // Only read an explicitly labelled venue on its own OCR line; flattened
+    // event text may otherwise append times, opponents or another activity.
+    const ordered=[...words].filter(w=>w?.bbox&&w.text)
+      .sort((a,b)=>a.bbox.y0-b.bbox.y0||a.bbox.x0-b.bbox.x0);
+    const lines=[];
+    for(const word of ordered){
+      const y=word.bbox.y0;
+      let line=lines.find(l=>Math.abs(l.y-y)<Math.max(5,(word.bbox.y1-y)*0.55));
+      if(!line){line={y,words:[]};lines.push(line);}
+      line.words.push(word);
+    }
+    const places=lines.map(line=>{
+      const lineText=line.words.sort((a,b)=>a.bbox.x0-b.bbox.x0)
+        .map(w=>String(w.text)).join(' ').trim();
+      const match=lineText.match(/^(?:plats|arena|ishall)\s*[:：]\s*(.+)$/i);
+      return match?match[1].trim():'';
+    }).filter(Boolean);
+    return new Set(places.map(normalizeCalendarPoolPlace)).size===1?places[0]:'';
+  }
   function parseCalendarLayout(data,monthKey,imageWidth){
     const words=Array.isArray(data)?data:extractCalendarWords(data);
     if(!words.length)return null;
@@ -263,9 +283,11 @@
       const separateLabels=trainingLabels.filter((w,i)=>trainingLabels.findIndex(other=>Math.abs(other.bbox.y0-w.bbox.y0)<Math.max(8,imageWidth*0.009))===i);
       const multipleSessions=separateLabels.length>1;
       // Opponent names are not venues. Only accept a place on an explicit venue line.
-      const poolContent=poolWords.map(w=>w.text).join(' ').toLocaleLowerCase('sv-SE');
-      const venueLine=poolContent.match(/(?:^|\s)(?:plats|arena|ishall)\s*[:：]\s*([^,;\n]+)/);
-      const place=isPool?(venueLine?venueLine[1].trim():detectPoolVenue(poolWords)):'';
+      const explicitPlace=isPool?detectExplicitCalendarPoolPlace(poolWords):'';
+      const recognizedPlace=isPool?detectPoolVenue(poolWords):'';
+      // Conflicting readings are not safe to import as an asserted venue.
+      const place=explicitPlace&&recognizedPlace&&normalizeCalendarPoolPlace(explicitPlace)!==normalizeCalendarPoolPlace(recognizedPlace)
+        ?'':(explicitPlace||recognizedPlace);
       if(isPool){
         const item={type:'pool',date:fullDate,hall:hall||'',place};
         items.set(item.type+':'+fullDate+':'+(item.place||''),item);
