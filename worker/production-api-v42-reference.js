@@ -709,9 +709,7 @@ var worker_default = { async fetch(req, env) {
         if (body.schedule_only === true) {
           if (req.method !== "POST") return reply({ok:false,error:"Schemainläsning får endast skapa nya matcher"},400);
           if (typeof body.opponent !== "string" || !body.opponent.trim() || !body.start_time) return reply({ok:false,error:"Starttid och motståndare krävs"},400);
-          let nextPage=1;
-          while(nextPage){
-            // Kontrollera alla sidor för att undvika dubbletter även i stora poolspel.
+          // Kontrollera alla sidor för att undvika dubbletter även i stora poolspel.
           let page=1,duplicate=false,hasMore=true;
           while(hasMore&&page<=100){
             const response=await fetch(`${base}${TABLES.matchkonfiguration}/?user_field_names=true&size=200&page=${page}`,{headers:auth});
