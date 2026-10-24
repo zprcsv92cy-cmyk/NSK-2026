@@ -272,22 +272,13 @@
     return [...items.values()];
   }
   function reconcileCalendarPoolDuplicates(items){
-    // Overlapping OCR crops may read the same pool with and without a venue.
-    // A blank location is not a separate event if exactly one venue was
-    // identified on that date. Never guess between multiple known venues.
-    const poolsByDate=new Map();
-    for(const item of items){
-      if(item.type!=='pool')continue;
-      if(!poolsByDate.has(item.date))poolsByDate.set(item.date,[]);
-      poolsByDate.get(item.date).push(item);
-    }
-    return items.filter(item=>{
-      if(item.type!=='pool'||String(item.place||'').trim())return true;
-      const venues=new Set((poolsByDate.get(item.date)||[])
-        .map(candidate=>String(candidate.place||'').trim().toLocaleLowerCase('sv-SE'))
-        .filter(Boolean));
-      return venues.size!==1;
-    });
+    // The same date may contain genuinely different poolspel. Never discard
+    // an unknown-venue event merely because another OCR crop saw a venue.
+    // Keep unresolved entries for manual review and prevent auto-selection.
+    const datesWithKnownVenue=new Set(items.filter(item=>
+      item.type==='pool'&&String(item.place||'').trim()).map(item=>item.date));
+    return items.map(item=>item.type==='pool'&&!String(item.place||'').trim()&&datesWithKnownVenue.has(item.date)
+      ?{...item,possibleDuplicate:true}:item);
   }
   function setupCalendarImport(){
     const open=document.getElementById('importTrainingsOpen');
@@ -523,7 +514,7 @@
             placeInput.value=item.place||'';
             placeInput.placeholder='Ange plats – kontroll krävs';
             placeInput.setAttribute('aria-label','Kontrollera plats för poolspel '+item.date);
-            if(!item.place){check.checked=false;check.disabled=true;}
+            if(!item.place){check.checked=false;check.disabled=true;if(item.possibleDuplicate)text.textContent='Poolspel · okänd plats, möjligt överlapp – kontroll krävs';}
             placeInput.addEventListener('input',()=>{
               item.place=placeInput.value.trim();
               const already=knownPools.some(p=>p.pool_date===item.date&&(!item.place||String(p.place||'').toLocaleLowerCase('sv-SE')===item.place.toLocaleLowerCase('sv-SE')));
