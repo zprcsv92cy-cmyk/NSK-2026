@@ -85,7 +85,7 @@ var ShiftLock = class {
     const { pool_id: poolId, lag_no: lagNo, match_no: matchNo } = body || {};
     if (![poolId,lagNo,matchNo].every(validId) ||
         typeof body?.start_time !== "string" ||
-        !/^([01]\\d|2[0-3]):[0-5]\\d$/.test(body.start_time) ||
+        !/^([01]\d|2[0-3]):[0-5]\d$/.test(body.start_time) ||
         typeof body?.opponent !== "string" || !body.opponent.trim() ||
         body.opponent.length > 150 || typeof body?.plan !== "string" ||
         body.plan.length > 80 || body.goalie_player_id != null || body.players_on_field != null) {
