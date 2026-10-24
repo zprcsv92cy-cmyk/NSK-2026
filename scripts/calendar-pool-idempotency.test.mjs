@@ -43,3 +43,38 @@ test('uncertain calendar pool result blocks retry rather than creating duplicate
     assert.equal(writes,1);
   }finally{globalThis.fetch=previous}
 });
+
+test('completed pool survives a lost client response and lock restart',async()=>{
+  const previous=globalThis.fetch;
+  let writes=0;
+  globalThis.fetch=async()=>{
+    writes++;
+    return Response.json({id:711,Namn:'Poolspel test'},{status:201});
+  };
+  try{
+    const durableStorage=storage();
+    const firstInstance=new ShiftLock({storage:durableStorage},env);
+    // The server completed the write, but the client never received this response.
+    assert.equal((await send(firstInstance)).status,201);
+    const replacementInstance=new ShiftLock({storage:durableStorage},env);
+    const recovered=await send(replacementInstance);
+    assert.equal(recovered.status,200);
+    const result=await recovered.json();
+    assert.equal(result.row.id,711);
+    assert.equal(result.reused,true);
+    assert.equal(writes,1,'must not create a second pool after restarting the lock');
+  }finally{globalThis.fetch=previous}
+});
+
+test('pool import must reserve durable storage before first Baserow call',async()=>{
+  const previous=globalThis.fetch;
+  let writes=0;
+  const unavailableStorage={get:async()=>undefined,put:async()=>{throw new Error('storage unavailable')}};
+  globalThis.fetch=async()=>{writes++;return Response.json({id:712},{status:201})};
+  try{
+    const lock=new ShiftLock({storage:unavailableStorage},env);
+    const result=await send(lock);
+    assert.notEqual(result.status,201);
+    assert.equal(writes,0,'Baserow must not be reached without reservation');
+  }finally{globalThis.fetch=previous}
+});
