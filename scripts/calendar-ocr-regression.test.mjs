@@ -345,3 +345,19 @@ test('Every existing pool comparison uses consistent venue normalization',()=>{
   assert.match(review,/normalizeCalendarPoolPlace\(p\.place\)===normalizeCalendarPoolPlace\(c\.place\)/);
   assert.doesNotMatch(review,/String\(p\.place\|\|''\)\.toLocaleLowerCase\('sv-SE'\)===String\(item\.place\|\|''\)\.toLocaleLowerCase/);
 });
+
+test('Separate same-day pool venues have distinct import identities',()=>{
+  const one={type:'pool',date:'2026-11-21',place:'Strängnäs Ishall'};
+  const two={type:'pool',date:'2026-11-21',place:'Månsbrorinken'};
+  assert.notEqual(sandbox.calendarImportIdentity(one),sandbox.calendarImportIdentity(two));
+});
+test('Same-day pool duplicates still collide after venue normalization',()=>{
+  const one={type:'pool',date:'2026-11-21',place:'Strängnäs Ishall'};
+  const two={type:'pool',date:'2026-11-21',place:'  STRÄNGNÄS   ISHALL '};
+  assert.equal(sandbox.calendarImportIdentity(one),sandbox.calendarImportIdentity(two));
+  assert.equal(sandbox.calendarImportIdentity({type:'training',date:'2026-11-21',hall:'Lilla Hallen'}),sandbox.calendarImportIdentity({type:'training',date:'2026-11-21',hall:'Stora hallen'}));
+});
+test('Save confirmation checks complete pool identity rather than only the date',()=>{
+  const save=source.slice(source.indexOf("confirm.addEventListener('click'"));
+  assert.match(save,/new Set\(selected\.map\(calendarImportIdentity\)\)/);
+});
