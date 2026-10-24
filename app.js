@@ -544,7 +544,7 @@ window.NSK2App = (() => {
     const interruptedImport=sessionStorage.getItem('nsk2_calendar_match_import_errors');
     const unconfirmedPoolKey=sessionStorage.getItem('nsk2_calendar_pool_import_key');
     const unconfirmedPoolPayload=sessionStorage.getItem('nsk2_calendar_pool_import_payload');
-    if(unconfirmedPoolKey && !interruptedImport){
+    if(unconfirmedPoolKey){
       if(!unconfirmedPoolPayload){
         setText('appError','En kalenderimport saknar sparat underlag. Inget nytt poolspel får skapas.');
       }else{
