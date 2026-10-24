@@ -1,5 +1,8 @@
 // Read-only calendar section. No imports, deletes or edits are performed here.
 (() => {
+ const arenaCity=new Map([["Avicii Arena (Globen)","Stockholm"],["Hovet","Stockholm"],["Zinkensdamms IP","Stockholm"],["Scandinavium","Göteborg"],["Marconihallen","Göteborg"],["Ruddalens Ishall","Göteborg"],["Tuve Ishall","Göteborg"],["Malmö Arena","Malmö"],["Malmö Isstadion","Malmö"],["Löfbergs Arena","Karlstad"],["Kobbs Arena","Karlstad"],["Monitor ERP Arena","Gävle"],["Saab Arena","Linköping"],["Stångebro Ishall","Linköping"],["Husqvarna Garden","Jönköping"],["Vida Arena","Växjö"],["Behrn Arena","Örebro"],["Skellefteå Kraft Arena","Skellefteå"],["Coop Norrbotten Arena","Luleå"],["Winpos Arena","Umeå"],["Hägglunds Arena","Örnsköldsvik"],["Tegera Arena","Leksand"],["SCA Arena","Timrå"],["Catena Arena","Ängelholm"],["Be-Ge Hockey Center","Oskarshamn"],["ABB Arena Nord","Västerås"],["Nobelhallen","Karlskoga"],["Matojärvi Ishall","Kiruna"],["Lombiahallen","Kiruna"],["Rosvalla Ishall","Nyköping"],["Scaniarinken","Södertälje"],["Himmelstalundshallen","Norrköping"],["Stora Hallen","Nyköping"],["Jukurit Arena","Nacka"],["Nacka Ishall","Nacka"],["Björkängshallen","Huddinge"],["Renew Arena","Upplands Väsby"],["Pinbackshallen","Märsta"],["Sveab Arena","Täby"],["Tyresö Ishall","Tyresö"],["Visby Ishall","Visby"],["Jössarinken","Mörrum"],["Smidjegrav Arena","Mora"],["Hatstore Arena","Kalmar"],["Liljas Arena","Nybro"],["Billingehov","Skövde"],["Soft Center Arena","Kallinge"],["Halmstad Arena","Halmstad"],["Kristianstads Ishall","Kristianstad"],["Tyringe Kurhotell Arena","Tyringe"]].map(([arena,city])=>[arena.normalize('NFKC').trim().toLocaleLowerCase('sv-SE'),city]));
+ const poolLocation=item=>{const hall=String(item.place||'').trim();return {hall,city:arenaCity.get(hall.normalize('NFKC').toLocaleLowerCase('sv-SE'))||hall};};
+ const samePool=(p,item)=>p.pool_date===item.date&&String(p.place||'').trim().toLocaleLowerCase('sv-SE')===poolLocation(item).city.toLocaleLowerCase('sv-SE')&&(!p.hall||String(p.hall).trim().toLocaleLowerCase('sv-SE')===poolLocation(item).hall.toLocaleLowerCase('sv-SE'));
  const esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
  function renderUpcomingCalendarPools(items){
   const box=document.getElementById('savedPoolsList');
@@ -23,10 +26,10 @@
    summary.className='nsk-pool-summary';
    const name=document.createElement('span');
    name.className='nsk-pool-name';
-   name.textContent=(item.place||'Poolspel')+' • '+item.date;
+   name.textContent=(poolLocation(item).city||'Poolspel')+' • '+item.date;
    const origin=document.createElement('span');
    origin.className='nsk-pool-hall';
-   origin.textContent='SvenskaLag';
+   origin.textContent=(poolLocation(item).city!==poolLocation(item).hall?poolLocation(item).hall+' • ':'')+'SvenskaLag';
    const chevron=document.createElement('span');
    chevron.className='nsk-pool-chevron';
    chevron.setAttribute('aria-hidden','true');
@@ -45,12 +48,12 @@
     create.disabled=true;
     try{
      const pools=await DB.listPools();
-     const match=pools.find(p=>p.pool_date===item.date&&String(p.place||'').trim().toLocaleLowerCase('sv-SE')===String(item.place||'').trim().toLocaleLowerCase('sv-SE'));
+     const match=pools.find(p=>samePool(p,item));
      if(match){sessionStorage.setItem('nsk2_edit_pool_id',String(match.id));location.href='../skapapoolspel/';return;}
     }catch(error){create.disabled=false;alert('Kunde inte kontrollera befintliga poolspel. Försök igen.');return;}
 
     sessionStorage.removeItem('nsk2_edit_pool_id');
-    sessionStorage.setItem('nsk2_svenskalag_pool_draft',JSON.stringify({date:item.date,place:item.place||''}));
+    sessionStorage.setItem('nsk2_svenskalag_pool_draft',JSON.stringify({date:item.date,place:poolLocation(item).city,hall:poolLocation(item).hall}));
     location.href='../skapapoolspel/';
    });
    content.append(create);
@@ -82,7 +85,7 @@
    if(!items.length){root.textContent='Inga kommande kalenderaktiviteter importerade ännu.';renderUpcomingCalendarPools([]);}
    let existingPools=[];
    try{existingPools=await DB.listPools();}catch{}
-   const calendarPools=items.filter(item=>item.type==='pool'&&!existingPools.some(p=>p.pool_date===item.date&&String(p.place||'').trim().toLocaleLowerCase('sv-SE')===String(item.place||'').trim().toLocaleLowerCase('sv-SE')));
+   const calendarPools=items.filter(item=>item.type==='pool'&&!existingPools.some(p=>samePool(p,item)));
    const calendarOthers=items.filter(item=>item.type!=='pool');
    if(calendarOthers.length)root.innerHTML=calendarOthers.map(item=>{
     const kind={training:'Träning',pool:'Poolspel',match:'Match'}[item.type]||'Aktivitet';
