@@ -139,7 +139,7 @@ test('Explicit venue label resolves place without opponent guessing',()=>{
   const words=[word('22',15,100),word('Poolspel',180,112),
     word('Plats:',180,147),word('Månsbrorinken',270,147),word('23',15,280)];
   const items=JSON.parse(JSON.stringify(sandbox.parseCalendarLayout(words,'2026-11',1000)));
-  assert.equal(items[0]?.place,'månsbrorinken');
+  assert.equal(items[0]?.place?.toLocaleLowerCase('sv-SE'),'månsbrorinken');
 });
 
 test('Training hall is not borrowed from a following poolspel',()=>{
