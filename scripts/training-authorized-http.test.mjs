@@ -39,6 +39,14 @@ function fixture(){
      Object.assign(r,{selected_players_json:selected,selected_coaches_json:coaches,goalies_json:goalies,goalie_count:goalieCount,allocation_json:allocation,updated_by:updatedBy,hall,shirt_color_count:shirtColorCount,revision:revision+1});
      return {meta:{changes:1}};
     }
+    if(sql.startsWith('DELETE FROM training_sessions')){
+      const [team,date,revision]=params,key=team+'|'+date;
+      const row=rows.get(key);
+      if(!row||row.revision!==revision)return {meta:{changes:0}};
+      rows.delete(key);
+      return {meta:{changes:1}};
+    }
+    if(sql.startsWith('DELETE FROM training_calendar_imports'))return {meta:{changes:1}};
     throw Error('Unexpected write: '+sql);
    }
   };return statement;}};
@@ -65,4 +73,32 @@ test('team outsider cannot read or write another team training',async()=>{
  assert.equal((await f.handler(req('GET',18,'2026-10-23'))).status,403);
  assert.equal((await f.handler(req('PUT',18,'2026-10-23',players()))).status,403);
  assert.equal(f.rows.size,0);
+});
+
+test('authorized leader can delete a training using the latest revision',async()=>{
+ const f=fixture(),date='2026-10-26';
+ assert.equal((await f.handler(req('PUT',18,date,players()))).status,200);
+ const r=await f.handler(req('DELETE',18,date+'&revision=1'));
+ assert.equal(r.status,200);
+ assert.equal((await r.json()).deleted,true);
+ assert.equal(f.rows.size,0);
+ assert.equal((await f.handler(req('GET',18,date))).status,200);
+});
+test('stale revision cannot delete a training edited by another leader',async()=>{
+ const f=fixture(),date='2026-10-27';
+ assert.equal((await f.handler(req('PUT',18,date,players()))).status,200);
+ assert.equal((await f.handler(req('PUT',18,date,{...players(),revision:1}))).status,200);
+ assert.equal((await f.handler(req('DELETE',18,date+'&revision=1'))).status,409);
+ assert.equal(f.rows.size,1);
+ assert.equal((await f.handler(req('DELETE',18,date+'&revision=2'))).status,200);
+});
+test('cross-team access and missing revision cannot delete training',async()=>{
+ const f=fixture(),date='2026-10-28';
+ assert.equal((await f.handler(req('PUT',18,date,players()))).status,200);
+ f.setActor('outsider');
+ assert.equal((await f.handler(req('DELETE',18,date+'&revision=1'))).status,403);
+ f.setActor('leader-a');
+ assert.equal((await f.handler(req('DELETE',18,date))).status,400);
+ assert.equal((await f.handler(req('DELETE',18,date+'&revision=0'))).status,400);
+ assert.equal(f.rows.size,1);
 });

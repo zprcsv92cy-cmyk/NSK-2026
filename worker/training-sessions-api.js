@@ -8,12 +8,12 @@ export function createTrainingHandler(env,listTeams){
  return async request=>{
   const url=new URL(request.url);
   if(url.pathname!=='/api/training')return fail(404,'Unknown route');
-  if(!['GET','PUT','POST'].includes(request.method))return fail(405,'Method not allowed');
+  if(!['GET','PUT','POST','DELETE'].includes(request.method))return fail(405,'Method not allowed');
   const team=url.searchParams.getAll('team_id');
   const dates=url.searchParams.getAll('date');
   if(team.length!==1||! /^[1-9][0-9]*$/.test(team[0])||dates.length>1||
     (dates.length===1&&!/^\d{4}-\d{2}-\d{2}$/.test(dates[0]))||
-    (request.method==='PUT'&&dates.length!==1)||(request.method==='POST'&&dates.length!==0))return fail(400,'Invalid team or date');
+    (['PUT','DELETE'].includes(request.method)&&dates.length!==1)||(request.method==='POST'&&dates.length!==0))return fail(400,'Invalid team or date');
   const token=/^Bearer ([^\s]+)$/.exec(request.headers.get('Authorization')||'')?.[1];
   if(!token)return fail(401,'Login required');
   if(!env.AUTH_DB||typeof listTeams!=='function')return fail(503,'Unavailable');
@@ -32,6 +32,18 @@ export function createTrainingHandler(env,listTeams){
     return Response.json({ok:true,session:row?{selected:JSON.parse(row.selected_players_json),selectedCoaches:JSON.parse(row.selected_coaches_json),goalies:JSON.parse(row.goalies_json),goalieCount:row.goalie_count,hall:row.hall||'',shirtColorCount:row.shirt_color_count||3,allocation:JSON.parse(row.allocation_json),revision:row.revision}:null});
    }
    if(!authorizeTeamFeature(access,team[0],'lineup').allowed)return fail(403,'Edit permission required');
+   if(request.method==='DELETE'){
+    // Destructive actions require an explicit expected revision. A stale
+    // browser tab cannot delete a training edited by another coach.
+    const versions=url.searchParams.getAll('revision');
+    if(versions.length!==1||!/^[1-9][0-9]*$/.test(versions[0]))return fail(400,'Revision required');
+    const deleted=await db.prepare('DELETE FROM training_sessions WHERE team_id=? AND training_date=? AND revision=?')
+      .bind(team[0],dates[0],Number(versions[0])).run();
+    if(!deleted.meta?.changes)return fail(409,'Training changed or missing');
+    await db.prepare('DELETE FROM training_calendar_imports WHERE team_id=? AND training_date=?')
+      .bind(team[0],dates[0]).run();
+    return Response.json({ok:true,deleted:true});
+   }
    if(request.method==='POST'){
     // Only imported, untouched future sessions in the explicitly selected month may be pruned.
     if(url.searchParams.get('action')!=='sync-calendar')return fail(400,'Unknown action');
