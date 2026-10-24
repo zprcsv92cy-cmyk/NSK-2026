@@ -776,7 +776,22 @@ window.NSK2App = (() => {
           } else {
             if(schedule && (schedule.teams!==payload.teams || schedule.matchesPerTeam>payload.matches))
               throw new Error('Antal lag eller matcher stämmer inte med kalenderimporten. Inget poolspel skapades.');
-            pool=await DB.addPool(payload);
+            let poolPayload=payload;
+            if(schedule){
+              let importKey=sessionStorage.getItem('nsk2_calendar_pool_import_key');
+              const savedPayload=sessionStorage.getItem('nsk2_calendar_pool_import_payload');
+              if(importKey && savedPayload){
+                try {poolPayload=JSON.parse(savedPayload);} catch {throw new Error('Sparat poolspelsunderlag kan inte läsas. Ingen ny import gjordes.');}
+              } else if(importKey || savedPayload) {
+                throw new Error('Kalenderimportens återhämtningsuppgifter är ofullständiga. Skapa inte ett nytt poolspel.');
+              } else {
+                importKey=crypto.randomUUID();
+                sessionStorage.setItem('nsk2_calendar_pool_import_key',importKey);
+                sessionStorage.setItem('nsk2_calendar_pool_import_payload',JSON.stringify(payload));
+              }
+              poolPayload={...poolPayload,calendar_import_key:importKey};
+            }
+            pool=await DB.addPool(poolPayload);
             sessionStorage.setItem("nsk2_pool_id",pool.id);
             if(schedule){
               sessionStorage.setItem('nsk2_calendar_match_import_errors',JSON.stringify({poolId:String(pool.id),errors:['Importen pågår']}));
@@ -811,6 +826,8 @@ window.NSK2App = (() => {
             sessionStorage.removeItem('nsk2_calendar_match_pending');
             sessionStorage.removeItem('nsk2_calendar_match_schedule');
             sessionStorage.removeItem('nsk2_calendar_match_import_errors');
+            sessionStorage.removeItem('nsk2_calendar_pool_import_key');
+            sessionStorage.removeItem('nsk2_calendar_pool_import_payload');
           }
         }
         setText("poolMsg", "Poolspel och berörda scheman sparade");
