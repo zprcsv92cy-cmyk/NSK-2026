@@ -4,7 +4,14 @@ main = "worker/production-api-v42-reference.js"
 compatibility_date = "2026-10-10"
 workers_dev = true
 
+# Scheduled every six hours; writes remain disabled until migration and opt-in.
+[triggers]
+crons = ["15 */6 * * *"]
+
 [vars]
+NSK_ENABLE_SVENSKALAG_AUTO_SYNC = "false"
+# Set the verified NSK Team 18 numeric ID only after migration.
+# NSK_SVENSKALAG_TEAM_ID = "<verified-team-id>"
 BASEROW_DATABASE_ID = "589073"
 # Current scoped-roster production mode. All roster GETs must use a personal
 # Bearer token and selected team; legacy unauthenticated roster reads fail closed.
