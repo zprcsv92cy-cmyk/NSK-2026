@@ -197,7 +197,9 @@
       // First inspect the date's words, then retry the same day with a focused,
       // higher-resolution OCR pass when the hall is missing.
       const hall=detectCalendarHall(eventWords);
-      const place=isPool&&/södertälje/.test(content)?'Södertälje':'';
+      // Opponent names are not venues. Only accept a place on an explicit venue line.
+      const venueLine=content.match(/(?:^|\\s)(?:plats|arena|ishall)\\s*[:：]\\s*([^,;\\n]+)/);
+      const place=isPool&&venueLine?venueLine[1].trim():'';
       const item=isPool?{type:'pool',date:fullDate,hall:hall||'',place}:{type:'training',date:fullDate,hall};
       items.set(item.type+':'+fullDate+':'+(item.place||''),item);
     }
