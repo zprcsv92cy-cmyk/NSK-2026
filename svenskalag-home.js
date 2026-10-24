@@ -59,7 +59,7 @@
     }catch(error){create.disabled=false;alert('Kunde inte kontrollera befintliga poolspel. Försök igen.');return;}
 
     sessionStorage.removeItem('nsk2_edit_pool_id');
-    sessionStorage.setItem('nsk2_svenskalag_pool_draft',JSON.stringify({date:item.date,place:poolLocation(item).city,hall:poolLocation(item).hall,matches:calendarMatches.filter(m=>m.date===item.date&&/^\\d{2}:\\d{2}$/.test(m.startTime||'')&&m.opponent).map(m=>({startTime:m.startTime,opponent:m.opponent,place:m.place||''})).slice(0,24)}));
+    sessionStorage.setItem('nsk2_svenskalag_pool_draft',JSON.stringify({date:item.date,place:poolLocation(item).city,hall:poolLocation(item).hall,matches:calendarMatches.filter(m=>m.date===item.date&&/^\d{2}:\d{2}$/.test(m.startTime||'')&&m.opponent).map(m=>({startTime:m.startTime,opponent:m.opponent,place:m.place||''})).slice(0,24)}));
     location.href='../skapapoolspel/';
    });
    actions.append(create);
