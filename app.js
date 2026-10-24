@@ -560,6 +560,28 @@ window.NSK2App = (() => {
             if(byId('poolDate'))byId('poolDate').value=imported.date;
             if(byId('poolPlace'))byId('poolPlace').value=String(imported.place||'').slice(0,120);
             if(byId('poolHall'))byId('poolHall').value=String(imported.hall||'').slice(0,120);
+             const calendarMatches=Array.isArray(imported.matches)?imported.matches.filter(m=>/^\\d{2}:\\d{2}$/.test(m.startTime||'')&&typeof m.opponent==='string'&&m.opponent.trim()).slice(0,24):[];
+             const matchesSelect=byId('matches');
+             if(matchesSelect&&calendarMatches.length){
+               const count=calendarMatches.length;
+               if(count<=6)matchesSelect.value=String(count);
+             }
+             const preview=byId('calendarPoolMatches');
+             if(preview){
+               preview.hidden=false;
+               const heading=document.createElement('strong');
+               heading.textContent=calendarMatches.length?'Matcher från SvenskaLag ('+calendarMatches.length+')':'Inga matchtider eller motståndare finns angivna i kalendern.';
+               preview.append(heading);
+               for(const match of calendarMatches){
+                 const row=document.createElement('div');
+                 row.textContent=match.startTime+' – '+match.opponent;
+                 preview.append(row);
+               }
+               const note=document.createElement('p');
+               note.className='small';
+               note.textContent='Antal NSK-lag måste väljas av dig. Matcherna visas som underlag; koppla dem till rätt lag och målvakt i Laguppställning efter att poolspelet sparats.';
+               preview.append(note);
+             }
           }
         }catch{}
       }
