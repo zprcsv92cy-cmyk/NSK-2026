@@ -218,8 +218,21 @@
       const isTraining=trainingStarts.length>0;
       // Ignore other activities above the first actual training on this date.
       // In particular, Hockeyfritids must never supply the hall for an ice practice.
+      const activityHeadings=eventWords.filter(w=>
+        /^(?:träning|is|poolspel|hockeyfritids|fotografering|intresseanmälan)$/i.test(String(w.text).trim()));
+      // Bound every activity to its own heading. A pool venue or another
+      // activity's hall must never be assigned to a neighbouring training.
+      const activityWords=(startY,otherHeadings)=>{
+        if(!Number.isFinite(startY))return [];
+        const next=otherHeadings.filter(w=>w.bbox.y0>startY+Math.max(7,imageWidth*0.008))
+          .sort((a,b)=>a.bbox.y0-b.bbox.y0)[0];
+        return eventWords.filter(w=>w.bbox.y0>=startY-4&&(!next||w.bbox.y0<next.bbox.y0-2));
+      };
       const firstTrainingY=trainingStarts.length?Math.min(...trainingStarts.map(w=>w.bbox.y0)):Infinity;
-      const trainingWords=eventWords.filter(w=>w.bbox.y0>=firstTrainingY-4);
+      const trainingWords=activityWords(firstTrainingY,activityHeadings.filter(w=>
+        !trainingStarts.includes(w)));
+      const firstPoolY=realPoolTitles.length?Math.min(...realPoolTitles.map(w=>w.bbox.y0)):Infinity;
+      const poolWords=activityWords(firstPoolY,activityHeadings.filter(w=>!realPoolTitles.includes(w)));
       if(!isPool&&!isTraining)continue;
       const day=String(date.day).padStart(2,'0');
       const fullDate=monthKey+'-'+day;
@@ -228,7 +241,7 @@
       // Hall text may sit below the time and be split by OCR into separate rows.
       // First inspect the date's words, then retry the same day with a focused,
       // higher-resolution OCR pass when the hall is missing.
-      const hall=detectCalendarHall(isPool?eventWords:trainingWords);
+      const hall=detectCalendarHall(isPool?poolWords:trainingWords);
       // A day can contain several independent ice sessions. If distinct halls
       // appear on that day, a single date-level record cannot safely represent
       // either session. Block automatic selection rather than assign one hall.
@@ -244,8 +257,9 @@
       const separateLabels=trainingLabels.filter((w,i)=>trainingLabels.findIndex(other=>Math.abs(other.bbox.y0-w.bbox.y0)<Math.max(8,imageWidth*0.009))===i);
       const multipleSessions=separateLabels.length>1;
       // Opponent names are not venues. Only accept a place on an explicit venue line.
-      const venueLine=content.match(/(?:^|\s)(?:plats|arena|ishall)\s*[:：]\s*([^,;\n]+)/);
-      const place=isPool?(venueLine?venueLine[1].trim():detectPoolVenue(eventWords)):'';
+      const poolContent=poolWords.map(w=>w.text).join(' ').toLocaleLowerCase('sv-SE');
+      const venueLine=poolContent.match(/(?:^|\s)(?:plats|arena|ishall)\s*[:：]\s*([^,;\n]+)/);
+      const place=isPool?(venueLine?venueLine[1].trim():detectPoolVenue(poolWords)):'';
       if(isPool){
         const item={type:'pool',date:fullDate,hall:hall||'',place};
         items.set(item.type+':'+fullDate+':'+(item.place||''),item);
