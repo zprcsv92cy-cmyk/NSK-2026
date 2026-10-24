@@ -270,3 +270,13 @@ test('Manual missing training gets its own checkbox identity',()=>{
   const add=source.slice(source.indexOf("addMissing.addEventListener('click'"),source.indexOf("confirm.addEventListener('click'"));
   assert.match(add,/reviewChecks\.set\(item,check\)/);
 });
+
+test('Changing training hall cannot re-enable import for a past date',()=>{
+  const review=source.slice(source.indexOf("hallSelect.addEventListener('change'"),source.indexOf("label.append(check,text,dateInput,hallSelect)"));
+  assert.match(review,/check\.disabled=already\|\|item\.date<todayLocalDate\(\)/);
+  assert.match(review,/check\.checked=!check\.disabled/);
+});
+test('Changing poolspel place cannot re-enable import for a past date',()=>{
+  const review=source.slice(source.indexOf("placeInput.addEventListener('input'"),source.indexOf("label.append(check,text,dateInput,placeInput)"));
+  assert.match(review,/check\.disabled=already\|\|item\.date<todayLocalDate\(\)/);
+});

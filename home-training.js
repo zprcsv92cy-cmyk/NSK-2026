@@ -505,8 +505,8 @@
             hallSelect.addEventListener('change',()=>{
               item.hall=hallSelect.value||null;
               const already=currentContext.dates.has(item.date);
-              check.disabled=already||!item.hall||!!item.multipleSessions;
-              check.checked=!already&&!!item.hall&&!item.multipleSessions;
+              check.disabled=already||item.date<todayLocalDate()||!item.hall||!!item.multipleSessions;
+              check.checked=!check.disabled;
               text.textContent='Träning · '+(item.hall||'Hall måste kontrolleras')+(already?' – finns redan':'');
               if(item.hall)item.hallConflict=false;
             });
@@ -522,7 +522,7 @@
               item.place=placeInput.value.trim();
               const already=knownPools.some(p=>p.pool_date===item.date&&(!item.place||String(p.place||'').toLocaleLowerCase('sv-SE')===item.place.toLocaleLowerCase('sv-SE')));
               check.value='pool:'+item.date+':'+item.place;
-              check.disabled=already||!item.place;
+              check.disabled=already||item.date<todayLocalDate()||!item.place;
               check.checked=!check.disabled;
               text.textContent='Poolspel · '+(item.place||'Plats måste kontrolleras')+(already?' – finns redan':'');
             });
