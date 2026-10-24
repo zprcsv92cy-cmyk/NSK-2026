@@ -30,7 +30,35 @@
         const weekday=Number.isNaN(day.getTime())?'Träning':day.toLocaleDateString('sv-SE',{weekday:'long'});
         const title=weekday.charAt(0).toLocaleUpperCase('sv-SE')+weekday.slice(1);
         const hall=['Lilla Hallen','Stora hallen'].includes(s.hall)?s.hall:'Hall ej vald';
-        return '<details class="nsk-pool-row" data-date="'+encodeURIComponent(s.date)+'"><summary class="nsk-pool-summary"><span class="nsk-pool-name">'+escapeHtml(title+' • '+s.date)+'</span><span class="nsk-pool-hall">'+escapeHtml(hall)+'</span><span class="nsk-pool-chevron" aria-hidden="true">⌄</span></summary><div class="nsk-pool-content"><p data-training-info>Öppna för att visa träningsuppgifter.</p><div class="nsk-pool-actions"><a class="home-create-button" href="../traningsgrupper/?date='+encodeURIComponent(s.date)+'">Visa / redigera träning</a></div></div></details>';}).join('');
+        return '<details class="nsk-pool-row" data-date="'+encodeURIComponent(s.date)+'"><summary class="nsk-pool-summary"><span class="nsk-pool-name">'+escapeHtml(title+' • '+s.date)+'</span><span class="nsk-pool-hall">'+escapeHtml(hall)+'</span><span class="nsk-pool-chevron" aria-hidden="true">⌄</span></summary><div class="nsk-pool-content"><p data-training-info>Öppna för att visa träningsuppgifter.</p><div class="nsk-pool-actions"><a class="home-create-button" href="../traningsgrupper/?date='+encodeURIComponent(s.date)+'">Visa / redigera träning</a><button type="button" class="home-create-button" data-delete-training>Ta bort träning</button></div></div></details>';}).join('');
+      root.onclick=async event=>{
+        const button=event.target.closest?.('[data-delete-training]');
+        if(!button)return;
+        const row=button.closest('details[data-date]');
+        const date=row?.dataset.date;
+        const info=row?.querySelector('[data-training-info]');
+        if(!date||!info)return;
+        button.disabled=true;
+        try{
+          const url=base+'/api/training?team_id='+encodeURIComponent(matches[0].id)+'&date='+encodeURIComponent(date);
+          const headers={Authorization:'Bearer '+token};
+          const read=await fetch(url,{headers,cache:'no-store'});
+          if(!read.ok)throw Error('Kunde inte kontrollera träningen.');
+          const session=(await read.json()).session;
+          if(!session)throw Error('Träningen finns inte längre. Uppdatera sidan.');
+          const revision=Number(session.revision);
+          if(!Number.isSafeInteger(revision)||revision<1)throw Error('Träningen saknar giltig version.');
+          if(!window.confirm('Ta bort träningen '+date+' för hela laget? Sparad närvaro, målvakter och grupper tas bort. Detta kan inte ångras.'))return;
+          const deleted=await fetch(url+'&revision='+revision,{method:'DELETE',headers,cache:'no-store'});
+          if(!deleted.ok){
+            const data=await deleted.json().catch(()=>({}));
+            throw Error(deleted.status===409?'Träningen har ändrats av en annan ledare. Uppdatera sidan.':data.error||'Kunde inte ta bort träningen.');
+          }
+          await render();
+        }catch(error){
+          info.textContent='Kunde inte ta bort: '+(error.message||String(error));
+        }finally{button.disabled=false;}
+      };
       root.addEventListener('toggle',async event=>{
         const details=event.target;
         if(!(details instanceof HTMLDetailsElement)||!details.open||details.dataset.loaded==='pending')return;
