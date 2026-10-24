@@ -132,7 +132,7 @@
    if(button){
    button.textContent='Hämta SvenskaLag nu';
    button.style.marginTop='12px';
-   button.addEventListener('click',async()=>{
+   button.onclick=async()=>{
     button.disabled=true;button.textContent='Hämtar kalender…';
     try{
      const refresh=await fetch(base+'/api/training?team_id='+encodeURIComponent(matched[0].id)+'&action=svenskalag-refresh',{method:'POST',headers,cache:'no-store'});
@@ -144,7 +144,7 @@
      const notice=document.createElement('p');notice.textContent=error.message||'Hämtningen misslyckades';
      notice.setAttribute('role','alert');button.after(notice);
     }
-   });
+   };
    }
   }catch(error){root.textContent='Kunde inte visa SvenskaLag-kalendern: '+(error.message||String(error));}
  }
