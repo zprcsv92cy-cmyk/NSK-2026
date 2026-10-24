@@ -574,7 +574,12 @@ window.NSK2App = (() => {
              }
              const perTeamMatches=plan.matchesPerTeam;
              const matchesSelect=byId('matches');
-             if(matchesSelect&&count)matchesSelect.value=String(perTeamMatches);
+             if(matchesSelect&&count){
+               if(!Array.from(matchesSelect.options).some(option=>Number(option.value)===perTeamMatches)){
+                 matchesSelect.add(new Option(String(perTeamMatches),String(perTeamMatches));
+               }
+               matchesSelect.value=String(perTeamMatches);
+             }
              const preview=byId('calendarPoolMatches');
              if(preview){
                preview.hidden=false;
@@ -589,7 +594,7 @@ window.NSK2App = (() => {
                });
                const note=document.createElement('p');
                note.className='small';
-               note.textContent='Högst två NSK-lag: 1–4 matcher ger ett lag, fler än fyra ger två. Matcherna fördelas i starttidsordning så jämnt som möjligt. Matcherna visas som ett utkast. Matchuppgifter sparas ännu inte automatiskt; kontrollera laguppställningen innan fortsatt sparande.';
+               note.textContent='Högst två NSK-lag: 1–4 matcher ger ett lag, fler än fyra ger två. Matcherna fördelas i starttidsordning så jämnt som möjligt. Matchernas starttider och motståndare sparas när poolspelet skapas. Målvakt och spelare kan väljas senare.';
                preview.append(note);
              }
           }
