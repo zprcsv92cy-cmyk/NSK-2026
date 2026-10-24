@@ -484,9 +484,9 @@
             const next=dateInput.value;
             if(!next.startsWith(importMonth+'-')){dateInput.value=item.date;return;}
             item.date=next;
-            const already=item.type==='training'?currentContext.dates.has(next):knownPools.some(p=>p.pool_date===next);
+            const already=item.type==='training'?currentContext.dates.has(next):knownPools.some(p=>p.pool_date===next&&String(p.place||'').toLocaleLowerCase('sv-SE')===String(item.place||'').toLocaleLowerCase('sv-SE'));
             check.value=item.type+':'+next+':'+(item.place||'');
-            check.disabled=already||(item.type==='training'&&!item.hall)||(item.type==='pool'&&!item.place);check.checked=!check.disabled;
+            check.disabled=already||next<todayLocalDate()||(item.type==='training'&&(!item.hall||item.multipleSessions))||(item.type==='pool'&&!item.place);check.checked=!check.disabled;
             text.textContent=(item.type==='pool'?'Poolspel':'Träning')+' • '+next+' • '+(item.place||item.hall||'Plats ej angiven')+(already?' – finns redan':'');
           });
           // Hall names are never inferred from another date. An unknown hall
