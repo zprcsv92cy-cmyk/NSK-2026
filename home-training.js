@@ -271,6 +271,24 @@
     }
     return [...items.values()];
   }
+  function reconcileCalendarPoolDuplicates(items){
+    // Overlapping OCR crops may read the same pool with and without a venue.
+    // A blank location is not a separate event if exactly one venue was
+    // identified on that date. Never guess between multiple known venues.
+    const poolsByDate=new Map();
+    for(const item of items){
+      if(item.type!=='pool')continue;
+      if(!poolsByDate.has(item.date))poolsByDate.set(item.date,[]);
+      poolsByDate.get(item.date).push(item);
+    }
+    return items.filter(item=>{
+      if(item.type!=='pool'||String(item.place||'').trim())return true;
+      const venues=new Set((poolsByDate.get(item.date)||[])
+        .map(candidate=>String(candidate.place||'').trim().toLocaleLowerCase('sv-SE'))
+        .filter(Boolean));
+      return venues.size!==1;
+    });
+  }
   function setupCalendarImport(){
     const open=document.getElementById('importTrainingsOpen');
     const panel=document.getElementById('trainingCalendarImport');
@@ -450,7 +468,8 @@
               item.place=candidate.place;
             }
           }
-          parsed={month:monthNames.indexOf(monthMatch[1])+1,items:[...merged.values()],valid:merged.size>0};
+          const reconciledItems=reconcileCalendarPoolDuplicates([...merged.values()]);
+          parsed={month:monthNames.indexOf(monthMatch[1])+1,items:reconciledItems,valid:reconciledItems.length>0};
           parsed.month=monthMatch[2]+'-'+String(parsed.month).padStart(2,'0');
         }finally{bitmap.close();}
         if(!parsed.valid){status.textContent='Kunde inte säkert läsa en enda kalendermånad med aktiviteter. Inget sparas eller tas bort.';return;}
