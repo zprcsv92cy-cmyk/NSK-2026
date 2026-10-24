@@ -385,3 +385,14 @@ test('Calendar import review accurately says existing activities are never delet
   assert.match(review,/Importen lägger endast till aktiviteter; inga befintliga träningar eller poolspel tas bort/);
   assert.doesNotMatch(review,/Borttagning kräver separat bekräftelse/);
 });
+
+test('Editing imported calendar details preserves intentional manual deselection',()=>{
+  const review=source.slice(source.indexOf("dateInput.addEventListener('change'"),source.indexOf("review.append(label);",source.indexOf("dateInput.addEventListener('change'")));
+  assert.equal((review.match(/if\(check\.disabled\)check\.checked=false;/g)||[]).length,4);
+  assert.doesNotMatch(review,/check\.checked=!check\.disabled;/);
+});
+test('Blocked calendar items still start unchecked and require explicit selection',()=>{
+  const review=source.slice(source.indexOf("for(const item of candidates){"),source.indexOf("review.append(label);",source.indexOf("for(const item of candidates){")));
+  assert.match(review,/check\.disabled=exists\|\|item\.type==='pool';check\.checked=!check\.disabled/);
+  assert.match(review,/if\(!item\.hall\|\|item\.multipleSessions\)\{check\.checked=false;check\.disabled=true/);
+});
