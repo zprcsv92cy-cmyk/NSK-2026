@@ -227,6 +227,6 @@ test('Interest registration with poolspel date remains excluded',()=>{
 test('Focused OCR day anchors use the digit regex, not a literal backslash',()=>{
   const line=source.split('\n').find(line=>line.includes('const dayAnchors=globalWords.filter'));
   assert.ok(line,'focused day anchor filter exists');
-  assert.ok(line.includes(String.raw\`/^\d{1,2}$/\`),'date anchor recognizes one or two digits');
-  assert.equal(line.includes(String.raw\`/^\\d{1,2}$/\`),false,'regex must not match a literal backslash');
+  assert.ok(line.includes(String.raw`/^\d{1,2}$/\`),'date anchor recognizes one or two digits');
+  assert.equal(line.includes(String.raw`/^\\d{1,2}$/`),false,'regex must not match a literal backslash');
 });
