@@ -227,10 +227,15 @@
         if(mention)hallMentions.add(mention);
       }
       const hallConflict=hallMentions.size>1;
+      // Training storage is currently keyed by date, not by individual
+      // start time. Never collapse multiple visible sessions into one.
+      const trainingLabels=eventWords.filter(w=>/^(?:träning|hockeyfritids|is)$/i.test(String(w.text).trim()));
+      const separateLabels=trainingLabels.filter((w,i)=>trainingLabels.findIndex(other=>Math.abs(other.bbox.y0-w.bbox.y0)<Math.max(8,imageWidth*0.009))===i);
+      const multipleSessions=separateLabels.length>1;
       // Opponent names are not venues. Only accept a place on an explicit venue line.
       const venueLine=content.match(/(?:^|\\s)(?:plats|arena|ishall)\\s*[:：]\\s*([^,;\\n]+)/);
       const place=isPool?(venueLine?venueLine[1].trim():detectPoolVenue(eventWords)):'';
-      const item=isPool?{type:'pool',date:fullDate,hall:hall||'',place}:{type:'training',date:fullDate,hall:hallConflict?null:hall,hallConflict};
+      const item=isPool?{type:'pool',date:fullDate,hall:hall||'',place}:{type:'training',date:fullDate,hall:hallConflict||multipleSessions?null:hall,hallConflict,multipleSessions};
       items.set(item.type+':'+fullDate+':'+(item.place||''),item);
     }
     return [...items.values()];
@@ -439,12 +444,12 @@
               const option=document.createElement('option');option.value=value;option.textContent=title;hallSelect.append(option);
             }
             hallSelect.value=item.hall||'';
-            if(!item.hall){check.checked=false;check.disabled=true;text.textContent=item.hallConflict?'Motstridiga halltolkningar – kontroll krävs':'Hall kunde inte läsas – kontroll krävs';}
+            if(!item.hall||item.multipleSessions){check.checked=false;check.disabled=true;text.textContent=item.multipleSessions?'Flera träningar samma dag – separat import stöds inte ännu':item.hallConflict?'Motstridiga halltolkningar – kontroll krävs':'Hall kunde inte läsas – kontroll krävs';}
             hallSelect.addEventListener('change',()=>{
               item.hall=hallSelect.value||null;
               const already=currentContext.dates.has(item.date);
-              check.disabled=already||!item.hall;
-              check.checked=!already&&!!item.hall;
+              check.disabled=already||!item.hall||!!item.multipleSessions;
+              check.checked=!already&&!!item.hall&&!item.multipleSessions;
               text.textContent='Träning · '+(item.hall||'Hall måste kontrolleras')+(already?' – finns redan':'');
               if(item.hall)item.hallConflict=false;
             });
@@ -515,7 +520,7 @@
         status.textContent='Import stoppad: ange plats för alla markerade poolspel.';
         confirm.disabled=false;return;
       }
-      if(selected.some(c=>c.type==='training'&&!c.hall)){
+      if(selected.some(c=>c.type==='training'&&(!c.hall||c.multipleSessions))){
         status.textContent='Import stoppad: välj hall för alla markerade träningar.';
         confirm.disabled=false;return;
       }
