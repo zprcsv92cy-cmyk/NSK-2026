@@ -23,14 +23,19 @@
       const data=await response.json();
       const sessions=Array.isArray(data.sessions)?data.sessions:[];
       currentContext={base,token,teamId:String(matches[0].id),dates:new Set(sessions.map(s=>s.date))};
-      sessions.sort((a,b)=>b.date.localeCompare(a.date));
+      sessions.sort((a,b)=>a.date.localeCompare(b.date));
       if(!sessions.length){root.textContent='Inga gemensamt sparade träningar ännu.';window.dispatchEvent(new Event('nsk:saved-trainings-rendered'));return;}
-      root.innerHTML=sessions.map(s=>{
+      const today=new Date().toLocaleDateString('sv-SE',{year:'numeric',month:'2-digit',day:'2-digit'}).split('-').join('-');
+      const savedRow=s=>{
         const day=new Date(s.date+'T12:00:00');
         const weekday=Number.isNaN(day.getTime())?'Träning':day.toLocaleDateString('sv-SE',{weekday:'long'});
         const title=weekday.charAt(0).toLocaleUpperCase('sv-SE')+weekday.slice(1);
         const hall=['Lilla Hallen','Stora hallen'].includes(s.hall)?s.hall:'Hall ej vald';
-        return '<details class="nsk-pool-row" data-date="'+encodeURIComponent(s.date)+'"><summary class="nsk-pool-summary"><span class="nsk-pool-name">'+escapeHtml(title+' • '+s.date)+'</span><span class="nsk-pool-hall">'+escapeHtml(hall)+'</span><span class="nsk-pool-chevron" aria-hidden="true">⌄</span></summary><div class="nsk-pool-content"><p data-training-info>Öppna för att visa träningsuppgifter.</p><div class="nsk-pool-actions"><a class="home-create-button" href="../traningsgrupper/?date='+encodeURIComponent(s.date)+'">Visa / redigera träning</a><button type="button" class="home-create-button" data-delete-training>Ta bort träning</button></div></div></details>';}).join('');
+        const start=s.startTime||s.start_time||s.start||'';const end=s.endTime||s.end_time||s.end||'';
+        const time=[start,end].filter(Boolean).join('–');
+        return '<details class="nsk-pool-row" data-date="'+encodeURIComponent(s.date)+'"><summary class="nsk-pool-summary"><span class="nsk-pool-name">'+escapeHtml(title+' • '+s.date)+'</span><span class="nsk-pool-hall">'+escapeHtml(hall)+'</span><span class="nsk-training-time">'+escapeHtml(time)+'</span><span class="nsk-pool-chevron" aria-hidden="true">⌄</span></summary><div class="nsk-pool-content"><p data-training-info>Öppna för att visa träningsuppgifter.</p><div class="nsk-pool-actions"><a class="home-create-button" href="../traningsgrupper/?date='+encodeURIComponent(s.date)+'">Visa / redigera träning</a><button type="button" class="home-create-button" data-delete-training>Ta bort träning</button></div></div></details>';};
+      const upcoming=sessions.filter(s=>s.date>=today),past=sessions.filter(s=>s.date<today).reverse();
+      root.innerHTML='<h3 class="training-section-title" id="upcomingTrainingsTitle">Kommande träningar ('+upcoming.length+')</h3>'+upcoming.map(savedRow).join('')+'<h3 class="training-section-title" id="pastTrainingsTitle">Avslutade träningar ('+past.length+')</h3>'+past.map(savedRow).join('');
       window.dispatchEvent(new Event('nsk:saved-trainings-rendered'));
       root.onclick=async event=>{
         const button=event.target.closest?.('[data-delete-training]');
