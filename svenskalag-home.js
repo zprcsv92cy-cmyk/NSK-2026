@@ -72,6 +72,7 @@
    }).join('');
    else root.textContent='Träningar och matcher från SvenskaLag visas här.';
    renderUpcomingCalendarPools(calendarPools);
+   setTimeout(()=>{if(!document.querySelector('[data-svenskalag-pool]')&&calendarPools.length)renderUpcomingCalendarPools(calendarPools);},1200);
    const button=document.createElement('button');
    button.type='button';
    button.className='nsk-btn';
