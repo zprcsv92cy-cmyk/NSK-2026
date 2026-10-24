@@ -271,6 +271,15 @@
     }
     return [...items.values()];
   }
+  function reconcileCalendarPoolDuplicates(items){
+    // The same date may contain genuinely different poolspel. Never discard
+    // an unknown-venue event merely because another OCR crop saw a venue.
+    // Keep unresolved entries for manual review and prevent auto-selection.
+    const datesWithKnownVenue=new Set(items.filter(item=>
+      item.type==='pool'&&String(item.place||'').trim()).map(item=>item.date));
+    return items.map(item=>item.type==='pool'&&!String(item.place||'').trim()&&datesWithKnownVenue.has(item.date)
+      ?{...item,possibleDuplicate:true}:item);
+  }
   function setupCalendarImport(){
     const open=document.getElementById('importTrainingsOpen');
     const panel=document.getElementById('trainingCalendarImport');
@@ -450,7 +459,8 @@
               item.place=candidate.place;
             }
           }
-          parsed={month:monthNames.indexOf(monthMatch[1])+1,items:[...merged.values()],valid:merged.size>0};
+          const reconciledItems=reconcileCalendarPoolDuplicates([...merged.values()]);
+          parsed={month:monthNames.indexOf(monthMatch[1])+1,items:reconciledItems,valid:reconciledItems.length>0};
           parsed.month=monthMatch[2]+'-'+String(parsed.month).padStart(2,'0');
         }finally{bitmap.close();}
         if(!parsed.valid){status.textContent='Kunde inte säkert läsa en enda kalendermånad med aktiviteter. Inget sparas eller tas bort.';return;}
@@ -504,7 +514,7 @@
             placeInput.value=item.place||'';
             placeInput.placeholder='Ange plats – kontroll krävs';
             placeInput.setAttribute('aria-label','Kontrollera plats för poolspel '+item.date);
-            if(!item.place){check.checked=false;check.disabled=true;}
+            if(!item.place){check.checked=false;check.disabled=true;if(item.possibleDuplicate)text.textContent='Poolspel · okänd plats, möjligt överlapp – kontroll krävs';}
             placeInput.addEventListener('input',()=>{
               item.place=placeInput.value.trim();
               const already=knownPools.some(p=>p.pool_date===item.date&&(!item.place||String(p.place||'').toLocaleLowerCase('sv-SE')===item.place.toLocaleLowerCase('sv-SE')));
