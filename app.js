@@ -562,6 +562,7 @@ window.NSK2App = (() => {
             if(byId('poolHall'))byId('poolHall').value=String(imported.hall||'').slice(0,120);
              const calendarMatches=Array.isArray(imported.matches)?imported.matches.filter(m=>/^\d{2}:\d{2}$/.test(m.startTime||'')&&typeof m.opponent==='string'&&m.opponent.trim()).slice(0,32).sort((a,b)=>a.startTime.localeCompare(b.startTime)):[];
              const count=calendarMatches.length;
+             sessionStorage.setItem('nsk2_calendar_match_pending',JSON.stringify(calendarMatches));
              // Högst fyra matcher per lag. Fördela jämnt i kronologisk ordning.
              const teamCount=count>4?2:1;
              const teamSelect=byId('teams');
@@ -731,6 +732,11 @@ window.NSK2App = (() => {
         } else {
           const pool = await DB.addPool(payload);
           sessionStorage.setItem("nsk2_pool_id", pool.id);
+          const pending=sessionStorage.getItem('nsk2_calendar_match_pending');
+          if(pending){
+            sessionStorage.setItem('nsk2_calendar_match_schedule',JSON.stringify({poolId:String(pool.id),matches:JSON.parse(pending),teams:payload.teams}));
+            sessionStorage.removeItem('nsk2_calendar_match_pending');
+          }
         }
         setText("poolMsg", "Poolspel och berörda scheman sparade");
         window.location.href = "../startsida/";
@@ -1371,8 +1377,17 @@ window.NSK2App = (() => {
       await renderCoachOptions();
       await renderLineupSelectors();
 
-      if (byId("lineupStartTime")) byId("lineupStartTime").value = rowCurrent?.start_time || "";
-      if (byId("lineupOpponent")) byId("lineupOpponent").value = rowCurrent?.opponent || "";
+      let importedMatch=null;
+      try{
+        const schedule=JSON.parse(sessionStorage.getItem('nsk2_calendar_match_schedule')||'null');
+        if(schedule&&String(schedule.poolId)===String(poolId)&&Array.isArray(schedule.matches)){
+          const perTeam=Math.ceil(schedule.matches.length/Math.max(1,Math.min(2,Number(schedule.teams)||1)));
+          const index=(Number(lagNo)-1)*perTeam+Number(matchNo)-1;
+          importedMatch=schedule.matches[index]||null;
+        }
+      }catch{}
+      if (byId("lineupStartTime")) byId("lineupStartTime").value = rowCurrent?.start_time || importedMatch?.startTime || "";
+      if (byId("lineupOpponent")) byId("lineupOpponent").value = rowCurrent?.opponent || importedMatch?.opponent || "";
       if (byId("lineupPlan")) byId("lineupPlan").value = rowCurrent?.plan || "Plan 1";
       if (byId("lineupPlayerCount")) {
         byId("lineupPlayerCount").value = String(
