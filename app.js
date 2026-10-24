@@ -732,12 +732,40 @@ window.NSK2App = (() => {
           }
           sessionStorage.removeItem("nsk2_edit_pool_id");
         } else {
+          // Spara aldrig ett andra poolspel när en kalenderimport bara delvis lyckades.
+          const existingImport=sessionStorage.getItem('nsk2_calendar_match_import_errors');
+          if(existingImport)throw new Error('En tidigare kalenderimport behöver åtgärdas innan ett nytt poolspel skapas.');
+          const pending=sessionStorage.getItem('nsk2_calendar_match_pending');
+          let schedule=null;
+          if(pending){
+            try {
+              const {planCalendarMatches}=await import(new URL('calendar-match-plan.mjs',nskVersionRoot()).href);
+              schedule=planCalendarMatches(JSON.parse(pending));
+            } catch {throw new Error('Kalenderimporten kunde inte läsas. Öppna poolspelet från kalendern igen.');}
+            if(!schedule.schedule.length || schedule.teams!==payload.teams ||
+               schedule.matchesPerTeam>payload.matches ||
+               window.APP_CONFIG?.REQUIRE_PERSONAL_MATCH_WRITES!==true)
+              throw new Error('Kalenderimporten har felaktiga matchuppgifter eller saknar personlig matchbehörighet. Inget poolspel skapades.');
+          }
           const pool = await DB.addPool(payload);
           sessionStorage.setItem("nsk2_pool_id", pool.id);
-          const pending=sessionStorage.getItem('nsk2_calendar_match_pending');
-          if(pending){
+          if(schedule){
             sessionStorage.setItem('nsk2_calendar_match_schedule',JSON.stringify({poolId:String(pool.id),matches:JSON.parse(pending),teams:payload.teams}));
+            const errors=[];
+            for(const match of schedule.schedule){
+              try {
+                await DB.saveCalendarMatchSchedule({pool_id:Number(pool.id),...match});
+              } catch(error) {
+                errors.push('Lag '+match.lag_no+', match '+match.match_no+': '+(error?.message||'Kunde inte spara'));
+              }
+            }
+            if(errors.length){
+              sessionStorage.setItem('nsk2_calendar_match_import_errors',JSON.stringify({poolId:String(pool.id),errors}));
+              throw new Error('Poolspelet skapades (ID '+pool.id+'), men vissa matcher kunde inte sparas: '+errors.join('; ')+'. Skapa inte ett nytt poolspel.');
+            }
             sessionStorage.removeItem('nsk2_calendar_match_pending');
+            sessionStorage.removeItem('nsk2_calendar_match_schedule');
+            sessionStorage.removeItem('nsk2_calendar_match_import_errors');
           }
         }
         setText("poolMsg", "Poolspel och berörda scheman sparade");
