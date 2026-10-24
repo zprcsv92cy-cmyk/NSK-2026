@@ -20,12 +20,31 @@
    const events=await fetch(base+'/api/training?team_id='+encodeURIComponent(matched[0].id)+'&action=svenskalag-saved',{headers,cache:'no-store'});
    if(!events.ok)throw Error('Kalendern kunde inte läsas');
    const result=await events.json(),items=Array.isArray(result.items)?result.items:[];
-   if(!items.length){root.textContent='Inga kommande kalenderaktiviteter importerade ännu.';return;}
-   root.innerHTML=items.map(item=>{
+   if(!items.length){root.textContent='Inga kommande kalenderaktiviteter importerade ännu.';}
+   if(items.length)root.innerHTML=items.map(item=>{
     const kind={training:'Träning',pool:'Poolspel',match:'Match'}[item.type]||'Aktivitet';
     const detail=item.type==='match'?[item.startTime,item.opponent].filter(Boolean).join(' • '):item.type==='training'?(item.hall||'Hall ej angiven'):(item.place||'Plats ej angiven');
     return '<details class="nsk-pool-row"><summary class="nsk-pool-summary"><span class="nsk-pool-name">'+esc(kind+' • '+item.date)+'</span><span class="nsk-pool-hall">'+esc(detail)+'</span><span class="nsk-pool-chevron" aria-hidden="true">⌄</span></summary><div class="nsk-pool-content"><p>'+esc(detail)+'</p><p class="small">Källa: SvenskaLag. Kalenderuppgiften är skrivskyddad.</p></div></details>';
    }).join('');
+   const button=document.createElement('button');
+   button.type='button';
+   button.className='nsk-btn';
+   button.textContent='Hämta SvenskaLag nu';
+   button.style.marginTop='12px';
+   button.addEventListener('click',async()=>{
+    button.disabled=true;button.textContent='Hämtar kalender…';
+    try{
+     const refresh=await fetch(base+'/api/training?team_id='+encodeURIComponent(matched[0].id)+'&action=svenskalag-refresh',{method:'POST',headers,cache:'no-store'});
+     if(refresh.status===403)throw Error('Du saknar behörighet att hämta kalendern');
+     if(!refresh.ok)throw Error('Hämtningen misslyckades. Försök igen senare.');
+     await show();
+    }catch(error){
+     button.disabled=false;button.textContent='Hämta SvenskaLag nu';
+     const notice=document.createElement('p');notice.textContent=error.message||'Hämtningen misslyckades';
+     notice.setAttribute('role','alert');button.after(notice);
+    }
+   });
+   root.append(button);
   }catch(error){root.textContent='Kunde inte visa SvenskaLag-kalendern: '+(error.message||String(error));}
  }
  if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',show,{once:true});else show();
