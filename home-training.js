@@ -24,7 +24,7 @@
       const sessions=Array.isArray(data.sessions)?data.sessions:[];
       currentContext={base,token,teamId:String(matches[0].id),dates:new Set(sessions.map(s=>s.date))};
       sessions.sort((a,b)=>a.date.localeCompare(b.date));
-      if(!sessions.length){root.textContent='Inga gemensamt sparade träningar ännu.';window.dispatchEvent(new Event('nsk:saved-trainings-rendered'));return;}
+      if(!sessions.length){root.innerHTML='<h3 class="training-section-title" id="upcomingTrainingsTitle">Kommande träningar (0)</h3><h3 class="training-section-title" id="pastTrainingsTitle">Avslutade träningar (0)</h3>';window.dispatchEvent(new Event('nsk:saved-trainings-rendered'));return;}
       const today=new Date().toLocaleDateString('sv-SE',{year:'numeric',month:'2-digit',day:'2-digit'}).split('-').join('-');
       const savedRow=s=>{
         const day=new Date(s.date+'T12:00:00');
