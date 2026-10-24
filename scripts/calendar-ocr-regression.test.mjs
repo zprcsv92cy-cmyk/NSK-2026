@@ -171,3 +171,9 @@ test('Actual pool venue is read before later interest registration',()=>{
   const items=JSON.parse(JSON.stringify(sandbox.parseCalendarLayout(words,'2026-11',1000)));
   assert.equal(items.find(item=>item.type==='pool')?.place,'Strängnäs Ishall');
 });
+
+test('Focused day retry reuses event scoped parser instead of reading unrelated halls',()=>{
+  assert.match(source,/const focused=dayWords\.length\?parseCalendarLayout\(/);
+  assert.doesNotMatch(source,/const hall=detectCalendarHall\(dayWords\)/);
+  assert.doesNotMatch(source,/const venue=explicitPlace\?\.\[1\]\?\.trim\(\)\|\|detectPoolVenue\(dayWords\)/);
+});
