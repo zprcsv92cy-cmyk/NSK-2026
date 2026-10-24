@@ -4,7 +4,7 @@ import {syncCalendarCache} from './svenskalag-calendar-cache.js';
 // Fail closed until a dedicated production migration and explicit opt-in.
 export async function runSvenskalagScheduledSync(env,now=new Date()){
  if(env.NSK_ENABLE_SVENSKALAG_AUTO_SYNC!=='true')return {skipped:'disabled'};
- if(!env.AUTH_DB||!/^\d+$/.test(String(env.NSK_SVENSKALAG_TEAM_ID||'')))
+ if(!env.AUTH_DB||env.NSK_SVENSKALAG_TEAM_ID!=='NSK Team 18')
   throw Error('Calendar sync configuration incomplete');
  const response=await fetch('https://cal.svenskalag.se/103684',{
   headers:{Accept:'text/calendar'},redirect:'manual',signal:AbortSignal.timeout(12000)
