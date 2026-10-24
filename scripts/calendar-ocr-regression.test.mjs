@@ -302,7 +302,7 @@ test('Pool calendar import creates a pool without asking match count',()=>{
 });
 test('Pool with known venue is eligible without match-count review',()=>{
   const review=source.slice(source.indexOf("for(const item of candidates){"));
-  assert.match(review,/check\.disabled=exists\|\|\(item\.type==='pool'&& !item\.place\)/.source ? /check\.disabled=exists\|\|\(item\.type==='pool'&&!item\.place\)/ : /unused/);
+  assert.match(review,/check\.disabled=exists\|\|\(item\.type==='pool'&&!item\.place\)/);
 });
 
 test('Dated poolspel title must agree with calendar date anchor',()=>{
