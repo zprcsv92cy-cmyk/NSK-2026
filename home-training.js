@@ -260,6 +260,16 @@
               retryContext.imageSmoothingQuality='high';
               retryContext.drawImage(bitmap,0,top,bitmap.width,height,0,0,retryCanvas.width,retryCanvas.height);
               const retryResult=await worker.recognize(retryCanvas,{}, {blocks:true,tsv:true});
+              // Include the higher-resolution venue words in the global pass as
+              // well. Otherwise a hall below a crop boundary is lost again.
+              for(const word of extractCalendarWords(retryResult.data)){
+                const factor=globalWidth/retryCanvas.width;
+                globalWords.push({text:word.text,bbox:{
+                  x0:word.bbox.x0*factor,x1:word.bbox.x1*factor,
+                  y0:word.bbox.y0*factor+top*globalWidth/bitmap.width,
+                  y1:word.bbox.y1*factor+top*globalWidth/bitmap.width
+                }});
+              }
               const retryItems=parseCalendarLayout(retryResult.data,monthMatch[2]+'-'+String(monthNames.indexOf(monthMatch[1])+1).padStart(2,'0'),retryCanvas.width);
               if(retryItems){
                 for(const item of layoutItems){
