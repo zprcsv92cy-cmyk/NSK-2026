@@ -98,24 +98,27 @@
    const calendarOtherEvents=calendarOthers.filter(item=>item.type!=='training');
    window.addEventListener('nsk:saved-trainings-rendered',()=>{show();},{once:true});
    const trainingBox=document.getElementById('savedTrainingsList');
+   const today=new Date().toLocaleDateString('sv-SE',{year:'numeric',month:'2-digit',day:'2-digit'});
+   const upcomingCalendarTrainings=calendarTrainings.filter(item=>item.date>=today);
    if(trainingBox){
     trainingBox.querySelectorAll('[data-svenskalag-training]').forEach(node=>node.remove());
     const savedSessions=Array.from(trainingBox.querySelectorAll('details[data-date]')).map(node=>({date:decodeURIComponent(node.dataset.date||''),hall:(node.querySelector('.nsk-pool-hall')?.textContent||'').trim().toLocaleLowerCase('sv-SE')}));
-    for(const item of calendarTrainings){
+    for(const item of upcomingCalendarTrainings){
      const hallName=String(item.hall||item.place||'').trim().toLocaleLowerCase('sv-SE');
      if(hallName&&savedSessions.some(s=>s.date===item.date&&s.hall===hallName))continue;
      const row=document.createElement('details');row.className='nsk-pool-row';row.dataset.svenskalagTraining='1';
      const summary=document.createElement('summary');summary.className='nsk-pool-summary';
      const name=document.createElement('span');name.className='nsk-pool-name';name.textContent='Träning • '+item.date;
      const hall=document.createElement('span');hall.className='nsk-pool-hall';hall.textContent=item.hall||item.place||'Hall ej angiven';
+     const time=document.createElement('span');time.className='nsk-training-time';time.textContent=[item.startTime||item.start_time,item.endTime||item.end_time].filter(Boolean).join('–');
      const arrow=document.createElement('span');arrow.className='nsk-pool-chevron';arrow.setAttribute('aria-hidden','true');arrow.textContent='⌄';
-     summary.append(name,hall,arrow);
+     summary.append(name,hall,time,arrow);
      const content=document.createElement('div');content.className='nsk-pool-content';
      const note=document.createElement('p');note.className='small';note.textContent='Källa: SvenskaLag. Öppna träningen för att spara eller redigera den i NSK.';
      const action=document.createElement('a');action.className='home-create-button';action.href='../traningsgrupper/?date='+encodeURIComponent(item.date);action.textContent='Visa / redigera träning';
-     content.append(note,action);row.append(summary,content);trainingBox.append(row);
+     content.append(note,action);row.append(summary,content);const pastTitle=trainingBox.querySelector('#pastTrainingsTitle');if(pastTitle)trainingBox.insertBefore(row,pastTitle);else trainingBox.append(row);
     }
-    if(calendarTrainings.length){const empty=Array.from(trainingBox.children).find(node=>node.tagName!=='DETAILS');if(empty&&/Inga gemensamt sparade träningar/.test(empty.textContent||''))empty.remove();}
+    if(upcomingCalendarTrainings.length){const empty=Array.from(trainingBox.children).find(node=>node.tagName!=='DETAILS');if(empty&&/Inga gemensamt sparade träningar/.test(empty.textContent||''))empty.remove();}
    }
    if(calendarOtherEvents.length)root.innerHTML=calendarOtherEvents.map(item=>{
     const kind={pool:'Poolspel',match:'Match'}[item.type]||'Aktivitet';
@@ -125,9 +128,8 @@
    else root.textContent='Poolspel visas under Kommande poolspel och träningar under Träningar.';
    renderUpcomingCalendarPools(calendarPools);
    setTimeout(()=>{if(!document.querySelector('[data-svenskalag-pool]')&&calendarPools.length)renderUpcomingCalendarPools(calendarPools);},1200);
-   const button=document.createElement('button');
-   button.type='button';
-   button.className='nsk-btn';
+   const button=document.getElementById('svenskalagRefreshButton');
+   if(button){
    button.textContent='Hämta SvenskaLag nu';
    button.style.marginTop='12px';
    button.addEventListener('click',async()=>{
@@ -143,7 +145,7 @@
      notice.setAttribute('role','alert');button.after(notice);
     }
    });
-   root.append(button);
+   }
   }catch(error){root.textContent='Kunde inte visa SvenskaLag-kalendern: '+(error.message||String(error));}
  }
  if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',show,{once:true});else show();
