@@ -550,6 +550,19 @@ window.NSK2App = (() => {
       if (byId("poolDate")) byId("poolDate").value = "";
     }
 
+    if (!editId) {
+      const draft=sessionStorage.getItem('nsk2_svenskalag_pool_draft');
+      if(draft){
+        sessionStorage.removeItem('nsk2_svenskalag_pool_draft');
+        try{
+          const imported=JSON.parse(draft);
+          if(/^20\d{2}-\d{2}-\d{2}$/.test(imported.date)){
+            if(byId('poolDate'))byId('poolDate').value=imported.date;
+            if(byId('poolPlace'))byId('poolPlace').value=String(imported.place||'').slice(0,120);
+          }
+        }catch{}
+      }
+    }
     if (editId) {
       try {
         const pool = await DB.getPool(editId);
