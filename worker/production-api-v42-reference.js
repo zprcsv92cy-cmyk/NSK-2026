@@ -711,14 +711,19 @@ var worker_default = { async fetch(req, env) {
           if (typeof body.opponent !== "string" || !body.opponent.trim() || !body.start_time) return reply({ok:false,error:"Starttid och motståndare krävs"},400);
           let nextPage=1;
           while(nextPage){
-            const rowsResp=await fetch(`${base}${TABLES.matchkonfiguration}/?user_field_names=true&size=200&page=${nextPage}`,{headers:auth});
-            if(!rowsResp.ok)return reply({ok:false,error:"Kunde inte kontrollera befintliga matcher"},502);
-            const rowsData=await rowsResp.json();
-            if((rowsData.results||[]).some(row=>linkIds(row.Poolspel).includes(poolId2)&&Number(row.Lagnummer)===lagNo&&Number(row.Matchnummer)===matchNo))return reply({ok:false,error:"Matchen finns redan; ingen befintlig uppställning ändrades"},409);
-            if(!rowsData.next)break;
-            if(nextPage>=100)return reply({ok:false,error:"För många matcher för säker import"},409);
-            nextPage++;
+            // Kontrollera alla sidor för att undvika dubbletter även i stora poolspel.
+          let page=1,duplicate=false,hasMore=true;
+          while(hasMore&&page<=100){
+            const response=await fetch(`${base}${TABLES.matchkonfiguration}/?user_field_names=true&size=200&page=${page}`,{headers:auth});
+            if(!response.ok)return reply({ok:false,error:"Kunde inte kontrollera befintliga matcher"},502);
+            const data=await response.json();
+            duplicate=(data.results||[]).some(row=>linkIds(row.Poolspel).includes(poolId2)&&Number(row.Lagnummer)===lagNo&&Number(row.Matchnummer)===matchNo);
+            if(duplicate)break;
+            hasMore=Boolean(data.next);
+            page++;
           }
+          if(duplicate)return reply({ok:false,error:"Matchen finns redan; ingen befintlig uppställning ändrades"},409);
+          if(hasMore)return reply({ok:false,error:"Matchlistan är för stor för säker import"},409);
           const draftPayload={Poolspel:[poolId2],Lagnummer:lagNo,Matchnummer:matchNo,Starttid:body.start_time,"Motst\xE5ndare":body.opponent,Plan:body.plan||"Plan 1"};
           const draftResp=await fetch(`${base}${TABLES.matchkonfiguration}/?user_field_names=true`,{method:"POST",headers:{...auth,"Content-Type":"application/json"},body:JSON.stringify(draftPayload)});
           const draftData=await draftResp.json().catch(()=>({}));
