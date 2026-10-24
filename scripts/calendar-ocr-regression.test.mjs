@@ -230,3 +230,21 @@ test('Focused OCR day anchors use the digit regex, not a literal backslash',()=>
   assert.ok(line.includes(String.raw`/^\d{1,2}$/`),'date anchor recognizes one or two digits');
   assert.equal(line.includes(String.raw`/^\\d{1,2}$/`),false,'regex must not match a literal backslash');
 });
+
+test('Unknown pool venue remains visible for review alongside a known venue',()=>{
+  const items=JSON.parse(JSON.stringify(sandbox.reconcileCalendarPoolDuplicates([
+    {type:'pool',date:'2026-11-21',place:''},
+    {type:'pool',date:'2026-11-21',place:'Strängnäs Ishall'}
+  ])));
+  assert.equal(items.length,2);
+  assert.equal(items[0].possibleDuplicate,true);
+  assert.equal(items[0].place,'');
+  assert.equal(items[1].place,'Strängnäs Ishall');
+});
+test('Distinct known pool venues on one date are never consolidated',()=>{
+  const items=JSON.parse(JSON.stringify(sandbox.reconcileCalendarPoolDuplicates([
+    {type:'pool',date:'2026-11-21',place:'Strängnäs Ishall'},
+    {type:'pool',date:'2026-11-21',place:'Månsbrorinken'}
+  ])));
+  assert.equal(items.length,2);
+});
