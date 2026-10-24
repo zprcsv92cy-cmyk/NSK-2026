@@ -394,6 +394,6 @@ test('Editing imported calendar details preserves intentional manual deselection
 });
 test('Blocked calendar items still start unchecked and require explicit selection',()=>{
   const review=source.slice(source.indexOf("for(const item of candidates){"),source.indexOf("review.append(label);",source.indexOf("for(const item of candidates){")));
-  assert.match(review,/check\.disabled=exists\|\|item\.type==='pool';check\.checked=!check\.disabled/);
+  assert.match(review,/check\.disabled=exists\|\|\(item\.type==='pool'&&!item\.place\);check\.checked=!check\.disabled/);
   assert.match(review,/if\(!item\.hall\|\|item\.multipleSessions\)\{check\.checked=false;check\.disabled=true/);
 });
