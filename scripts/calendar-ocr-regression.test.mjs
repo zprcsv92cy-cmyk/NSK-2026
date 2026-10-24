@@ -141,3 +141,33 @@ test('Explicit venue label resolves place without opponent guessing',()=>{
   const items=JSON.parse(JSON.stringify(sandbox.parseCalendarLayout(words,'2026-11',1000)));
   assert.equal(items[0]?.place,'månsbrorinken');
 });
+
+test('Training hall is not borrowed from a following poolspel',()=>{
+  const words=[
+    word('21',15,100),word('Träning',180,114),
+    word('Poolspel',180,198),word('Stora',200,225),word('hallen',275,225),
+    word('22',15,320)
+  ];
+  const items=JSON.parse(JSON.stringify(sandbox.parseCalendarLayout(words,'2026-11',1000)));
+  assert.equal(items.find(item=>item.type==='training')?.hall,null);
+});
+test('Pool venue is not borrowed from a following unrelated activity',()=>{
+  const words=[
+    word('21',15,100),word('Poolspel',180,114),
+    word('Fotografering',180,198),
+    word('Strängnäs',200,225),word('Ishall',305,225),
+    word('22',15,320)
+  ];
+  const items=JSON.parse(JSON.stringify(sandbox.parseCalendarLayout(words,'2026-11',1000)));
+  assert.equal(items.find(item=>item.type==='pool')?.place,'');
+});
+test('Actual pool venue is read before later interest registration',()=>{
+  const words=[
+    word('21',15,100),word('Poolspel',180,114),
+    word('Strängnäs',200,140),word('Ishall',310,140),
+    word('Intresseanmälan',180,198),word('poolspel',320,198),
+    word('22',15,320)
+  ];
+  const items=JSON.parse(JSON.stringify(sandbox.parseCalendarLayout(words,'2026-11',1000)));
+  assert.equal(items.find(item=>item.type==='pool')?.place,'Strängnäs Ishall');
+});
