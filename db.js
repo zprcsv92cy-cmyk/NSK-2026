@@ -136,7 +136,7 @@ window.DB = (() => {
     return serialWrite(async()=>{
       const poolId=id(payload.pool_id),lagNo=id(payload.lag_no),matchNo=id(payload.match_no);
       const start=String(payload.start_time||''),opponent=String(payload.opponent||'').trim();
-      if(![poolId,lagNo,matchNo].every(positive) || !/^([01]\\d|2[0-3]):[0-5]\\d$/.test(start) || !opponent || opponent.length>150)
+      if(![poolId,lagNo,matchNo].every(positive) || !/^([01]\d|2[0-3]):[0-5]\d$/.test(start) || !opponent || opponent.length>150)
         throw new Error('Ogiltig kalendermatch');
       if(window.APP_CONFIG?.REQUIRE_PERSONAL_MATCH_WRITES!==true)
         throw new Error('Personlig matchbehörighet måste vara aktiverad');
