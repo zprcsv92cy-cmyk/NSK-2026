@@ -289,6 +289,7 @@
     const confirm=document.getElementById('trainingCalendarConfirm');
     if(!open)return;
     let candidates=[];
+    let reviewChecks=new Map();
     let knownPools=[];
     let importMonth=null;
     open.addEventListener('click',()=>{panel.hidden=!panel.hidden;});
@@ -469,10 +470,12 @@
         knownPools=await DB.listPools();
         const unique=new Map(candidates.map(c=>[c.type+':'+c.date+':'+(c.place||''),c]));
         candidates=[...unique.values()];
+        reviewChecks=new Map();
         for(const item of candidates){
           const exists=item.type==='training'?currentContext.dates.has(item.date):knownPools.some(p=>p.pool_date===item.date&&(!item.place||String(p.place||'').toLocaleLowerCase('sv-SE')===item.place.toLocaleLowerCase('sv-SE')));
           const label=document.createElement('label');label.className='training-review-item';
           const check=document.createElement('input');check.type='checkbox';check.value=item.type+':'+item.date+':'+(item.place||'');check.disabled=exists;check.checked=!exists;
+          reviewChecks.set(item,check);
           const text=document.createElement('span');text.textContent=(item.type==='pool'?'Poolspel':'Träning')+' · '+(item.place||item.hall||'Plats ej angiven')+(exists?' – finns redan':'');
           // OCR can misalign the narrow date column. Require an editable date
           // for each candidate so the user can correct it before any write.
@@ -553,6 +556,7 @@
           const label=document.createElement('label');label.className='training-review-item';
           const check=document.createElement('input');check.type='checkbox';check.checked=true;
           check.value='training:'+date+':';
+          reviewChecks.set(item,check);
           const name=document.createElement('span');name.textContent='Träning • '+date+' • '+item.hall+' (tillagd manuellt)';
           label.append(check,name);review.insertBefore(label,missing);
           confirm.disabled=false;missingDate.value='';
@@ -568,8 +572,8 @@
     confirm.addEventListener('click',async()=>{
       if(!currentContext||!importMonth||!candidates.length)return;
       confirm.disabled=true;
-      const checked=new Set([...review.querySelectorAll('input:checked')].map(x=>x.value));
-      const selected=candidates.filter(c=>checked.has(c.type+':'+c.date+':'+(c.place||'')));
+      // Each candidate has its own checkbox: equal OCR keys must not select each other.
+      const selected=candidates.filter(c=>{const check=reviewChecks.get(c);return !!check&&!check.disabled&&check.checked;});
       if(selected.some(c=>c.type==='pool'&&!c.place)){
         status.textContent='Import stoppad: ange plats för alla markerade poolspel.';
         confirm.disabled=false;return;
@@ -584,7 +588,7 @@
       }
       const knownTrainingDates=new Set(currentContext.dates);
       let created=0,skipped=0;
-      for(const item of candidates.filter(c=>checked.has(c.type+':'+c.date+':'+(c.place||'')))){
+      for(const item of selected){
         if(item.date<todayLocalDate()){skipped++;continue;}
         if(item.type==='training'&&currentContext.dates.has(item.date)){skipped++;continue;}
         if(item.type==='pool'){
@@ -609,7 +613,7 @@
         }catch(error){status.textContent='Importerade '+created+'. Avbröt vid '+item.date+': '+error.message;return;}
       }
       // Never delete when the user selected only a subset or OCR found no training.
-      const selectedAll=candidates.every(c=>checked.has(c.type+':'+c.date+':'+(c.place||''))||
+      const selectedAll=candidates.every(c=>(reviewChecks.get(c)?.checked&&!reviewChecks.get(c)?.disabled)||
         (c.type==='training'?knownTrainingDates.has(c.date):knownPools.some(p=>p.pool_date===c.date)));
       const trainingDates=candidates.filter(c=>c.type==='training').map(c=>c.date);
       let removed=0;

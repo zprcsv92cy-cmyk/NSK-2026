@@ -258,3 +258,15 @@ test('Corrected pool date checks venue as well as date for existing pools',()=>{
   const review=source.slice(source.indexOf("dateInput.addEventListener('change'"),source.indexOf("// Hall names are never inferred"));
   assert.match(review,/p\.pool_date===next&&String\(p\.place/);
 });
+
+test('Import selection uses each candidate checkbox, not potentially colliding string keys',()=>{
+  const save=source.slice(source.indexOf("confirm.addEventListener('click'"));
+  assert.match(save,/reviewChecks\.get\(c\)/);
+  assert.match(save,/const selected=candidates\.filter/);
+  assert.match(save,/for\(const item of selected\)/);
+  assert.doesNotMatch(save,/const checked=new Set\(\[\.\.\.review\.querySelectorAll/);
+});
+test('Manual missing training gets its own checkbox identity',()=>{
+  const add=source.slice(source.indexOf("addMissing.addEventListener('click'"),source.indexOf("confirm.addEventListener('click'"));
+  assert.match(add,/reviewChecks\.set\(item,check\)/);
+});
