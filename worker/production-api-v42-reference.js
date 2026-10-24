@@ -709,11 +709,16 @@ var worker_default = { async fetch(req, env) {
         if (body.schedule_only === true) {
           if (req.method !== "POST") return reply({ok:false,error:"Schemainläsning får endast skapa nya matcher"},400);
           if (typeof body.opponent !== "string" || !body.opponent.trim() || !body.start_time) return reply({ok:false,error:"Starttid och motståndare krävs"},400);
-          const rowsResp=await fetch(`${base}${TABLES.matchkonfiguration}/?user_field_names=true&size=200`,{headers:auth});
-          if(!rowsResp.ok) return reply({ok:false,error:"Kunde inte kontrollera befintliga matcher"},502);
-          const rowsData=await rowsResp.json();
-          if(rowsData.next) return reply({ok:false,error:"Matchlistan är för stor för säker import"},409);
-          if((rowsData.results||[]).some(row=>linkIds(row.Poolspel).includes(poolId2)&&Number(row.Lagnummer)===lagNo&&Number(row.Matchnummer)===matchNo))return reply({ok:false,error:"Matchen finns redan; ingen befintlig uppställning ändrades"},409);
+          let nextPage=1;
+          while(nextPage){
+            const rowsResp=await fetch(`${base}${TABLES.matchkonfiguration}/?user_field_names=true&size=200&page=${nextPage}`,{headers:auth});
+            if(!rowsResp.ok)return reply({ok:false,error:"Kunde inte kontrollera befintliga matcher"},502);
+            const rowsData=await rowsResp.json();
+            if((rowsData.results||[]).some(row=>linkIds(row.Poolspel).includes(poolId2)&&Number(row.Lagnummer)===lagNo&&Number(row.Matchnummer)===matchNo))return reply({ok:false,error:"Matchen finns redan; ingen befintlig uppställning ändrades"},409);
+            if(!rowsData.next)break;
+            if(nextPage>=100)return reply({ok:false,error:"För många matcher för säker import"},409);
+            nextPage++;
+          }
           const draftPayload={Poolspel:[poolId2],Lagnummer:lagNo,Matchnummer:matchNo,Starttid:body.start_time,"Motst\xE5ndare":body.opponent,Plan:body.plan||"Plan 1"};
           const draftResp=await fetch(`${base}${TABLES.matchkonfiguration}/?user_field_names=true`,{method:"POST",headers:{...auth,"Content-Type":"application/json"},body:JSON.stringify(draftPayload)});
           const draftData=await draftResp.json().catch(()=>({}));
