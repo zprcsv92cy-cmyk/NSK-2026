@@ -722,7 +722,7 @@ var worker_default = { async fetch(req, env) {
           }
           if(duplicate)return reply({ok:false,error:"Matchen finns redan; ingen befintlig uppställning ändrades"},409);
           if(hasMore)return reply({ok:false,error:"Matchlistan är för stor för säker import"},409);
-          const draftPayload={Poolspel:[poolId2],Lagnummer:lagNo,Matchnummer:matchNo,Starttid:body.start_time,"Motst\xE5ndare":body.opponent,Plan:body.plan||"Plan 1"};
+          const draftPayload={Poolspel:[poolId2],Lagnummer:lagNo,Matchnummer:matchNo,Starttid:body.start_time,"Motst\xE5ndare":body.opponent.trim(),Plan:body.plan||"Plan 1"};
           const draftResp=await fetch(`${base}${TABLES.matchkonfiguration}/?user_field_names=true`,{method:"POST",headers:{...auth,"Content-Type":"application/json"},body:JSON.stringify(draftPayload)});
           const draftData=await draftResp.json().catch(()=>({}));
           if(!draftResp.ok)return reply({ok:false,error:"Baserow kunde inte spara kalendermatch",status:draftResp.status},502);
