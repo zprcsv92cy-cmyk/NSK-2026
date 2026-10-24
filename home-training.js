@@ -319,6 +319,40 @@
               merged.set(key,{...item,hall:null,hallConflict:true});
             }else if(!previous||item.hall&&!previous.hall)merged.set(key,item);
           }
+          // Re-read only the unresolved day's own vertical interval at higher
+          // resolution. Never infer a venue from the previous or next date.
+          const dayAnchors=globalWords.filter(w=>w.bbox.x0<globalWidth*0.115&&/^\\d{1,2}$/.test(String(w.text).trim()))
+            .map(w=>({day:Number(w.text.trim()),y:w.bbox.y0}))
+            .filter(w=>w.day>=1&&w.day<=31).sort((a,b)=>a.y-b.y);
+          const distinctDays=[];
+          for(const anchor of dayAnchors){
+            if(!distinctDays.some(d=>d.day===anchor.day&&Math.abs(d.y-anchor.y)<globalWidth*0.16))
+              distinctDays.push(anchor);
+          }
+          for(const item of merged.values()){
+            if((item.type==='training'&&item.hall)||item.hallConflict||(item.type==='pool'&&item.place))continue;
+            const day=Number(item.date.slice(-2));
+            const anchor=distinctDays.find(d=>d.day===day);
+            if(!anchor)continue;
+            const next=distinctDays.find(d=>d.y>anchor.y+globalWidth*0.012);
+            if(!next)continue; // No reliable bottom boundary: never read adjacent days.
+            const yStart=Math.max(0,Math.floor((anchor.y+globalWidth*0.012)*bitmap.width/globalWidth));
+            const yEnd=Math.min(bitmap.height,Math.floor((next.y-globalWidth*0.008)*bitmap.width/globalWidth));
+            if(yEnd-yStart<18)continue;
+            const dayCanvas=document.createElement('canvas');
+            dayCanvas.width=Math.min(3200,bitmap.width*6);
+            dayCanvas.height=Math.round((yEnd-yStart)*dayCanvas.width/bitmap.width);
+            dayCanvas.getContext('2d').drawImage(bitmap,0,yStart,bitmap.width,yEnd-yStart,0,0,dayCanvas.width,dayCanvas.height);
+            const dayResult=await worker.recognize(dayCanvas,{}, {blocks:true,tsv:true});
+            const dayWords=extractCalendarWords(dayResult.data);
+            if(item.type==='training'){
+              const hall=detectCalendarHall(dayWords);
+              if(hall)item.hall=hall;
+            }else if(item.type==='pool'){
+              const dayText=String(dayResult.data?.text||'').toLocaleLowerCase('sv-SE');
+              if(/\\bsödertälje\\b/.test(dayText))item.place='Södertälje';
+            }
+          }
           parsed={month:monthNames.indexOf(monthMatch[1])+1,items:[...merged.values()],valid:merged.size>0};
           parsed.month=monthMatch[2]+'-'+String(parsed.month).padStart(2,'0');
         }finally{bitmap.close();}
