@@ -705,6 +705,38 @@ var worker_default = { async fetch(req, env) {
         if (lagNo > Number(pool["Antal lag"]) || matchNo > Number(pool["Antal matcher"])) return reply({ ok: false, error: "Lag eller match utanf\xF6r poolspelet" }, 400);
         if (body.start_time != null && (typeof body.start_time !== "string" || !/^([01]\d|2[0-3]):[0-5]\d(:[0-5]\d)?$/.test(body.start_time))) return reply({ ok: false, error: "Ogiltig starttid" }, 400);
         if (typeof body.opponent !== "string" || body.opponent.length > 150 || typeof body.plan !== "string" || body.plan.length > 80) return reply({ ok: false, error: "Ogiltig motst\xE5ndare eller plan" }, 400);
+        // Kalenderimport får enbart spara matchmetadata, aldrig laguppställning.
+        // Tillåt inte denna skrivväg med äldre adminsessioner eller utan personlig behörighet.
+        const scheduleOnly = body.schedule_only === true;
+        if (scheduleOnly) {
+          if (!personalMatchWritesEnabled) return reply({ok:false,error:"Personliga matchbehörigheter krävs för kalenderimport"},403);
+          if (req.method !== "POST") return reply({ok:false,error:"Kalenderimport får inte skriva över matcher"},409);
+          if (typeof body.opponent !== "string" || !body.opponent.trim() || !body.start_time ||
+              body.goalie_player_id != null || body.players_on_field != null)
+            return reply({ok:false,error:"Ogiltig kalenderimport utan laguppställning"},400);
+          // Läs alla sidor innan skapande; existerande matcher får aldrig skrivas över.
+          let found = false, page = 1;
+          while (page <= 100) {
+            const search = await fetch(`${base}${TABLES.matchkonfiguration}/?user_field_names=true&page=${page}&size=200`,{headers:auth});
+            if (!search.ok) throw new Error("Kunde inte kontrollera existerande matcher");
+            const result = await search.json();
+            if (!Array.isArray(result.results)) throw new Error("Ogiltig matchlista");
+            if (result.results.some(c => linkIds(c.Poolspel).includes(poolId2) &&
+                Number(c.Lagnummer) === lagNo && Number(c.Matchnummer) === matchNo)) found = true;
+            if (found || !result.next) break;
+            page++;
+          }
+          if (page > 100) return reply({ok:false,error:"Matchlistan kunde inte verifieras"},503);
+          if (found) return reply({ok:false,error:"Matchen finns redan. Ingen kalenderimport utförd"},409);
+          const schedulePayload = {Poolspel:[poolId2],Lagnummer:lagNo,Matchnummer:matchNo,
+            Starttid:body.start_time,"Motst\\xE5ndare":body.opponent.trim(),Plan:body.plan};
+          const saved = await fetch(`${base}${TABLES.matchkonfiguration}/?user_field_names=true`,{
+            method:"POST",headers:{...auth,"Content-Type":"application/json"},body:JSON.stringify(schedulePayload)
+          });
+          const data = await saved.json().catch(() => ({}));
+          if (!saved.ok) return reply({ok:false,error:"Baserow kunde inte spara tom match",status:saved.status,detail:data.detail||data.error||null},502);
+          return reply({ok:true,row:data},201);
+        }
         if (!positive(body.player_count) || body.player_count > 25) return reply({ ok: false, error: "Ogiltigt antal spelare" }, 400);
         if (!positive(body.goalie_player_id)) return reply({ ok: false, error: "Ogiltig m\xE5lvakt" }, 400);
         if (!Array.isArray(body.players_on_field) || body.players_on_field.some((x) => !positive(x)) || new Set(body.players_on_field).size !== body.players_on_field.length || !body.players_on_field.includes(body.goalie_player_id)) return reply({ ok: false, error: "Ogiltiga spelare" }, 400);
