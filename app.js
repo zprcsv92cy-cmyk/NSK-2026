@@ -576,7 +576,7 @@ window.NSK2App = (() => {
              const matchesSelect=byId('matches');
              if(matchesSelect&&count){
                if(!Array.from(matchesSelect.options).some(option=>Number(option.value)===perTeamMatches)){
-                 matchesSelect.add(new Option(String(perTeamMatches),String(perTeamMatches));
+                 matchesSelect.add(new Option(String(perTeamMatches),String(perTeamMatches)));
                }
                matchesSelect.value=String(perTeamMatches);
              }
