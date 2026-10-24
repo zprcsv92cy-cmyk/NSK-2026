@@ -292,3 +292,14 @@ test('Save confirmation checks selected activity dates before writing',()=>{
   const save=source.slice(source.indexOf("confirm.addEventListener('click'"));
   assert.match(save,/selected\.some\(c=>!validCalendarImportDate\(c\.date,importMonth\)\)/);
 });
+
+test('Pool creation uses the verified match count rather than four guessed games',()=>{
+  const save=source.slice(source.indexOf("confirm.addEventListener('click'"));
+  assert.match(save,/matches:item\.matches/);
+  assert.doesNotMatch(save,/matches:4,players_on_field/);
+});
+test('Calendar review blocks poolspel without an explicit match count',()=>{
+  const review=source.slice(source.indexOf("const matchesInput=document.createElement('input')"));
+  assert.match(review,/item\.matches=matchesInput\.value&&Number\.isInteger/);
+  assert.match(review,/check\.disabled=already\|\|item\.date<todayLocalDate\(\)\|\|!item\.place\|\|!item\.matches/);
+});
