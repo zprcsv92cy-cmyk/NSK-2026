@@ -1365,8 +1365,17 @@ window.NSK2App = (() => {
     if (fromCreate) {
       sessionStorage.removeItem("nsk2_lineup_from_create");
 
-      if (byId("lineupStartTime")) byId("lineupStartTime").value = "";
-      if (byId("lineupOpponent")) byId("lineupOpponent").value = "";
+      // Behåll kalenderns starttid och motståndare även första gången uppställningen öppnas.
+      let initialCalendarMatch=null;
+      try {
+        const schedule=JSON.parse(sessionStorage.getItem('nsk2_calendar_match_schedule')||'null');
+        if(schedule&&String(schedule.poolId)===String(poolId)&&Array.isArray(schedule.matches)){
+          const size=Math.ceil(schedule.matches.length/Math.max(1,Number(schedule.teams)||1));
+          initialCalendarMatch=schedule.matches[(Number(lagNo)-1)*size+Number(matchNo)-1]||null;
+        }
+      }catch{}
+      if (byId("lineupStartTime")) byId("lineupStartTime").value = initialCalendarMatch?.startTime||"";
+      if (byId("lineupOpponent")) byId("lineupOpponent").value = initialCalendarMatch?.opponent||"";
       if (byId("lineupPlan")) byId("lineupPlan").value = "Plan 1";
       if (byId("lineupGoalie")) byId("lineupGoalie").value = "";
 
