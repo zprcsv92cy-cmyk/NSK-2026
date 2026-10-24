@@ -94,12 +94,33 @@
    try{existingPools=await DB.listPools();}catch{}
    const calendarPools=items.filter(item=>item.type==='pool'&&!existingPools.some(p=>samePool(p,item)));
    const calendarOthers=items.filter(item=>item.type!=='pool');
-   if(calendarOthers.length)root.innerHTML=calendarOthers.map(item=>{
-    const kind={training:'Träning',pool:'Poolspel',match:'Match'}[item.type]||'Aktivitet';
-    const detail=item.type==='match'?[item.startTime,item.opponent].filter(Boolean).join(' • '):item.type==='training'?(item.hall||'Hall ej angiven'):(item.place||'Plats ej angiven');
+   const calendarTrainings=calendarOthers.filter(item=>item.type==='training');
+   const calendarOtherEvents=calendarOthers.filter(item=>item.type!=='training');
+   const trainingBox=document.getElementById('savedTrainingsList');
+   if(trainingBox){
+    trainingBox.querySelectorAll('[data-svenskalag-training]').forEach(node=>node.remove());
+    const savedDates=new Set(Array.from(trainingBox.querySelectorAll('details[data-date]')).map(node=>decodeURIComponent(node.dataset.date||'')));
+    for(const item of calendarTrainings){
+     if(savedDates.has(item.date))continue;
+     const row=document.createElement('details');row.className='nsk-pool-row';row.dataset.svenskalagTraining='1';
+     const summary=document.createElement('summary');summary.className='nsk-pool-summary';
+     const name=document.createElement('span');name.className='nsk-pool-name';name.textContent='Träning • '+item.date;
+     const hall=document.createElement('span');hall.className='nsk-pool-hall';hall.textContent=item.hall||item.place||'Hall ej angiven';
+     const arrow=document.createElement('span');arrow.className='nsk-pool-chevron';arrow.setAttribute('aria-hidden','true');arrow.textContent='⌄';
+     summary.append(name,hall,arrow);
+     const content=document.createElement('div');content.className='nsk-pool-content';
+     const note=document.createElement('p');note.className='small';note.textContent='Källa: SvenskaLag. Öppna träningen för att spara eller redigera den i NSK.';
+     const action=document.createElement('a');action.className='home-create-button';action.href='../traningsgrupper/?date='+encodeURIComponent(item.date);action.textContent='Visa / redigera träning';
+     content.append(note,action);row.append(summary,content);trainingBox.append(row);
+    }
+    if(calendarTrainings.length){const empty=Array.from(trainingBox.children).find(node=>node.tagName!=='DETAILS');if(empty&&/Inga gemensamt sparade träningar/.test(empty.textContent||''))empty.remove();}
+   }
+   if(calendarOtherEvents.length)root.innerHTML=calendarOtherEvents.map(item=>{
+    const kind={pool:'Poolspel',match:'Match'}[item.type]||'Aktivitet';
+    const detail=item.type==='match'?[item.startTime,item.opponent].filter(Boolean).join(' • '):(item.place||'Plats ej angiven');
     return '<details class="nsk-pool-row"><summary class="nsk-pool-summary"><span class="nsk-pool-name">'+esc(kind+' • '+item.date)+'</span><span class="nsk-pool-hall">'+esc(detail)+'</span><span class="nsk-pool-chevron" aria-hidden="true">⌄</span></summary><div class="nsk-pool-content"><p>'+esc(detail)+'</p><p class="small">Källa: SvenskaLag. Kalenderuppgiften är skrivskyddad.</p></div></details>';
    }).join('');
-   else root.textContent='Träningar och matcher från SvenskaLag visas här.';
+   else root.textContent='Poolspel visas under Kommande poolspel och träningar under Träningar.';
    renderUpcomingCalendarPools(calendarPools);
    setTimeout(()=>{if(!document.querySelector('[data-svenskalag-pool]')&&calendarPools.length)renderUpcomingCalendarPools(calendarPools);},1200);
    const button=document.createElement('button');
