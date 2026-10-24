@@ -750,7 +750,7 @@ window.NSK2App = (() => {
             let pendingMatches;
             try { pendingMatches=JSON.parse(pendingRaw); } catch { throw new Error('Kalenderimporten är skadad. Öppna poolspelet från kalendern igen.'); }
             if(!Array.isArray(pendingMatches)||!pendingMatches.length||
-               pendingMatches.some(m=>!m||typeof m.startTime!=='string'||!/^([01]\\d|2[0-3]):[0-5]\\d$/.test(m.startTime)||typeof m.opponent!=='string'||!m.opponent.trim())){
+               pendingMatches.some(m=>!m||typeof m.startTime!=='string'||!/^([01]\d|2[0-3]):[0-5]\d$/.test(m.startTime)||typeof m.opponent!=='string'||!m.opponent.trim())){
               throw new Error('Kalenderimporten innehåller ogiltiga matcher. Öppna poolspelet från kalendern igen.');
             }
             const expectedTeams=pendingMatches.length>4?2:1;
