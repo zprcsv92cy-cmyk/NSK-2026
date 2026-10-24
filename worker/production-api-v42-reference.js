@@ -729,7 +729,7 @@ var worker_default = { async fetch(req, env) {
           if (page > 100) return reply({ok:false,error:"Matchlistan kunde inte verifieras"},503);
           if (found) return reply({ok:false,error:"Matchen finns redan. Ingen kalenderimport utförd"},409);
           const schedulePayload = {Poolspel:[poolId2],Lagnummer:lagNo,Matchnummer:matchNo,
-            Starttid:body.start_time,"Motst\\xE5ndare":body.opponent.trim(),Plan:body.plan};
+            Starttid:body.start_time,"Motståndare":body.opponent.trim(),Plan:body.plan};
           const saved = await fetch(`${base}${TABLES.matchkonfiguration}/?user_field_names=true`,{
             method:"POST",headers:{...auth,"Content-Type":"application/json"},body:JSON.stringify(schedulePayload)
           });
