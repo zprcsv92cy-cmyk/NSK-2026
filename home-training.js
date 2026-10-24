@@ -340,10 +340,29 @@
             item.date=next;
             const already=item.type==='training'?currentContext.dates.has(next):knownPools.some(p=>p.pool_date===next);
             check.value=item.type+':'+next+':'+(item.place||'');
-            check.disabled=already;check.checked=!already;
+            check.disabled=already||(item.type==='training'&&!item.hall);check.checked=!check.disabled;
             text.textContent=(item.type==='pool'?'Poolspel':'Träning')+' • '+next+' • '+(item.place||item.hall||'Plats ej angiven')+(already?' – finns redan':'');
           });
-          label.append(check,text,dateInput);review.append(label);
+          // Hall names are never inferred from another date. An unknown hall
+          // requires an explicit selection before that training can be saved.
+          if(item.type==='training'){
+            const hallSelect=document.createElement('select');
+            hallSelect.setAttribute('aria-label','Kontrollera hall för '+item.date);
+            for(const [value,title] of [['','Välj hall – kontroll krävs'],['Stora hallen','Stora hallen'],['Lilla Hallen','Lilla Hallen']]){
+              const option=document.createElement('option');option.value=value;option.textContent=title;hallSelect.append(option);
+            }
+            hallSelect.value=item.hall||'';
+            if(!item.hall){check.checked=false;check.disabled=true;}
+            hallSelect.addEventListener('change',()=>{
+              item.hall=hallSelect.value||null;
+              const already=currentContext.dates.has(item.date);
+              check.disabled=already||!item.hall;
+              check.checked=!already&&!!item.hall;
+              text.textContent='Träning · '+(item.hall||'Hall måste kontrolleras')+(already?' – finns redan':'');
+            });
+            label.append(check,text,dateInput,hallSelect);
+          }else label.append(check,text,dateInput);
+          review.append(label);
         }
         // A narrow calendar screenshot can omit a complete day during OCR.
         // Let the user restore a missing training in the same review, without
@@ -387,6 +406,15 @@
       if(!currentContext||!importMonth||!candidates.length)return;
       confirm.disabled=true;
       const checked=new Set([...review.querySelectorAll('input:checked')].map(x=>x.value));
+      const selected=candidates.filter(c=>checked.has(c.type+':'+c.date+':'+(c.place||'')));
+      if(selected.some(c=>c.type==='training'&&!c.hall)){
+        status.textContent='Import stoppad: välj hall för alla markerade träningar.';
+        confirm.disabled=false;return;
+      }
+      if(new Set(selected.map(c=>c.type+':'+c.date)).size!==selected.length){
+        status.textContent='Import stoppad: flera aktiviteter har samma datum och typ. Kontrollera datumen.';
+        confirm.disabled=false;return;
+      }
       const knownTrainingDates=new Set(currentContext.dates);
       let created=0,skipped=0;
       for(const item of candidates.filter(c=>checked.has(c.type+':'+c.date+':'+(c.place||'')))){
