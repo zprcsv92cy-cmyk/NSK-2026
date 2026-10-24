@@ -6,6 +6,7 @@
 <script>document.documentElement.style.visibility='hidden';</script>
 <script src="../config.js"></script>
 <script src="../login-gate.js"></script>
+<script src="../svenskalag-home.js" defer></script>
 <script src="https://cdn.jsdelivr.net/npm/tesseract.js@6.0.1/dist/tesseract.min.js" defer></script>
   <title>Startsida</title>
   <meta name="theme-color" content="#b11226">
@@ -66,6 +67,12 @@
     <section class="card home-saved">
       <h2>Sparade poolspel</h2>
       <div id="savedPoolsList"></div>
+    </section>
+
+    <section class="card home-saved home-training-section">
+      <h2>Kommande aktiviteter från SvenskaLag</h2>
+      <p class="small">Automatiskt hämtade aktiviteter. Sparade träningar och poolspel ovan påverkas inte.</p>
+      <div id="svenskalagSavedEvents" aria-live="polite">Hämtar kalender…</div>
     </section>
 
     <section class="card home-saved home-training-section">
