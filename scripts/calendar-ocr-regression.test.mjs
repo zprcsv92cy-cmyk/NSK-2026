@@ -379,3 +379,9 @@ test('Empty calendar import selection stops before any write',()=>{
   assert.ok(selectedAt>=0&&guardAt>selectedAt&&writeAt>guardAt);
   assert.match(confirmation.slice(guardAt,writeAt),/confirm\.disabled=false;return;/);
 });
+
+test('Calendar import review accurately says existing activities are never deleted',()=>{
+  const review=source.slice(source.indexOf('const fresh=candidates.filter'));
+  assert.match(review,/Importen lägger endast till aktiviteter; inga befintliga träningar eller poolspel tas bort/);
+  assert.doesNotMatch(review,/Borttagning kräver separat bekräftelse/);
+});
