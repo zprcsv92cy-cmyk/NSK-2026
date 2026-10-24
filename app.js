@@ -560,10 +560,10 @@ window.NSK2App = (() => {
             if(byId('poolDate'))byId('poolDate').value=imported.date;
             if(byId('poolPlace'))byId('poolPlace').value=String(imported.place||'').slice(0,120);
             if(byId('poolHall'))byId('poolHall').value=String(imported.hall||'').slice(0,120);
-             const calendarMatches=Array.isArray(imported.matches)?imported.matches.filter(m=>/^\d{2}:\d{2}$/.test(m.startTime||'')&&typeof m.opponent==='string'&&m.opponent.trim()).slice(0,32).sort((a,b)=>a.startTime.localeCompare(b.startTime)):[];
+             const calendarMatches=Array.isArray(imported.matches)?imported.matches.filter(m=>/^\d{2}:\d{2}$/.test(m.startTime||'')&&typeof m.opponent==='string'&&m.opponent.trim()).slice(0,16).sort((a,b)=>a.startTime.localeCompare(b.startTime)):[];
              const count=calendarMatches.length;
              sessionStorage.setItem('nsk2_calendar_match_pending',JSON.stringify(calendarMatches));
-             // Högst fyra matcher per lag. Fördela jämnt i kronologisk ordning.
+             // Högst åtta matcher per lag och två lag. Fördela jämnt i kronologisk ordning.
              const teamCount=count>4?2:1;
              const teamSelect=byId('teams');
              if(teamSelect){
