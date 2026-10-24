@@ -256,7 +256,7 @@ test('Correcting an imported date retains multi-session and past-date safeguards
 });
 test('Corrected pool date checks venue as well as date for existing pools',()=>{
   const review=source.slice(source.indexOf("dateInput.addEventListener('change'"),source.indexOf("// Hall names are never inferred"));
-  assert.match(review,/p\.pool_date===next&&String\(p\.place/);
+  assert.match(review,/p\.pool_date===next&&normalizeCalendarPoolPlace\(p\.place\)===normalizeCalendarPoolPlace\(item\.place\)/);
 });
 
 test('Import selection uses each candidate checkbox, not potentially colliding string keys',()=>{
@@ -332,5 +332,16 @@ test('Unknown venue does not cause any same-day saved pool to count as the same 
 });
 test('Venue equality for existing calendar pools ignores surrounding whitespace',()=>{
   const review=source.slice(source.indexOf("const exists=item.type==='training'"));
-  assert.match(review,/String\(p\.place\|\|''\)\.trim\(\)\.toLocaleLowerCase/);
+  assert.match(review,/normalizeCalendarPoolPlace\(p\.place\)===normalizeCalendarPoolPlace\(item\.place\)/);
+});
+
+test('Calendar pool venue normalization handles case and repeated spaces',()=>{
+  assert.equal(sandbox.normalizeCalendarPoolPlace('  STRÄNGNÄS   ISHALL  '),'strängnäs ishall');
+  assert.equal(sandbox.normalizeCalendarPoolPlace('Strängnäs Ishall'),sandbox.normalizeCalendarPoolPlace('  strängnäs    ishall '));
+});
+test('Every existing pool comparison uses consistent venue normalization',()=>{
+  const review=source.slice(source.indexOf("function setupCalendarImport(){"));
+  assert.match(review,/normalizeCalendarPoolPlace\(p\.place\)===normalizeCalendarPoolPlace\(item\.place\)/);
+  assert.match(review,/normalizeCalendarPoolPlace\(p\.place\)===normalizeCalendarPoolPlace\(c\.place\)/);
+  assert.doesNotMatch(review,/String\(p\.place\|\|''\)\.toLocaleLowerCase\('sv-SE'\)===String\(item\.place\|\|''\)\.toLocaleLowerCase/);
 });

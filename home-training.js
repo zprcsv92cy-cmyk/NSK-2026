@@ -277,6 +277,9 @@
     }
     return [...items.values()];
   }
+  function normalizeCalendarPoolPlace(place){
+    return String(place||'').normalize('NFKC').trim().replace(/\s+/g,' ').toLocaleLowerCase('sv-SE');
+  }
   function reconcileCalendarPoolDuplicates(items){
     // The same date may contain genuinely different poolspel. Never discard
     // an unknown-venue event merely because another OCR crop saw a venue.
@@ -487,7 +490,7 @@
         candidates=[...unique.values()];
         reviewChecks=new Map();
         for(const item of candidates){
-          const exists=item.type==='training'?currentContext.dates.has(item.date):knownPools.some(p=>p.pool_date===item.date&&!!String(item.place||'').trim()&&String(p.place||'').trim().toLocaleLowerCase('sv-SE')===String(item.place).trim().toLocaleLowerCase('sv-SE'));
+          const exists=item.type==='training'?currentContext.dates.has(item.date):knownPools.some(p=>p.pool_date===item.date&&!!String(item.place||'').trim()&&normalizeCalendarPoolPlace(p.place)===normalizeCalendarPoolPlace(item.place));
           const label=document.createElement('label');label.className='training-review-item';
           const check=document.createElement('input');check.type='checkbox';check.value=item.type+':'+item.date+':'+(item.place||'');if(item.type==='pool')item.matches=null; // OCR does not establish match count.
           check.disabled=exists||item.type==='pool';check.checked=!check.disabled;
@@ -503,7 +506,7 @@
             const next=dateInput.value;
             if(!next.startsWith(importMonth+'-')){dateInput.value=item.date;return;}
             item.date=next;
-            const already=item.type==='training'?currentContext.dates.has(next):knownPools.some(p=>p.pool_date===next&&String(p.place||'').toLocaleLowerCase('sv-SE')===String(item.place||'').toLocaleLowerCase('sv-SE'));
+            const already=item.type==='training'?currentContext.dates.has(next):knownPools.some(p=>p.pool_date===next&&normalizeCalendarPoolPlace(p.place)===normalizeCalendarPoolPlace(item.place));
             check.value=item.type+':'+next+':'+(item.place||'');
             check.disabled=already||next<todayLocalDate()||(item.type==='training'&&(!item.hall||item.multipleSessions))||(item.type==='pool'&&(!item.place||!item.matches));check.checked=!check.disabled;
             text.textContent=(item.type==='pool'?'Poolspel':'Träning')+' • '+next+' • '+(item.place||item.hall||'Plats ej angiven')+(already?' – finns redan':'');
@@ -541,13 +544,13 @@
             matchesInput.addEventListener('input',()=>{
               const count=Number(matchesInput.value);
               item.matches=matchesInput.value&&Number.isInteger(count)&&count>=1&&count<=20?count:null;
-              const already=knownPools.some(p=>p.pool_date===item.date&&String(p.place||'').toLocaleLowerCase('sv-SE')===String(item.place||'').toLocaleLowerCase('sv-SE'));
+              const already=knownPools.some(p=>p.pool_date===item.date&&normalizeCalendarPoolPlace(p.place)===normalizeCalendarPoolPlace(item.place));
               check.disabled=already||item.date<todayLocalDate()||!item.place||!item.matches;
               check.checked=!check.disabled;
             });
             placeInput.addEventListener('input',()=>{
               item.place=placeInput.value.trim();
-              const already=knownPools.some(p=>p.pool_date===item.date&&!!String(item.place||'').trim()&&String(p.place||'').trim().toLocaleLowerCase('sv-SE')===String(item.place).trim().toLocaleLowerCase('sv-SE'));
+              const already=knownPools.some(p=>p.pool_date===item.date&&!!String(item.place||'').trim()&&normalizeCalendarPoolPlace(p.place)===normalizeCalendarPoolPlace(item.place));
               check.value='pool:'+item.date+':'+item.place;
               check.disabled=already||item.date<todayLocalDate()||!item.place||!item.matches;
               check.checked=!check.disabled;
@@ -594,7 +597,7 @@
           status.textContent='Träning '+date+' tillagd i förhandsgranskningen. Kontrollera innan import.';
         });
         missing.append(missingDate,missingHall,addMissing);review.append(missing);
-        const fresh=candidates.filter(c=>c.type==='training'?!currentContext.dates.has(c.date):!knownPools.some(p=>p.pool_date===c.date&&!!String(c.place||'').trim()&&String(p.place||'').trim().toLocaleLowerCase('sv-SE')===String(c.place).trim().toLocaleLowerCase('sv-SE')));
+        const fresh=candidates.filter(c=>c.type==='training'?!currentContext.dates.has(c.date):!knownPools.some(p=>p.pool_date===c.date&&!!String(c.place||'').trim()&&normalizeCalendarPoolPlace(p.place)===normalizeCalendarPoolPlace(c.place)));
         status.textContent='Kalendermånad '+importMonth+': hittade '+candidates.length+' aktiviteter, '+fresh.length+' nya. Granska före import. Borttagning kräver separat bekräftelse av att hela månaden har lästs korrekt.';
         confirm.disabled=!fresh.length;
       }catch(error){status.textContent='Bildtolkning misslyckades: '+(error.message||String(error));}
@@ -633,7 +636,7 @@
         if(item.type==='pool'){
           try{
             const latest=await DB.listPools();
-            if(latest.some(p=>p.pool_date===item.date&&!!String(item.place||'').trim()&&String(p.place||'').trim().toLocaleLowerCase('sv-SE')===String(item.place).trim().toLocaleLowerCase('sv-SE'))){skipped++;continue;}
+            if(latest.some(p=>p.pool_date===item.date&&!!String(item.place||'').trim()&&normalizeCalendarPoolPlace(p.place)===normalizeCalendarPoolPlace(item.place))){skipped++;continue;}
             await DB.addPool({title:'Poolspel',place:item.place,hall:item.hall,pool_date:item.date,status:'Aktiv',teams:2,matches:item.matches,players_on_field:3,periods:1,period_time:15,sub_time:90,calendarImport:true});
             created++;continue;
           }catch(error){status.textContent='Importerade '+created+'. Poolspel '+item.date+' kunde inte sparas: '+error.message;return;}
