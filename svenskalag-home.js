@@ -29,7 +29,7 @@
    name.textContent=(poolLocation(item).city||'Poolspel')+' • '+item.date;
    const origin=document.createElement('span');
    origin.className='nsk-pool-hall';
-   origin.textContent=(poolLocation(item).city!==poolLocation(item).hall?poolLocation(item).hall+' • ':'')+'SvenskaLag';
+   origin.textContent=poolLocation(item).hall||'Ishall ej angiven';
    const chevron=document.createElement('span');
    chevron.className='nsk-pool-chevron';
    chevron.setAttribute('aria-hidden','true');
@@ -39,10 +39,14 @@
    content.className='nsk-pool-content';
    const note=document.createElement('p');
    note.textContent='Importerat från SvenskaLag. Matchschema och laguppställning är ännu inte skapade i NSK.';
+   note.className='small';
+   note.textContent='Källa: SvenskaLag. Skapa poolspelet i NSK för att använda laguppställning och bytesschema.';
    content.append(note);
+   const actions=document.createElement('div');
+   actions.className='nsk-pool-actions';
    const create=document.createElement('button');
    create.type='button';
-   create.className='nsk-action nsk-action--primary';
+   create.className='start-pool-btn nsk-action nsk-action--primary nsk-action--wide';
    create.textContent='Skapa och redigera poolspel';
    create.addEventListener('click',async()=>{
     create.disabled=true;
@@ -56,7 +60,8 @@
     sessionStorage.setItem('nsk2_svenskalag_pool_draft',JSON.stringify({date:item.date,place:poolLocation(item).city,hall:poolLocation(item).hall}));
     location.href='../skapapoolspel/';
    });
-   content.append(create);
+   actions.append(create);
+   content.append(actions);
    row.append(summary,content);
    fragment.append(row);
   }
