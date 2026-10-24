@@ -280,3 +280,15 @@ test('Changing poolspel place cannot re-enable import for a past date',()=>{
   const review=source.slice(source.indexOf("placeInput.addEventListener('input'"),source.indexOf("label.append(check,text,dateInput,placeInput)"));
   assert.match(review,/check\.disabled=already\|\|item\.date<todayLocalDate\(\)/);
 });
+
+test('Final import date validation rejects invalid, out-of-month and expired dates',()=>{
+  assert.equal(sandbox.validCalendarImportDate('2026-11-21','2026-11'),true);
+  assert.equal(sandbox.validCalendarImportDate('2026-11-31','2026-11'),false);
+  assert.equal(sandbox.validCalendarImportDate('2026-12-01','2026-11'),false);
+  assert.equal(sandbox.validCalendarImportDate('2026-10-23','2026-10'),false);
+  assert.equal(sandbox.validCalendarImportDate('2026-11-2','2026-11'),false);
+});
+test('Save confirmation checks selected activity dates before writing',()=>{
+  const save=source.slice(source.indexOf("confirm.addEventListener('click'"));
+  assert.match(save,/selected\.some\(c=>!validCalendarImportDate\(c\.date,importMonth\)\)/);
+});
