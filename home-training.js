@@ -429,16 +429,25 @@
             dayCanvas.getContext('2d').drawImage(bitmap,0,yStart,bitmap.width,yEnd-yStart,0,0,dayCanvas.width,dayCanvas.height);
             const dayResult=await worker.recognize(dayCanvas,{}, {blocks:true,tsv:true});
             const dayWords=extractCalendarWords(dayResult.data);
+            // The focused read is a cropped day without its original date anchor.
+            // Re-run the same event-scoped parser with a synthetic anchor rather
+            // than reading halls/venues from any unrelated activity on that day.
+            const focused=dayWords.length?parseCalendarLayout([
+              {text:String(day),bbox:{x0:0,x1:12,y0:0,y1:12}},
+              ...dayWords
+            ],item.date.slice(0,7),dayCanvas.width)||[]:[];
+            const matches=focused.filter(candidate=>candidate.type===item.type);
+            if(matches.length!==1)continue;
+            const candidate=matches[0];
             if(item.type==='training'){
-              const hall=detectCalendarHall(dayWords);
-              if(hall&&item.hall&&item.hall!==hall){
+              if(candidate.hallConflict||candidate.multipleSessions){
+                item.hall=null;item.hallConflict=!!candidate.hallConflict;
+                item.multipleSessions=!!candidate.multipleSessions;
+              }else if(candidate.hall&&item.hall&&item.hall!==candidate.hall){
                 item.hall=null;item.hallConflict=true;
-              }else if(hall&&!item.hallConflict)item.hall=hall;
-            }else if(item.type==='pool'){
-              const dayText=String(dayResult.data?.text||'').toLocaleLowerCase('sv-SE');
-              const explicitPlace=dayText.match(/(?:^|\n)\s*(?:plats|arena)\s*[:：]\s*([^\n]+)/);
-              const venue=explicitPlace?.[1]?.trim()||detectPoolVenue(dayWords);
-              if(venue)item.place=venue;
+              }else if(candidate.hall&&!item.hallConflict)item.hall=candidate.hall;
+            }else if(item.type==='pool'&&candidate.place){
+              item.place=candidate.place;
             }
           }
           parsed={month:monthNames.indexOf(monthMatch[1])+1,items:[...merged.values()],valid:merged.size>0};
