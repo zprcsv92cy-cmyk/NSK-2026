@@ -361,3 +361,12 @@ test('Save confirmation checks complete pool identity rather than only the date'
   const save=source.slice(source.indexOf("confirm.addEventListener('click'"));
   assert.match(save,/new Set\(selected\.map\(calendarImportIdentity\)\)/);
 });
+
+test('Failed pool save re-enables calendar import for retry',()=>{
+  const save=source.slice(source.indexOf("confirm.addEventListener('click'"));
+  assert.match(save,/Poolspel '\+item\.date\+' kunde inte sparas: '\+error\.message;confirm\.disabled=false;return;/);
+});
+test('Failed training save re-enables calendar import for retry',()=>{
+  const save=source.slice(source.indexOf("confirm.addEventListener('click'"));
+  assert.match(save,/Avbröt vid '\+item\.date\+': '\+error\.message;confirm\.disabled=false;return;/);
+});
