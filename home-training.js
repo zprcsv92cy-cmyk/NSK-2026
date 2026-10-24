@@ -513,7 +513,7 @@
             item.date=next;
             const already=item.type==='training'?currentContext.dates.has(next):knownPools.some(p=>p.pool_date===next&&normalizeCalendarPoolPlace(p.place)===normalizeCalendarPoolPlace(item.place));
             check.value=item.type+':'+next+':'+(item.place||'');
-            check.disabled=already||next<todayLocalDate()||(item.type==='training'&&(!item.hall||item.multipleSessions))||(item.type==='pool'&&(!item.place||!item.matches));check.checked=!check.disabled;
+            check.disabled=already||next<todayLocalDate()||(item.type==='training'&&(!item.hall||item.multipleSessions))||(item.type==='pool'&&(!item.place||!item.matches));if(check.disabled)check.checked=false;
             text.textContent=(item.type==='pool'?'Poolspel':'Träning')+' • '+next+' • '+(item.place||item.hall||'Plats ej angiven')+(already?' – finns redan':'');
           });
           // Hall names are never inferred from another date. An unknown hall
@@ -530,7 +530,7 @@
               item.hall=hallSelect.value||null;
               const already=currentContext.dates.has(item.date);
               check.disabled=already||item.date<todayLocalDate()||!item.hall||!!item.multipleSessions;
-              check.checked=!check.disabled;
+              if(check.disabled)check.checked=false;
               text.textContent='Träning · '+(item.hall||'Hall måste kontrolleras')+(already?' – finns redan':'');
               if(item.hall)item.hallConflict=false;
             });
@@ -551,14 +551,14 @@
               item.matches=matchesInput.value&&Number.isInteger(count)&&count>=1&&count<=20?count:null;
               const already=knownPools.some(p=>p.pool_date===item.date&&normalizeCalendarPoolPlace(p.place)===normalizeCalendarPoolPlace(item.place));
               check.disabled=already||item.date<todayLocalDate()||!item.place||!item.matches;
-              check.checked=!check.disabled;
+              if(check.disabled)check.checked=false;
             });
             placeInput.addEventListener('input',()=>{
               item.place=placeInput.value.trim();
               const already=knownPools.some(p=>p.pool_date===item.date&&!!String(item.place||'').trim()&&normalizeCalendarPoolPlace(p.place)===normalizeCalendarPoolPlace(item.place));
               check.value='pool:'+item.date+':'+item.place;
               check.disabled=already||item.date<todayLocalDate()||!item.place||!item.matches;
-              check.checked=!check.disabled;
+              if(check.disabled)check.checked=false;
               text.textContent='Poolspel · '+(item.place||'Plats måste kontrolleras')+(already?' – finns redan':'');
             });
             // These setup values are templates, not facts read from the calendar.
