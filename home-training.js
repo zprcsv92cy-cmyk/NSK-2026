@@ -603,7 +603,7 @@
         });
         missing.append(missingDate,missingHall,addMissing);review.append(missing);
         const fresh=candidates.filter(c=>c.type==='training'?!currentContext.dates.has(c.date):!knownPools.some(p=>p.pool_date===c.date&&!!String(c.place||'').trim()&&normalizeCalendarPoolPlace(p.place)===normalizeCalendarPoolPlace(c.place)));
-        status.textContent='Kalendermånad '+importMonth+': hittade '+candidates.length+' aktiviteter, '+fresh.length+' nya. Granska före import. Borttagning kräver separat bekräftelse av att hela månaden har lästs korrekt.';
+        status.textContent='Kalendermånad '+importMonth+': hittade '+candidates.length+' aktiviteter, '+fresh.length+' nya. Granska före import. Importen lägger endast till aktiviteter; inga befintliga träningar eller poolspel tas bort.';
         confirm.disabled=!fresh.length;
       }catch(error){status.textContent='Bildtolkning misslyckades: '+(error.message||String(error));}
       finally{input.value='';if(worker)await worker.terminate();}
