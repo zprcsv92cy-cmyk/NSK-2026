@@ -497,8 +497,7 @@
         for(const item of candidates){
           const exists=item.type==='training'?currentContext.dates.has(item.date):knownPools.some(p=>p.pool_date===item.date&&!!String(item.place||'').trim()&&normalizeCalendarPoolPlace(p.place)===normalizeCalendarPoolPlace(item.place));
           const label=document.createElement('label');label.className='training-review-item';
-          const check=document.createElement('input');check.type='checkbox';check.value=item.type+':'+item.date+':'+(item.place||'');if(item.type==='pool')item.matches=null; // OCR does not establish match count.
-          check.disabled=exists||item.type==='pool';check.checked=!check.disabled;
+          const check=document.createElement('input');check.type='checkbox';check.value=item.type+':'+item.date+':'+(item.place||'');check.disabled=exists||(item.type==='pool'&&!item.place);check.checked=!check.disabled;
           reviewChecks.set(item,check);
           const text=document.createElement('span');text.textContent=(item.type==='pool'?'Poolspel':'Träning')+' · '+(item.place||item.hall||'Plats ej angiven')+(exists?' – finns redan':'');
           // OCR can misalign the narrow date column. Require an editable date
@@ -513,7 +512,7 @@
             item.date=next;
             const already=item.type==='training'?currentContext.dates.has(next):knownPools.some(p=>p.pool_date===next&&normalizeCalendarPoolPlace(p.place)===normalizeCalendarPoolPlace(item.place));
             check.value=item.type+':'+next+':'+(item.place||'');
-            check.disabled=already||next<todayLocalDate()||(item.type==='training'&&(!item.hall||item.multipleSessions))||(item.type==='pool'&&(!item.place||!item.matches));check.checked=!check.disabled;
+            check.disabled=already||next<todayLocalDate()||(item.type==='training'&&(!item.hall||item.multipleSessions))||(item.type==='pool'&&!item.place);if(check.disabled)check.checked=false;
             text.textContent=(item.type==='pool'?'Poolspel':'Träning')+' • '+next+' • '+(item.place||item.hall||'Plats ej angiven')+(already?' – finns redan':'');
           });
           // Hall names are never inferred from another date. An unknown hall
@@ -530,7 +529,7 @@
               item.hall=hallSelect.value||null;
               const already=currentContext.dates.has(item.date);
               check.disabled=already||item.date<todayLocalDate()||!item.hall||!!item.multipleSessions;
-              check.checked=!check.disabled;
+              if(check.disabled)check.checked=false;
               text.textContent='Träning · '+(item.hall||'Hall måste kontrolleras')+(already?' – finns redan':'');
               if(item.hall)item.hallConflict=false;
             });
@@ -542,30 +541,19 @@
             placeInput.placeholder='Ange plats – kontroll krävs';
             placeInput.setAttribute('aria-label','Kontrollera plats för poolspel '+item.date);
             if(!item.place){check.checked=false;check.disabled=true;if(item.possibleDuplicate)text.textContent='Poolspel · okänd plats, möjligt överlapp – kontroll krävs';}
-            const matchesInput=document.createElement('input');matchesInput.type='number';
-            matchesInput.min='1';matchesInput.max='20';matchesInput.step='1';
-            matchesInput.placeholder='Antal matcher – kontroll krävs';
-            matchesInput.setAttribute('aria-label','Antal matcher i poolspel '+item.date);
-            matchesInput.addEventListener('input',()=>{
-              const count=Number(matchesInput.value);
-              item.matches=matchesInput.value&&Number.isInteger(count)&&count>=1&&count<=20?count:null;
-              const already=knownPools.some(p=>p.pool_date===item.date&&normalizeCalendarPoolPlace(p.place)===normalizeCalendarPoolPlace(item.place));
-              check.disabled=already||item.date<todayLocalDate()||!item.place||!item.matches;
-              check.checked=!check.disabled;
-            });
             placeInput.addEventListener('input',()=>{
               item.place=placeInput.value.trim();
               const already=knownPools.some(p=>p.pool_date===item.date&&!!String(item.place||'').trim()&&normalizeCalendarPoolPlace(p.place)===normalizeCalendarPoolPlace(item.place));
               check.value='pool:'+item.date+':'+item.place;
-              check.disabled=already||item.date<todayLocalDate()||!item.place||!item.matches;
-              check.checked=!check.disabled;
+              check.disabled=already||item.date<todayLocalDate()||!item.place;
+              if(check.disabled)check.checked=false;
               text.textContent='Poolspel · '+(item.place||'Plats måste kontrolleras')+(already?' – finns redan':'');
             });
             // These setup values are templates, not facts read from the calendar.
             // Make the distinction visible before the user creates a poolspel.
             const defaultsNote=document.createElement('small');
             defaultsNote.textContent='Standardinställningar (inte avlästa ur bilden): 2 lag, 3 spelare på plan, 1 period à 15 min, byten var 90:e sekund. Kontrollera inställningarna i Skapa poolspel efter import.';
-            label.append(check,text,dateInput,placeInput,matchesInput,defaultsNote);
+            label.append(check,text,dateInput,placeInput,defaultsNote);
           }
           review.append(label);
         }
@@ -625,10 +613,6 @@
         status.textContent='Import stoppad: ange plats för alla markerade poolspel.';
         confirm.disabled=false;return;
       }
-      if(selected.some(c=>c.type==='pool'&&(!Number.isInteger(c.matches)||c.matches<1||c.matches>20))){
-        status.textContent='Import stoppad: ange korrekt antal matcher för varje markerat poolspel.';
-        confirm.disabled=false;return;
-      }
       if(selected.some(c=>c.type==='training'&&(!c.hall||c.multipleSessions))){
         status.textContent='Import stoppad: välj hall för alla markerade träningar.';
         confirm.disabled=false;return;
@@ -646,7 +630,7 @@
           try{
             const latest=await DB.listPools();
             if(latest.some(p=>p.pool_date===item.date&&!!String(item.place||'').trim()&&normalizeCalendarPoolPlace(p.place)===normalizeCalendarPoolPlace(item.place))){skipped++;continue;}
-            await DB.addPool({title:'Poolspel',place:item.place,hall:item.hall,pool_date:item.date,status:'Aktiv',teams:2,matches:item.matches,players_on_field:3,periods:1,period_time:15,sub_time:90,calendarImport:true});
+            await DB.addPool({title:'Poolspel',place:item.place,hall:item.hall,pool_date:item.date,status:'Aktiv',teams:2,matches:4,players_on_field:3,periods:1,period_time:15,sub_time:90,calendarImport:true});
             created++;continue;
           }catch(error){status.textContent='Importerade '+created+'. Poolspel '+item.date+' kunde inte sparas: '+error.message;confirm.disabled=false;return;}
         }
