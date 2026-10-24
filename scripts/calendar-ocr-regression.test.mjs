@@ -73,3 +73,16 @@ test('Two different training halls on one date require review',()=>{
   assert.equal(items[0].hall,null);
   assert.equal(items[0].hallConflict,true);
 });
+
+test('Two training starts on one date are not silently collapsed into an importable session',()=>{
+  const words=[
+    word('9',15,100),word('Hockeyfritids',180,112),
+    word('Stora',210,135),word('hallen',278,135),
+    word('Is',180,170),word('Lilla',210,195),word('Hallen',278,195),
+    word('10',15,270)
+  ];
+  const items=JSON.parse(JSON.stringify(sandbox.parseCalendarLayout(words,'2026-11',1000)));
+  assert.equal(items.length,1);
+  assert.equal(items[0].multipleSessions,true);
+  assert.equal(items[0].hall,null);
+});
