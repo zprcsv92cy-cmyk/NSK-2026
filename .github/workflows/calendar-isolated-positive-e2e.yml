@@ -13,7 +13,7 @@ concurrency:
   cancel-in-progress: false
 jobs:
   positive-e2e:
-    if: ${{ inputs.confirmation == 'ISOLATED_CALENDAR_E2E' }}
+    if: ${{ inputs.confirmation == 'ISOLATED_CALENDAR_E2E' && github.ref == 'refs/heads/feat/calendar-match-metadata-401' }}
     runs-on: ubuntu-latest
     environment: isolated-preview
     timeout-minutes: 10
