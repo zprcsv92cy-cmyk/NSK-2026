@@ -248,3 +248,13 @@ test('Distinct known pool venues on one date are never consolidated',()=>{
   ])));
   assert.equal(items.length,2);
 });
+
+test('Correcting an imported date retains multi-session and past-date safeguards',()=>{
+  const review=source.slice(source.indexOf("dateInput.addEventListener('change'"),source.indexOf("// Hall names are never inferred"));
+  assert.match(review,/next<todayLocalDate\(\)/);
+  assert.match(review,/item\.multipleSessions/);
+});
+test('Corrected pool date checks venue as well as date for existing pools',()=>{
+  const review=source.slice(source.indexOf("dateInput.addEventListener('change'"),source.indexOf("// Hall names are never inferred"));
+  assert.match(review,/p\.pool_date===next&&String\(p\.place/);
+});
