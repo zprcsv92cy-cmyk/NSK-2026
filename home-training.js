@@ -280,6 +280,15 @@
     return items.map(item=>item.type==='pool'&&!String(item.place||'').trim()&&datesWithKnownVenue.has(item.date)
       ?{...item,possibleDuplicate:true}:item);
   }
+  function validCalendarImportDate(date,month){
+    if(!/^\d{4}-\d{2}-\d{2}$/.test(String(date||''))||!/^\d{4}-\d{2}$/.test(String(month||'')))return false;
+    if(!date.startsWith(month+'-')||date<todayLocalDate())return false;
+    const parsed=new Date(date+'T12:00:00');
+    return !Number.isNaN(parsed.getTime())&&
+      parsed.getFullYear()===Number(date.slice(0,4))&&
+      parsed.getMonth()+1===Number(date.slice(5,7))&&
+      parsed.getDate()===Number(date.slice(8,10));
+  }
   function setupCalendarImport(){
     const open=document.getElementById('importTrainingsOpen');
     const panel=document.getElementById('trainingCalendarImport');
@@ -574,6 +583,10 @@
       confirm.disabled=true;
       // Each candidate has its own checkbox: equal OCR keys must not select each other.
       const selected=candidates.filter(c=>{const check=reviewChecks.get(c);return !!check&&!check.disabled&&check.checked;});
+      if(selected.some(c=>!validCalendarImportDate(c.date,importMonth))){
+        status.textContent='Import stoppad: minst ett datum är ogiltigt, passerat eller utanför kalendermånaden.';
+        confirm.disabled=false;return;
+      }
       if(selected.some(c=>c.type==='pool'&&!c.place)){
         status.textContent='Import stoppad: ange plats för alla markerade poolspel.';
         confirm.disabled=false;return;
