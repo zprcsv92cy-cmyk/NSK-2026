@@ -28,3 +28,15 @@ test('matchmetadata kräver inte spelare eller målvakt', () => {
   assert.equal(Object.hasOwn(row,'goalie_player_id'),false);
   assert.equal(Object.hasOwn(row,'players_on_field'),false);
 });
+
+test('sorterar innan gränsen 16 tillämpas', () => {
+  const all=fixtures(18);
+  const result=planCalendarMatches(all.reverse());
+  assert.equal(result.schedule[0].opponent,'Motståndare 1');
+  assert.equal(result.schedule.at(-1).opponent,'Motståndare 16');
+});
+test('tom import ger inga matcher och inget laguppställningskrav', () => {
+  const result=planCalendarMatches([]);
+  assert.equal(result.schedule.length,0);
+  assert.equal(result.matchesPerTeam,0);
+});
