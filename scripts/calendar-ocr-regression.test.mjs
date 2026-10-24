@@ -58,3 +58,18 @@ test('Venue token far from the hall label is not joined',()=>{
     word('Stora',200,100),word('hallen',900,100)
   ]),null);
 });
+
+test('Two different training halls on one date require review',()=>{
+  const words=[
+    word('9',15,100),word('Träning',180,112),
+    word('Stora',210,135),word('hallen',278,135),
+    word('Träning',180,165),
+    word('Lilla',210,185),word('Hallen',278,185),
+    word('10',15,260)
+  ];
+  const items=JSON.parse(JSON.stringify(sandbox.parseCalendarLayout(words,'2026-11',1000)));
+  assert.equal(items.length,1);
+  assert.equal(items[0].date,'2026-11-09');
+  assert.equal(items[0].hall,null);
+  assert.equal(items[0].hallConflict,true);
+});
