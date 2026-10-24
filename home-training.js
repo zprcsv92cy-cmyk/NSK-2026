@@ -208,7 +208,12 @@
       if(!eventWords.length)continue;
       const content=eventWords.map(w=>w.text).join(' ').toLocaleLowerCase('sv-SE');
       const isPool=/\bpoolspel\b/.test(content)&&!/\bintresseanmälan\b/.test(content);
-      const isTraining=/\b(?:träning|is)\b/.test(content)&&!/\bhockeyfritids\b/.test(content);
+      const trainingStarts=eventWords.filter(w=>/^(?:träning|is)$/i.test(String(w.text).trim()));
+      const isTraining=trainingStarts.length>0;
+      // Ignore other activities above the first actual training on this date.
+      // In particular, Hockeyfritids must never supply the hall for an ice practice.
+      const firstTrainingY=trainingStarts.length?Math.min(...trainingStarts.map(w=>w.bbox.y0)):Infinity;
+      const trainingWords=eventWords.filter(w=>w.bbox.y0>=firstTrainingY-4);
       if(!isPool&&!isTraining)continue;
       const day=String(date.day).padStart(2,'0');
       const fullDate=monthKey+'-'+day;
@@ -217,19 +222,19 @@
       // Hall text may sit below the time and be split by OCR into separate rows.
       // First inspect the date's words, then retry the same day with a focused,
       // higher-resolution OCR pass when the hall is missing.
-      const hall=detectCalendarHall(eventWords);
+      const hall=detectCalendarHall(isPool?eventWords:trainingWords);
       // A day can contain several independent ice sessions. If distinct halls
       // appear on that day, a single date-level record cannot safely represent
       // either session. Block automatic selection rather than assign one hall.
       const hallMentions=new Set();
-      for(let i=0;i<eventWords.length;i++){
-        const mention=detectCalendarHall(eventWords.slice(i,i+2));
+      for(let i=0;i<trainingWords.length;i++){
+        const mention=detectCalendarHall(trainingWords.slice(i,i+2));
         if(mention)hallMentions.add(mention);
       }
       const hallConflict=hallMentions.size>1;
       // Training storage is currently keyed by date, not by individual
       // start time. Never collapse multiple visible sessions into one.
-      const trainingLabels=eventWords.filter(w=>/^(?:träning|is)$/i.test(String(w.text).trim()));
+      const trainingLabels=trainingStarts;
       const separateLabels=trainingLabels.filter((w,i)=>trainingLabels.findIndex(other=>Math.abs(other.bbox.y0-w.bbox.y0)<Math.max(8,imageWidth*0.009))===i);
       const multipleSessions=separateLabels.length>1;
       // Opponent names are not venues. Only accept a place on an explicit venue line.
