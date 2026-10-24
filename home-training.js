@@ -94,7 +94,7 @@
       const context=lines.slice(i,Math.min(i+4,lines.length)).filter(line=>!/^\d{1,2}(?:\s+(?:mån|tis|ons|tor|fre|lör|sön))?\s*$/i.test(line)).join(' ').toLocaleLowerCase('sv-SE');
       const hall=/\blilla\s+hallen\b/.test(context)?'Lilla Hallen':/\bstora\s+hallen\b/.test(context)?'Stora hallen':null;
       if(isPool){
-        const place=/södertälje/i.test(context)?'Södertälje':'';
+        const place=''; // Legacy text-only OCR cannot establish a venue.
         found.set('pool:'+date+':'+place,{type:'pool',date,hall:hall||'',place});
       }else{
         found.set('training:'+date,{type:'training',date,hall});
@@ -396,7 +396,9 @@
               }else if(hall&&!item.hallConflict)item.hall=hall;
             }else if(item.type==='pool'){
               const dayText=String(dayResult.data?.text||'').toLocaleLowerCase('sv-SE');
-              if(/\\bsödertälje\\b/.test(dayText))item.place='Södertälje';
+              const explicitPlace=dayText.match(/(?:^|\n)\s*(?:plats|arena)\s*[:：]\s*([^\n]+)/);
+              const venue=explicitPlace?.[1]?.trim()||detectPoolVenue(dayWords);
+              if(venue)item.place=venue;
             }
           }
           parsed={month:monthNames.indexOf(monthMatch[1])+1,items:[...merged.values()],valid:merged.size>0};
