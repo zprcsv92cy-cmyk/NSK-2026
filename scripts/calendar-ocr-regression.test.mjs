@@ -323,3 +323,14 @@ test('Pool import review discloses rule defaults are not read from OCR',()=>{
   assert.match(review,/2 lag, 3 spelare på plan, 1 period à 15 min, byten var 90:e sekund/);
   assert.match(review,/label\.append\(check,text,dateInput,placeInput,matchesInput,defaultsNote\)/);
 });
+
+test('Unknown venue does not cause any same-day saved pool to count as the same event',()=>{
+  const review=source.slice(source.indexOf("const exists=item.type==='training'"));
+  assert.match(review,/p\.pool_date===item\.date&&!!String\(item\.place\|\|''\)\.trim\(\)/);
+  const fresh=source.slice(source.indexOf("const fresh=candidates.filter"));
+  assert.match(fresh,/p\.pool_date===c\.date&&!!String\(c\.place\|\|''\)\.trim\(\)/);
+});
+test('Venue equality for existing calendar pools ignores surrounding whitespace',()=>{
+  const review=source.slice(source.indexOf("const exists=item.type==='training'"));
+  assert.match(review,/String\(p\.place\|\|''\)\.trim\(\)\.toLocaleLowerCase/);
+});
