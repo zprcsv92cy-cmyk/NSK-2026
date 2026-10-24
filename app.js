@@ -764,7 +764,8 @@ window.NSK2App = (() => {
           if(pending){
             const importedMatches=JSON.parse(pending);
             sessionStorage.setItem('nsk2_calendar_match_schedule',JSON.stringify({poolId:String(pool.id),matches:importedMatches,teams:payload.teams}));
-            sessionStorage.removeItem('nsk2_calendar_match_pending');
+            // Behåll källan tills samtliga matcher har sparats; behövs vid fel.
+
             const groupSize=Math.ceil(importedMatches.length/payload.teams);
             const errors=[];
             for(let i=0;i<importedMatches.length;i++){
@@ -785,6 +786,7 @@ window.NSK2App = (() => {
               return;
             }
             sessionStorage.removeItem('nsk2_calendar_match_import_errors');
+            sessionStorage.removeItem('nsk2_calendar_match_pending');
             sessionStorage.removeItem('nsk2_calendar_match_schedule');
           }
         }
