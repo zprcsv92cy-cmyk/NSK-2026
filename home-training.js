@@ -613,6 +613,10 @@
       confirm.disabled=true;
       // Each candidate has its own checkbox: equal OCR keys must not select each other.
       const selected=candidates.filter(c=>{const check=reviewChecks.get(c);return !!check&&!check.disabled&&check.checked;});
+      if(!selected.length){
+        status.textContent='Inga aktiviteter är markerade för import. Kontrollera uppgifterna och markera minst en aktivitet.';
+        confirm.disabled=false;return;
+      }
       if(selected.some(c=>!validCalendarImportDate(c.date,importMonth))){
         status.textContent='Import stoppad: minst ett datum är ogiltigt, passerat eller utanför kalendermånaden.';
         confirm.disabled=false;return;
