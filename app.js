@@ -736,6 +736,13 @@ window.NSK2App = (() => {
           }
           sessionStorage.removeItem("nsk2_edit_pool_id");
         } else {
+          // Blockera ett nytt poolspel efter en delvis misslyckad kalenderimport.
+          // Den befintliga importen måste hanteras innan ytterligare poolspel skapas.
+          let unresolvedImport=null;
+          try { unresolvedImport=JSON.parse(sessionStorage.getItem('nsk2_calendar_match_import_errors')||'null'); } catch {}
+          if(unresolvedImport?.poolId){
+            throw new Error('Ett poolspel (ID '+unresolvedImport.poolId+') har redan skapats men kalenderimporten är inte färdig. Skapa inte en dubblett. Åtgärda den tidigare importen först.');
+          }
           const pool = await DB.addPool(payload);
           sessionStorage.setItem("nsk2_pool_id", pool.id);
           const pending=sessionStorage.getItem('nsk2_calendar_match_pending');
