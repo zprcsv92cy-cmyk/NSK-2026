@@ -736,6 +736,23 @@ window.NSK2App = (() => {
           if(pending){
             sessionStorage.setItem('nsk2_calendar_match_schedule',JSON.stringify({poolId:String(pool.id),matches:JSON.parse(pending),teams:payload.teams}));
             sessionStorage.removeItem('nsk2_calendar_match_pending');
+            const importedMatches=JSON.parse(pending);
+            const groupSize=Math.ceil(importedMatches.length/payload.teams);
+            const errors=[];
+            for(let i=0;i<importedMatches.length;i++){
+              const lag=Math.floor(i/groupSize)+1;
+              const match=i%groupSize+1;
+              if(match>payload.matches){errors.push('Lag '+lag+' match '+match);continue;}
+              try{
+                await DB.saveCalendarMatchSchedule({
+                  pool_id:Number(pool.id),lag_no:lag,match_no:match,
+                  start_time:importedMatches[i].startTime,
+                  opponent:importedMatches[i].opponent
+                });
+              }catch(e){errors.push('Lag '+lag+' match '+match+': '+(e?.message||'fel'));}
+            }
+            if(errors.length)throw new Error('Poolspelet skapades men följande kalendermatcher kunde inte sparas: '+errors.join('; '));
+            sessionStorage.removeItem('nsk2_calendar_match_schedule');
           }
         }
         setText("poolMsg", "Poolspel och berörda scheman sparade");
