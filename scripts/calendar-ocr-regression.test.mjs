@@ -177,3 +177,29 @@ test('Focused day retry reuses event scoped parser instead of reading unrelated 
   assert.doesNotMatch(source,/const hall=detectCalendarHall\(dayWords\)/);
   assert.doesNotMatch(source,/const venue=explicitPlace\?\.\[1\]\?\.trim\(\)\|\|detectPoolVenue\(dayWords\)/);
 });
+
+test('Grouped OCR token Is 17/18 is recognized as training',()=>{
+  const words=[
+    word('9',15,100),word('Is 17/18',180,114),
+    word('Lilla',200,146),word('Hallen',275,146),
+    word('10',15,250)
+  ];
+  const items=JSON.parse(JSON.stringify(sandbox.parseCalendarLayout(words,'2026-11',1000)));
+  assert.equal(items.length,1);
+  assert.equal(items[0].type,'training');
+  assert.equal(items[0].hall,'Lilla Hallen');
+});
+test('Grouped OCR token Is 18/19 is recognized as training',()=>{
+  const words=[
+    word('11',15,100),word('Is 18/19',180,114),
+    word('Stora',200,146),word('hallen',275,146),
+    word('12',15,250)
+  ];
+  const items=JSON.parse(JSON.stringify(sandbox.parseCalendarLayout(words,'2026-11',1000)));
+  assert.equal(items.length,1);
+  assert.equal(items[0].hall,'Stora hallen');
+});
+test('Other activities remain excluded with grouped training labels',()=>{
+  const words=[word('11',15,100),word('Hockeyfritids',180,114),word('Stora',200,146),word('hallen',275,146),word('12',15,250)];
+  assert.equal(sandbox.parseCalendarLayout(words,'2026-11',1000).length,0);
+});

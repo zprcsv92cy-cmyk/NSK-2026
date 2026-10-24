@@ -214,12 +214,12 @@
       const realPoolTitles=poolTitles.filter(w=>!interestWords.some(i=>
         Math.abs(i.bbox.y0-w.bbox.y0)<Math.max(20,imageWidth*0.025)));
       const isPool=realPoolTitles.length>0;
-      const trainingStarts=eventWords.filter(w=>/^(?:träning|is)$/i.test(String(w.text).trim()));
+      const trainingStarts=eventWords.filter(w=>/^(?:träning|is(?:\s*1[789]\s*\/\s*1[789])?)$/i.test(String(w.text).trim()));
       const isTraining=trainingStarts.length>0;
       // Ignore other activities above the first actual training on this date.
       // In particular, Hockeyfritids must never supply the hall for an ice practice.
       const activityHeadings=eventWords.filter(w=>
-        /^(?:träning|is|poolspel|hockeyfritids|fotografering|intresseanmälan)$/i.test(String(w.text).trim()));
+        /^(?:träning|is(?:\s*1[789]\s*\/\s*1[789])?|poolspel|hockeyfritids|fotografering|intresseanmälan)$/i.test(String(w.text).trim()));
       // Bound every activity to its own heading. A pool venue or another
       // activity's hall must never be assigned to a neighbouring training.
       const activityWords=(startY,otherHeadings)=>{
