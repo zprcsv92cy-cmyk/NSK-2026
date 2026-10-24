@@ -14,7 +14,7 @@ export function verifyDedicatedIsolatedWorker(manifest,production) {
   assert.equal(read(manifest,'BASEROW_DATABASE_ID'),'599495');
   const productionId=read(production,'BASEROW_DATABASE_ID');
   assert.ok(productionId && productionId!==read(manifest,'BASEROW_DATABASE_ID'));
-  const tableLiteral=/^BASEROW_TABLE_IDS\\s*=\\s*(.+)$/m.exec(manifest)?.[1];
+  const tableLiteral=manifest.split('\n').find(line=>line.startsWith('BASEROW_TABLE_IDS = '))?.slice('BASEROW_TABLE_IDS = '.length);
   assert.ok(tableLiteral,'Isolated Baserow table mapping missing');
   // TOML's quoted string uses the same JSON escapes; decode the whole literal,
   // never stop at the first escaped quote inside its JSON contents.
