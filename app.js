@@ -572,7 +572,13 @@ window.NSK2App = (() => {
              }
              const perTeamMatches=Math.ceil(count/teamCount);
              const matchesSelect=byId('matches');
-             if(matchesSelect&&count)matchesSelect.value=String(perTeamMatches);
+             if(matchesSelect&&count){
+               if(!Array.from(matchesSelect.options).some(option=>Number(option.value)===perTeamMatches)){
+                 const option=new Option(String(perTeamMatches),String(perTeamMatches));
+                 matchesSelect.add(option);
+               }
+               matchesSelect.value=String(perTeamMatches);
+             }
              const preview=byId('calendarPoolMatches');
              if(preview){
                preview.hidden=false;
