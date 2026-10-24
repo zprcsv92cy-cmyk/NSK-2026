@@ -476,6 +476,31 @@
       
     }
     let feedItems=[];
+    const matchList=document.getElementById('trainingCalendarMatches');
+    async function showFeedMonth(){
+      const month=feedMonth.value;
+      const items=feedItems.filter(item=>item.date.startsWith(month+'-'));
+      const matches=items.filter(item=>item.type==='match');
+      matchList.replaceChildren();
+      if(matches.length){
+        const heading=document.createElement('h3');heading.textContent='Matcher i SvenskaLag ('+matches.length+')';
+        const note=document.createElement('p');note.textContent='Starttid och motståndare hämtas från kalendern. Matcherna visas endast och sparas inte i en laguppställning automatiskt.';
+        const list=document.createElement('ul');
+        for(const match of matches){
+          const li=document.createElement('li');
+          li.textContent=match.date+' kl. '+match.startTime+' – mot '+match.opponent+(match.place?' · '+match.place:'');
+          list.append(li);
+        }
+        matchList.append(heading,note,list);
+      }
+      const activities=items.filter(item=>item.type==='training'||item.type==='pool');
+      if(activities.length){
+        await showCandidates({month,items:activities,valid:true});
+      }else{
+        candidates=[];reviewChecks=new Map();importMonth=null;review.replaceChildren();confirm.disabled=true;
+        status.textContent=matches.length?'Visar '+matches.length+' matcher. Inga träningar eller poolspel att importera denna månad.':'Inga aktiviteter för denna månad.';
+      }
+    }
     const feedMonth=document.getElementById('trainingCalendarFeedMonth');
     const feedRead=document.getElementById('trainingCalendarFeedRead');
     feedRead.addEventListener('click',async()=>{
@@ -487,12 +512,12 @@
         const response=await fetch(url,{headers:{Authorization:'Bearer '+currentContext.token},cache:'no-store'});
         const result=await response.json().catch(()=>({}));
         if(!response.ok||!Array.isArray(result.items))throw Error(result.error||'Kalenderflödet är ännu inte aktiverat i API:t.');
-        feedItems=result.items.filter(item=>['training','pool'].includes(item.type)&&/^\d{4}-\d{2}-\d{2}$/.test(item.date));
+        feedItems=result.items.filter(item=>['training','pool','match'].includes(item.type)&&/^\d{4}-\d{2}-\d{2}$/.test(item.date));
         const months=[...new Set(feedItems.map(item=>item.date.slice(0,7)))].sort();
         if(!months.length){status.textContent='Inga kommande träningar eller poolspel hittades i kalendern.';return;}
         if(!months.includes(feedMonth.value))feedMonth.value=months[0];
         feedMonth.hidden=false;
-        await showCandidates({month:feedMonth.value,items:feedItems.filter(item=>item.date.startsWith(feedMonth.value+'-')),valid:true});
+        await showFeedMonth();
       }catch(error){status.textContent='Kalendern kunde inte hämtas: '+(error.message||String(error));}
       finally{feedRead.disabled=false;}
     });
@@ -503,6 +528,7 @@
     });
     open.addEventListener('click',()=>{panel.hidden=!panel.hidden;if(!panel.hidden)feedRead.click();});
     document.getElementById('trainingCalendarRead').addEventListener('click',async()=>{
+      matchList.replaceChildren();
       confirm.disabled=true;review.replaceChildren();candidates=[];importMonth=null;
       const file=input.files?.[0];
       if(!file){status.textContent='Välj en kalenderbild först.';return;}
