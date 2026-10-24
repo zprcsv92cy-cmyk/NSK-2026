@@ -6,7 +6,7 @@
  const poolLocation=item=>{const hall=String(item.place||item.hall||'').trim();const key=hall.normalize('NFKC').toLocaleLowerCase('sv-SE');return {hall,city:arenaCity.get(key)||extraArenaCities.get(key)||extendedArenaCities.get(key)||String(item.city||item.stad||'').trim()||hall};};
  const samePool=(p,item)=>p.pool_date===item.date&&String(p.place||'').trim().toLocaleLowerCase('sv-SE')===poolLocation(item).city.toLocaleLowerCase('sv-SE')&&(!p.hall||String(p.hall).trim().toLocaleLowerCase('sv-SE')===poolLocation(item).hall.toLocaleLowerCase('sv-SE'));
  const esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
- function renderUpcomingCalendarPools(items){
+ function renderUpcomingCalendarPools(items,calendarMatches=[]){
   const box=document.getElementById('savedPoolsList');
   if(!box)return;
   const section=box.querySelector('.pool-overview-section');
@@ -59,7 +59,7 @@
     }catch(error){create.disabled=false;alert('Kunde inte kontrollera befintliga poolspel. Försök igen.');return;}
 
     sessionStorage.removeItem('nsk2_edit_pool_id');
-    sessionStorage.setItem('nsk2_svenskalag_pool_draft',JSON.stringify({date:item.date,place:poolLocation(item).city,hall:poolLocation(item).hall}));
+    sessionStorage.setItem('nsk2_svenskalag_pool_draft',JSON.stringify({date:item.date,place:poolLocation(item).city,hall:poolLocation(item).hall,matches:calendarMatches.filter(m=>m.date===item.date&&/^\\d{2}:\\d{2}$/.test(m.startTime||'')&&m.opponent).map(m=>({startTime:m.startTime,opponent:m.opponent,place:m.place||''})).slice(0,24)}));
     location.href='../skapapoolspel/';
    });
    actions.append(create);
@@ -126,7 +126,7 @@
     return '<details class="nsk-pool-row"><summary class="nsk-pool-summary"><span class="nsk-pool-name">'+esc(kind+' • '+item.date)+'</span><span class="nsk-pool-hall">'+esc(detail)+'</span><span class="nsk-pool-chevron" aria-hidden="true">⌄</span></summary><div class="nsk-pool-content"><p>'+esc(detail)+'</p><p class="small">Källa: SvenskaLag. Kalenderuppgiften är skrivskyddad.</p></div></details>';
    }).join('');
    else root.textContent='Poolspel visas under Kommande poolspel och träningar under Träningar.';
-   renderUpcomingCalendarPools(calendarPools);
+   renderUpcomingCalendarPools(calendarPools,items.filter(item=>item.type==='match'));
    setTimeout(()=>{if(!document.querySelector('[data-svenskalag-pool]')&&calendarPools.length)renderUpcomingCalendarPools(calendarPools);},1200);
    const button=document.getElementById('svenskalagRefreshButton');
    if(button){
