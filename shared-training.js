@@ -30,6 +30,17 @@
     if(!response.ok)throw Error(response.status===409?'Träningen ändrades av en annan ledare. Ladda om sidan.':data.error||'Träningen kunde inte sparas.');
     return data;
   }
+  async function remove(date,revision){
+    if(!/^\d{4}-\d{2}-\d{2}$/.test(date)||!Number.isSafeInteger(revision)||revision<1)
+      throw Error('Träningen behöver läsas om innan den kan tas bort.');
+    const id=await resolveTeam();
+    const response=await fetch(base()+'/api/training?team_id='+encodeURIComponent(id)+'&date='+encodeURIComponent(date)+'&revision='+revision,{
+      method:'DELETE',headers:{Authorization:'Bearer '+Auth.getToken()},cache:'no-store'
+    });
+    const data=await response.json().catch(()=>({}));
+    if(!response.ok)throw Error(response.status===409?'Träningen har ändrats eller tagits bort av någon annan. Ladda om sidan.':data.error||'Träningen kunde inte tas bort.');
+    return data;
+  }
   async function roster(kind){
     if(!['spelare','tranare'].includes(kind))throw Error('Ogiltig trupptyp');
     const id=await resolveTeam();
@@ -51,6 +62,6 @@
     }
     throw Error('För många sidor i truppsvaret');
   }
-  window.SharedTraining={list:()=>request(),get:date=>request(date),save:(date,data)=>request(date,data),
+  window.SharedTraining={list:()=>request(),get:date=>request(date),save:(date,data)=>request(date,data),remove,
     listPlayers:()=>roster('spelare'),listCoaches:()=>roster('tranare')};
 })();
