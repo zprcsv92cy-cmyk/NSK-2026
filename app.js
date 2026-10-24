@@ -560,14 +560,18 @@ window.NSK2App = (() => {
             if(byId('poolDate'))byId('poolDate').value=imported.date;
             if(byId('poolPlace'))byId('poolPlace').value=String(imported.place||'').slice(0,120);
             if(byId('poolHall'))byId('poolHall').value=String(imported.hall||'').slice(0,120);
-             const calendarMatches=Array.isArray(imported.matches)?imported.matches.filter(m=>/^\d{2}:\d{2}$/.test(m.startTime||'')&&typeof m.opponent==='string'&&m.opponent.trim()).slice(0,24).sort((a,b)=>a.startTime.localeCompare(b.startTime)):[];
+             const calendarMatches=Array.isArray(imported.matches)?imported.matches.filter(m=>/^\d{2}:\d{2}$/.test(m.startTime||'')&&typeof m.opponent==='string'&&m.opponent.trim()).slice(0,32).sort((a,b)=>a.startTime.localeCompare(b.startTime)):[];
              const count=calendarMatches.length;
-             // Antal matcher i NSK är per lag, inte totalt i kalendern.
-             const teamCount=count>4?2:1;
-             if(byId('teams'))byId('teams').value=String(teamCount);
-             const perTeamMatches=teamCount===2?Math.ceil(count/2):count;
+             // Högst fyra matcher per lag. Fördela jämnt i kronologisk ordning.
+             const teamCount=Math.max(1,Math.ceil(count/4));
+             const teamSelect=byId('teams');
+             if(teamSelect){
+               for(let n=teamSelect.options.length+1;n<=teamCount;n++)teamSelect.add(new Option(String(n),String(n)));
+               teamSelect.value=String(teamCount);
+             }
+             const perTeamMatches=Math.ceil(count/teamCount);
              const matchesSelect=byId('matches');
-             if(matchesSelect&&count&&perTeamMatches<=6)matchesSelect.value=String(perTeamMatches);
+             if(matchesSelect&&count)matchesSelect.value=String(perTeamMatches);
              const preview=byId('calendarPoolMatches');
              if(preview){
                preview.hidden=false;
@@ -576,13 +580,13 @@ window.NSK2App = (() => {
                preview.append(heading);
                calendarMatches.forEach((match,index)=>{
                  const row=document.createElement('div');
-                 const team=teamCount===2&&index>=perTeamMatches?2:1;
-                 row.textContent='Lag '+team+' • Match '+(team===2?index-perTeamMatches+1:index+1)+' • '+match.startTime+' – '+match.opponent;
+                 const team=Math.floor(index/perTeamMatches)+1;
+                 row.textContent='Lag '+team+' • Match '+(index%perTeamMatches+1)+' • '+match.startTime+' – '+match.opponent;
                  preview.append(row);
                });
                const note=document.createElement('p');
                note.className='small';
-               note.textContent='Högst fyra kalendermatcher ger ett lag; fler ger två. Vid sex matcher får lag 1 de tre första och lag 2 de tre sista. Fördelningen visas som underlag och behöver sparas i matchkonfiguration efter att målvakt och spelare valts.';
+               note.textContent='Högst fyra matcher per lag. Matcherna fördelas i starttidsordning över så många lag som behövs (även åtta lag). Fördelningen visas som underlag och behöver sparas i matchkonfiguration efter att målvakt och spelare valts.';
                preview.append(note);
              }
           }
