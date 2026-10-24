@@ -705,6 +705,21 @@ var worker_default = { async fetch(req, env) {
         if (lagNo > Number(pool["Antal lag"]) || matchNo > Number(pool["Antal matcher"])) return reply({ ok: false, error: "Lag eller match utanf\xF6r poolspelet" }, 400);
         if (body.start_time != null && (typeof body.start_time !== "string" || !/^([01]\d|2[0-3]):[0-5]\d(:[0-5]\d)?$/.test(body.start_time))) return reply({ ok: false, error: "Ogiltig starttid" }, 400);
         if (typeof body.opponent !== "string" || body.opponent.length > 150 || typeof body.plan !== "string" || body.plan.length > 80) return reply({ ok: false, error: "Ogiltig motst\xE5ndare eller plan" }, 400);
+        // Kalenderimport får endast skapa ett nytt schemaunderlag utan laguppställning.
+        if (body.schedule_only === true) {
+          if (req.method !== "POST") return reply({ok:false,error:"Schemainläsning får endast skapa nya matcher"},400);
+          if (typeof body.opponent !== "string" || !body.opponent.trim() || !body.start_time) return reply({ok:false,error:"Starttid och motståndare krävs"},400);
+          const rowsResp=await fetch(`${base}${TABLES.matchkonfiguration}/?user_field_names=true&size=200`,{headers:auth});
+          if(!rowsResp.ok) return reply({ok:false,error:"Kunde inte kontrollera befintliga matcher"},502);
+          const rowsData=await rowsResp.json();
+          if(rowsData.next) return reply({ok:false,error:"Matchlistan är för stor för säker import"},409);
+          if((rowsData.results||[]).some(row=>linkIds(row.Poolspel).includes(poolId2)&&Number(row.Lagnummer)===lagNo&&Number(row.Matchnummer)===matchNo))return reply({ok:false,error:"Matchen finns redan; ingen befintlig uppställning ändrades"},409);
+          const draftPayload={Poolspel:[poolId2],Lagnummer:lagNo,Matchnummer:matchNo,Starttid:body.start_time,"Motst\\xE5ndare":body.opponent,Plan:body.plan||"Plan 1"};
+          const draftResp=await fetch(`${base}${TABLES.matchkonfiguration}/?user_field_names=true`,{method:"POST",headers:{...auth,"Content-Type":"application/json"},body:JSON.stringify(draftPayload)});
+          const draftData=await draftResp.json().catch(()=>({}));
+          if(!draftResp.ok)return reply({ok:false,error:"Baserow kunde inte spara kalendermatch",status:draftResp.status},502);
+          return reply({ok:true,row:draftData},201);
+        }
         if (!positive(body.player_count) || body.player_count > 25) return reply({ ok: false, error: "Ogiltigt antal spelare" }, 400);
         if (!positive(body.goalie_player_id)) return reply({ ok: false, error: "Ogiltig m\xE5lvakt" }, 400);
         if (!Array.isArray(body.players_on_field) || body.players_on_field.some((x) => !positive(x)) || new Set(body.players_on_field).size !== body.players_on_field.length || !body.players_on_field.includes(body.goalie_player_id)) return reply({ ok: false, error: "Ogiltiga spelare" }, 400);
