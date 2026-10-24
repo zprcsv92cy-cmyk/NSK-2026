@@ -744,6 +744,20 @@ window.NSK2App = (() => {
           if(unresolvedImport?.poolId){
             throw new Error('Ett poolspel (ID '+unresolvedImport.poolId+') har redan skapats men kalenderimporten är inte färdig. Skapa inte en dubblett. Åtgärda den tidigare importen först.');
           }
+          // Tolka kalenderutkastet före skrivning så ogiltiga data inte skapar tomma poolspel.
+          const pendingRaw=sessionStorage.getItem('nsk2_calendar_match_pending');
+          if(pendingRaw){
+            let pendingMatches;
+            try { pendingMatches=JSON.parse(pendingRaw); } catch { throw new Error('Kalenderimporten är skadad. Öppna poolspelet från kalendern igen.'); }
+            if(!Array.isArray(pendingMatches)||!pendingMatches.length||
+               pendingMatches.some(m=>!m||typeof m.startTime!=='string'||!/^([01]\\d|2[0-3]):[0-5]\\d$/.test(m.startTime)||typeof m.opponent!=='string'||!m.opponent.trim())){
+              throw new Error('Kalenderimporten innehåller ogiltiga matcher. Öppna poolspelet från kalendern igen.');
+            }
+            const expectedTeams=pendingMatches.length>4?2:1;
+            if(payload.teams!==expectedTeams||payload.matches<Math.ceil(pendingMatches.length/expectedTeams)){
+              throw new Error('Antal lag eller matcher stämmer inte med kalenderimporten.');
+            }
+          }
           const pool = await DB.addPool(payload);
           sessionStorage.setItem("nsk2_pool_id", pool.id);
           const pending=sessionStorage.getItem('nsk2_calendar_match_pending');
