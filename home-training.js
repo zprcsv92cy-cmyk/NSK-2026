@@ -342,7 +342,9 @@
             for(const item of layoutItems){
               const key=item.type+':'+item.date+':'+(item.place||'');
               const previous=merged.get(key);
-              if(previous?.hallConflict){
+              if(previous?.multipleSessions||item.multipleSessions){
+                merged.set(key,{...item,hall:null,multipleSessions:true});
+              }else if(previous?.hallConflict){
                 merged.set(key,{...item,hall:null,hallConflict:true});
               }else if(previous?.hall&&item.hall&&previous.hall!==item.hall){
                 merged.set(key,{...item,hall:null,hallConflict:true});
@@ -361,7 +363,9 @@
           for(const item of globalItems){
             const key=item.type+':'+item.date+':'+(item.place||'');
             const previous=merged.get(key);
-            if(previous?.hall&&item.hall&&previous.hall!==item.hall){
+            if(previous?.multipleSessions||item.multipleSessions){
+              merged.set(key,{...item,hall:null,multipleSessions:true});
+            }else if(previous?.hall&&item.hall&&previous.hall!==item.hall){
               // Conflicting OCR readings must not silently overwrite one another.
               merged.set(key,{...item,hall:null,hallConflict:true});
             }else if(previous?.hallConflict){
@@ -379,7 +383,7 @@
               distinctDays.push(anchor);
           }
           for(const item of merged.values()){
-            if((item.type==='training'&&item.hall)||item.hallConflict||(item.type==='pool'&&item.place))continue;
+            if((item.type==='training'&&item.hall)||item.hallConflict||item.multipleSessions||(item.type==='pool'&&item.place))continue;
             const day=Number(item.date.slice(-2));
             const anchor=distinctDays.find(d=>d.day===day);
             if(!anchor)continue;
