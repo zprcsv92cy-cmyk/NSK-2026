@@ -757,7 +757,12 @@ window.NSK2App = (() => {
                 });
               }catch(e){errors.push('Lag '+lag+' match '+match+': '+(e?.message||'fel'));}
             }
-            if(errors.length)throw new Error('Poolspelet skapades men följande kalendermatcher kunde inte sparas: '+errors.join('; '));
+            if(errors.length){
+              sessionStorage.setItem('nsk2_calendar_match_import_errors',JSON.stringify({poolId:String(pool.id),errors}));
+              setText('appError','Poolspelet skapades (ID '+pool.id+'), men vissa kalendermatcher kunde inte sparas: '+errors.join('; ')+'. Skapa inte ett nytt poolspel för att försöka igen.');
+              return;
+            }
+            sessionStorage.removeItem('nsk2_calendar_match_import_errors');
             sessionStorage.removeItem('nsk2_calendar_match_schedule');
           }
         }
