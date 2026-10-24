@@ -121,8 +121,8 @@
     for(const first of normalized){
       if(!/^(?:stora|stor|lilla)$/.test(first.text))continue;
       const second=normalized.find(w=>/^(?:is)?hall(?:en)?$/.test(w.text)
-        &&Math.abs(w.y-first.y)<55
-        &&Math.abs(w.x-first.x)<500);
+        &&Math.abs(w.y-first.y)<Math.max(22,Math.min(55,first.text.length*12))
+        &&w.x>=first.x-20&&w.x-first.x<260);
       if(second)return first.text==='lilla'?'Lilla Hallen':'Stora hallen';
     }
     return null;
@@ -152,7 +152,7 @@
           const x=Number(fields[left]),y=Number(fields[top]);
           const w=Number(fields[width]),h=Number(fields[height]);
           const t=fields.slice(value).join('\t').trim();
-          if(t&&[x,y,w,h].every(Number.isFinite))words.push({text:t,bbox:{x0:x,y0:y,x1:x+w,y1:y+h}});
+          if(t&&[x,y,w,h].every(Number.isFinite)&&w>0&&h>0)words.push({text:t,bbox:{x0:x,y0:y,x1:x+w,y1:y+h}});
         }
       }
     }
@@ -176,11 +176,12 @@
     // Merge repeated day markers before computing day boundaries.
     const uniqueDates=[];
     for(const date of dates){
-      if(uniqueDates.some(other=>other.day===date.day&&Math.abs(other.y-date.y)<imageWidth*0.16))continue;
+      // Duplicate OCR anchors share nearly the same baseline; a full row must not be merged.
+      if(uniqueDates.some(other=>other.day===date.day&&Math.abs(other.y-date.y)<Math.max(8,imageWidth*0.018)))continue;
       uniqueDates.push(date);
     }
     for(const date of uniqueDates){
-      const next=uniqueDates.find(d=>d.y>date.y+imageWidth*0.012);
+      const next=uniqueDates.find(d=>d.y>date.y+Math.max(8,imageWidth*0.012));
       const lower=next?next.y:Infinity;
       const eventWords=rows.filter(w=>w.bbox.y0>=date.y-8&&w.bbox.y0<lower);
       if(!eventWords.length)continue;
@@ -190,7 +191,8 @@
       if(!isPool&&!isTraining)continue;
       const day=String(date.day).padStart(2,'0');
       const fullDate=monthKey+'-'+day;
-      if(new Date(fullDate+'T12:00:00').getDate()!==date.day||fullDate<todayLocalDate())continue;
+      const parsedDate=new Date(fullDate+'T12:00:00');
+      if(Number.isNaN(parsedDate.getTime())||parsedDate.getFullYear()!==Number(monthKey.slice(0,4))||parsedDate.getMonth()+1!==Number(monthKey.slice(5,7))||parsedDate.getDate()!==date.day||fullDate<todayLocalDate())continue;
       // Hall text may sit below the time and be split by OCR into separate rows.
       // First inspect the date's words, then retry the same day with a focused,
       // higher-resolution OCR pass when the hall is missing.
@@ -326,7 +328,7 @@
             .filter(w=>w.day>=1&&w.day<=31).sort((a,b)=>a.y-b.y);
           const distinctDays=[];
           for(const anchor of dayAnchors){
-            if(!distinctDays.some(d=>d.day===anchor.day&&Math.abs(d.y-anchor.y)<globalWidth*0.16))
+            if(!distinctDays.some(d=>d.day===anchor.day&&Math.abs(d.y-anchor.y)<Math.max(8,globalWidth*0.018)))
               distinctDays.push(anchor);
           }
           for(const item of merged.values()){
