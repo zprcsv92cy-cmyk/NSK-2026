@@ -72,12 +72,68 @@ var ShiftLock = class {
         return json({ ok: false, error: "Ogiltig JSON" }, 400);
       }
       if (body?.action === "save") return this.save(body);
+      if (body?.action === "scheduleCreate") return this.scheduleCreate(body);
       if (body?.action === "done") return this.done(body);
       return json({ ok: false, error: "Ogiltig \xE5tg\xE4rd" }, 400);
     }, "operation");
     const result = this.queue.then(operation);
     this.queue = result.then(() => void 0, () => void 0);
     return result;
+  }
+  async scheduleCreate(body) {
+    const validId = n => Number.isSafeInteger(n) && n > 0;
+    const { pool_id: poolId, lag_no: lagNo, match_no: matchNo } = body || {};
+    if (![poolId,lagNo,matchNo].every(validId) ||
+        typeof body?.start_time !== "string" ||
+        !/^([01]\\d|2[0-3]):[0-5]\\d$/.test(body.start_time) ||
+        typeof body?.opponent !== "string" || !body.opponent.trim() ||
+        body.opponent.length > 150 || typeof body?.plan !== "string" ||
+        body.plan.length > 80 || body.goalie_player_id != null || body.players_on_field != null) {
+      return json({ok:false,error:"Ogiltig kalendermatch"},400);
+    }
+    let tables;
+    try { tables = resolveBaserowTables(this.env); }
+    catch { return json({ok:false,error:"Ogiltig Baserow-konfiguration"},503); }
+    if (!this.env.BASEROW_TOKEN) return json({ok:false,error:"Baserow saknas"},503);
+    const base = "https://api.baserow.io/api/database/rows/table/";
+    const headers = {Authorization:`Token ${this.env.BASEROW_TOKEN}`};
+    const ids = v => Array.isArray(v) ? v.map(x=>Number(typeof x==="object"?x?.id:x)) : [];
+    try {
+      // Kontrollera poolen igen inne i den serialiserade låsningen.
+      const poolResp = await fetch(`${base}${tables.poolspel}/${poolId}/?user_field_names=true`,{headers});
+      if (!poolResp.ok) return json({ok:false,error:"Poolspel kunde inte verifieras"},503);
+      const pool = await poolResp.json();
+      if (!ids(pool.Lag).length || lagNo > Number(pool["Antal lag"]) ||
+          matchNo > Number(pool["Antal matcher"])) return json({ok:false,error:"Fel poolspel eller match"},403);
+      const owner = await createPoolOwnerResolver(this.env)({poolId,lagNo});
+      if (!ids(pool.Lag).includes(Number(owner.baserowTeamRowId)))
+        return json({ok:false,error:"Fel lagtillhörighet"},403);
+      // Alla importer till samma pool/lag/match körs nu seriellt genom samma Durable Object.
+      // Fail closed om den fullständiga paginerade listan inte kan läsas.
+      for (let page=1;page<=100;page++) {
+        const response = await fetch(`${base}${tables.matchkonfiguration}/?user_field_names=true&page=${page}&size=200`,{headers});
+        if (!response.ok) return json({ok:false,error:"Matchlistan kunde inte läsas"},503);
+        const data = await response.json();
+        if (!Array.isArray(data.results) || data.results.length>200)
+          return json({ok:false,error:"Ogiltig matchlista"},503);
+        if (data.results.some(c=>ids(c.Poolspel).includes(poolId) &&
+            Number(c.Lagnummer)===lagNo && Number(c.Matchnummer)===matchNo))
+          return json({ok:false,error:"Matchen finns redan"},409);
+        if (!data.next) {
+          const saved=await fetch(`${base}${tables.matchkonfiguration}/?user_field_names=true`,{
+            method:"POST",headers:{...headers,"Content-Type":"application/json"},
+            body:JSON.stringify({Poolspel:[poolId],Lagnummer:lagNo,Matchnummer:matchNo,
+              Starttid:body.start_time,"Motståndare":body.opponent.trim(),Plan:body.plan})
+          });
+          const record=await saved.json().catch(()=>({}));
+          if (!saved.ok) return json({ok:false,error:"Baserow kunde inte spara match",status:saved.status,detail:record.detail||record.error||null},502);
+          return json({ok:true,row:record},201);
+        }
+      }
+      return json({ok:false,error:"För många sidor med matcher"},503);
+    } catch {
+      return json({ok:false,error:"Säker matchlagring kunde inte genomföras"},503);
+    }
   }
   async save(body) {
     const reply = json;
@@ -714,28 +770,15 @@ var worker_default = { async fetch(req, env) {
           if (typeof body.opponent !== "string" || !body.opponent.trim() || !body.start_time ||
               body.goalie_player_id != null || body.players_on_field != null)
             return reply({ok:false,error:"Ogiltig kalenderimport utan laguppställning"},400);
-          // Läs alla sidor innan skapande; existerande matcher får aldrig skrivas över.
-          let found = false, page = 1;
-          while (page <= 100) {
-            const search = await fetch(`${base}${TABLES.matchkonfiguration}/?user_field_names=true&page=${page}&size=200`,{headers:auth});
-            if (!search.ok) throw new Error("Kunde inte kontrollera existerande matcher");
-            const result = await search.json();
-            if (!Array.isArray(result.results)) throw new Error("Ogiltig matchlista");
-            if (result.results.some(c => linkIds(c.Poolspel).includes(poolId2) &&
-                Number(c.Lagnummer) === lagNo && Number(c.Matchnummer) === matchNo)) found = true;
-            if (found || !result.next) break;
-            page++;
-          }
-          if (page > 100) return reply({ok:false,error:"Matchlistan kunde inte verifieras"},503);
-          if (found) return reply({ok:false,error:"Matchen finns redan. Ingen kalenderimport utförd"},409);
-          const schedulePayload = {Poolspel:[poolId2],Lagnummer:lagNo,Matchnummer:matchNo,
-            Starttid:body.start_time,"Motståndare":body.opponent.trim(),Plan:body.plan};
-          const saved = await fetch(`${base}${TABLES.matchkonfiguration}/?user_field_names=true`,{
-            method:"POST",headers:{...auth,"Content-Type":"application/json"},body:JSON.stringify(schedulePayload)
+          if (!env.SHIFT_LOCK) return reply({ok:false,error:"Matchlås saknas"},503);
+          const stub=env.SHIFT_LOCK.get(env.SHIFT_LOCK.idFromName(`${poolId2}:${lagNo}:${matchNo}`));
+          const locked=await stub.fetch("https://shift-lock.internal/",{
+            method:"POST",headers:{"Content-Type":"application/json"},
+            body:JSON.stringify({action:"scheduleCreate",pool_id:poolId2,
+              lag_no:lagNo,match_no:matchNo,start_time:body.start_time,
+              opponent:body.opponent,plan:body.plan})
           });
-          const data = await saved.json().catch(() => ({}));
-          if (!saved.ok) return reply({ok:false,error:"Baserow kunde inte spara tom match",status:saved.status,detail:data.detail||data.error||null},502);
-          return reply({ok:true,row:data},201);
+          return new Response(locked.body,{status:locked.status,headers:{...cors,"Content-Type":"application/json","Cache-Control":"no-store"}});
         }
         if (!positive(body.player_count) || body.player_count > 25) return reply({ ok: false, error: "Ogiltigt antal spelare" }, 400);
         if (!positive(body.goalie_player_id)) return reply({ ok: false, error: "Ogiltig m\xE5lvakt" }, 400);
