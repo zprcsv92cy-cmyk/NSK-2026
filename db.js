@@ -135,7 +135,7 @@ window.DB = (() => {
   async function saveCalendarMatchSchedule(payload){
     const poolId=id(payload.pool_id),lagNo=id(payload.lag_no),matchNo=id(payload.match_no);
     if(![poolId,lagNo,matchNo].every(positive))throw new Error('Ogiltigt poolspel eller match');
-    if(typeof payload.start_time!=='string'||!/^([01]\\d|2[0-3]):[0-5]\\d$/.test(payload.start_time)||typeof payload.opponent!=='string'||!payload.opponent.trim())throw new Error('Kalendermatch kräver giltig starttid och motståndare');
+    if(typeof payload.start_time!=='string'||!/^([01]\d|2[0-3]):[0-5]\d$/.test(payload.start_time)||typeof payload.opponent!=='string'||!payload.opponent.trim())throw new Error('Kalendermatch kräver giltig starttid och motståndare');
     return adminRequest('/api/matchkonfiguration','POST',{pool_id:poolId,lag_no:lagNo,match_no:matchNo,start_time:payload.start_time,opponent:payload.opponent.trim(),plan:payload.plan||'Plan 1',schedule_only:true});
   }
   async function savePoolTeamMatchConfig(payload){
