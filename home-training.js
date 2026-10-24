@@ -487,7 +487,7 @@
         candidates=[...unique.values()];
         reviewChecks=new Map();
         for(const item of candidates){
-          const exists=item.type==='training'?currentContext.dates.has(item.date):knownPools.some(p=>p.pool_date===item.date&&(!item.place||String(p.place||'').toLocaleLowerCase('sv-SE')===item.place.toLocaleLowerCase('sv-SE')));
+          const exists=item.type==='training'?currentContext.dates.has(item.date):knownPools.some(p=>p.pool_date===item.date&&!!String(item.place||'').trim()&&String(p.place||'').trim().toLocaleLowerCase('sv-SE')===String(item.place).trim().toLocaleLowerCase('sv-SE'));
           const label=document.createElement('label');label.className='training-review-item';
           const check=document.createElement('input');check.type='checkbox';check.value=item.type+':'+item.date+':'+(item.place||'');if(item.type==='pool')item.matches=null; // OCR does not establish match count.
           check.disabled=exists||item.type==='pool';check.checked=!check.disabled;
@@ -547,7 +547,7 @@
             });
             placeInput.addEventListener('input',()=>{
               item.place=placeInput.value.trim();
-              const already=knownPools.some(p=>p.pool_date===item.date&&(!item.place||String(p.place||'').toLocaleLowerCase('sv-SE')===item.place.toLocaleLowerCase('sv-SE')));
+              const already=knownPools.some(p=>p.pool_date===item.date&&!!String(item.place||'').trim()&&String(p.place||'').trim().toLocaleLowerCase('sv-SE')===String(item.place).trim().toLocaleLowerCase('sv-SE'));
               check.value='pool:'+item.date+':'+item.place;
               check.disabled=already||item.date<todayLocalDate()||!item.place||!item.matches;
               check.checked=!check.disabled;
@@ -594,7 +594,7 @@
           status.textContent='Träning '+date+' tillagd i förhandsgranskningen. Kontrollera innan import.';
         });
         missing.append(missingDate,missingHall,addMissing);review.append(missing);
-        const fresh=candidates.filter(c=>c.type==='training'?!currentContext.dates.has(c.date):!knownPools.some(p=>p.pool_date===c.date&&(!c.place||String(p.place||'').toLocaleLowerCase('sv-SE')===c.place.toLocaleLowerCase('sv-SE'))));
+        const fresh=candidates.filter(c=>c.type==='training'?!currentContext.dates.has(c.date):!knownPools.some(p=>p.pool_date===c.date&&!!String(c.place||'').trim()&&String(p.place||'').trim().toLocaleLowerCase('sv-SE')===String(c.place).trim().toLocaleLowerCase('sv-SE')));
         status.textContent='Kalendermånad '+importMonth+': hittade '+candidates.length+' aktiviteter, '+fresh.length+' nya. Granska före import. Borttagning kräver separat bekräftelse av att hela månaden har lästs korrekt.';
         confirm.disabled=!fresh.length;
       }catch(error){status.textContent='Bildtolkning misslyckades: '+(error.message||String(error));}
@@ -633,7 +633,7 @@
         if(item.type==='pool'){
           try{
             const latest=await DB.listPools();
-            if(latest.some(p=>p.pool_date===item.date&&(!item.place||String(p.place||'').toLocaleLowerCase('sv-SE')===item.place.toLocaleLowerCase('sv-SE')))){skipped++;continue;}
+            if(latest.some(p=>p.pool_date===item.date&&!!String(item.place||'').trim()&&String(p.place||'').trim().toLocaleLowerCase('sv-SE')===String(item.place).trim().toLocaleLowerCase('sv-SE'))){skipped++;continue;}
             await DB.addPool({title:'Poolspel',place:item.place,hall:item.hall,pool_date:item.date,status:'Aktiv',teams:2,matches:item.matches,players_on_field:3,periods:1,period_time:15,sub_time:90,calendarImport:true});
             created++;continue;
           }catch(error){status.textContent='Importerade '+created+'. Poolspel '+item.date+' kunde inte sparas: '+error.message;return;}
