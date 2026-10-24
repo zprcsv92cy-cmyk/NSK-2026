@@ -541,6 +541,12 @@ window.NSK2App = (() => {
     const saveBtn = byId("savePool");
     const teamsSel = byId("teams");
     if (!saveBtn || !teamsSel) return;
+    const interruptedImport=sessionStorage.getItem('nsk2_calendar_match_import_errors');
+    if(interruptedImport){
+      let poolId='';
+      try {poolId=String(JSON.parse(interruptedImport)?.poolId||'');}catch{}
+      setText('appError','En tidigare kalenderimport till poolspel '+(poolId||'(okänt ID)')+' är inte klar. Tryck Spara för att återuppta i samma poolspel; inget nytt poolspel skapas.');
+    }
 
     const editId = sessionStorage.getItem("nsk2_edit_pool_id");
 
