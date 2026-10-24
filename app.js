@@ -758,6 +758,8 @@ window.NSK2App = (() => {
               throw new Error('Antal lag eller matcher stämmer inte med kalenderimporten.');
             }
           }
+          // Förhindra att en tidigare import av misstag används för ett nytt manuellt poolspel.
+          if(!pendingRaw)sessionStorage.removeItem('nsk2_calendar_match_schedule');
           const pool = await DB.addPool(payload);
           sessionStorage.setItem("nsk2_pool_id", pool.id);
           const pending=sessionStorage.getItem('nsk2_calendar_match_pending');
