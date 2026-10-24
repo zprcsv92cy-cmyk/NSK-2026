@@ -132,6 +132,12 @@ window.DB = (() => {
   const updateCoach=(rowId,name)=>writeName('tranare','PATCH',rowId,name);
   let pending=Promise.resolve();
   function serialWrite(fn){const next=pending.catch(()=>{}).then(fn);pending=next.catch(()=>{});return next}
+  async function saveCalendarMatchSchedule(payload){
+    const poolId=id(payload.pool_id),lagNo=id(payload.lag_no),matchNo=id(payload.match_no);
+    if(![poolId,lagNo,matchNo].every(positive))throw new Error('Ogiltigt poolspel eller match');
+    if(typeof payload.start_time!=='string'||!/^([01]\d|2[0-3]):[0-5]\d$/.test(payload.start_time)||typeof payload.opponent!=='string'||!payload.opponent.trim())throw new Error('Kalendermatch kräver giltig starttid och motståndare');
+    return adminRequest('/api/matchkonfiguration','POST',{pool_id:poolId,lag_no:lagNo,match_no:matchNo,start_time:payload.start_time,opponent:payload.opponent.trim(),plan:payload.plan||'Plan 1',schedule_only:true});
+  }
   async function savePoolTeamMatchConfig(payload){
     return serialWrite(async()=>{
       const poolId=id(payload.pool_id),lagNo=id(payload.lag_no),matchNo=id(payload.match_no);
@@ -238,5 +244,5 @@ window.DB = (() => {
   }
   return {listPlayers,listCoaches,listStaff,listPools,getPool,listPoolTeamMatchConfigs,getPoolTeamMatchConfig,getPlayersOnField,getLineup,listUsedPlayersInPool,listShiftSchema,listGoalieStats,listPlayerCoachMap,
     addPlayer,updatePlayer,deletePlayer:failWrite,addCoach,updateCoach,deleteCoach:failWrite,addStaff:(role,name)=>writeStaff('POST',role,null,name),updateStaff:(role,rowId,name)=>writeStaff('PATCH',role,rowId,name),updatePoolTeams,addPool,updatePool,updatePoolActive,deletePool:failWrite,
-    savePoolTeamMatchConfig,saveLineup,getCoachSelection,saveCoachSelection,saveShiftSchema,deleteShiftSchema,setShiftDone,savePlayerCoachMap:failWrite,subscribeTruppen:async()=>({unsubscribe(){}})};
+    saveCalendarMatchSchedule,savePoolTeamMatchConfig,saveLineup,getCoachSelection,saveCoachSelection,saveShiftSchema,deleteShiftSchema,setShiftDone,savePlayerCoachMap:failWrite,subscribeTruppen:async()=>({unsubscribe(){}})};
 })();

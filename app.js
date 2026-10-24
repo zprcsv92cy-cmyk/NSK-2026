@@ -563,7 +563,8 @@ window.NSK2App = (() => {
              const calendarMatches=Array.isArray(imported.matches)?imported.matches.filter(m=>/^\d{2}:\d{2}$/.test(m.startTime||'')&&typeof m.opponent==='string'&&m.opponent.trim()).slice(0,32).sort((a,b)=>a.startTime.localeCompare(b.startTime)):[];
              const count=calendarMatches.length;
              sessionStorage.setItem('nsk2_calendar_match_pending',JSON.stringify(calendarMatches));
-             // Högst fyra matcher per lag. Fördela jämnt i kronologisk ordning.
+             // En till fyra matcher ger ett lag, fem eller fler ger två lag.
+             // Fördela matcherna jämnt i kronologisk ordning.
              const teamCount=count>4?2:1;
              const teamSelect=byId('teams');
              if(teamSelect){
@@ -572,7 +573,13 @@ window.NSK2App = (() => {
              }
              const perTeamMatches=Math.ceil(count/teamCount);
              const matchesSelect=byId('matches');
-             if(matchesSelect&&count)matchesSelect.value=String(perTeamMatches);
+             if(matchesSelect&&count){
+               if(!Array.from(matchesSelect.options).some(option=>Number(option.value)===perTeamMatches)){
+                 const option=new Option(String(perTeamMatches),String(perTeamMatches));
+                 matchesSelect.add(option);
+               }
+               matchesSelect.value=String(perTeamMatches);
+             }
              const preview=byId('calendarPoolMatches');
              if(preview){
                preview.hidden=false;
@@ -730,12 +737,59 @@ window.NSK2App = (() => {
           }
           sessionStorage.removeItem("nsk2_edit_pool_id");
         } else {
+          // Blockera ett nytt poolspel efter en delvis misslyckad kalenderimport.
+          // Den befintliga importen måste hanteras innan ytterligare poolspel skapas.
+          let unresolvedImport=null;
+          try { unresolvedImport=JSON.parse(sessionStorage.getItem('nsk2_calendar_match_import_errors')||'null'); } catch {}
+          if(unresolvedImport?.poolId){
+            throw new Error('Ett poolspel (ID '+unresolvedImport.poolId+') har redan skapats men kalenderimporten är inte färdig. Skapa inte en dubblett. Åtgärda den tidigare importen först.');
+          }
+          // Tolka kalenderutkastet före skrivning så ogiltiga data inte skapar tomma poolspel.
+          const pendingRaw=sessionStorage.getItem('nsk2_calendar_match_pending');
+          if(pendingRaw){
+            let pendingMatches;
+            try { pendingMatches=JSON.parse(pendingRaw); } catch { throw new Error('Kalenderimporten är skadad. Öppna poolspelet från kalendern igen.'); }
+            if(!Array.isArray(pendingMatches)||!pendingMatches.length||
+               pendingMatches.some(m=>!m||typeof m.startTime!=='string'||!/^([01]\d|2[0-3]):[0-5]\d$/.test(m.startTime)||typeof m.opponent!=='string'||!m.opponent.trim())){
+              throw new Error('Kalenderimporten innehåller ogiltiga matcher. Öppna poolspelet från kalendern igen.');
+            }
+            const expectedTeams=pendingMatches.length>4?2:1;
+            if(payload.teams!==expectedTeams||payload.matches<Math.ceil(pendingMatches.length/expectedTeams)){
+              throw new Error('Antal lag eller matcher stämmer inte med kalenderimporten.');
+            }
+          }
+          // Förhindra att en tidigare import av misstag används för ett nytt manuellt poolspel.
+          if(!pendingRaw)sessionStorage.removeItem('nsk2_calendar_match_schedule');
           const pool = await DB.addPool(payload);
           sessionStorage.setItem("nsk2_pool_id", pool.id);
           const pending=sessionStorage.getItem('nsk2_calendar_match_pending');
           if(pending){
-            sessionStorage.setItem('nsk2_calendar_match_schedule',JSON.stringify({poolId:String(pool.id),matches:JSON.parse(pending),teams:payload.teams}));
+            const importedMatches=JSON.parse(pending);
+            sessionStorage.setItem('nsk2_calendar_match_schedule',JSON.stringify({poolId:String(pool.id),matches:importedMatches,teams:payload.teams}));
+            // Behåll källan tills samtliga matcher har sparats; behövs vid fel.
+
+            const groupSize=Math.ceil(importedMatches.length/payload.teams);
+            const errors=[];
+            for(let i=0;i<importedMatches.length;i++){
+              const lag=Math.floor(i/groupSize)+1;
+              const match=i%groupSize+1;
+              if(match>payload.matches){errors.push('Lag '+lag+' match '+match);continue;}
+              try{
+                await DB.saveCalendarMatchSchedule({
+                  pool_id:Number(pool.id),lag_no:lag,match_no:match,
+                  start_time:importedMatches[i].startTime,
+                  opponent:importedMatches[i].opponent
+                });
+              }catch(e){errors.push('Lag '+lag+' match '+match+': '+(e?.message||'fel'));}
+            }
+            if(errors.length){
+              sessionStorage.setItem('nsk2_calendar_match_import_errors',JSON.stringify({poolId:String(pool.id),errors}));
+              setText('appError','Poolspelet skapades (ID '+pool.id+'), men vissa kalendermatcher kunde inte sparas: '+errors.join('; ')+'. Skapa inte ett nytt poolspel för att försöka igen.');
+              return;
+            }
+            sessionStorage.removeItem('nsk2_calendar_match_import_errors');
             sessionStorage.removeItem('nsk2_calendar_match_pending');
+            sessionStorage.removeItem('nsk2_calendar_match_schedule');
           }
         }
         setText("poolMsg", "Poolspel och berörda scheman sparade");
@@ -1342,8 +1396,17 @@ window.NSK2App = (() => {
     if (fromCreate) {
       sessionStorage.removeItem("nsk2_lineup_from_create");
 
-      if (byId("lineupStartTime")) byId("lineupStartTime").value = "";
-      if (byId("lineupOpponent")) byId("lineupOpponent").value = "";
+      // Behåll kalenderns starttid och motståndare även första gången uppställningen öppnas.
+      let initialCalendarMatch=null;
+      try {
+        const schedule=JSON.parse(sessionStorage.getItem('nsk2_calendar_match_schedule')||'null');
+        if(schedule&&String(schedule.poolId)===String(poolId)&&Array.isArray(schedule.matches)){
+          const size=Math.ceil(schedule.matches.length/Math.max(1,Number(schedule.teams)||1));
+          initialCalendarMatch=schedule.matches[(Number(lagNo)-1)*size+Number(matchNo)-1]||null;
+        }
+      }catch{}
+      if (byId("lineupStartTime")) byId("lineupStartTime").value = initialCalendarMatch?.startTime||"";
+      if (byId("lineupOpponent")) byId("lineupOpponent").value = initialCalendarMatch?.opponent||"";
       if (byId("lineupPlan")) byId("lineupPlan").value = "Plan 1";
       if (byId("lineupGoalie")) byId("lineupGoalie").value = "";
 
