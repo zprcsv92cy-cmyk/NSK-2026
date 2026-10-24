@@ -737,27 +737,54 @@ window.NSK2App = (() => {
           }
           sessionStorage.removeItem("nsk2_edit_pool_id");
         } else {
-          // Spara aldrig ett andra poolspel när en kalenderimport bara delvis lyckades.
-          const existingImport=sessionStorage.getItem('nsk2_calendar_match_import_errors');
-          if(existingImport)throw new Error('En tidigare kalenderimport behöver åtgärdas innan ett nytt poolspel skapas.');
           const pending=sessionStorage.getItem('nsk2_calendar_match_pending');
-          let schedule=null;
+          const retryRaw=sessionStorage.getItem('nsk2_calendar_match_import_errors');
+          let retry=null, schedule=null, pool=null;
+          if(retryRaw){
+            try { retry=JSON.parse(retryRaw); } catch {}
+            if(!retry || !Number.isSafeInteger(Number(retry.poolId)) || Number(retry.poolId)<=0)
+              throw new Error('En äldre kalenderimport är ofullständig. Kontrollera den innan du skapar ett nytt poolspel.');
+          }
           if(pending){
             try {
               const {planCalendarMatches}=await import(new URL('calendar-match-plan.mjs',nskVersionRoot()).href);
               schedule=planCalendarMatches(JSON.parse(pending));
             } catch {throw new Error('Kalenderimporten kunde inte läsas. Öppna poolspelet från kalendern igen.');}
-            if(!schedule.schedule.length || schedule.teams!==payload.teams ||
-               schedule.matchesPerTeam>payload.matches ||
-               window.APP_CONFIG?.REQUIRE_PERSONAL_MATCH_WRITES!==true)
-              throw new Error('Kalenderimporten har felaktiga matchuppgifter eller saknar personlig matchbehörighet. Inget poolspel skapades.');
+            if(!schedule.schedule.length || window.APP_CONFIG?.REQUIRE_PERSONAL_MATCH_WRITES!==true)
+              throw new Error('Kalenderimporten saknar matcher eller personlig matchbehörighet.');
           }
-          const pool = await DB.addPool(payload);
-          sessionStorage.setItem("nsk2_pool_id", pool.id);
+          if(retry){
+            // Ett sparat poolspel får aldrig skapas igen efter ett delvis misslyckat försök.
+            if(!schedule)throw new Error('Matchunderlaget saknas för den tidigare importen. Skapa inte ett nytt poolspel.');
+            pool=await DB.getPool(retry.poolId);
+            if(!pool)throw new Error('Det tidigare poolspelet kunde inte verifieras. Ingen ny import utfördes.');
+            if(schedule.teams!==Number(pool.teams) || schedule.matchesPerTeam>Number(pool.matches))
+              throw new Error('Det befintliga poolspelet stämmer inte med kalendern. Ingen ändring gjordes.');
+          } else {
+            if(schedule && (schedule.teams!==payload.teams || schedule.matchesPerTeam>payload.matches))
+              throw new Error('Antal lag eller matcher stämmer inte med kalenderimporten. Inget poolspel skapades.');
+            pool=await DB.addPool(payload);
+            sessionStorage.setItem("nsk2_pool_id",pool.id);
+            if(schedule){
+              sessionStorage.setItem('nsk2_calendar_match_import_errors',JSON.stringify({poolId:String(pool.id),errors:['Importen pågår']}));
+              sessionStorage.setItem('nsk2_calendar_match_schedule',JSON.stringify({poolId:String(pool.id),matches:JSON.parse(pending),teams:payload.teams}));
+            }
+          }
+          sessionStorage.setItem("nsk2_pool_id",String(pool.id));
           if(schedule){
-            sessionStorage.setItem('nsk2_calendar_match_schedule',JSON.stringify({poolId:String(pool.id),matches:JSON.parse(pending),teams:payload.teams}));
             const errors=[];
+            const existing=await DB.listPoolTeamMatchConfigs(pool.id);
             for(const match of schedule.schedule){
+              const saved=existing.filter(row=>Number(row.lag_no)===match.lag_no && Number(row.match_no)===match.match_no);
+              if(saved.length>1){errors.push('Dubbletter finns för lag '+match.lag_no+', match '+match.match_no);continue;}
+              if(saved.length===1){
+                // Ett tidigare lyckat skrivsteg ska inte skrivas över eller skickas igen.
+                const row=saved[0];
+                if(String(row.start_time||'').slice(0,5)===match.start_time &&
+                   String(row.opponent||'').trim()===match.opponent.trim())continue;
+                errors.push('Befintlig match skiljer sig från kalendern för lag '+match.lag_no+', match '+match.match_no);
+                continue;
+              }
               try {
                 await DB.saveCalendarMatchSchedule({pool_id:Number(pool.id),...match});
               } catch(error) {
@@ -766,7 +793,7 @@ window.NSK2App = (() => {
             }
             if(errors.length){
               sessionStorage.setItem('nsk2_calendar_match_import_errors',JSON.stringify({poolId:String(pool.id),errors}));
-              throw new Error('Poolspelet skapades (ID '+pool.id+'), men vissa matcher kunde inte sparas: '+errors.join('; ')+'. Skapa inte ett nytt poolspel.');
+              throw new Error('Poolspel '+pool.id+' finns redan. '+errors.join('; ')+'. Rätta felet och tryck Spara igen för att återuppta importen, utan att skapa nytt poolspel.');
             }
             sessionStorage.removeItem('nsk2_calendar_match_pending');
             sessionStorage.removeItem('nsk2_calendar_match_schedule');
