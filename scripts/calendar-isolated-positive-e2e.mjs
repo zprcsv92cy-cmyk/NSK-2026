@@ -11,7 +11,7 @@ assert.ok(cloudflareToken,'Cloudflare secret must be configured in isolated-prev
 const base='https://nsk-api-isolated-preview.peter-hasselberg.workers.dev';
 const dbId='b94c8dba-34be-4cff-a4e9-892caf4e3ddd';
 const api='https://api.cloudflare.com/client/v4/accounts/'+account;
-const expectedVersion='e326ca7f-4f46-45e5-b994-abbb1a2ad9bd';
+const expectedVersion=process.env.NSK_E2E_EXPECTED_VERSION || 'e326ca7f-4f46-45e5-b994-abbb1a2ad9bd';
 async function cfGet(path){
   const response=await fetch(api+path,{headers:{Authorization:'Bearer '+cloudflareToken},signal:AbortSignal.timeout(15000)});
   const data=await response.json();
