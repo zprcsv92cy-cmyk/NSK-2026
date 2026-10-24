@@ -332,7 +332,7 @@ test('Unknown venue does not cause any same-day saved pool to count as the same 
 });
 test('Venue equality for existing calendar pools ignores surrounding whitespace',()=>{
   const review=source.slice(source.indexOf("const exists=item.type==='training'"));
-  assert.match(review,/String\(p\.place\|\|''\)\.trim\(\)\.toLocaleLowerCase/);
+  assert.match(review,/normalizeCalendarPoolPlace\(p\.place\)===normalizeCalendarPoolPlace\(item\.place\)/);
 });
 
 test('Calendar pool venue normalization handles case and repeated spaces',()=>{
