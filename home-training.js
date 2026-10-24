@@ -108,16 +108,26 @@
   // Hall names appear on the line BELOW the activity in Svenskalag calendars.
   // OCR can split the two words or confuse 'hallen' with 'hallen.'.
   function detectCalendarHall(words){
-    const normalized=words.map(w=>String(w.text||'').toLocaleLowerCase('sv-SE').replace(/[^a-zåäö]/g,'')).filter(Boolean);
-    for(let i=0;i<normalized.length;i++){
-      const token=normalized[i];
-      const next=normalized[i+1]||'';
-      if(/^stora?(?:is)?hallen$/.test(token)||(token==='stora'&&/^(?:is)?hall(?:en)?$/.test(next)))return 'Stora hallen';
-      if(/^lillahallen$/.test(token)||(token==='lilla'&&/^hall(?:en)?$/.test(next)))return 'Lilla Hallen';
+    const normalized=words.map(w=>({
+      text:String(w.text||'').toLocaleLowerCase('sv-SE').replace(/[^a-zåäö]/g,''),
+      x:w.bbox?.x0??0,y:w.bbox?.y0??0
+    })).filter(w=>w.text);
+    // OCR may split the venue over separate text lines or insert time tokens.
+    // Compare spatially close words rather than relying on their array order.
+    for(const word of normalized){
+      if(/^(?:stor(?:a)?|lilla)(?:is)?hall(?:en)?$/.test(word.text))
+        return word.text.startsWith('lill')?'Lilla Hallen':'Stora hallen';
+    }
+    for(const first of normalized){
+      if(!/^(?:stora|stor|lilla)$/.test(first.text))continue;
+      const second=normalized.find(w=>/^(?:is)?hall(?:en)?$/.test(w.text)
+        &&Math.abs(w.y-first.y)<55
+        &&Math.abs(w.x-first.x)<500);
+      if(second)return first.text==='lilla'?'Lilla Hallen':'Stora hallen';
     }
     return null;
   }
-  function extractCalendarWords(data){
+    function extractCalendarWords(data){
     const words=[];
     function collect(node){
       if(!node)return;
@@ -162,8 +172,15 @@
     const items=new Map();
     const rows=words.filter(w=>w.bbox.x0>=dayColumn)
       .sort((a,b)=>a.bbox.y0-b.bbox.y0);
+    // Overlapping OCR crops can repeat the same date with slightly different y.
+    // Merge repeated day markers before computing day boundaries.
+    const uniqueDates=[];
     for(const date of dates){
-      const next=dates.find(d=>d.y>date.y+3);
+      if(uniqueDates.some(other=>other.day===date.day&&Math.abs(other.y-date.y)<imageWidth*0.16))continue;
+      uniqueDates.push(date);
+    }
+    for(const date of uniqueDates){
+      const next=uniqueDates.find(d=>d.y>date.y+imageWidth*0.012);
       const lower=next?next.y:Infinity;
       const eventWords=rows.filter(w=>w.bbox.y0>=date.y-8&&w.bbox.y0<lower);
       if(!eventWords.length)continue;
