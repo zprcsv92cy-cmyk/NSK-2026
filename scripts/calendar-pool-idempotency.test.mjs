@@ -78,3 +78,29 @@ test('pool import must reserve durable storage before first Baserow call',async(
     assert.equal(writes,0,'Baserow must not be reached without reservation');
   }finally{globalThis.fetch=previous}
 });
+
+test('unavailable durable reservation read fails closed before Baserow write',async()=>{
+  const previous=globalThis.fetch;
+  let writes=0;
+  globalThis.fetch=async()=>{writes++;return Response.json({id:999},{status:201})};
+  try{
+    const lock=new ShiftLock({storage:{get:async()=>{throw new Error('storage not readable')},put:async()=>{throw new Error('unexpected put')}}},env);
+    const response=await send(lock);
+    assert.equal(response.status,503);
+    assert.equal((await response.json()).ok,false);
+    assert.equal(writes,0);
+  }finally{globalThis.fetch=previous}
+});
+
+test('malformed import UUID is rejected before reading storage or calling Baserow',async()=>{
+  const previous=globalThis.fetch;
+  let writes=0,reads=0;
+  globalThis.fetch=async()=>{writes++;return Response.json({id:999},{status:201})};
+  try{
+    const lock=new ShiftLock({storage:{get:async()=>{reads++;return undefined},put:async()=>{throw new Error('unexpected put')}}},env);
+    const response=await send(lock,{...body,key:'g'.repeat(36)});
+    assert.equal(response.status,400);
+    assert.equal(reads,0);
+    assert.equal(writes,0);
+  }finally{globalThis.fetch=previous}
+});
