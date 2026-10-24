@@ -2,6 +2,7 @@ import {createPersonalRosterIdentityVerifier} from './personal-roster-identity-a
 import {mapTrustedMembershipsToLegacyTeams} from './production-team-id-map.js';
 import {validateTrainingPayload} from './training-session-validation.js';
 import {authorizeTeamFeature} from './team-authorization-policy.js';
+import {parseSvenskalagIcal} from './svenskalag-ical.js';
 
 const fail=(status,error)=>Response.json({ok:false,error},{status,headers:{'cache-control':'no-store'}});
 export function createTrainingHandler(env,listTeams){
@@ -23,6 +24,21 @@ export function createTrainingHandler(env,listTeams){
    const access=mapTrustedMembershipsToLegacyTeams(actor,await listTeams());
    if(!access.memberships.some(m=>m.team_id===team[0])||!access.permissions.includes('read'))return fail(403,'No team access');
    const db=env.AUTH_DB;
+   if(request.method==='GET'&&url.searchParams.get('action')==='svenskalag-calendar'){
+    if(dates.length)return fail(400,'Calendar feed is team-scoped, not date-scoped');
+    let upstream;
+    try{
+      upstream=await fetch('https://cal.svenskalag.se/103684',{
+        headers:{Accept:'text/calendar'},redirect:'error',signal:AbortSignal.timeout(12000)
+      });
+      if(!upstream.ok||Number(upstream.headers.get('content-length')||0)>1024*1024)
+        return fail(502,'SvenskaLag-kalendern kunde inte hämtas');
+      const ical=await upstream.text();
+      const today=new Intl.DateTimeFormat('sv-SE',{timeZone:'Europe/Stockholm',year:'numeric',month:'2-digit',day:'2-digit'}).format(new Date());
+      const items=parseSvenskalagIcal(ical,today);
+      return Response.json({ok:true,source:'SvenskaLag',items},{headers:{'cache-control':'private, no-store'}});
+    }catch{return fail(502,'SvenskaLag-kalendern gick inte att läsa just nu');}
+   }
    if(request.method==='GET'){
     if(!dates.length){
      const result=await db.prepare('SELECT training_date, selected_players_json, selected_coaches_json, hall FROM training_sessions WHERE team_id=? ORDER BY training_date DESC LIMIT 500').bind(team[0]).all();
