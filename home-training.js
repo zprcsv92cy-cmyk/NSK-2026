@@ -302,7 +302,17 @@
             // the date column can be read one day ahead of an activity.
             if(layoutItems===null){chunksWithoutGeometry++;continue;}
             chunksWithGeometry++;
-            for(const item of layoutItems){const key=item.type+':'+item.date+':'+(item.place||'');const previous=merged.get(key);merged.set(key,previous&&previous.hall&&!item.hall?previous:item);}
+            for(const item of layoutItems){
+              const key=item.type+':'+item.date+':'+(item.place||'');
+              const previous=merged.get(key);
+              if(previous?.hallConflict){
+                merged.set(key,{...item,hall:null,hallConflict:true});
+              }else if(previous?.hall&&item.hall&&previous.hall!==item.hall){
+                merged.set(key,{...item,hall:null,hallConflict:true});
+              }else if(!previous||(!previous.hall&&item.hall)){
+                merged.set(key,item);
+              }
+            }
             if(top+height>=bitmap.height)break;
           }
           if(!chunksWithGeometry)throw Error('OCR-motorn gav inga läsbara positionsdata i någon bilddel. Ingen import har gjorts.');
@@ -349,7 +359,9 @@
             const dayWords=extractCalendarWords(dayResult.data);
             if(item.type==='training'){
               const hall=detectCalendarHall(dayWords);
-              if(hall)item.hall=hall;
+              if(hall&&item.hall&&item.hall!==hall){
+                item.hall=null;item.hallConflict=true;
+              }else if(hall&&!item.hallConflict)item.hall=hall;
             }else if(item.type==='pool'){
               const dayText=String(dayResult.data?.text||'').toLocaleLowerCase('sv-SE');
               if(/\\bsödertälje\\b/.test(dayText))item.place='Södertälje';
