@@ -560,6 +560,8 @@ window.NSK2App = (() => {
             if(byId('poolDate'))byId('poolDate').value=imported.date;
             if(byId('poolPlace'))byId('poolPlace').value=String(imported.place||'').slice(0,120);
             if(byId('poolHall'))byId('poolHall').value=String(imported.hall||'').slice(0,120);
+             const halls=(String(imported.hall||'')+' '+String(imported.place||'')).toLocaleLowerCase('sv-SE');
+             if(/lilla\s+hallen|stora\s+hallen/.test(halls)&&byId('teams'))byId('teams').value='2';
              const calendarMatches=Array.isArray(imported.matches)?imported.matches.filter(m=>/^\d{2}:\d{2}$/.test(m.startTime||'')&&typeof m.opponent==='string'&&m.opponent.trim()).slice(0,24):[];
              const matchesSelect=byId('matches');
              if(matchesSelect&&calendarMatches.length){
