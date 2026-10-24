@@ -158,6 +158,27 @@
     }
     return words;
   }
+  function detectPoolVenue(words){
+    // Calendar venues appear as their own small line underneath a match.
+    // Do not treat the opposing team's name in a match title as a venue.
+    const ordered=[...words].filter(w=>w?.bbox&&w.text).sort((a,b)=>a.bbox.y0-b.bbox.y0||a.bbox.x0-b.bbox.x0);
+    const lines=[];
+    for(const word of ordered){
+      const y=word.bbox.y0;
+      let line=lines.find(l=>Math.abs(l.y-y)<Math.max(5,(word.bbox.y1-y)*0.55));
+      if(!line){line={y,words:[]};lines.push(line);}
+      line.words.push(word);
+    }
+    const venues=[];
+    for(const line of lines){
+      const text=line.words.sort((a,b)=>a.bbox.x0-b.bbox.x0).map(w=>w.text).join(' ').trim();
+      const normalized=text.toLocaleLowerCase('sv-SE');
+      if(/\\bmatch\\s+mot\\b|\\bpoolspel\\b|\\bintresseanmälan\\b/.test(normalized))continue;
+      const explicit=normalized.match(/^(?:plats\\s*[:：]\\s*)?((?:strängnäs\\s+ishall|månsbrorinken|smehallen))$/i);
+      if(explicit)venues.push(text.replace(/^plats\\s*[:：]\\s*/i,'').trim());
+    }
+    return [...new Set(venues.map(v=>v.toLocaleLowerCase('sv-SE')))].length===1?venues[0]:'';
+  }
   function parseCalendarLayout(data,monthKey,imageWidth){
     const words=Array.isArray(data)?data:extractCalendarWords(data);
     if(!words.length)return null;
@@ -199,7 +220,7 @@
       const hall=detectCalendarHall(eventWords);
       // Opponent names are not venues. Only accept a place on an explicit venue line.
       const venueLine=content.match(/(?:^|\\s)(?:plats|arena|ishall)\\s*[:：]\\s*([^,;\\n]+)/);
-      const place=isPool&&venueLine?venueLine[1].trim():'';
+      const place=isPool?(venueLine?venueLine[1].trim():detectPoolVenue(eventWords)):'';
       const item=isPool?{type:'pool',date:fullDate,hall:hall||'',place}:{type:'training',date:fullDate,hall};
       items.set(item.type+':'+fullDate+':'+(item.place||''),item);
     }
