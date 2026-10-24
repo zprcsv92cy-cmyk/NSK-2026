@@ -28,7 +28,7 @@ self.addEventListener("fetch", (event) => {
   if (req.method !== "GET" || new URL(req.url).origin !== self.location.origin) return;
   const url = new URL(req.url);
   // deploy.json får aldrig hämtas ur cache: den styr versionskontrollen.
-  if (url.pathname.endsWith("/deploy.json") || url.pathname.endsWith("/home-training.js")) return;
+  if (url.pathname.endsWith("/deploy.json") || url.pathname.endsWith("/home-training.js") || url.pathname.endsWith("/svenskalag-home.js")) return;
   // Cachelagra endast filer som hör till denna GitHub Pages-app.
   const scope = new URL(self.registration.scope);
   if (!url.href.startsWith(scope.href)) return;
