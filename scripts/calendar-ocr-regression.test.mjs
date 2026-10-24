@@ -203,3 +203,23 @@ test('Other activities remain excluded with grouped training labels',()=>{
   const words=[word('11',15,100),word('Hockeyfritids',180,114),word('Stora',200,146),word('hallen',275,146),word('12',15,250)];
   assert.equal(sandbox.parseCalendarLayout(words,'2026-11',1000).length,0);
 });
+
+test('Poolspel with appended calendar date is still recognized',()=>{
+  const words=[
+    word('21',15,100),word('Poolspel 21/11',180,114),
+    word('Strängnäs',200,145),word('Ishall',310,145),
+    word('22',15,280)
+  ];
+  const items=JSON.parse(JSON.stringify(sandbox.parseCalendarLayout(words,'2026-11',1000)));
+  assert.equal(items.length,1);
+  assert.equal(items[0].type,'pool');
+  assert.equal(items[0].place,'Strängnäs Ishall');
+});
+test('Interest registration with poolspel date remains excluded',()=>{
+  const words=[
+    word('21',15,100),word('Intresseanmälan',180,114),
+    word('poolspel 21/11',340,114),
+    word('22',15,280)
+  ];
+  assert.equal(sandbox.parseCalendarLayout(words,'2026-11',1000).length,0);
+});
