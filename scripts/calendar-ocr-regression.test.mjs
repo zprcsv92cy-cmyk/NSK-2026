@@ -45,3 +45,16 @@ test('Never borrow the next day venue when OCR omits a hall',()=>{
   assert.equal(items[0].hall,null);
   assert.equal(items[1].hall,'Stora hallen');
 });
+
+test('Invalid day in selected month is never imported',()=>{
+  const items=JSON.parse(JSON.stringify(sandbox.parseCalendarLayout([
+    ...row(30,100,[['Stora',210,35],['hallen',278,35]]),
+    ...row(31,220,[['Lilla',210,35],['Hallen',278,35]])
+  ],'2026-11',1000)));
+  assert.deepEqual(items.map(x=>x.date),['2026-11-30']);
+});
+test('Venue token far from the hall label is not joined',()=>{
+  assert.equal(sandbox.detectCalendarHall([
+    word('Stora',200,100),word('hallen',900,100)
+  ]),null);
+});
