@@ -173,9 +173,9 @@
     for(const line of lines){
       const text=line.words.sort((a,b)=>a.bbox.x0-b.bbox.x0).map(w=>w.text).join(' ').trim();
       const normalized=text.toLocaleLowerCase('sv-SE');
-      if(/\\bmatch\\s+mot\\b|\\bpoolspel\\b|\\bintresseanmälan\\b/.test(normalized))continue;
-      const explicit=normalized.match(/^(?:plats\\s*[:：]\\s*)?((?:strängnäs\\s+ishall|månsbrorinken|smehallen))$/i);
-      if(explicit)venues.push(text.replace(/^plats\\s*[:：]\\s*/i,'').trim());
+      if(/\bmatch\s+mot\b|\bpoolspel\b|\bintresseanmälan\b/.test(normalized))continue;
+      const explicit=normalized.match(/^(?:plats\s*[:：]\s*)?((?:strängnäs\s+ishall|månsbrorinken|smehallen))$/i);
+      if(explicit)venues.push(text.replace(/^plats\s*[:：]\s*/i,'').trim());
     }
     return [...new Set(venues.map(v=>v.toLocaleLowerCase('sv-SE')))].length===1?venues[0]:'';
   }
@@ -244,7 +244,7 @@
       const separateLabels=trainingLabels.filter((w,i)=>trainingLabels.findIndex(other=>Math.abs(other.bbox.y0-w.bbox.y0)<Math.max(8,imageWidth*0.009))===i);
       const multipleSessions=separateLabels.length>1;
       // Opponent names are not venues. Only accept a place on an explicit venue line.
-      const venueLine=content.match(/(?:^|\\s)(?:plats|arena|ishall)\\s*[:：]\\s*([^,;\\n]+)/);
+      const venueLine=content.match(/(?:^|\s)(?:plats|arena|ishall)\s*[:：]\s*([^,;\n]+)/);
       const place=isPool?(venueLine?venueLine[1].trim():detectPoolVenue(eventWords)):'';
       if(isPool){
         const item={type:'pool',date:fullDate,hall:hall||'',place};
