@@ -1,5 +1,8 @@
 // Read-only calendar section. No imports, deletes or edits are performed here.
 (() => {
+ const arenaCity=new Map([["Avicii Arena","Stockholm"],["Hovet","Stockholm"],["Scandinavium","Göteborg"],["Malmö Arena","Malmö"],["Löfbergs Arena","Karlstad"],["Monitor ERP Arena","Gävle"],["Saab Arena","Linköping"],["Husqvarna Garden","Jönköping"],["Vida Arena","Växjö"],["Behrn Arena","Örebro"],["Skellefteå Kraft Arena","Skellefteå"],["Coop Norrbotten Arena","Luleå"],["Winpos Arena","Umeå"],["Hägglunds Arena","Örnsköldsvik"],["Tegera Arena","Leksand"],["SCA Arena","Timrå"],["Catena Arena","Ängelholm"],["Be-Ge Hockey Center","Oskarshamn"],["ABB Arena Nord","Västerås"],["Nobelhallen","Karlskoga"],["Himmelstalundshallen","Norrköping"],["Stora Hallen","Nyköping"],["Plivit Arena","Västervik"],["Scaniarinken","Södertälje"],["Hatstore Arena","Kalmar"],["Liljas Arena","Nybro"],["Kristianstads Ishall","Kristianstad"],["Tyringe Kurort Arena","Tyringe"],["Halmstad Arena","Halmstad"],["Olympiarinken","Helsingborg"],["Järna Ishall","Järna"],["Visby Ishall","Visby"],["Matojärvi Ishall","Kiruna"],["Lombiahallen","Kiruna"],["Gällivare Ishall","Gällivare"],["Boden Energi Arena","Boden"],["Piteå Ishall","Piteå"],["Niphallen","Sollefteå"],["Modin開放 Ishall","Nyland"],["Kanalhallen","Härnösand"],["Brandcode Center","Sundsvall"],["Ånge Ishall","Ånge"],["Sveg Ishall","Sveg"],["Östersund Arena","Östersund"],["Strömsund Ishall","Strömsund"],["Lugnets Ishall","Falun"],["Jalas Arena","Mora"],["Smedjebacken Ishall","Smedjebacken"],["Ludvika Ishall","Ludvika"],["Avesta Ishall","Avesta"],["Hedemora Ishall","Hedemora"],["Boliden Ishall","Boliden"],["Clemensnäs Ishall","Skellefteå"],["Vännäs Ishall","Vännäs"],["Lycksele Ishall","Lycksele"],["Vilhelmina Ishall","Vilhelmina"],["Malå Ishall","Malå"],["Åsele Ishall","Åsele"],["Overkalix Ishall","Överkalix"],["Haparanda Ishall","Haparanda"],["Kalix Ishall","Kalix"],["Älvsbyn Ishall","Älvsbyn"],["Gunder Hägg-hallen","Alfta"],["Bollnäs Ishall","Bollnäs"],["Söderhamn Ishall","Söderhamn"],["Hudiksvall Ishall","Hudiksvall"],["Hofors Ishall","Hofors"],["Sandviken Ishall","Sandviken"],["Valbo Ishall","Gävle"],["Ljusne Ishall","Ljusne"],["Gränbyhallen","Uppsala"],["Enköping Ishall","Enköping"],["Bålsta Ishall","Bålsta"],["Tierp Ishall","Tierp"],["Osthammar Ishall","Östhammar"],["Hallstahammar Ishall","Hallstahammar"],["Surahammars Ishall","Surahammar"],["Sala Ishall","Sala"],["Fagersta Ishall","Fagersta"],["Arboga Ishall","Arboga"],["Köping Ishall","Köping"],["Glimma Ishall","Glimåkra"],["Osby Ishall","Osby"],["Kockumhallen","Kallinge"],["Karlskrona Arena","Karlskrona"],["Mörrum Ishall","Mörrum"],["Sölvesborg Ishall","Sölvesborg"],["Vellinge Ishall","Vellinge"],["Trelleborg Ishall","Trelleborg"],["Lunds Ishall","Lund"],["Landskrona Ishall","Landskrona"],["Åstorp Ishall","Åstorp"],["Höörs Ishall","Höör"],["Jonstorp Ishall","Jonstorp"],["Marconihallen","Göteborg"],["Ruddalens Ishall","Göteborg"],["Tuve Ishall","Göteborg"],["Angered Arena","Göteborg"],["Frölundaborg","Göteborg"],["Isdala Ishall","Göteborg"],["Wallenstamhallen","Göteborg"]].map(([arena,city])=>[arena.normalize('NFKC').trim().toLocaleLowerCase('sv-SE'),city]));
+ const poolLocation=item=>{const hall=String(item.place||'').trim();return {hall,city:arenaCity.get(hall.normalize('NFKC').toLocaleLowerCase('sv-SE'))||hall};};
+ const samePool=(p,item)=>p.pool_date===item.date&&String(p.place||'').trim().toLocaleLowerCase('sv-SE')===poolLocation(item).city.toLocaleLowerCase('sv-SE')&&(!p.hall||String(p.hall).trim().toLocaleLowerCase('sv-SE')===poolLocation(item).hall.toLocaleLowerCase('sv-SE'));
  const esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
  function renderUpcomingCalendarPools(items){
   const box=document.getElementById('savedPoolsList');
@@ -23,10 +26,10 @@
    summary.className='nsk-pool-summary';
    const name=document.createElement('span');
    name.className='nsk-pool-name';
-   name.textContent=(item.place||'Poolspel')+' • '+item.date;
+   name.textContent=(poolLocation(item).city||'Poolspel')+' • '+item.date;
    const origin=document.createElement('span');
    origin.className='nsk-pool-hall';
-   origin.textContent='SvenskaLag';
+   origin.textContent=(poolLocation(item).city!==poolLocation(item).hall?poolLocation(item).hall+' • ':'')+'SvenskaLag';
    const chevron=document.createElement('span');
    chevron.className='nsk-pool-chevron';
    chevron.setAttribute('aria-hidden','true');
@@ -45,12 +48,12 @@
     create.disabled=true;
     try{
      const pools=await DB.listPools();
-     const match=pools.find(p=>p.pool_date===item.date&&String(p.place||'').trim().toLocaleLowerCase('sv-SE')===String(item.place||'').trim().toLocaleLowerCase('sv-SE'));
+     const match=pools.find(p=>samePool(p,item));
      if(match){sessionStorage.setItem('nsk2_edit_pool_id',String(match.id));location.href='../skapapoolspel/';return;}
     }catch(error){create.disabled=false;alert('Kunde inte kontrollera befintliga poolspel. Försök igen.');return;}
 
     sessionStorage.removeItem('nsk2_edit_pool_id');
-    sessionStorage.setItem('nsk2_svenskalag_pool_draft',JSON.stringify({date:item.date,place:item.place||''}));
+    sessionStorage.setItem('nsk2_svenskalag_pool_draft',JSON.stringify({date:item.date,place:poolLocation(item).city,hall:poolLocation(item).hall}));
     location.href='../skapapoolspel/';
    });
    content.append(create);
@@ -82,7 +85,7 @@
    if(!items.length){root.textContent='Inga kommande kalenderaktiviteter importerade ännu.';renderUpcomingCalendarPools([]);}
    let existingPools=[];
    try{existingPools=await DB.listPools();}catch{}
-   const calendarPools=items.filter(item=>item.type==='pool'&&!existingPools.some(p=>p.pool_date===item.date&&String(p.place||'').trim().toLocaleLowerCase('sv-SE')===String(item.place||'').trim().toLocaleLowerCase('sv-SE')));
+   const calendarPools=items.filter(item=>item.type==='pool'&&!existingPools.some(p=>samePool(p,item)));
    const calendarOthers=items.filter(item=>item.type!=='pool');
    if(calendarOthers.length)root.innerHTML=calendarOthers.map(item=>{
     const kind={training:'Träning',pool:'Poolspel',match:'Match'}[item.type]||'Aktivitet';
