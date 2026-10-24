@@ -256,7 +256,7 @@ test('Correcting an imported date retains multi-session and past-date safeguards
 });
 test('Corrected pool date checks venue as well as date for existing pools',()=>{
   const review=source.slice(source.indexOf("dateInput.addEventListener('change'"),source.indexOf("// Hall names are never inferred"));
-  assert.match(review,/p\.pool_date===next&&normalizeCalendarPoolPlace\(p\.place\)===normalizeCalendarPoolPlace\(item\.place\)/);
+  assert.match(review,/p\.pool_date===next&&!!normalizeCalendarPoolPlace\(item\.place\)&&normalizeCalendarPoolPlace\(p\.place\)===normalizeCalendarPoolPlace\(item\.place\)/);
 });
 
 test('Import selection uses each candidate checkbox, not potentially colliding string keys',()=>{
@@ -396,4 +396,10 @@ test('Blocked calendar items still start unchecked and require explicit selectio
   const review=source.slice(source.indexOf("for(const item of candidates){"),source.indexOf("review.append(label);",source.indexOf("for(const item of candidates){")));
   assert.match(review,/check\.disabled=exists\|\|\(item\.type==='pool'&&!item\.place\);check\.checked=!check\.disabled/);
   assert.match(review,/if\(!item\.hall\|\|item\.multipleSessions\)\{check\.checked=false;check\.disabled=true/);
+});
+
+test('Changing date with unknown pool venue cannot falsely match an existing blank venue',()=>{
+  const review=source.slice(source.indexOf("dateInput.addEventListener('change'"),source.indexOf("// Hall names are never inferred"));
+  assert.match(review,/p\.pool_date===next&&!!normalizeCalendarPoolPlace\(item\.place\)/);
+  assert.match(review,/\(item\.type==='pool'&&!item\.place\)/);
 });

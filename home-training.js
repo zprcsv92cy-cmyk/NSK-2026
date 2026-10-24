@@ -510,7 +510,7 @@
             const next=dateInput.value;
             if(!next.startsWith(importMonth+'-')){dateInput.value=item.date;return;}
             item.date=next;
-            const already=item.type==='training'?currentContext.dates.has(next):knownPools.some(p=>p.pool_date===next&&normalizeCalendarPoolPlace(p.place)===normalizeCalendarPoolPlace(item.place));
+            const already=item.type==='training'?currentContext.dates.has(next):knownPools.some(p=>p.pool_date===next&&!!normalizeCalendarPoolPlace(item.place)&&normalizeCalendarPoolPlace(p.place)===normalizeCalendarPoolPlace(item.place));
             check.value=item.type+':'+next+':'+(item.place||'');
             check.disabled=already||next<todayLocalDate()||(item.type==='training'&&(!item.hall||item.multipleSessions))||(item.type==='pool'&&!item.place);if(check.disabled)check.checked=false;
             text.textContent=(item.type==='pool'?'Poolspel':'Träning')+' • '+next+' • '+(item.place||item.hall||'Plats ej angiven')+(already?' – finns redan':'');
