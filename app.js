@@ -559,8 +559,10 @@ window.NSK2App = (() => {
     if (!editId) {
       const draft=sessionStorage.getItem('nsk2_svenskalag_pool_draft');
       if(draft && interruptedImport){
-        // Den äldre importens matchunderlag får inte skrivas över av en ny kalenderpost.
-        setText('appError','Slutför först den avbrutna kalenderimporten. Nytt kalenderutkast har inte öppnats.');
+        // Kassera det nyare utkastet så att det inte startas oavsiktligt vid nästa besök.
+        // Den avbrutna importens matchunderlag behålls däremot oförändrat.
+        sessionStorage.removeItem('nsk2_svenskalag_pool_draft');
+        setText('appError','Slutför först den avbrutna kalenderimporten. Nytt kalenderutkast ignorerades.');
       } else if(draft){
         sessionStorage.removeItem('nsk2_svenskalag_pool_draft');
         try{
@@ -698,6 +700,8 @@ window.NSK2App = (() => {
         sub_time: safeInt(byId("subTime")?.value || "90", 90)
       };
       const editId = sessionStorage.getItem("nsk2_edit_pool_id");
+      if(editId && sessionStorage.getItem('nsk2_calendar_match_import_errors'))
+        throw new Error('Slutför den avbrutna kalenderimporten innan ett poolspel redigeras.');
       let changedRules = false;
       if (editId) {
         const previous = await DB.getPool(editId);
