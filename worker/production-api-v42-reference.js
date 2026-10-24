@@ -88,12 +88,15 @@ var ShiftLock = class {
     // retries fail closed rather than creating a second pool.
     if (!this.storage || !this.env.BASEROW_TOKEN) return json({ok:false,error:"Importlås saknas"},503);
     const {key, payload, teamId} = body || {};
-    if (typeof key !== 'string' || !/^[0-9a-f-]{36}$/.test(key) ||
+    if (typeof key !== 'string' ||
+        !/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/.test(key) ||
         !Number.isSafeInteger(teamId) || teamId <= 0 || !payload ||
         typeof payload !== 'object' || Array.isArray(payload))
       return json({ok:false,error:"Ogiltig kalenderimport"},400);
     const fingerprint=JSON.stringify({teamId,payload});
-    const prior=await this.storage.get('calendar-pool');
+    let prior;
+    try { prior=await this.storage.get('calendar-pool'); }
+    catch { return json({ok:false,error:"Importlås kunde inte läsas. Inget nytt poolspel skapas."},503); }
     if (prior) {
       if (prior.key !== key || prior.fingerprint !== fingerprint)
         return json({ok:false,error:"Importnyckeln används redan för ett annat poolspel"},409);
