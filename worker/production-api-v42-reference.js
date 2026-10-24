@@ -708,7 +708,7 @@ var worker_default = { async fetch(req, env) {
         // Kalenderimport får endast skapa ett nytt schemaunderlag utan laguppställning.
         if (body.schedule_only === true) {
           if (req.method !== "POST") return reply({ok:false,error:"Schemainläsning får endast skapa nya matcher"},400);
-          if (typeof body.opponent !== "string" || !body.opponent.trim() || !body.start_time) return reply({ok:false,error:"Starttid och motståndare krävs"},400);
+          if (typeof body.opponent !== "string" || !body.opponent.trim() || typeof body.start_time !== "string" || !/^([01][0-9]|2[0-3]):[0-5][0-9]$/.test(body.start_time)) return reply({ok:false,error:"Giltig starttid och motståndare krävs"},400);
           // Kontrollera alla sidor för att undvika dubbletter även i stora poolspel.
           let page=1,duplicate=false,hasMore=true;
           while(hasMore&&page<=100){
