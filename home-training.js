@@ -553,7 +553,11 @@
               check.checked=!check.disabled;
               text.textContent='Poolspel · '+(item.place||'Plats måste kontrolleras')+(already?' – finns redan':'');
             });
-            label.append(check,text,dateInput,placeInput,matchesInput);
+            // These setup values are templates, not facts read from the calendar.
+            // Make the distinction visible before the user creates a poolspel.
+            const defaultsNote=document.createElement('small');
+            defaultsNote.textContent='Standardinställningar (inte avlästa ur bilden): 2 lag, 3 spelare på plan, 1 period à 15 min, byten var 90:e sekund. Kontrollera inställningarna i Skapa poolspel efter import.';
+            label.append(check,text,dateInput,placeInput,matchesInput,defaultsNote);
           }
           review.append(label);
         }

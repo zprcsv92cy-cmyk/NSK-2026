@@ -316,3 +316,10 @@ test('Dated poolspel title must agree with month',()=>{
   const items=JSON.parse(JSON.stringify(sandbox.parseCalendarLayout(words,'2026-11',1000)));
   assert.equal(items.length,0);
 });
+
+test('Pool import review discloses rule defaults are not read from OCR',()=>{
+  const review=source.slice(source.indexOf("const defaultsNote=document.createElement('small')"));
+  assert.match(review,/Standardinställningar \(inte avlästa ur bilden\)/);
+  assert.match(review,/2 lag, 3 spelare på plan, 1 period à 15 min, byten var 90:e sekund/);
+  assert.match(review,/label\.append\(check,text,dateInput,placeInput,matchesInput,defaultsNote\)/);
+});
