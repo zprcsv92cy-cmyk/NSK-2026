@@ -128,3 +128,16 @@ test('Training and poolspel on the same date remain two distinct types',()=>{
   const items=JSON.parse(JSON.stringify(sandbox.parseCalendarLayout(words,'2026-11',1000)));
   assert.deepEqual(items.map(x=>x.type),['pool','training']);
 });
+
+test('Standalone Strängnäs Ishall is recognized as pool venue',()=>{
+  const words=[word('21',15,100),word('Poolspel',180,112),
+    word('Strängnäs',200,148),word('Ishall',310,148),word('22',15,280)];
+  const items=JSON.parse(JSON.stringify(sandbox.parseCalendarLayout(words,'2026-11',1000)));
+  assert.equal(items[0]?.place,'Strängnäs Ishall');
+});
+test('Explicit venue label resolves place without opponent guessing',()=>{
+  const words=[word('22',15,100),word('Poolspel',180,112),
+    word('Plats:',180,147),word('Månsbrorinken',270,147),word('23',15,280)];
+  const items=JSON.parse(JSON.stringify(sandbox.parseCalendarLayout(words,'2026-11',1000)));
+  assert.equal(items[0]?.place,'månsbrorinken');
+});
