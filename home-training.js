@@ -69,7 +69,7 @@
     for(let i=0;i<lines.length;i++){
       const normalized=lines[i].toLocaleLowerCase('sv-SE');
       if(/(?:^|\s)(januari|februari|mars|april|maj|juni|juli|augusti|september|oktober|november|december)\s+20\d{2}/.test(normalized)){day=null;continue;}
-      const inlineDay=normalized.match(/^(\d{1,2})\s+(?:(?:mån|tis|ons|tor|fre|lör|sön)\s+)?(?:\d{1,2}[:.]\d{2}\s+)?(?:is\b|träning\b|poolspel\b|hockeyfritids\b)/i);
+      const inlineDay=normalized.match(/^(\d{1,2})\s+(?:(?:mån|tis|ons|tor|fre|lör|sön)\s+)?(?:\d{1,2}[:.]\d{2}\s+)?(?:is\b|träning\b|poolspel\b)/i);
       if(inlineDay)day=Number(inlineDay[1]);
       const dayMatch=normalized.match(/^(?:(?:mån|tis|ons|tor|fre|lör|sön)(?:dag)?\s+)?(\d{1,2})(?:\s+(?:mån|tis|ons|tor|fre|lör|sön))?\s*$/);
       if(dayMatch){
@@ -86,8 +86,8 @@
       }
       // A new date on the activity line overrides any earlier OCR day header.
       if(!day)continue;
-      const isTraining=/\b(?:träning|is(?:\s*1[789](?:\s*\/\s*1[789])?)?|hockeyfritids|open\s*ice)\b/i.test(normalized);
-      const isPool=/\b(?:poolspel|intresseanmälan\s+poolspel)\b/i.test(normalized);
+      const isTraining=/\b(?:träning|is(?:\s*1[789](?:\s*\/\s*1[789])?)?)\b/i.test(normalized)&&!/\bhockeyfritids\b/i.test(normalized);
+      const isPool=/\bpoolspel\b/i.test(normalized)&&!/\bintresseanmälan\b/i.test(normalized);
       if(!isTraining&&!isPool)continue;
       const date=monthKey+'-'+String(day).padStart(2,'0');
       if(new Date(date+'T12:00:00').getDate()!==day||date<todayLocalDate()){day=null;continue;}
@@ -207,8 +207,13 @@
       const eventWords=rows.filter(w=>w.bbox.y0>=date.y-8&&w.bbox.y0<lower);
       if(!eventWords.length)continue;
       const content=eventWords.map(w=>w.text).join(' ').toLocaleLowerCase('sv-SE');
-      const isPool=/\bpoolspel\b/.test(content);
-      const isTraining=/\b(?:träning|is|hockeyfritids|open)\b/.test(content);
+      const isPool=/\bpoolspel\b/.test(content)&&!/\bintresseanmälan\b/.test(content);
+      const trainingStarts=eventWords.filter(w=>/^(?:träning|is)$/i.test(String(w.text).trim()));
+      const isTraining=trainingStarts.length>0;
+      // Ignore other activities above the first actual training on this date.
+      // In particular, Hockeyfritids must never supply the hall for an ice practice.
+      const firstTrainingY=trainingStarts.length?Math.min(...trainingStarts.map(w=>w.bbox.y0)):Infinity;
+      const trainingWords=eventWords.filter(w=>w.bbox.y0>=firstTrainingY-4);
       if(!isPool&&!isTraining)continue;
       const day=String(date.day).padStart(2,'0');
       const fullDate=monthKey+'-'+day;
@@ -217,19 +222,19 @@
       // Hall text may sit below the time and be split by OCR into separate rows.
       // First inspect the date's words, then retry the same day with a focused,
       // higher-resolution OCR pass when the hall is missing.
-      const hall=detectCalendarHall(eventWords);
+      const hall=detectCalendarHall(isPool?eventWords:trainingWords);
       // A day can contain several independent ice sessions. If distinct halls
       // appear on that day, a single date-level record cannot safely represent
       // either session. Block automatic selection rather than assign one hall.
       const hallMentions=new Set();
-      for(let i=0;i<eventWords.length;i++){
-        const mention=detectCalendarHall(eventWords.slice(i,i+2));
+      for(let i=0;i<trainingWords.length;i++){
+        const mention=detectCalendarHall(trainingWords.slice(i,i+2));
         if(mention)hallMentions.add(mention);
       }
       const hallConflict=hallMentions.size>1;
       // Training storage is currently keyed by date, not by individual
       // start time. Never collapse multiple visible sessions into one.
-      const trainingLabels=eventWords.filter(w=>/^(?:träning|hockeyfritids|is)$/i.test(String(w.text).trim()));
+      const trainingLabels=trainingStarts;
       const separateLabels=trainingLabels.filter((w,i)=>trainingLabels.findIndex(other=>Math.abs(other.bbox.y0-w.bbox.y0)<Math.max(8,imageWidth*0.009))===i);
       const multipleSessions=separateLabels.length>1;
       // Opponent names are not venues. Only accept a place on an explicit venue line.

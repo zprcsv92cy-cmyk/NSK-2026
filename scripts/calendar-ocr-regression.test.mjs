@@ -74,7 +74,7 @@ test('Two different training halls on one date require review',()=>{
   assert.equal(items[0].hallConflict,true);
 });
 
-test('Two training starts on one date are not silently collapsed into an importable session',()=>{
+test('Hockeyfritids is ignored when real ice training shares its date',()=>{
   const words=[
     word('9',15,100),word('Hockeyfritids',180,112),
     word('Stora',210,135),word('hallen',278,135),
@@ -83,6 +83,25 @@ test('Two training starts on one date are not silently collapsed into an importa
   ];
   const items=JSON.parse(JSON.stringify(sandbox.parseCalendarLayout(words,'2026-11',1000)));
   assert.equal(items.length,1);
-  assert.equal(items[0].multipleSessions,true);
-  assert.equal(items[0].hall,null);
+  assert.equal(items[0].multipleSessions,false);
+  assert.equal(items[0].hall,'Lilla Hallen');
+});
+
+test('Only Hockeyfritids is not imported as training',()=>{
+  const words=[word('9',15,100),word('Hockeyfritids',180,115),word('Stora',210,140),word('hallen',280,140),word('10',15,250)];
+  assert.equal(sandbox.parseCalendarLayout(words,'2026-11',1000).length,0);
+});
+test('Only poolspel interest registration is not imported',()=>{
+  const words=[word('8',15,100),word('Intresseanmälan',180,115),word('poolspel',315,115),word('9',15,250)];
+  assert.equal(sandbox.parseCalendarLayout(words,'2026-11',1000).length,0);
+});
+test('Only photography is never imported',()=>{
+  const words=[word('11',15,100),word('Fotografering',180,115),word('Rosvalla',250,135),word('12',15,250)];
+  assert.equal(sandbox.parseCalendarLayout(words,'2026-11',1000).length,0);
+});
+test('Actual poolspel is imported as poolspel',()=>{
+  const words=[word('21',15,100),word('Poolspel',180,115),word('Strängnäs',200,145),word('Ishall',300,145),word('22',15,250)];
+  const items=JSON.parse(JSON.stringify(sandbox.parseCalendarLayout(words,'2026-11',1000)));
+  assert.equal(items.length,1);
+  assert.equal(items[0].type,'pool');
 });
