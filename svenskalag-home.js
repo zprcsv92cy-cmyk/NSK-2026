@@ -96,12 +96,14 @@
    const calendarOthers=items.filter(item=>item.type!=='pool');
    const calendarTrainings=calendarOthers.filter(item=>item.type==='training');
    const calendarOtherEvents=calendarOthers.filter(item=>item.type!=='training');
+   window.addEventListener('nsk:saved-trainings-rendered',()=>{show();},{once:true});
    const trainingBox=document.getElementById('savedTrainingsList');
    if(trainingBox){
     trainingBox.querySelectorAll('[data-svenskalag-training]').forEach(node=>node.remove());
-    const savedDates=new Set(Array.from(trainingBox.querySelectorAll('details[data-date]')).map(node=>decodeURIComponent(node.dataset.date||'')));
+    const savedSessions=Array.from(trainingBox.querySelectorAll('details[data-date]')).map(node=>({date:decodeURIComponent(node.dataset.date||''),hall:(node.querySelector('.nsk-pool-hall')?.textContent||'').trim().toLocaleLowerCase('sv-SE')}));
     for(const item of calendarTrainings){
-     if(savedDates.has(item.date))continue;
+     const hallName=String(item.hall||item.place||'').trim().toLocaleLowerCase('sv-SE');
+     if(hallName&&savedSessions.some(s=>s.date===item.date&&s.hall===hallName))continue;
      const row=document.createElement('details');row.className='nsk-pool-row';row.dataset.svenskalagTraining='1';
      const summary=document.createElement('summary');summary.className='nsk-pool-summary';
      const name=document.createElement('span');name.className='nsk-pool-name';name.textContent='Träning • '+item.date;
