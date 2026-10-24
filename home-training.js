@@ -405,7 +405,7 @@
           }
           // Re-read only the unresolved day's own vertical interval at higher
           // resolution. Never infer a venue from the previous or next date.
-          const dayAnchors=globalWords.filter(w=>w.bbox.x0<globalWidth*0.115&&/^\\d{1,2}$/.test(String(w.text).trim()))
+          const dayAnchors=globalWords.filter(w=>w.bbox.x0<globalWidth*0.115&&/^\d{1,2}$/.test(String(w.text).trim()))
             .map(w=>({day:Number(w.text.trim()),y:w.bbox.y0}))
             .filter(w=>w.day>=1&&w.day<=31).sort((a,b)=>a.y-b.y);
           const distinctDays=[];
