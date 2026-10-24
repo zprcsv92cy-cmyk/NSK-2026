@@ -101,7 +101,11 @@ var ShiftLock = class {
         return json({ok:true,row:prior.row,reused:true},200);
       return json({ok:false,error:"Poolspel kan redan ha skapats. Kontrollera importen manuellt; ett nytt poolspel skapas inte.",uncertain:true},409);
     }
-    await this.storage.put('calendar-pool',{status:'pending',key,fingerprint});
+    try {
+      await this.storage.put('calendar-pool',{status:'pending',key,fingerprint});
+    } catch {
+      return json({ok:false,error:"Importreservation kunde inte sparas. Inget poolspel skapades."},503);
+    }
     try {
       const tables=resolveBaserowTables(this.env);
       const response=await fetch(`https://api.baserow.io/api/database/rows/table/${tables.poolspel}/?user_field_names=true`,{
