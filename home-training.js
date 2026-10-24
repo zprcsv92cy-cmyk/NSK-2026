@@ -644,7 +644,7 @@
             if(latest.some(p=>p.pool_date===item.date&&!!String(item.place||'').trim()&&normalizeCalendarPoolPlace(p.place)===normalizeCalendarPoolPlace(item.place))){skipped++;continue;}
             await DB.addPool({title:'Poolspel',place:item.place,hall:item.hall,pool_date:item.date,status:'Aktiv',teams:2,matches:item.matches,players_on_field:3,periods:1,period_time:15,sub_time:90,calendarImport:true});
             created++;continue;
-          }catch(error){status.textContent='Importerade '+created+'. Poolspel '+item.date+' kunde inte sparas: '+error.message;return;}
+          }catch(error){status.textContent='Importerade '+created+'. Poolspel '+item.date+' kunde inte sparas: '+error.message;confirm.disabled=false;return;}
         }
         try{
           const url=currentContext.base+'/api/training?team_id='+encodeURIComponent(currentContext.teamId)+'&date='+encodeURIComponent(item.date);
@@ -657,7 +657,7 @@
           if(response.status===409){skipped++;continue;}
           if(!response.ok)throw Error('Kunde inte spara '+item.date+' ('+response.status+')');
           currentContext.dates.add(item.date);created++;
-        }catch(error){status.textContent='Importerade '+created+'. Avbröt vid '+item.date+': '+error.message;return;}
+        }catch(error){status.textContent='Importerade '+created+'. Avbröt vid '+item.date+': '+error.message;confirm.disabled=false;return;}
       }
       // Never delete when the user selected only a subset or OCR found no training.
       const selectedAll=candidates.every(c=>(reviewChecks.get(c)?.checked&&!reviewChecks.get(c)?.disabled)||
