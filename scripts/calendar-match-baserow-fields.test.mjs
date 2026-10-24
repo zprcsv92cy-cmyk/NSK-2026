@@ -20,3 +20,14 @@ test('calendar match create uses the per-match Durable Object lock',()=>{
   assert.ok(worker.includes('action:"scheduleCreate"'));
   assert.ok(worker.includes('if (data.results.some(c=>ids(c.Poolspel).includes(poolId)'));
 });
+
+test('calendar pool limits are enforced by the API before any Baserow write',()=>{
+  const start=worker.indexOf('if (url.pathname === "/api/poolspel"');
+  const end=worker.indexOf('if (url.pathname === "/api/matchkonfiguration"',start);
+  assert.ok(start>=0&&end>start);
+  const route=worker.slice(start,end);
+  const limits=route.indexOf('body.calendar_import_key && (body.teams > 2 || body.matches > 8)');
+  const post=route.indexOf('method: req.method');
+  assert.ok(limits>=0,'calendar pool must be capped at two teams and eight matches per team');
+  assert.ok(post>limits,'server must check the limits before its Baserow write');
+});
