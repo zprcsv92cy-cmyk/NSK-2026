@@ -105,3 +105,26 @@ test('Actual poolspel is imported as poolspel',()=>{
   assert.equal(items.length,1);
   assert.equal(items[0].type,'pool');
 });
+
+test('Real poolspel survives an interest registration on the same date',()=>{
+  const words=[
+    word('8',15,100),
+    word('Poolspel',180,115),word('Smehallen',190,140),
+    word('Intresseanmälan',180,205),word('poolspel',320,205),
+    word('9',15,310)
+  ];
+  const items=JSON.parse(JSON.stringify(sandbox.parseCalendarLayout(words,'2026-11',1000)));
+  assert.equal(items.length,1);
+  assert.equal(items[0].type,'pool');
+  assert.equal(items[0].date,'2026-11-08');
+});
+test('Training and poolspel on the same date remain two distinct types',()=>{
+  const words=[
+    word('21',15,100),
+    word('Träning',180,115),word('Lilla',200,135),word('Hallen',270,135),
+    word('Poolspel',180,205),word('Strängnäs',200,230),word('Ishall',310,230),
+    word('22',15,320)
+  ];
+  const items=JSON.parse(JSON.stringify(sandbox.parseCalendarLayout(words,'2026-11',1000)));
+  assert.deepEqual(items.map(x=>x.type),['pool','training']);
+});
