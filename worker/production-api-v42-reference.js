@@ -1,3 +1,4 @@
+import { runSvenskalagScheduledSync } from './svenskalag-scheduled-sync.js';
 import { createTrainingHandler } from './training-sessions-api.js';
 import { readPersonallyAuthorizedTeams } from './production-team-read.js';
 import { authorizePersonalWorkerWrite } from './personal-roster-worker-adapter.js';
@@ -1069,6 +1070,12 @@ var worker_default = { async fetch(req, env) {
   // All supported collections must pass an explicit authorization boundary.
   return reply({ ok: false, error: "Behörighetskontrollerad läsning krävs" }, 403);
 } };
+// Preserve the existing fetch handler; scheduled sync is separately gated.
+worker_default.scheduled = async (_event,env,ctx) => {
+ const job=runSvenskalagScheduledSync(env);
+ if(ctx?.waitUntil)ctx.waitUntil(job);
+ else await job;
+};
 export {
   ShiftLock,
   worker_default as default
