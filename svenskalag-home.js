@@ -41,7 +41,14 @@
    create.type='button';
    create.className='nsk-action nsk-action--primary';
    create.textContent='Skapa och redigera poolspel';
-   create.addEventListener('click',()=>{
+   create.addEventListener('click',async()=>{
+    create.disabled=true;
+    try{
+     const pools=await DB.listPools();
+     const match=pools.find(p=>p.pool_date===item.date&&String(p.place||'').trim().toLocaleLowerCase('sv-SE')===String(item.place||'').trim().toLocaleLowerCase('sv-SE'));
+     if(match){sessionStorage.setItem('nsk2_edit_pool_id',String(match.id));location.href='../skapapoolspel/';return;}
+    }catch(error){create.disabled=false;alert('Kunde inte kontrollera befintliga poolspel. Försök igen.');return;}
+
     sessionStorage.removeItem('nsk2_edit_pool_id');
     sessionStorage.setItem('nsk2_svenskalag_pool_draft',JSON.stringify({date:item.date,place:item.place||''}));
     location.href='../skapapoolspel/';
@@ -73,7 +80,9 @@
    if(!events.ok)throw Error('Kalendern kunde inte läsas');
    const result=await events.json(),items=Array.isArray(result.items)?result.items:[];
    if(!items.length){root.textContent='Inga kommande kalenderaktiviteter importerade ännu.';renderUpcomingCalendarPools([]);}
-   const calendarPools=items.filter(item=>item.type==='pool');
+   let existingPools=[];
+   try{existingPools=await DB.listPools();}catch{}
+   const calendarPools=items.filter(item=>item.type==='pool'&&!existingPools.some(p=>p.pool_date===item.date&&String(p.place||'').trim().toLocaleLowerCase('sv-SE')===String(item.place||'').trim().toLocaleLowerCase('sv-SE')));
    const calendarOthers=items.filter(item=>item.type!=='pool');
    if(calendarOthers.length)root.innerHTML=calendarOthers.map(item=>{
     const kind={training:'Träning',pool:'Poolspel',match:'Match'}[item.type]||'Aktivitet';
