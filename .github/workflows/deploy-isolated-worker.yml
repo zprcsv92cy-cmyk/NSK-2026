@@ -39,6 +39,7 @@ jobs:
           assert.match(config,/^name = "SHIFT_LOCK"$/m);
           assert.doesNotMatch(config,/^BASEROW_DATABASE_ID = "589073"$/m);
           NODE
+          node scripts/calendar-isolated-worker-gate.mjs
           node --check worker/production-api-v42-reference.js
           node --test scripts/training-preview-readiness.test.mjs scripts/training-authorized-http.test.mjs scripts/training-payload-regression.test.mjs scripts/training-handler-http.test.mjs scripts/worker-preview-isolation.test.mjs scripts/isolated-preview-baserow-gate.test.mjs
           node scripts/isolated-preview-baserow-gate.mjs
