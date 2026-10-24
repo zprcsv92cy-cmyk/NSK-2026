@@ -29,6 +29,7 @@ jobs:
           node --check shared-training.js
           node --check home-training.js
           node --test scripts/calendar-ocr-regression.test.mjs
+          node --test scripts/svenskalag-calendar.test.mjs
           node --test scripts/training-session-validation.test.mjs scripts/training-permission-policy.test.mjs scripts/training-api-route.test.mjs scripts/training-storage-schema.test.mjs scripts/training-handler-http.test.mjs scripts/training-authorized-http.test.mjs scripts/training-payload-regression.test.mjs scripts/training-preview-readiness.test.mjs
           python3 scripts/training-d1-integration.test.py
           node --test worker/production-api-staff-route.test.mjs

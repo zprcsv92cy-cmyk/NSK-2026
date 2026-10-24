@@ -365,7 +365,143 @@
     let reviewChecks=new Map();
     let knownPools=[];
     let importMonth=null;
-    open.addEventListener('click',()=>{panel.hidden=!panel.hidden;});
+    async function showCandidates(parsed){
+      if(!parsed.valid){status.textContent='Hittade inga aktiviteter att granska. Ingenting har sparats eller tagits bort.';return;}
+      
+        importMonth=parsed.month;
+        candidates=parsed.items;
+        knownPools=await DB.listPools();
+        const unique=new Map(candidates.map(c=>[c.type+':'+c.date+':'+(c.place||''),c]));
+        candidates=[...unique.values()];
+        reviewChecks=new Map();
+        for(const item of candidates){
+          const exists=item.type==='training'?currentContext.dates.has(item.date):knownPools.some(p=>p.pool_date===item.date&&!!String(item.place||'').trim()&&normalizeCalendarPoolPlace(p.place)===normalizeCalendarPoolPlace(item.place));
+          const label=document.createElement('label');label.className='training-review-item';
+          const check=document.createElement('input');check.type='checkbox';check.value=item.type+':'+item.date+':'+(item.place||'');check.disabled=exists||(item.type==='pool'&&!item.place);check.checked=!check.disabled;
+          reviewChecks.set(item,check);
+          const text=document.createElement('span');text.textContent=(item.type==='pool'?'Poolspel':'Träning')+' · '+(item.place||item.hall||'Plats ej angiven')+(exists?' – finns redan':'');
+          // OCR can misalign the narrow date column. Require an editable date
+          // for each candidate so the user can correct it before any write.
+          const dateInput=document.createElement('input');dateInput.type='date';
+          dateInput.value=item.date;dateInput.min=importMonth+'-01';
+          dateInput.max=importMonth+'-'+String(new Date(Number(importMonth.slice(0,4)),Number(importMonth.slice(5,7)),0).getDate()).padStart(2,'0');
+          dateInput.setAttribute('aria-label','Kontrollera datum för '+(item.type==='pool'?'poolspel':'träning'));
+          dateInput.addEventListener('change',()=>{
+            const next=dateInput.value;
+            if(!next.startsWith(importMonth+'-')){dateInput.value=item.date;return;}
+            item.date=next;
+            const already=item.type==='training'?currentContext.dates.has(next):knownPools.some(p=>p.pool_date===next&&!!normalizeCalendarPoolPlace(item.place)&&normalizeCalendarPoolPlace(p.place)===normalizeCalendarPoolPlace(item.place));
+            check.value=item.type+':'+next+':'+(item.place||'');
+            check.disabled=already||next<todayLocalDate()||(item.type==='training'&&(!item.hall||item.multipleSessions))||(item.type==='pool'&&!item.place);if(check.disabled)check.checked=false;
+            text.textContent=(item.type==='pool'?'Poolspel':'Träning')+' • '+next+' • '+(item.place||item.hall||'Plats ej angiven')+(already?' – finns redan':'');
+          });
+          // Hall names are never inferred from another date. An unknown hall
+          // requires an explicit selection before that training can be saved.
+          if(item.type==='training'){
+            const hallSelect=document.createElement('select');
+            hallSelect.setAttribute('aria-label','Kontrollera hall för '+item.date);
+            for(const [value,title] of [['','Välj hall – kontroll krävs'],['Stora hallen','Stora hallen'],['Lilla Hallen','Lilla Hallen']]){
+              const option=document.createElement('option');option.value=value;option.textContent=title;hallSelect.append(option);
+            }
+            hallSelect.value=item.hall||'';
+            if(!item.hall||item.multipleSessions){check.checked=false;check.disabled=true;text.textContent=item.multipleSessions?'Flera träningar samma dag – separat import stöds inte ännu':item.hallConflict?'Motstridiga halltolkningar – kontroll krävs':'Hall kunde inte läsas – kontroll krävs';}
+            hallSelect.addEventListener('change',()=>{
+              item.hall=hallSelect.value||null;
+              const already=currentContext.dates.has(item.date);
+              check.disabled=already||item.date<todayLocalDate()||!item.hall||!!item.multipleSessions;
+              if(check.disabled)check.checked=false;
+              text.textContent='Träning · '+(item.hall||'Hall måste kontrolleras')+(already?' – finns redan':'');
+              if(item.hall)item.hallConflict=false;
+            });
+            label.append(check,text,dateInput,hallSelect);
+          }else{
+            const placeInput=document.createElement('input');
+            placeInput.type='text';
+            placeInput.value=item.place||'';
+            placeInput.placeholder='Ange plats – kontroll krävs';
+            placeInput.setAttribute('aria-label','Kontrollera plats för poolspel '+item.date);
+            if(!item.place){check.checked=false;check.disabled=true;if(item.possibleDuplicate)text.textContent='Poolspel · okänd plats, möjligt överlapp – kontroll krävs';}
+            placeInput.addEventListener('input',()=>{
+              item.place=placeInput.value.trim();
+              const already=knownPools.some(p=>p.pool_date===item.date&&!!String(item.place||'').trim()&&normalizeCalendarPoolPlace(p.place)===normalizeCalendarPoolPlace(item.place));
+              check.value='pool:'+item.date+':'+item.place;
+              check.disabled=already||item.date<todayLocalDate()||!item.place;
+              if(check.disabled)check.checked=false;
+              text.textContent='Poolspel · '+(item.place||'Plats måste kontrolleras')+(already?' – finns redan':'');
+            });
+            // These setup values are templates, not facts read from the calendar.
+            // Make the distinction visible before the user creates a poolspel.
+            const defaultsNote=document.createElement('small');
+            defaultsNote.textContent='Standardinställningar (inte avlästa ur bilden): 2 lag, 3 spelare på plan, 1 period à 15 min, byten var 90:e sekund. Kontrollera inställningarna i Skapa poolspel efter import.';
+            label.append(check,text,dateInput,placeInput,defaultsNote);
+          }
+          review.append(label);
+        }
+        // A narrow calendar screenshot can omit a complete day during OCR.
+        // Let the user restore a missing training in the same review, without
+        // uploading the image or modifying saved activities automatically.
+        const missing=document.createElement('div');missing.className='training-review-item';
+        const missingDate=document.createElement('input');missingDate.type='date';
+        missingDate.min=importMonth+'-01';
+        missingDate.max=importMonth+'-'+String(new Date(Number(importMonth.slice(0,4)),Number(importMonth.slice(5,7)),0).getDate()).padStart(2,'0');
+        missingDate.setAttribute('aria-label','Datum för saknad träning');
+        const missingHall=document.createElement('select');
+        for(const hall of ['Stora hallen','Lilla Hallen']){
+          const option=document.createElement('option');option.value=hall;option.textContent=hall;missingHall.append(option);
+        }
+        const addMissing=document.createElement('button');addMissing.type='button';addMissing.textContent='Lägg till saknad träning';
+        addMissing.addEventListener('click',()=>{
+          const date=missingDate.value;
+          if(!date||!date.startsWith(importMonth+'-')||date<todayLocalDate()){
+            status.textContent='Välj ett giltigt framtida datum i '+importMonth+'.';return;
+          }
+          if(candidates.some(c=>c.type==='training'&&c.date===date)||currentContext.dates.has(date)){
+            status.textContent='Träningen '+date+' finns redan i listan eller är sparad.';return;
+          }
+          const item={type:'training',date,hall:missingHall.value};
+          candidates.push(item);
+          const label=document.createElement('label');label.className='training-review-item';
+          const check=document.createElement('input');check.type='checkbox';check.checked=true;
+          check.value='training:'+date+':';
+          reviewChecks.set(item,check);
+          const name=document.createElement('span');name.textContent='Träning • '+date+' • '+item.hall+' (tillagd manuellt)';
+          label.append(check,name);review.insertBefore(label,missing);
+          confirm.disabled=false;missingDate.value='';
+          status.textContent='Träning '+date+' tillagd i förhandsgranskningen. Kontrollera innan import.';
+        });
+        missing.append(missingDate,missingHall,addMissing);review.append(missing);
+        const fresh=candidates.filter(c=>c.type==='training'?!currentContext.dates.has(c.date):!knownPools.some(p=>p.pool_date===c.date&&!!String(c.place||'').trim()&&normalizeCalendarPoolPlace(p.place)===normalizeCalendarPoolPlace(c.place)));
+        status.textContent='Kalendermånad '+importMonth+': hittade '+candidates.length+' aktiviteter, '+fresh.length+' nya. Granska före import. Importen lägger endast till aktiviteter; inga befintliga träningar eller poolspel tas bort.';
+        confirm.disabled=!fresh.length;
+      
+    }
+    let feedItems=[];
+    const feedMonth=document.getElementById('trainingCalendarFeedMonth');
+    const feedRead=document.getElementById('trainingCalendarFeedRead');
+    feedRead.addEventListener('click',async()=>{
+      confirm.disabled=true;review.replaceChildren();
+      if(!currentContext){status.textContent='Logga in och välj lag innan kalendern hämtas.';return;}
+      feedRead.disabled=true;status.textContent='Hämtar kalendern från SvenskaLag…';
+      try{
+        const url=currentContext.base+'/api/training?team_id='+encodeURIComponent(currentContext.teamId)+'&action=svenskalag-calendar';
+        const response=await fetch(url,{headers:{Authorization:'Bearer '+currentContext.token},cache:'no-store'});
+        const result=await response.json().catch(()=>({}));
+        if(!response.ok||!Array.isArray(result.items))throw Error(result.error||'Kalenderflödet är ännu inte aktiverat i API:t.');
+        feedItems=result.items.filter(item=>['training','pool'].includes(item.type)&&/^\d{4}-\d{2}-\d{2}$/.test(item.date));
+        const months=[...new Set(feedItems.map(item=>item.date.slice(0,7)))].sort();
+        if(!months.length){status.textContent='Inga kommande träningar eller poolspel hittades i kalendern.';return;}
+        if(!months.includes(feedMonth.value))feedMonth.value=months[0];
+        feedMonth.hidden=false;
+        await showCandidates({month:feedMonth.value,items:feedItems.filter(item=>item.date.startsWith(feedMonth.value+'-')),valid:true});
+      }catch(error){status.textContent='Kalendern kunde inte hämtas: '+(error.message||String(error));}
+      finally{feedRead.disabled=false;}
+    });
+    feedMonth.addEventListener('change',async()=>{
+      if(!feedItems.length)return;
+      confirm.disabled=true;review.replaceChildren();
+      await showCandidates({month:feedMonth.value,items:feedItems.filter(item=>item.date.startsWith(feedMonth.value+'-')),valid:true});
+    });
+    open.addEventListener('click',()=>{panel.hidden=!panel.hidden;if(!panel.hidden)feedRead.click();});
     document.getElementById('trainingCalendarRead').addEventListener('click',async()=>{
       confirm.disabled=true;review.replaceChildren();candidates=[];importMonth=null;
       const file=input.files?.[0];
@@ -537,112 +673,7 @@
           parsed={month:monthNames.indexOf(monthMatch[1])+1,items:reconciledItems,valid:reconciledItems.length>0};
           parsed.month=monthMatch[2]+'-'+String(parsed.month).padStart(2,'0');
         }finally{bitmap.close();}
-        if(!parsed.valid){status.textContent='Kunde inte säkert läsa en enda kalendermånad med aktiviteter. Inget sparas eller tas bort.';return;}
-        importMonth=parsed.month;
-        candidates=parsed.items;
-        knownPools=await DB.listPools();
-        const unique=new Map(candidates.map(c=>[c.type+':'+c.date+':'+(c.place||''),c]));
-        candidates=[...unique.values()];
-        reviewChecks=new Map();
-        for(const item of candidates){
-          const exists=item.type==='training'?currentContext.dates.has(item.date):knownPools.some(p=>p.pool_date===item.date&&!!String(item.place||'').trim()&&normalizeCalendarPoolPlace(p.place)===normalizeCalendarPoolPlace(item.place));
-          const label=document.createElement('label');label.className='training-review-item';
-          const check=document.createElement('input');check.type='checkbox';check.value=item.type+':'+item.date+':'+(item.place||'');check.disabled=exists||(item.type==='pool'&&!item.place);check.checked=!check.disabled;
-          reviewChecks.set(item,check);
-          const text=document.createElement('span');text.textContent=(item.type==='pool'?'Poolspel':'Träning')+' · '+(item.place||item.hall||'Plats ej angiven')+(exists?' – finns redan':'');
-          // OCR can misalign the narrow date column. Require an editable date
-          // for each candidate so the user can correct it before any write.
-          const dateInput=document.createElement('input');dateInput.type='date';
-          dateInput.value=item.date;dateInput.min=importMonth+'-01';
-          dateInput.max=importMonth+'-'+String(new Date(Number(importMonth.slice(0,4)),Number(importMonth.slice(5,7)),0).getDate()).padStart(2,'0');
-          dateInput.setAttribute('aria-label','Kontrollera datum för '+(item.type==='pool'?'poolspel':'träning'));
-          dateInput.addEventListener('change',()=>{
-            const next=dateInput.value;
-            if(!next.startsWith(importMonth+'-')){dateInput.value=item.date;return;}
-            item.date=next;
-            const already=item.type==='training'?currentContext.dates.has(next):knownPools.some(p=>p.pool_date===next&&!!normalizeCalendarPoolPlace(item.place)&&normalizeCalendarPoolPlace(p.place)===normalizeCalendarPoolPlace(item.place));
-            check.value=item.type+':'+next+':'+(item.place||'');
-            check.disabled=already||next<todayLocalDate()||(item.type==='training'&&(!item.hall||item.multipleSessions))||(item.type==='pool'&&!item.place);if(check.disabled)check.checked=false;
-            text.textContent=(item.type==='pool'?'Poolspel':'Träning')+' • '+next+' • '+(item.place||item.hall||'Plats ej angiven')+(already?' – finns redan':'');
-          });
-          // Hall names are never inferred from another date. An unknown hall
-          // requires an explicit selection before that training can be saved.
-          if(item.type==='training'){
-            const hallSelect=document.createElement('select');
-            hallSelect.setAttribute('aria-label','Kontrollera hall för '+item.date);
-            for(const [value,title] of [['','Välj hall – kontroll krävs'],['Stora hallen','Stora hallen'],['Lilla Hallen','Lilla Hallen']]){
-              const option=document.createElement('option');option.value=value;option.textContent=title;hallSelect.append(option);
-            }
-            hallSelect.value=item.hall||'';
-            if(!item.hall||item.multipleSessions){check.checked=false;check.disabled=true;text.textContent=item.multipleSessions?'Flera träningar samma dag – separat import stöds inte ännu':item.hallConflict?'Motstridiga halltolkningar – kontroll krävs':'Hall kunde inte läsas – kontroll krävs';}
-            hallSelect.addEventListener('change',()=>{
-              item.hall=hallSelect.value||null;
-              const already=currentContext.dates.has(item.date);
-              check.disabled=already||item.date<todayLocalDate()||!item.hall||!!item.multipleSessions;
-              if(check.disabled)check.checked=false;
-              text.textContent='Träning · '+(item.hall||'Hall måste kontrolleras')+(already?' – finns redan':'');
-              if(item.hall)item.hallConflict=false;
-            });
-            label.append(check,text,dateInput,hallSelect);
-          }else{
-            const placeInput=document.createElement('input');
-            placeInput.type='text';
-            placeInput.value=item.place||'';
-            placeInput.placeholder='Ange plats – kontroll krävs';
-            placeInput.setAttribute('aria-label','Kontrollera plats för poolspel '+item.date);
-            if(!item.place){check.checked=false;check.disabled=true;if(item.possibleDuplicate)text.textContent='Poolspel · okänd plats, möjligt överlapp – kontroll krävs';}
-            placeInput.addEventListener('input',()=>{
-              item.place=placeInput.value.trim();
-              const already=knownPools.some(p=>p.pool_date===item.date&&!!String(item.place||'').trim()&&normalizeCalendarPoolPlace(p.place)===normalizeCalendarPoolPlace(item.place));
-              check.value='pool:'+item.date+':'+item.place;
-              check.disabled=already||item.date<todayLocalDate()||!item.place;
-              if(check.disabled)check.checked=false;
-              text.textContent='Poolspel · '+(item.place||'Plats måste kontrolleras')+(already?' – finns redan':'');
-            });
-            // These setup values are templates, not facts read from the calendar.
-            // Make the distinction visible before the user creates a poolspel.
-            const defaultsNote=document.createElement('small');
-            defaultsNote.textContent='Standardinställningar (inte avlästa ur bilden): 2 lag, 3 spelare på plan, 1 period à 15 min, byten var 90:e sekund. Kontrollera inställningarna i Skapa poolspel efter import.';
-            label.append(check,text,dateInput,placeInput,defaultsNote);
-          }
-          review.append(label);
-        }
-        // A narrow calendar screenshot can omit a complete day during OCR.
-        // Let the user restore a missing training in the same review, without
-        // uploading the image or modifying saved activities automatically.
-        const missing=document.createElement('div');missing.className='training-review-item';
-        const missingDate=document.createElement('input');missingDate.type='date';
-        missingDate.min=importMonth+'-01';
-        missingDate.max=importMonth+'-'+String(new Date(Number(importMonth.slice(0,4)),Number(importMonth.slice(5,7)),0).getDate()).padStart(2,'0');
-        missingDate.setAttribute('aria-label','Datum för saknad träning');
-        const missingHall=document.createElement('select');
-        for(const hall of ['Stora hallen','Lilla Hallen']){
-          const option=document.createElement('option');option.value=hall;option.textContent=hall;missingHall.append(option);
-        }
-        const addMissing=document.createElement('button');addMissing.type='button';addMissing.textContent='Lägg till saknad träning';
-        addMissing.addEventListener('click',()=>{
-          const date=missingDate.value;
-          if(!date||!date.startsWith(importMonth+'-')||date<todayLocalDate()){
-            status.textContent='Välj ett giltigt framtida datum i '+importMonth+'.';return;
-          }
-          if(candidates.some(c=>c.type==='training'&&c.date===date)||currentContext.dates.has(date)){
-            status.textContent='Träningen '+date+' finns redan i listan eller är sparad.';return;
-          }
-          const item={type:'training',date,hall:missingHall.value};
-          candidates.push(item);
-          const label=document.createElement('label');label.className='training-review-item';
-          const check=document.createElement('input');check.type='checkbox';check.checked=true;
-          check.value='training:'+date+':';
-          reviewChecks.set(item,check);
-          const name=document.createElement('span');name.textContent='Träning • '+date+' • '+item.hall+' (tillagd manuellt)';
-          label.append(check,name);review.insertBefore(label,missing);
-          confirm.disabled=false;missingDate.value='';
-          status.textContent='Träning '+date+' tillagd i förhandsgranskningen. Kontrollera innan import.';
-        });
-        missing.append(missingDate,missingHall,addMissing);review.append(missing);
-        const fresh=candidates.filter(c=>c.type==='training'?!currentContext.dates.has(c.date):!knownPools.some(p=>p.pool_date===c.date&&!!String(c.place||'').trim()&&normalizeCalendarPoolPlace(p.place)===normalizeCalendarPoolPlace(c.place)));
-        status.textContent='Kalendermånad '+importMonth+': hittade '+candidates.length+' aktiviteter, '+fresh.length+' nya. Granska före import. Importen lägger endast till aktiviteter; inga befintliga träningar eller poolspel tas bort.';
-        confirm.disabled=!fresh.length;
+        await showCandidates(parsed);
       }catch(error){status.textContent='Bildtolkning misslyckades: '+(error.message||String(error));}
       finally{input.value='';if(worker)await worker.terminate();}
     });
