@@ -10,6 +10,8 @@ on:
       - 'scripts/calendar-match-concurrency.test.mjs'
       - 'scripts/calendar-pool-idempotency.test.mjs'
       - 'scripts/calendar-pool-reload.test.mjs'
+      - 'scripts/calendar-isolated-worker-gate.mjs'
+      - 'wrangler.api.isolated-worker.toml'
       - 'db.js'
       - 'worker/production-api-v42-reference.js'
       - '.github/workflows/calendar-match-plan-tests.yml'
@@ -28,6 +30,8 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: '22'
+      - name: Verify isolated Worker release gate
+        run: node scripts/calendar-isolated-worker-gate.mjs
       - name: Check app syntax
         run: node --check app.js
       - name: Verify calendar mapping and Baserow fields
