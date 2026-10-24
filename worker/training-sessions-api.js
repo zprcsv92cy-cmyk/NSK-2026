@@ -26,18 +26,35 @@ export function createTrainingHandler(env,listTeams){
    const db=env.AUTH_DB;
    if(request.method==='GET'&&url.searchParams.get('action')==='svenskalag-calendar'){
     if(dates.length)return fail(400,'Calendar feed is team-scoped, not date-scoped');
+    // Categorize failures without exposing upstream bodies or credentials.
     let upstream;
     try{
       upstream=await fetch('https://cal.svenskalag.se/103684',{
-        headers:{Accept:'text/calendar'},redirect:'error',signal:AbortSignal.timeout(12000)
+        headers:{Accept:'text/calendar'},redirect:'manual',signal:AbortSignal.timeout(12000)
       });
-      if(!upstream.ok||Number(upstream.headers.get('content-length')||0)>1024*1024)
-        return fail(502,'SvenskaLag-kalendern kunde inte hämtas');
-      const ical=await upstream.text();
+    }catch(error){
+      const category=error?.name==='TimeoutError'||error?.name==='AbortError'?'timeout':'network';
+      return Response.json({ok:false,error:'Kalenderanslutningen misslyckades',category},{status:502,headers:{'cache-control':'no-store'}});
+    }
+    if(upstream.status>=300&&upstream.status<400)
+      return Response.json({ok:false,error:'Kalenderadressen omdirigerar',category:'redirect'},{status:502,headers:{'cache-control':'no-store'}});
+    if(!upstream.ok)
+      return Response.json({ok:false,error:'Kalendern svarade med HTTP-fel',category:'upstream_http',upstreamStatus:upstream.status},{status:502,headers:{'cache-control':'no-store'}});
+    if(Number(upstream.headers.get('content-length')||0)>1024*1024)
+      return Response.json({ok:false,error:'Kalenderfilen är för stor',category:'size'},{status:502,headers:{'cache-control':'no-store'}});
+    let ical;
+    try{ical=await upstream.text();}catch{
+      return Response.json({ok:false,error:'Kalenderfilen kunde inte läsas',category:'body'},{status:502,headers:{'cache-control':'no-store'}});
+    }
+    if(ical.length>1024*1024)
+      return Response.json({ok:false,error:'Kalenderfilen är för stor',category:'size'},{status:502,headers:{'cache-control':'no-store'}});
+    try{
       const today=new Intl.DateTimeFormat('sv-SE',{timeZone:'Europe/Stockholm',year:'numeric',month:'2-digit',day:'2-digit'}).format(new Date());
       const items=parseSvenskalagIcal(ical,today);
       return Response.json({ok:true,source:'SvenskaLag',items},{headers:{'cache-control':'private, no-store'}});
-    }catch{return fail(502,'SvenskaLag-kalendern gick inte att läsa just nu');}
+    }catch{
+      return Response.json({ok:false,error:'Kalenderformatet kunde inte tolkas',category:'parse'},{status:502,headers:{'cache-control':'no-store'}});
+    }
    }
    if(request.method==='GET'){
     if(!dates.length){
