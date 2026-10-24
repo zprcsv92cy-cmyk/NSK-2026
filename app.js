@@ -563,7 +563,7 @@ window.NSK2App = (() => {
              const calendarMatches=Array.isArray(imported.matches)?imported.matches.filter(m=>/^\d{2}:\d{2}$/.test(m.startTime||'')&&typeof m.opponent==='string'&&m.opponent.trim()).slice(0,32).sort((a,b)=>a.startTime.localeCompare(b.startTime)):[];
              const count=calendarMatches.length;
              // Högst fyra matcher per lag. Fördela jämnt i kronologisk ordning.
-             const teamCount=Math.max(1,Math.ceil(count/4));
+             const teamCount=count>4?2:1;
              const teamSelect=byId('teams');
              if(teamSelect){
                for(let n=teamSelect.options.length+1;n<=teamCount;n++)teamSelect.add(new Option(String(n),String(n)));
@@ -586,7 +586,7 @@ window.NSK2App = (() => {
                });
                const note=document.createElement('p');
                note.className='small';
-               note.textContent='Högst fyra matcher per lag. Matcherna fördelas i starttidsordning över så många lag som behövs (även åtta lag). Fördelningen visas som underlag och behöver sparas i matchkonfiguration efter att målvakt och spelare valts.';
+               note.textContent='Högst två NSK-lag: 1–4 matcher ger ett lag, fler än fyra ger två. Matcherna fördelas i starttidsordning så jämnt som möjligt. Fördelningen visas som underlag och behöver sparas i matchkonfiguration efter att målvakt och spelare valts.';
                preview.append(note);
              }
           }
