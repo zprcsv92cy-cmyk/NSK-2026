@@ -6,7 +6,7 @@ export function planCalendarMatches(matches) {
   if (!Array.isArray(matches)) throw new TypeError('Matcher måste vara en lista');
   const valid = matches.filter(m =>
     m && typeof m.startTime === 'string' &&
-    /^([01]\\d|2[0-3]):[0-5]\\d$/.test(m.startTime) &&
+    /^([01]\d|2[0-3]):[0-5]\d$/.test(m.startTime) &&
     typeof m.opponent === 'string' && m.opponent.trim()
   ).slice(0, 16).sort((a, b) => a.startTime.localeCompare(b.startTime));
   const teams = valid.length > 4 ? 2 : 1;
