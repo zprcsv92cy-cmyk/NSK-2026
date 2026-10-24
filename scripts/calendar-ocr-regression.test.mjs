@@ -303,3 +303,16 @@ test('Calendar review blocks poolspel without an explicit match count',()=>{
   assert.match(review,/item\.matches=matchesInput\.value&&Number\.isInteger/);
   assert.match(review,/check\.disabled=already\|\|item\.date<todayLocalDate\(\)\|\|!item\.place\|\|!item\.matches/);
 });
+
+test('Dated poolspel title must agree with calendar date anchor',()=>{
+  const words=[word('21',15,100),word('Poolspel 22/11',180,114),
+    word('Strängnäs',200,145),word('Ishall',310,145),word('22',15,280)];
+  const items=JSON.parse(JSON.stringify(sandbox.parseCalendarLayout(words,'2026-11',1000)));
+  assert.equal(items.length,0);
+});
+test('Dated poolspel title must agree with month',()=>{
+  const words=[word('21',15,100),word('Poolspel 21/12',180,114),
+    word('Strängnäs',200,145),word('Ishall',310,145),word('22',15,280)];
+  const items=JSON.parse(JSON.stringify(sandbox.parseCalendarLayout(words,'2026-11',1000)));
+  assert.equal(items.length,0);
+});

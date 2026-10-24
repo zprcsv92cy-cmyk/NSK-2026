@@ -211,8 +211,14 @@
       // Identify each pool title by its own OCR line, never reject the whole day.
       const interestWords=eventWords.filter(w=>/intresseanmälan/i.test(String(w.text)));
       const poolTitles=eventWords.filter(w=>/^poolspel(?:\s+\d{1,2}\s*\/\s*\d{1,2})?$/i.test(String(w.text).trim()));
-      const realPoolTitles=poolTitles.filter(w=>!interestWords.some(i=>
-        Math.abs(i.bbox.y0-w.bbox.y0)<Math.max(20,imageWidth*0.025)));
+      const realPoolTitles=poolTitles.filter(w=>{
+        // A dated title must agree with the day-column anchor and month.
+        // Otherwise an OCR crop may have moved the event onto a neighbouring day.
+        const dated=String(w.text).trim().match(/^poolspel\s+(\d{1,2})\s*\/\s*(\d{1,2})$/i);
+        if(dated&&(Number(dated[1])!==date.day||Number(dated[2])!==Number(monthKey.slice(5,7))))return false;
+        return !interestWords.some(i=>
+          Math.abs(i.bbox.y0-w.bbox.y0)<Math.max(20,imageWidth*0.025));
+      });
       const isPool=realPoolTitles.length>0;
       const trainingStarts=eventWords.filter(w=>/^(?:träning|is(?:\s*1[789]\s*\/\s*1[789])?)$/i.test(String(w.text).trim()));
       const isTraining=trainingStarts.length>0;
