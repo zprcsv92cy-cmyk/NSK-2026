@@ -218,10 +218,19 @@
       // First inspect the date's words, then retry the same day with a focused,
       // higher-resolution OCR pass when the hall is missing.
       const hall=detectCalendarHall(eventWords);
+      // A day can contain several independent ice sessions. If distinct halls
+      // appear on that day, a single date-level record cannot safely represent
+      // either session. Block automatic selection rather than assign one hall.
+      const hallMentions=new Set();
+      for(let i=0;i<eventWords.length;i++){
+        const mention=detectCalendarHall(eventWords.slice(i,i+2));
+        if(mention)hallMentions.add(mention);
+      }
+      const hallConflict=hallMentions.size>1;
       // Opponent names are not venues. Only accept a place on an explicit venue line.
       const venueLine=content.match(/(?:^|\\s)(?:plats|arena|ishall)\\s*[:：]\\s*([^,;\\n]+)/);
       const place=isPool?(venueLine?venueLine[1].trim():detectPoolVenue(eventWords)):'';
-      const item=isPool?{type:'pool',date:fullDate,hall:hall||'',place}:{type:'training',date:fullDate,hall};
+      const item=isPool?{type:'pool',date:fullDate,hall:hall||'',place}:{type:'training',date:fullDate,hall:hallConflict?null:hall,hallConflict};
       items.set(item.type+':'+fullDate+':'+(item.place||''),item);
     }
     return [...items.values()];
