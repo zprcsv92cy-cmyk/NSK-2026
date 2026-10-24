@@ -256,7 +256,7 @@ test('Correcting an imported date retains multi-session and past-date safeguards
 });
 test('Corrected pool date checks venue as well as date for existing pools',()=>{
   const review=source.slice(source.indexOf("dateInput.addEventListener('change'"),source.indexOf("// Hall names are never inferred"));
-  assert.match(review,/p\.pool_date===next&&String\(p\.place/);
+  assert.match(review,/p\.pool_date===next&&normalizeCalendarPoolPlace\(p\.place\)===normalizeCalendarPoolPlace\(item\.place\)/);
 });
 
 test('Import selection uses each candidate checkbox, not potentially colliding string keys',()=>{
