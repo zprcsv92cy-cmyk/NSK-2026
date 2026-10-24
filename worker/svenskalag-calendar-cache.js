@@ -3,7 +3,7 @@ import {planCalendarReconciliation} from './svenskalag-calendar-reconcile.js';
 // Call only after the dedicated migration has been applied. The cache is
 // intentionally separate from manually maintained training and pool data.
 export async function syncCalendarCache(db,teamId,items){
- if(!db||typeof db.prepare!=='function'||!/^\d+$/.test(String(teamId))||Number(teamId)<=0)
+ if(!db||typeof db.prepare!=='function'||String(teamId)!=='NSK Team 18')
   throw new TypeError('Invalid team or database');
  if(!Array.isArray(items)||items.length>500)throw new TypeError('Invalid feed');
  const existing=await db.prepare('SELECT event_key AS key, source, manually_edited AS manuallyEdited FROM svenskalag_calendar_events WHERE team_id=?').bind(String(teamId)).all();
