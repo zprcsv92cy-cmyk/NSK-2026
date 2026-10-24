@@ -293,15 +293,16 @@ test('Save confirmation checks selected activity dates before writing',()=>{
   assert.match(save,/selected\.some\(c=>!validCalendarImportDate\(c\.date,importMonth\)\)/);
 });
 
-test('Pool creation uses the verified match count rather than four guessed games',()=>{
+test('Pool calendar import creates a pool without asking match count',()=>{
+  const review=source.slice(source.indexOf("const placeInput=document.createElement('input')"));
   const save=source.slice(source.indexOf("confirm.addEventListener('click'"));
-  assert.match(save,/matches:item\.matches/);
-  assert.doesNotMatch(save,/matches:4,players_on_field/);
+  assert.doesNotMatch(review,/matchesInput/);
+  assert.doesNotMatch(save,/item\.matches/);
+  assert.match(save,/matches:4,players_on_field:3/);
 });
-test('Calendar review blocks poolspel without an explicit match count',()=>{
-  const review=source.slice(source.indexOf("const matchesInput=document.createElement('input')"));
-  assert.match(review,/item\.matches=matchesInput\.value&&Number\.isInteger/);
-  assert.match(review,/check\.disabled=already\|\|item\.date<todayLocalDate\(\)\|\|!item\.place\|\|!item\.matches/);
+test('Pool with known venue is eligible without match-count review',()=>{
+  const review=source.slice(source.indexOf("for(const item of candidates){"));
+  assert.match(review,/check\.disabled=exists\|\|\(item\.type==='pool'&& !item\.place\)/.source ? /check\.disabled=exists\|\|\(item\.type==='pool'&&!item\.place\)/ : /unused/);
 });
 
 test('Dated poolspel title must agree with calendar date anchor',()=>{
@@ -321,7 +322,7 @@ test('Pool import review discloses rule defaults are not read from OCR',()=>{
   const review=source.slice(source.indexOf("const defaultsNote=document.createElement('small')"));
   assert.match(review,/Standardinställningar \(inte avlästa ur bilden\)/);
   assert.match(review,/2 lag, 3 spelare på plan, 1 period à 15 min, byten var 90:e sekund/);
-  assert.match(review,/label\.append\(check,text,dateInput,placeInput,matchesInput,defaultsNote\)/);
+  assert.match(review,/label\.append\(check,text,dateInput,placeInput,defaultsNote\)/);
 });
 
 test('Unknown venue does not cause any same-day saved pool to count as the same event',()=>{
@@ -388,7 +389,7 @@ test('Calendar import review accurately says existing activities are never delet
 
 test('Editing imported calendar details preserves intentional manual deselection',()=>{
   const review=source.slice(source.indexOf("dateInput.addEventListener('change'"),source.indexOf("review.append(label);",source.indexOf("dateInput.addEventListener('change'")));
-  assert.equal((review.match(/if\(check\.disabled\)check\.checked=false;/g)||[]).length,4);
+  assert.equal((review.match(/if\(check\.disabled\)check\.checked=false;/g)||[]).length,3);
   assert.doesNotMatch(review,/check\.checked=!check\.disabled;/);
 });
 test('Blocked calendar items still start unchecked and require explicit selection',()=>{
