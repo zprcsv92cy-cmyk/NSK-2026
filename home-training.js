@@ -210,7 +210,7 @@
       // An interest-registration event may share a date with actual pool games.
       // Identify each pool title by its own OCR line, never reject the whole day.
       const interestWords=eventWords.filter(w=>/intresseanmälan/i.test(String(w.text)));
-      const poolTitles=eventWords.filter(w=>/^poolspel$/i.test(String(w.text).trim()));
+      const poolTitles=eventWords.filter(w=>/^poolspel(?:\s+\d{1,2}\s*\/\s*\d{1,2})?$/i.test(String(w.text).trim()));
       const realPoolTitles=poolTitles.filter(w=>!interestWords.some(i=>
         Math.abs(i.bbox.y0-w.bbox.y0)<Math.max(20,imageWidth*0.025)));
       const isPool=realPoolTitles.length>0;
@@ -219,7 +219,7 @@
       // Ignore other activities above the first actual training on this date.
       // In particular, Hockeyfritids must never supply the hall for an ice practice.
       const activityHeadings=eventWords.filter(w=>
-        /^(?:träning|is(?:\s*1[789]\s*\/\s*1[789])?|poolspel|hockeyfritids|fotografering|intresseanmälan)$/i.test(String(w.text).trim()));
+        /^(?:träning|is(?:\s*1[789]\s*\/\s*1[789])?|poolspel(?:\s+\d{1,2}\s*\/\s*\d{1,2})?|hockeyfritids|fotografering|intresseanmälan)$/i.test(String(w.text).trim()));
       // Bound every activity to its own heading. A pool venue or another
       // activity's hall must never be assigned to a neighbouring training.
       const activityWords=(startY,otherHeadings)=>{
