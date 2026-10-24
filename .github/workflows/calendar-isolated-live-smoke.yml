@@ -1,0 +1,33 @@
+name: Calendar isolated API live auth smoke (no writes)
+on:
+  push:
+    branches:
+      - feat/calendar-match-metadata-401
+    paths:
+      - '.github/workflows/calendar-isolated-live-smoke.yml'
+      - 'scripts/smoke-isolated-api-preview.mjs'
+  workflow_dispatch:
+permissions:
+  contents: read
+concurrency:
+  group: calendar-isolated-live-smoke
+  cancel-in-progress: false
+jobs:
+  isolated-auth-smoke:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Verify target is isolated and no secrets are needed
+        shell: bash
+        env:
+          NSK_PREVIEW_BASE_URL: https://nsk-api-isolated-preview.peter-hasselberg.workers.dev
+        run: |
+          set -euo pipefail
+          test "$NSK_PREVIEW_BASE_URL" = "https://nsk-api-isolated-preview.peter-hasselberg.workers.dev"
+          node scripts/calendar-isolated-worker-gate.mjs
+          node scripts/smoke-isolated-api-preview.mjs
