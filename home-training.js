@@ -345,7 +345,7 @@
             item.date=next;
             const already=item.type==='training'?currentContext.dates.has(next):knownPools.some(p=>p.pool_date===next);
             check.value=item.type+':'+next+':'+(item.place||'');
-            check.disabled=already||(item.type==='training'&&!item.hall);check.checked=!check.disabled;
+            check.disabled=already||(item.type==='training'&&!item.hall)||(item.type==='pool'&&!item.place);check.checked=!check.disabled;
             text.textContent=(item.type==='pool'?'Poolspel':'Träning')+' • '+next+' • '+(item.place||item.hall||'Plats ej angiven')+(already?' – finns redan':'');
           });
           // Hall names are never inferred from another date. An unknown hall
@@ -367,7 +367,23 @@
               if(item.hall)item.hallConflict=false;
             });
             label.append(check,text,dateInput,hallSelect);
-          }else label.append(check,text,dateInput);
+          }else{
+            const placeInput=document.createElement('input');
+            placeInput.type='text';
+            placeInput.value=item.place||'';
+            placeInput.placeholder='Ange plats – kontroll krävs';
+            placeInput.setAttribute('aria-label','Kontrollera plats för poolspel '+item.date);
+            if(!item.place){check.checked=false;check.disabled=true;}
+            placeInput.addEventListener('input',()=>{
+              item.place=placeInput.value.trim();
+              const already=knownPools.some(p=>p.pool_date===item.date&&(!item.place||String(p.place||'').toLocaleLowerCase('sv-SE')===item.place.toLocaleLowerCase('sv-SE')));
+              check.value='pool:'+item.date+':'+item.place;
+              check.disabled=already||!item.place;
+              check.checked=!check.disabled;
+              text.textContent='Poolspel · '+(item.place||'Plats måste kontrolleras')+(already?' – finns redan':'');
+            });
+            label.append(check,text,dateInput,placeInput);
+          }
           review.append(label);
         }
         // A narrow calendar screenshot can omit a complete day during OCR.
@@ -413,6 +429,10 @@
       confirm.disabled=true;
       const checked=new Set([...review.querySelectorAll('input:checked')].map(x=>x.value));
       const selected=candidates.filter(c=>checked.has(c.type+':'+c.date+':'+(c.place||'')));
+      if(selected.some(c=>c.type==='pool'&&!c.place)){
+        status.textContent='Import stoppad: ange plats för alla markerade poolspel.';
+        confirm.disabled=false;return;
+      }
       if(selected.some(c=>c.type==='training'&&!c.hall)){
         status.textContent='Import stoppad: välj hall för alla markerade träningar.';
         confirm.disabled=false;return;
