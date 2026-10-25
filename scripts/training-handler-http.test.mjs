@@ -4,6 +4,11 @@ import {createTrainingHandler} from '../worker/training-sessions-api.js';
 
 const handler=createTrainingHandler({AUTH_DB:{}},async()=>[]);
 const request=(path,method='GET',token)=>new Request('https://preview.example'+path,{method,headers:token?{Authorization:token}:undefined});
+test('changing rooms cannot bypass the personal training read boundary',async()=>{
+ assert.equal((await handler(request('/api/training?team_id=18&action=changing-rooms'))).status,401);
+ assert.equal((await handler(request('/api/training?team_id=18&team_id=19&action=changing-rooms'))).status,400);
+ assert.equal((await handler(request('/api/training?team_id=18&action=changing-rooms','GET','Basic abc'))).status,401);
+});
 
 test('training API denies unauthenticated reads and writes',async()=>{
  for(const method of ['GET','PUT','POST','DELETE']){

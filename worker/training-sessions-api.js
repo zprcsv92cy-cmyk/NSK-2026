@@ -4,6 +4,7 @@ import {validateTrainingPayload} from './training-session-validation.js';
 import {authorizeTeamFeature} from './team-authorization-policy.js';
 import {parseSvenskalagIcal} from './svenskalag-ical.js';
 import {runSvenskalagScheduledSync} from './svenskalag-scheduled-sync.js';
+import {readChangingRooms} from './rbok-changing-rooms.js';
 
 const fail=(status,error)=>Response.json({ok:false,error},{status,headers:{'cache-control':'no-store'}});
 export function createTrainingHandler(env,listTeams){
@@ -25,6 +26,12 @@ export function createTrainingHandler(env,listTeams){
    const access=mapTrustedMembershipsToLegacyTeams(actor,await listTeams());
    if(!access.memberships.some(m=>m.team_id===team[0])||!access.permissions.includes('read'))return fail(403,'No team access');
    const db=env.AUTH_DB;
+   if(request.method==='GET'&&url.searchParams.get('action')==='changing-rooms'){
+    if(dates.length)return fail(400,'Board is team-scoped');
+    if(!(await listTeams()).some(t=>String(t.id)===team[0]&&t.Namn==='NSK Team 18'&&String(t['Säsong'])==='2026'))return fail(403,'Wrong team');
+    try{return Response.json(await readChangingRooms(env),{headers:{'cache-control':'private, no-store'}});}
+    catch{return fail(502,'Omklädningsrummen kunde inte kontrolleras');}
+   }
    if(request.method==='POST'&&url.searchParams.get('action')==='svenskalag-refresh'){
     if(dates.length)return fail(400,'Calendar is team-scoped');
     if(!authorizeTeamFeature(access,team[0],'lineup').allowed)return fail(403,'Edit permission required');

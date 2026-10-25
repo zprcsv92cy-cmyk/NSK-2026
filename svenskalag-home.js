@@ -225,7 +225,7 @@
    const upcomingCalendarTrainings=calendarTrainings.filter(item=>item.date>=today);
    if(trainingBox){
     trainingBox.querySelectorAll('[data-svenskalag-training]').forEach(node=>node.remove());
-    const savedSessions=Array.from(trainingBox.querySelectorAll('details[data-date]')).map(node=>({node,date:decodeURIComponent(node.dataset.date||''),hall:(node.querySelector('.nsk-pool-hall')?.textContent||'').trim().toLocaleLowerCase('sv-SE')}));
+    const savedSessions=Array.from(trainingBox.querySelectorAll('details[data-date]')).map(node=>({node,date:decodeURIComponent(node.dataset.date||''),hall:(node.querySelector('.nsk-pool-hall')?.dataset.roomHall||node.querySelector('.nsk-pool-hall')?.textContent||'').trim().toLocaleLowerCase('sv-SE')}));
     for(const item of upcomingCalendarTrainings){
      const hallName=String(item.hall||item.place||'').trim().toLocaleLowerCase('sv-SE');
      const saved=savedSessions.find(s=>s.date===item.date);
@@ -263,6 +263,13 @@
    }).join('');
    else root.textContent='Poolspel visas under Kommande poolspel och träningar under Träningar.';
    renderUpcomingCalendarPools(calendarPools,items.filter(item=>item.type==='match'));
+   // Optional enrichment must never prevent the calendar from rendering.
+   void fetch(base+'/api/training?team_id='+encodeURIComponent(matched[0].id)+'&action=changing-rooms',{headers,cache:'no-store'})
+    .then(async response=>{
+     if(!response.ok)return;
+     const rooms=await response.json();
+     if(Auth.activeTeam()===team&&Auth.getToken()===token)window.NSKChangingRooms?.render(trainingBox,rooms);
+    }).catch(()=>{});
    const button=document.getElementById('svenskalagRefreshButton');
    if(button){
    button.textContent='Hämta SvenskaLag nu';

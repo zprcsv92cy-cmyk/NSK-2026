@@ -62,6 +62,7 @@ jobs:
           node --check navigation.js
           node --check home-training.js
           node --check svenskalag-home.js
+          node --check changing-rooms.js
           node --check shared-training.js
           node --check account-access.js
           node --check account-users.js
@@ -110,7 +111,7 @@ jobs:
         run: |
           set -euo pipefail
           mkdir -p _site
-          cp -a account-access.js account-users.js calendar-match-plan.mjs index.html app.css app.js navigation.js home-training.js svenskalag-home.js shared-training.js admin-mode.js auth.js config.js db.js deploy.json version.js sw.js manifest.webmanifest icon-192.png icon-512.png login-patch.js login-gate.js training-groups.js exercise-archive.js rink-drawer.js rink-text-parser.js exercise-rink-preview.js hockeyakademin-catalog.js pool-team-editor.js _site/
+          cp -a account-access.js account-users.js calendar-match-plan.mjs index.html app.css app.js navigation.js home-training.js svenskalag-home.js changing-rooms.js shared-training.js admin-mode.js auth.js config.js db.js deploy.json version.js sw.js manifest.webmanifest icon-192.png icon-512.png login-patch.js login-gate.js training-groups.js exercise-archive.js rink-drawer.js rink-text-parser.js exercise-rink-preview.js hockeyakademin-catalog.js pool-team-editor.js _site/
           for dir in aktivera anvandare bytesschema lag laguppstallning login malvaktsstatistik matchvy mittkonto skapapoolspel startsida truppen traningsgrupper ovningsarkiv ritverktyg; do
             cp -a "$dir" _site/
           done
