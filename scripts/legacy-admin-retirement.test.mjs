@@ -22,3 +22,9 @@ test('team count updates preserve pool rules and use personal authorization',asy
  await window.DB.updatePoolTeams(9,2);const write=requests.find(r=>r.init.method==='PATCH');const data=JSON.parse(write.init.body);
  assert.equal(write.init.headers.Authorization,'Bearer personal');assert.equal(data.teams,2);assert.equal(data.matches,4);assert.equal(data.period_time,15);assert.equal(data.sub_time,90);
 });
+
+test('team editor uses the stamped application version instead of a stale fixed cache key',()=>{
+ const html=readFileSync(new URL('../lag/index.html',import.meta.url),'utf8');
+ assert.ok(html.includes('pool-team-editor.js?v=\' + window.NSK_VERSION'));
+ assert.doesNotMatch(html,/pool-team-editor\.js\?v=1/);
+});
