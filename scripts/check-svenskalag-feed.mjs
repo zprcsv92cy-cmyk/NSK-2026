@@ -22,8 +22,8 @@ console.log('SvenskaLag feed accessible: '+counts.training+' trainings, '+counts
 const summaries=[...calendar.matchAll(/^SUMMARY(?:;[^:]*)?:(.*)$/gm)].map(m=>m[1].toLocaleLowerCase('sv-SE'));
 const categories={total:summaries.length,matchWord:0,versusWord:0,poolWord:0};
 for(const title of summaries){
- if(/\\b(?:match|träningsmatch|matcher)\\b/u.test(title))categories.matchWord++;
- if(/\\b(?:mot|vs|versus)\\b/u.test(title))categories.versusWord++;
- if(/\\bpoolspel\\b/u.test(title))categories.poolWord++;
+ if(/\b(?:match|träningsmatch|matcher)\b/u.test(title))categories.matchWord++;
+ if(/\b(?:mot|vs|versus)\b/u.test(title))categories.versusWord++;
+ if(/\bpoolspel\b/u.test(title))categories.poolWord++;
 }
 console.log('SvenskaLag feed summary categories (counts only): '+JSON.stringify(categories));
