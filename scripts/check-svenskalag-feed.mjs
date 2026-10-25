@@ -239,3 +239,22 @@ for(const block of blocks){
  if(iso>=today&&!p2000)liveMatchDateGates.unparsedFuture++;
 }
 console.log('Live match date gate counts only: '+JSON.stringify(liveMatchDateGates));
+
+const eventStatusGates={total:0,cancelled:0,confirmed:0,tentative:0,otherStatus:0,containsTraining:0,containsPool:0,excludedKeyword:0,hasSummary:0,hasDtstart:0};
+for(const block of blocks){
+ const event=block.slice(0,block.indexOf('END:VEVENT'));
+ const title=event.match(/^SUMMARY(?:;[^:]*)?:(.*)$/m)?.[1]||'';
+ if(!/^match:/i.test(title))continue;
+ eventStatusGates.total++;
+ if(title)eventStatusGates.hasSummary++;
+ if(/^DTSTART(?:;[^:]*)?:/m.test(event))eventStatusGates.hasDtstart++;
+ const status=event.match(/^STATUS(?:;[^:]*)?:(.*)$/m)?.[1]?.trim()||'';
+ if(status==='CANCELLED')eventStatusGates.cancelled++;
+ else if(status==='CONFIRMED')eventStatusGates.confirmed++;
+ else if(status==='TENTATIVE')eventStatusGates.tentative++;
+ else if(status)eventStatusGates.otherStatus++;
+ if(/träning|is\s*1[789]\s*\/\s*1[789]/iu.test(title))eventStatusGates.containsTraining++;
+ if(/poolspel/iu.test(title))eventStatusGates.containsPool++;
+ if(/hockeyfritids|fotografering|intresseanmälan|intresseanmäl|anmälan|inställt|cancelled|canceled|lagfoto/iu.test(title))eventStatusGates.excludedKeyword++;
+}
+console.log('Match event status gates (counts only): '+JSON.stringify(eventStatusGates));
