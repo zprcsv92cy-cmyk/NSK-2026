@@ -158,3 +158,20 @@ for(const block of blocks){
  if(parsed.some(x=>x.type==='match'&&x.date>=today))matchParseGates.recognizedFuture++;
 }
 console.log('Individual match parser gates (counts only): '+JSON.stringify(matchParseGates));
+
+const matchShapeGates={total:0,exactMatchPrefix:0,splitTwoSides:0,sideStartsNykopings:0,sideStartsNykoping:0,explicitU9:0,recognizedNskExact:0};
+for(const title of summaries){
+ if(!title.startsWith('match:'))continue;
+ matchShapeGates.total++;
+ if(/^(?:match|träningsmatch)\s*[:–-]\s*(.+)$/iu.test(title))matchShapeGates.exactMatchPrefix++;
+ const sides=title.slice(6).trim().split(/\s+[-–]\s+/u);
+ if(sides.length!==2)continue;
+ matchShapeGates.splitTwoSides++;
+ for(const side of sides){
+  if(/^nyköpings\s+sportklubb\b/u.test(side))matchShapeGates.sideStartsNykopings++;
+  if(/^nyköping\s+sportklubb\b/u.test(side))matchShapeGates.sideStartsNykoping++;
+  if(/(?:^|\W)u\s*9(?:\W|$)/u.test(side))matchShapeGates.explicitU9++;
+  if(/^(?:nsk|nyköpings\s+(?:sk|sportklubb))(?:\s+(?:u\s*9|team\s*18|u9\s*team\s*18))?$/iu.test(side.trim()))matchShapeGates.recognizedNskExact++;
+ }
+}
+console.log('Fixture parser regex gates (counts only): '+JSON.stringify(matchShapeGates));
