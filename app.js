@@ -470,11 +470,6 @@ window.NSK2App = (() => {
     try {
       const pools = await DB.listPools();
 
-      if (!pools.length) {
-        box.innerHTML = '<div class="listrow">Inga sparade poolspel ännu.</div>';
-        return;
-      }
-
       const today = new Date();
       const localToday = `${today.getFullYear()}-${String(today.getMonth()+1).padStart(2,'0')}-${String(today.getDate()).padStart(2,'0')}`;
       const isArchived = (p) => p.active === false;
@@ -507,7 +502,7 @@ window.NSK2App = (() => {
           </div>` : "";
 
         return `
-          <details class="nsk-pool-row">
+          <details class="nsk-pool-row" data-pool-date="${esc(poolDay(p))}">
             <summary class="nsk-pool-summary">
               <span class="nsk-pool-name">${esc(p.place || "Ort")} • ${esc(p.pool_date || "Datum")}</span>
               <span class="nsk-pool-hall">${esc(p.hall || "")}</span>
@@ -556,6 +551,7 @@ window.NSK2App = (() => {
           <h2>Avslutade poolspel (${archived.length})</h2>
           ${archived.length ? renderPools(archived) : '<div class="listrow">Inga avslutade poolspel ännu.</div>'}
         </section>`;
+      window.dispatchEvent(new Event('nsk:saved-pools-rendered'));
     } catch (err) {
       setText("appError", err?.message || String(err));
     }

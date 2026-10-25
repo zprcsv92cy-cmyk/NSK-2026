@@ -7,7 +7,12 @@
  const samePool=(p,item)=>p.pool_date===item.date&&String(p.place||'').trim().toLocaleLowerCase('sv-SE')===poolLocation(item).city.toLocaleLowerCase('sv-SE')&&(!p.hall||String(p.hall).trim().toLocaleLowerCase('sv-SE')===poolLocation(item).hall.toLocaleLowerCase('sv-SE'));
  const esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
  const calendarDate=value=>String(value||'').slice(0,10);
- const calendarMatchTime=m=>{const time=String(m.startTime||m.start_time||m.time||'').trim().match(/\b\d{1,2}:\d{2}\b/)?.[0]||'';return time==='00:00'?'':time;};
+ const calendarMatchTime=m=>{
+  const match=String(m.startTime||m.start_time||m.time||'').trim().match(/\b(\d{1,2}):(\d{2})\b/);
+  if(!match||Number(match[1])>23||Number(match[2])>59)return '';
+  const time=match[1].padStart(2,'0')+':'+match[2];
+  return time==='00:00'?'':time;
+ };
  const calendarMatchOpponent=m=>String(m.opponent||m.motstandare||m['Motståndare']||'').trim();
  const matchesForPool=(item,calendarMatches)=>{
   const linked=Array.isArray(item.matches)?item.matches:[];
@@ -20,9 +25,14 @@
   return candidates.map(m=>({...m,startTime:calendarMatchTime(m),opponent:calendarMatchOpponent(m)}))
    .filter(m=>m.opponent)
    .filter(m=>{const key=[m.startTime,m.opponent,m.place||''].join('|');if(seen.has(key))return false;seen.add(key);return true;})
-   .sort((a,b)=>a.startTime.localeCompare(b.startTime)).slice(0,16);
+   .sort((a,b)=>(a.startTime||'99:99').localeCompare(b.startTime||'99:99')).slice(0,16);
  };
+ let latestCalendarPools=null;
+ window.addEventListener('nsk:saved-pools-rendered',()=>{
+  if(latestCalendarPools)renderUpcomingCalendarPools(...latestCalendarPools);
+ });
  function renderUpcomingCalendarPools(items,calendarMatches=[]){
+  latestCalendarPools=[items,calendarMatches];
   const box=document.getElementById('savedPoolsList');
   if(!box)return;
   const section=box.querySelector('.pool-overview-section');
@@ -33,13 +43,14 @@
   const existing=Array.from(section.querySelectorAll(':scope > details.nsk-pool-row')).length;
   title.textContent='Kommande poolspel ('+(existing+items.length)+')';
   const empty=section.querySelector('.listrow');
-  if(empty&&items.length)empty.hidden=true;
+  if(empty)empty.hidden=items.length>0;
   if(!items.length)return;
   const fragment=document.createDocumentFragment();
   for(const item of items){
    const row=document.createElement('details');
    row.className='nsk-pool-row';
    row.dataset.svenskalagPool='1';
+   row.dataset.poolDate=calendarDate(item.date).replaceAll('-','');
    const summary=document.createElement('summary');
    summary.className='nsk-pool-summary';
    const name=document.createElement('span');
@@ -62,15 +73,18 @@
    const matches=matchesForPool(item,calendarMatches);
    if(matches.length){
     const matchBox=document.createElement('div');matchBox.className='nsk-pool-match-summary';
-    const heading=document.createElement('strong');heading.textContent='Matcher och motståndare';matchBox.append(heading);
+    const heading=document.createElement('strong');heading.textContent='Matcher';matchBox.append(heading);
     const teamCount=matches.length>4?2:1;
     const firstTeamCount=Math.ceil(matches.length/teamCount);
+    let lastTeam=0;
     matches.forEach((m,i)=>{
      const team=i<firstTeamCount?1:2;
      const matchNo=team===1?i+1:i-firstTeamCount+1;
-     const line=document.createElement('div');line.className='small';
-     line.textContent='Lag '+team+' · Match '+matchNo+' · '+(m.startTime||'Tid ej angiven')+' · '+m.opponent+(m.place?' · '+m.place:'');
-     matchBox.append(line);
+     if(team!==lastTeam){const teamHeading=document.createElement('strong');teamHeading.textContent='Lag '+team;const group=document.createElement('div');group.className='nsk-pool-match-team';group.append(teamHeading);matchBox.append(group);lastTeam=team;}
+     const group=matchBox.lastElementChild;
+     const line=document.createElement('div');line.className='small nsk-pool-match-line';
+     group.append(line);
+     for(const [cls,label] of [['nsk-pool-match-number','Match '+matchNo],['nsk-pool-match-time',m.startTime||'Tid ej angiven'],['nsk-pool-match-opponent',m.opponent]]){const span=document.createElement('span');span.className=cls;span.textContent=label;line.append(span);}
     });
     content.append(matchBox);
    }else{
@@ -115,8 +129,12 @@
    row.append(summary,content);
    fragment.append(row);
   }
-  const archived=section.nextElementSibling;
   section.append(fragment);
+  // Saved pools and calendar-only pools share the same chronological order.
+  const rows=Array.from(section.querySelectorAll(':scope > details.nsk-pool-row'));
+  const poolDate=row=>row.dataset.poolDate||'99999999';
+  rows.sort((a,b)=>poolDate(a).localeCompare(poolDate(b)));
+  rows.forEach(row=>section.append(row));
  }
  async function show(){
   const root=document.getElementById('svenskalagSavedEvents');
@@ -180,7 +198,6 @@
    }).join('');
    else root.textContent='Poolspel visas under Kommande poolspel och träningar under Träningar.';
    renderUpcomingCalendarPools(calendarPools,items.filter(item=>item.type==='match'));
-   setTimeout(()=>{if(!document.querySelector('[data-svenskalag-pool]')&&calendarPools.length)renderUpcomingCalendarPools(calendarPools,items.filter(item=>item.type==='match'));},1200);
    const button=document.getElementById('svenskalagRefreshButton');
    if(button){
    button.textContent='Hämta SvenskaLag nu';
