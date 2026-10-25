@@ -49,7 +49,7 @@ jobs:
           set -euo pipefail
           node --experimental-default-type=module --test worker/production-pool-write-authorization.test.mjs worker/production-pool-write-integration.test.mjs worker/production-match-write-authorization.test.mjs worker/production-match-write-integration.test.mjs worker/production-coach-selection-authorization.test.mjs worker/production-coach-selection-integration.test.mjs worker/team-authorization-policy.test.mjs
           node --test scripts/personal-roster-write-client.test.mjs scripts/roster-staff-role-contract.test.mjs scripts/pool-save-permission-ui.test.mjs
-      - name: Ensure every new write-path switch stays disabled
+      - name: Verify personal write-path rollout flags
         run: |
           set -euo pipefail
           node --input-type=module <<'NODE'
@@ -57,11 +57,13 @@ jobs:
           import {readFileSync} from 'node:fs';
           const app=readFileSync('config.js','utf8');
           const api=readFileSync('wrangler.api.production.toml','utf8');
-          for(const name of ['POOL_WRITES','MATCH_WRITES','COACH_SELECTION']){
-            assert.match(app,new RegExp('REQUIRE_PERSONAL_'+name+': false'));
-            assert.match(api,new RegExp('NSK_REQUIRE_PERSONAL_'+name+' = "false"'));
+          for(const name of ['POOL_WRITES','MATCH_WRITES']){
+            assert.match(app,new RegExp('REQUIRE_PERSONAL_'+name+': true'));
+            assert.match(api,new RegExp('NSK_REQUIRE_PERSONAL_'+name+' = "true"'));
           }
-          // Personal roster writes are already enabled in production; require the protected flow.
+          assert.match(app,/REQUIRE_PERSONAL_COACH_SELECTION: false/);
+          assert.match(api,/NSK_REQUIRE_PERSONAL_COACH_SELECTION = "false"/);
+          // Personal roster writes remain protected.
           assert.match(app,/REQUIRE_PERSONAL_ROSTER_WRITES: true/);
           NODE
       - name: Confirm remote production bindings have not drifted
