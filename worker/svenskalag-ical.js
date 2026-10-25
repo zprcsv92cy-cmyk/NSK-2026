@@ -28,7 +28,14 @@ function calendarOpponent(title){
   if(!match)return '';
   const fixture=match[1].trim().split(/\s+[-–]\s+/);
   if(fixture.length===2){
-    const isNsk=name=>{\n      const squad=name.trim();\n      if(/^(?:nsk|nyköpings\s+(?:sk|sportklubb))$/iu.test(squad))return true;\n      const suffix=squad.match(/^nyköpings\s+(?:sk|sportklubb)\s+(.+)$/iu)?.[1]||'';\n      // SvenskaLag may append a squad label to U9. Accept only an explicit U9/Team 18 token.\n      return /(?:^|\W)(?:u\s*9|team\s*18)(?:\W|$)/iu.test(suffix)\n        && !/(?:^|\W)(?:u\s*(?:[1-8]|1\d|2\d)|team\s*(?:[1-9]|1[0-7]|19|2\d))(?:\W|$)/iu.test(suffix);\n    };
+    const isNsk=name=>{
+      const squad=name.trim();
+      if(/^(?:nsk|nyköpings\s+(?:sk|sportklubb))$/iu.test(squad))return true;
+      const suffix=squad.match(/^nyköpings\s+(?:sk|sportklubb)\s+(.+)$/iu)?.[1]||'';
+      // SvenskaLag may append a squad label to U9. Accept only an explicit U9/Team 18 token.
+      return /(?:^|\W)(?:u\s*9|team\s*18)(?:\W|$)/iu.test(suffix)
+        && !/(?:^|\W)(?:u\s*(?:[1-8]|1\d|2\d)|team\s*(?:[1-9]|1[0-7]|19|2\d))(?:\W|$)/iu.test(suffix);
+    };
     const home=isNsk(fixture[0]),away=isNsk(fixture[1]);
     if(home===away)return ''; // Unknown or both sides NSK: do not guess.
     const other=(home?fixture[1]:fixture[0]).trim();
