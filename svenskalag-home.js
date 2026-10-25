@@ -6,6 +6,22 @@
  const poolLocation=item=>{const hall=String(item.place||item.hall||'').trim();const key=hall.normalize('NFKC').toLocaleLowerCase('sv-SE');return {hall,city:arenaCity.get(key)||extraArenaCities.get(key)||extendedArenaCities.get(key)||String(item.city||item.stad||'').trim()||hall};};
  const samePool=(p,item)=>p.pool_date===item.date&&String(p.place||'').trim().toLocaleLowerCase('sv-SE')===poolLocation(item).city.toLocaleLowerCase('sv-SE')&&(!p.hall||String(p.hall).trim().toLocaleLowerCase('sv-SE')===poolLocation(item).hall.toLocaleLowerCase('sv-SE'));
  const esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+ const calendarDate=value=>String(value||'').slice(0,10);
+ const calendarMatchTime=m=>String(m.startTime||m.start_time||m.time||'').trim().match(/\b\d{1,2}:\d{2}\b/)?.[0]||'';
+ const calendarMatchOpponent=m=>String(m.opponent||m.motstandare||m['Motståndare']||'').trim();
+ const matchesForPool=(item,calendarMatches)=>{
+  const linked=Array.isArray(item.matches)?item.matches:[];
+  const poolId=String(item.activityId||item.activity_id||item.id||'').trim();
+  const candidates=[...linked,...calendarMatches.filter(m=>{
+   const matchPoolId=String(m.poolActivityId||m.pool_activity_id||m.poolId||m.pool_id||'').trim();
+   return poolId&&matchPoolId?poolId===matchPoolId:calendarDate(m.date)===calendarDate(item.date);
+  })];
+  const seen=new Set();
+  return candidates.map(m=>({...m,startTime:calendarMatchTime(m),opponent:calendarMatchOpponent(m)}))
+   .filter(m=>/^\d{1,2}:\d{2}$/.test(m.startTime)&&m.opponent)
+   .filter(m=>{const key=[m.startTime,m.opponent,m.place||''].join('|');if(seen.has(key))return false;seen.add(key);return true;})
+   .sort((a,b)=>a.startTime.localeCompare(b.startTime)).slice(0,16);
+ };
  function renderUpcomingCalendarPools(items,calendarMatches=[]){
   const box=document.getElementById('savedPoolsList');
   if(!box)return;
@@ -43,7 +59,7 @@
    note.textContent='Importerat från SvenskaLag. Matchschema och laguppställning är ännu inte skapade i NSK.';
    note.className='small';
    note.textContent='Källa: SvenskaLag. Skapa poolspelet i NSK för att använda laguppställning och bytesschema.';
-   const matches=calendarMatches.filter(m=>m.date===item.date&&/^\d{2}:\d{2}$/.test(m.startTime||'')&&String(m.opponent||'').trim()).sort((a,b)=>a.startTime.localeCompare(b.startTime)).slice(0,16);
+   const matches=matchesForPool(item,calendarMatches);
    if(matches.length){
     const matchBox=document.createElement('div');matchBox.className='nsk-pool-match-summary';
     const heading=document.createElement('strong');heading.textContent='Matcher och motståndare';matchBox.append(heading);
@@ -58,7 +74,7 @@
     });
     content.append(matchBox);
    }else{
-    const missing=document.createElement('p');missing.className='small';missing.textContent='Inga matchtider eller motståndare finns i kalenderunderlaget.';content.append(missing);
+    const missing=document.createElement('p');missing.className='small';missing.textContent='Matchuppgifter har ännu inte hämtats till NSK. De kan finnas publicerade i SvenskaLag.';content.append(missing);
    }
    content.append(note);
    const actions=document.createElement('div');
@@ -76,7 +92,7 @@
     }catch(error){create.disabled=false;alert('Kunde inte kontrollera befintliga poolspel. Försök igen.');return;}
 
     sessionStorage.removeItem('nsk2_edit_pool_id');
-    sessionStorage.setItem('nsk2_svenskalag_pool_draft',JSON.stringify({date:item.date,place:poolLocation(item).city,hall:poolLocation(item).hall,matches:calendarMatches.filter(m=>m.date===item.date&&/^\d{2}:\d{2}$/.test(m.startTime||'')&&m.opponent).map(m=>({startTime:m.startTime,opponent:m.opponent,place:m.place||''})).slice(0,24)}));
+    sessionStorage.setItem('nsk2_svenskalag_pool_draft',JSON.stringify({date:item.date,place:poolLocation(item).city,hall:poolLocation(item).hall,matches:matchesForPool(item,calendarMatches).map(m=>({startTime:m.startTime,opponent:m.opponent,place:m.place||''}))}));
     location.href='../skapapoolspel/';
    });
    actions.append(create);
