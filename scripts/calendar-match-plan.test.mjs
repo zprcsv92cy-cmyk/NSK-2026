@@ -40,3 +40,21 @@ test('tom import ger inga matcher och inget laguppställningskrav', () => {
   assert.equal(result.schedule.length,0);
   assert.equal(result.matchesPerTeam,0);
 });
+
+test('behåller motståndare utan starttid och fördelar fyra matcher på ett lag', () => {
+  const opponents=['Järna SK Röd','Eskilstuna Linden Hockey','Södertälje SK Blå','Åker/Strängnäs HC Gul'];
+  const result=planCalendarMatches(opponents.map((opponent,i)=>({opponent,startTime:i%2?'00:00':''})));
+  assert.equal(result.teams,1);
+  assert.equal(result.matchesPerTeam,4);
+  assert.deepEqual(result.schedule.map(m=>m.opponent),opponents);
+  assert.ok(result.schedule.every(m=>m.start_time===null));
+});
+test('sorterar kända tider före okända och filtrerar ogiltiga tider', () => {
+  const result=planCalendarMatches([
+    {opponent:'Okänd tid',startTime:''},
+    {opponent:'Sen',startTime:'13:00'},
+    {opponent:'Fel',startTime:'99:99'},
+    {opponent:'Tidig',startTime:'09:00'}
+  ]);
+  assert.deepEqual(result.schedule.map(m=>m.opponent),['Tidig','Sen','Okänd tid']);
+});

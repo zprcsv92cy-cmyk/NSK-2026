@@ -128,8 +128,8 @@ var ShiftLock = class {
     const validId = n => Number.isSafeInteger(n) && n > 0;
     const { pool_id: poolId, lag_no: lagNo, match_no: matchNo } = body || {};
     if (![poolId,lagNo,matchNo].every(validId) ||
-        typeof body?.start_time !== "string" ||
-        !/^([01]\d|2[0-3]):[0-5]\d$/.test(body.start_time) ||
+        (body?.start_time != null && (typeof body.start_time !== "string" ||
+          !/^([01]\d|2[0-3]):[0-5]\d$/.test(body.start_time))) ||
         typeof body?.opponent !== "string" || !body.opponent.trim() ||
         body.opponent.length > 150 || typeof body?.plan !== "string" ||
         body.plan.length > 80 || body.goalie_player_id != null || body.players_on_field != null) {
@@ -167,7 +167,7 @@ var ShiftLock = class {
           const saved=await fetch(`${base}${tables.matchkonfiguration}/?user_field_names=true`,{
             method:"POST",headers:{...headers,"Content-Type":"application/json"},
             body:JSON.stringify({Poolspel:[poolId],Lagnummer:lagNo,Matchnummer:matchNo,
-              Starttid:body.start_time,"Motståndare":body.opponent.trim(),Plan:body.plan})
+              Starttid:body.start_time || null,"Motståndare":body.opponent.trim(),Plan:body.plan})
           });
           const record=await saved.json().catch(()=>({}));
           if (!saved.ok) return json({ok:false,error:"Baserow kunde inte spara match",status:saved.status,detail:record.detail||record.error||null},502);
@@ -832,7 +832,7 @@ var worker_default = { async fetch(req, env) {
         if (scheduleOnly) {
           if (!personalMatchWritesEnabled) return reply({ok:false,error:"Personliga matchbehörigheter krävs för kalenderimport"},403);
           if (req.method !== "POST") return reply({ok:false,error:"Kalenderimport får inte skriva över matcher"},409);
-          if (typeof body.opponent !== "string" || !body.opponent.trim() || !body.start_time ||
+          if (typeof body.opponent !== "string" || !body.opponent.trim() || (body.start_time != null && (typeof body.start_time !== 'string' || !/^([01]\d|2[0-3]):[0-5]\d$/.test(body.start_time))) ||
               body.goalie_player_id != null || body.players_on_field != null)
             return reply({ok:false,error:"Ogiltig kalenderimport utan laguppställning"},400);
           if (!env.SHIFT_LOCK) return reply({ok:false,error:"Matchlås saknas"},503);
