@@ -26,6 +26,14 @@ function calendarOpponent(title){
   const match=title.match(/^(?:match|träningsmatch)\s+(?:mot|vs\.?|versus)\s+(.+)$/i)
     || title.match(/^(?:match|träningsmatch)\s*[:–-]\s*(.+)$/i);
   if(!match)return '';
+  const fixture=match[1].trim().split(/\s+[-–]\s+/);
+  if(fixture.length===2){
+    const isNsk=name=>/^(?:nsk|nyköpings\s+(?:sk|sportklubb))(?:\s+(?:u\s*9|team\s*18|u9\s*team\s*18))?$|^nyköpings\s+sportklubb\s+u\s*9$/iu.test(name.trim());
+    const home=isNsk(fixture[0]),away=isNsk(fixture[1]);
+    if(home===away)return ''; // Unknown or both sides NSK: do not guess.
+    const other=(home?fixture[1]:fixture[0]).trim();
+    return other&&!/^(?:poolspel|okänd|ej angiven)$/i.test(other)?other.slice(0,120):'';
+  }
   const opponent=match[1].trim();
   // A fixture such as "Match: Team A - Team B" does not identify our opponent unambiguously.
   if(!opponent || /\s+[-–]\s+/.test(opponent) || /^(?:poolspel|okänd|ej angiven)$/i.test(opponent))return '';

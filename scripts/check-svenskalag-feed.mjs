@@ -64,3 +64,56 @@ for(const title of summaries){
  else fixtureShape.other++;
 }
 console.log('Match fixture shape counts only: '+JSON.stringify(fixtureShape));
+
+// Aggregate NSK naming patterns only; never log team names.
+const fixtureTeams={total:0,nskLeft:0,nskRight:0,nykopingLeft:0,nykopingRight:0,neither:0};
+for(const title of summaries){
+ if(!title.startsWith('match:'))continue;
+ const sides=title.slice(6).split(/\s+[-–]\s+/u);
+ if(sides.length!==2)continue;
+ fixtureTeams.total++;
+ const [left,right]=sides.map(x=>x.trim());
+ const isNsk=x=>/\bnsk\b/u.test(x);
+ const isNyk=x=>/nyköping/u.test(x);
+ if(isNsk(left))fixtureTeams.nskLeft++;
+ if(isNsk(right))fixtureTeams.nskRight++;
+ if(isNyk(left))fixtureTeams.nykopingLeft++;
+ if(isNyk(right))fixtureTeams.nykopingRight++;
+ if(!isNsk(left)&&!isNsk(right)&&!isNyk(left)&&!isNyk(right))fixtureTeams.neither++;
+}
+console.log('Fixture team identity counts only: '+JSON.stringify(fixtureTeams));
+
+// Count recognized Nyköping team-name shapes without exposing any names.
+const nykopingShapes={exactSK:0,exactSportklubb:0,skWithSuffix:0,sportklubbWithSuffix:0,other:0};
+for(const title of summaries){
+ if(!title.startsWith('match:'))continue;
+ const sides=title.slice(6).split(/\s+[-–]\s+/u);
+ if(sides.length!==2)continue;
+ for(const side of sides){
+  const name=side.trim();
+  if(!name.includes('nyköping'))continue;
+  if(/^nyköpings?\s+sk$/u.test(name))nykopingShapes.exactSK++;
+  else if(/^nyköpings?\s+sportklubb$/u.test(name))nykopingShapes.exactSportklubb++;
+  else if(/^nyköpings?\s+sk\s+\S/u.test(name))nykopingShapes.skWithSuffix++;
+  else if(/^nyköpings?\s+sportklubb\s+\S/u.test(name))nykopingShapes.sportklubbWithSuffix++;
+  else nykopingShapes.other++;
+ }
+}
+console.log('Nykoping team name shapes (counts only): '+JSON.stringify(nykopingShapes));
+
+// Distinguish known Team 18/U9 suffix from other club squads; aggregate only.
+const squadShape={team18:0,u9:0,otherNumber:0,unknownSuffix:0};
+for(const title of summaries){
+ if(!title.startsWith('match:'))continue;
+ const sides=title.slice(6).split(/\s+[-–]\s+/u);
+ if(sides.length!==2)continue;
+ for(const side of sides){
+  const name=side.trim();
+  if(!/^nyköpings?\s+sportklubb\s+/u.test(name))continue;
+  if(/(?:^|\W)team\s*18(?:\W|$)/u.test(name))squadShape.team18++;
+  else if(/(?:^|\W)u\s*9(?:\W|$)/u.test(name))squadShape.u9++;
+  else if(/\d/u.test(name))squadShape.otherNumber++;
+  else squadShape.unknownSuffix++;
+ }
+}
+console.log('Nykoping squad suffix counts only: '+JSON.stringify(squadShape));
