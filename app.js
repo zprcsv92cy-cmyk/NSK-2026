@@ -814,7 +814,7 @@ window.NSK2App = (() => {
             } catch {throw new Error('Kalenderimporten kunde inte läsas. Öppna poolspelet från kalendern igen.');}
             if(!schedule.schedule.length)
               throw new Error('Kalenderimporten saknar giltiga matcher. Öppna poolspelet från kalendern igen.');
-            if(window.APP_CONFIG?.REQUIRE_PERSONAL_MATCH_WRITES!==true || window.APP_CONFIG?.REQUIRE_PERSONAL_POOL_WRITES!==true)
+            if(window.APP_CONFIG?.REQUIRE_PERSONAL_MATCH_WRITES!==true)
               throw new Error('Kalenderimporten är ännu inte aktiverad i produktionskonfigurationen. Inget poolspel har skapats.');
           }
           if(retry){
