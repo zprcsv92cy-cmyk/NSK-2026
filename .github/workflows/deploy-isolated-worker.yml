@@ -75,6 +75,30 @@ jobs:
           version="$(printf '%s' "$response" | jq -er '.result.deployments[0].versions[0].version_id')"
           test -n "$version"
           echo "NSK_E2E_EXPECTED_VERSION=$version" >> "$GITHUB_ENV"
+      - name: Verify deployed Worker actually contains calendar import implementation
+        if: ${{ inputs.positive_calendar_e2e }}
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$CLOUDFLARE_ACCOUNT_ID" = "262a0356b18defd22b05df6949c409bf"
+          # Fetch deployed script only in the ephemeral CI runner. Never print its content.
+          curl --fail --silent --show-error --retry 2 \
+            -H "Authorization: Bearer $CLOUDFLARE_API_TOKEN" \
+            "https://api.cloudflare.com/client/v4/accounts/$CLOUDFLARE_ACCOUNT_ID/workers/scripts/nsk-api-isolated-preview/content/v2" \
+            -o "$RUNNER_TEMP/isolated-worker-script.bin"
+          grep -aFq 'calendar_import_key' "$RUNNER_TEMP/isolated-worker-script.bin" || {
+            echo "ERROR: deployed Worker lacks calendar_import_key; positive writes blocked."
+            exit 1
+          }
+          grep -aFq 'calendarPoolCreate' "$RUNNER_TEMP/isolated-worker-script.bin" || {
+            echo "ERROR: deployed Worker lacks calendarPoolCreate; positive writes blocked."
+            exit 1
+          }
+          echo "Deployed isolated Worker contains calendar import markers."
+          rm -f "$RUNNER_TEMP/isolated-worker-script.bin"
       - name: Verify calendar import with temporary isolated test identity
         if: ${{ inputs.positive_calendar_e2e }}
         env:
