@@ -258,3 +258,21 @@ for(const block of blocks){
  if(/hockeyfritids|fotografering|intresseanmälan|intresseanmäl|anmälan|inställt|cancelled|canceled|lagfoto/iu.test(title))eventStatusGates.excludedKeyword++;
 }
 console.log('Match event status gates (counts only): '+JSON.stringify(eventStatusGates));
+
+const isolatedMatchFields={total:0,summaryAndStartOnly:0,withStatus:0,withLocation:0,fullEvent:0};
+for(const block of blocks){
+ const event='BEGIN:VEVENT'+block.slice(0,block.indexOf('END:VEVENT')+10);
+ const summary=event.match(/^SUMMARY(?:;[^:]*)?:.*$/m)?.[0]||'';
+ if(!/^SUMMARY(?:;[^:]*)?:Match:/i.test(summary))continue;
+ isolatedMatchFields.total++;
+ const start=event.match(/^DTSTART(?:;[^:]*)?:.*$/m)?.[0]||'';
+ const status=event.match(/^STATUS(?:;[^:]*)?:.*$/m)?.[0]||'';
+ const location=event.match(/^LOCATION(?:;[^:]*)?:.*$/m)?.[0]||'';
+ const wrap=parts=>'BEGIN:VCALENDAR\nBEGIN:VEVENT\n'+parts.filter(Boolean).join('\n')+'\nEND:VEVENT\nEND:VCALENDAR';
+ const accepts=feed=>parseSvenskalagIcal(feed,'2000-01-01').some(x=>x.type==='match');
+ if(accepts(wrap([summary,start])))isolatedMatchFields.summaryAndStartOnly++;
+ if(accepts(wrap([summary,start,status])))isolatedMatchFields.withStatus++;
+ if(accepts(wrap([summary,start,location])))isolatedMatchFields.withLocation++;
+ if(accepts('BEGIN:VCALENDAR\n'+event+'\nEND:VCALENDAR'))isolatedMatchFields.fullEvent++;
+}
+console.log('Isolated match field gates (counts only): '+JSON.stringify(isolatedMatchFields));
