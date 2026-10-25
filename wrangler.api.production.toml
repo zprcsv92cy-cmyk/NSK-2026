@@ -20,8 +20,8 @@ NSK_REQUIRE_SCOPED_COLLECTION_READS = "true"
 # Shared training is enabled: D1 migration is verified and existing production setting is true.
 NSK_ENABLE_SHARED_TRAINING = "true"
 # Keep legacy pool writes until the new personal-session client is explicitly enabled.
-NSK_REQUIRE_PERSONAL_POOL_WRITES = "false"
-NSK_REQUIRE_PERSONAL_MATCH_WRITES = "false"
+NSK_REQUIRE_PERSONAL_POOL_WRITES = "true"
+NSK_REQUIRE_PERSONAL_MATCH_WRITES = "true"
 # Enable only after coordinated client + Worker verification.
 NSK_REQUIRE_PERSONAL_COACH_SELECTION = "false"
 
