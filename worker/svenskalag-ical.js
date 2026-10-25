@@ -22,9 +22,14 @@ function stockholmStartTime(value){
   return new Intl.DateTimeFormat('sv-SE',{timeZone:'Europe/Stockholm',hour:'2-digit',minute:'2-digit',hourCycle:'h23'}).format(instant);
 }
 function calendarOpponent(title){
-  // Only explicit "match mot" titles identify an opponent; never guess from venues.
-  const match=title.match(/^match\s+mot\s+(.+)$/i);
-  return match?match[1].trim().slice(0,120):'';
+  // Accept explicit match/opponent titles; never infer an opponent from a venue.
+  const match=title.match(/^(?:match|träningsmatch)\s+(?:mot|vs\\.?|versus)\s+(.+)$/i)
+    || title.match(/^(?:match|träningsmatch)\s*[:–-]\s*(.+)$/i);
+  if(!match)return '';
+  const opponent=match[1].trim();
+  // A fixture such as "Match: Team A - Team B" does not identify our opponent unambiguously.
+  if(!opponent || /\\s+[-–]\\s+/.test(opponent) || /^(?:poolspel|okänd|ej angiven)$/i.test(opponent))return '';
+  return opponent.slice(0,120);
 }
 function normalizePlace(text){
   return String(text||'').normalize('NFKC').replace(/\s+/g,' ').trim();
