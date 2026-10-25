@@ -115,8 +115,16 @@
    row.append(summary,content);
    fragment.append(row);
   }
-  const archived=section.nextElementSibling;
   section.append(fragment);
+  // Saved pools and calendar-only pools share the same chronological order.
+  const rows=Array.from(section.querySelectorAll(':scope > details.nsk-pool-row'));
+  const poolDate=row=>{
+   const label=row.querySelector('.nsk-pool-name')?.textContent||'';
+   const match=label.match(/\d{4}-\d{2}-\d{2}/);
+   return match?match[0]:'9999-99-99';
+  };
+  rows.sort((a,b)=>poolDate(a).localeCompare(poolDate(b)));
+  rows.forEach(row=>section.append(row));
  }
  async function show(){
   const root=document.getElementById('svenskalagSavedEvents');
