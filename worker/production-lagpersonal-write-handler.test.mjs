@@ -161,3 +161,17 @@ test('authorized second team stores its staff only under second team KV key', as
   assert.equal(denied.status, 403);
   assert.equal(x.writes, 1);
 });
+test('authorized deletion removes only the selected staff identity for each role',async()=>{
+ for(const role of ['Lagledare','Fysansvarig','Materialförvaltare']){
+  const x=setup();const created=await handlePersonalLagpersonalWrite(request('POST','18',token,{name:'Synthetic Person',role}),x.env,x);
+  const result=await handlePersonalLagpersonalWrite(request('DELETE','18',token,{id:created.row.id,role}),x.env,x);
+  assert.equal(result.status,200);assert.equal(result.deleted,true);assert.deepEqual(JSON.parse(x.kv.get('lagpersonal:team:18')),[]);
+  const replay=await handlePersonalLagpersonalWrite(request('DELETE','18',token,{id:created.row.id,role}),x.env,x);assert.ok(replay.status>=400);assert.equal(x.writes,2);
+ }
+});
+test('staff deletion denies foreign ownership and missing grants without mutations',async()=>{
+ for(const x of [setup('viewer'),setup('team_admin',[]),setup('team_admin',['roster:manage'],'2')]){
+  const id='11111111-1111-4111-8111-111111111111';x.kv.set('lagpersonal:team:18',JSON.stringify([{id,name:'Synthetic Person',role:'Lagledare'}]));
+  const result=await handlePersonalLagpersonalWrite(request('DELETE','18',token,{id,role:'Lagledare'}),x.env,x);assert.ok(result.status>=400);assert.equal(x.writes,0);
+ }
+});

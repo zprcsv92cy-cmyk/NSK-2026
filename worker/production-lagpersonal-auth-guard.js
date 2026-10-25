@@ -6,7 +6,7 @@ import { authorizeRosterMutation } from './team-authorization-policy.js';
  * A trusted server-side team lookup must validate the requested team ID.
  */
 export async function guardLagpersonalMutation(request, { resolveTeamId, verifyIdentity, mutate } = {}) {
-  if (!request || !['POST', 'PATCH'].includes(request.method))
+  if (!request || !['POST', 'PATCH', 'DELETE'].includes(request.method))
     return { ok: false, status: 405, error: 'Metoden är inte tillåten' };
   if (typeof resolveTeamId !== 'function' || typeof verifyIdentity !== 'function' || typeof mutate !== 'function')
     return { ok: false, status: 500, error: 'Säkerhetskontroll saknas' };

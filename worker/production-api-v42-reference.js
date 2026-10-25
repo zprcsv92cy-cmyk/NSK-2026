@@ -1023,7 +1023,7 @@ var worker_default = { async fetch(req, env) {
     }
   }
   // Personally authorized staff writes. Fail closed if D1, KV or Baserow is unavailable.
-  if (url.pathname === "/api/lagpersonal" && ["POST", "PATCH"].includes(req.method)) {
+  if (url.pathname === "/api/lagpersonal" && ["POST", "PATCH", "DELETE"].includes(req.method)) {
     try {
       const result = await handlePersonalLagpersonalWrite(req, env, {
         listTeams: async () => {

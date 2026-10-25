@@ -410,9 +410,9 @@ window.NSK2App = (() => {
           return;
         }
 
-        if (t.dataset.editPlayer) {
+        if (t.dataset.editPlayer || t.dataset.editCoach) {
           if (!document.body.classList.contains('nsk-roster-admin')) return;
-          const input=t.closest('.person-row')?.querySelector('[data-inline-player]');
+          const input=t.closest('.person-row')?.querySelector('.inline-name-input');
           if(input&&!input.readOnly){input.focus();input.select();}
           return;
         }
@@ -2569,18 +2569,11 @@ window.NSK2App = (() => {
     }
   }
 
+  function updatePlayerLabel(id,name,type='player') {
+    document.querySelectorAll('[data-roster-name]').forEach(label=>{if(label.dataset.rosterName===type+':'+id)label.textContent=name;});
+  }
   function rowHtml(item, type) {
-    return `
-      <div class="person-row">
-        <div class="person-main">
-          <input class="inline-name-input" aria-label="Namn: ${esc(item.full_name)}" value="${esc(item.full_name)}" data-inline-${type}="${item.id}">
-        </div>
-        <div class="row-actions">
-          ${type === "player" ? `<button class="row-btn nsk-action" type="button" data-edit-player="${item.id}">Redigera</button>` : ""}
-          <button class="row-btn danger nsk-action nsk-action--delete" type="button" data-delete-${type}="${item.id}">Ta bort</button>
-        </div>
-      </div>
-    `;
+    return `<details class="person-row roster-player-details"><summary><span data-roster-name="${type}:${item.id}">${esc(item.full_name)}</span><span class="roster-player-chevron" aria-hidden="true">⌄</span></summary><div class="person-main"><input class="inline-name-input" aria-label="Redigera namn: ${esc(item.full_name)}" value="${esc(item.full_name)}" data-inline-${type}="${item.id}"></div><div class="row-actions"><button class="row-btn nsk-action" type="button" data-edit-${type}="${item.id}">Redigera</button><button class="row-btn danger nsk-action nsk-action--delete" type="button" data-delete-${type}="${item.id}">Ta bort</button></div></details>`;
   }
 
   async function renderPlayers() {
@@ -2606,7 +2599,7 @@ window.NSK2App = (() => {
     saveTimers[`p_${id}`] = setTimeout(async () => {
       try {
         await DB.updatePlayer(id, String(value || "").trim());
-        clearRosterCache();setText("truppenMsg", "Namnet är sparat.");
+        clearRosterCache();updatePlayerLabel(id,String(value||" ").trim());setText("truppenMsg", "Namnet är sparat.");
       } catch(error) {setText("truppenMsg", error?.message || "Kunde inte spara namnet.");}
     }, 600);
   }
@@ -2615,20 +2608,20 @@ window.NSK2App = (() => {
     clearTimeout(saveTimers[`c_${id}`]);
     saveTimers[`c_${id}`] = setTimeout(async () => {
       await DB.updateCoach(id, String(value || "").trim());
-      clearRosterCache();
+      clearRosterCache();updatePlayerLabel(id,String(value||" ").trim(),"coach");
     }, 600);
   }
 
   async function flushInlinePlayerSave(id, value) {
     clearTimeout(saveTimers[`p_${id}`]);
     await DB.updatePlayer(id, String(value || "").trim());
-    clearRosterCache();setText("truppenMsg", "Namnet är sparat.");
+    clearRosterCache();updatePlayerLabel(id,String(value||" ").trim());setText("truppenMsg", "Namnet är sparat.");
   }
 
   async function flushInlineCoachSave(id, value) {
     clearTimeout(saveTimers[`c_${id}`]);
     await DB.updateCoach(id, String(value || "").trim());
-    clearRosterCache();
+    clearRosterCache();updatePlayerLabel(id,String(value||" ").trim(),"coach");
   }
 
   async function addPlayer() {
@@ -2661,6 +2654,7 @@ window.NSK2App = (() => {
 
   async function deleteCoach(id) {
     if (!window.confirm("Ta bort tränaren från truppen? Detta kan inte ångras.")) return;
+    clearTimeout(saveTimers[`c_${id}`]);
     await DB.deleteCoach(id);
     clearRosterCache();
     await renderCoaches();

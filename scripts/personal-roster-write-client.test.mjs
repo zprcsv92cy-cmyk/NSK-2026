@@ -25,7 +25,7 @@ async function exercise({ enabled, authenticated = true, activeTeam = 'NSK Team 
   vm.runInNewContext(dbSource, sandbox);
   let error;
   try {
-    if (method === 'DELETE') await sandbox.window.DB.deletePlayer(1);
+    if (method === 'DELETE') await (path.includes('/tranare/')?sandbox.window.DB.deleteCoach(1):sandbox.window.DB.deletePlayer(1));
     else if (path === '/api/spelare') await sandbox.window.DB.addPlayer('Tester');
     else if (path === '/api/tranare') await sandbox.window.DB.addCoach('Coach');
     else if (path.startsWith('/api/spelare/')) await sandbox.window.DB.updatePlayer(1, 'Tester 2');
@@ -132,4 +132,9 @@ test('player deletion uses personal authorization and refuses missing rights bef
  const ok=await exercise({enabled:true,path:'/api/spelare/1',method:'DELETE'});
  assert.equal(ok.error,undefined);assert.equal(ok.requests.length,1);assert.equal(ok.requests[0].options.method,'DELETE');assert.equal(ok.requests[0].options.headers.Authorization,'Bearer '+token);
  for(const override of [{authenticated:false},{authorized:false},{activeTeam:'NSK Testlag 2'}]){const result=await exercise({enabled:true,path:'/api/spelare/1',method:'DELETE',...override});assert.ok(result.error);assert.equal(result.requests.length,0);}
+});
+
+test('coach deletion is personally authorized and cannot cross the active team',async()=>{
+ const ok=await exercise({enabled:true,path:'/api/tranare/1',method:'DELETE'});assert.equal(ok.error,undefined);assert.equal(ok.requests[0].options.method,'DELETE');assert.match(ok.requests[0].url,/tranare\/1$/);
+ const denied=await exercise({enabled:true,path:'/api/tranare/1',method:'DELETE',activeTeam:'NSK Testlag 2'});assert.ok(denied.error);assert.equal(denied.requests.length,0);
 });

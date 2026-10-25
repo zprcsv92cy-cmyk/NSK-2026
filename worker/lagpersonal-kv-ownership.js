@@ -9,7 +9,7 @@ export async function resolveLagpersonalKvOwnership(request, { listTeams, readTe
   if (typeof listTeams !== 'function' || typeof readTeamStaff !== 'function')
     throw new Error('Trusted data sources required');
   const url = new URL(request.url);
-  if (url.pathname !== '/api/lagpersonal' || !['POST', 'PATCH'].includes(request.method))
+  if (url.pathname !== '/api/lagpersonal' || !['POST', 'PATCH', 'DELETE'].includes(request.method))
     throw new Error('Unsupported route');
   const teamIds = url.searchParams.getAll('team_id');
   if (teamIds.length !== 1) throw new Error('Ambiguous team ID');
