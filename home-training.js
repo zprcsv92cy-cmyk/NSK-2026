@@ -36,6 +36,7 @@
         return '<details class="nsk-pool-row" data-date="'+encodeURIComponent(s.date)+'"><summary class="nsk-pool-summary"><span class="nsk-pool-name">'+escapeHtml(title+' • '+s.date)+'</span><span class="nsk-pool-hall">'+escapeHtml(hall)+'</span><span class="nsk-training-time">'+escapeHtml(time)+'</span><span class="nsk-pool-chevron" aria-hidden="true">⌄</span></summary><div class="nsk-pool-content"><p data-training-info></p>'+window.NSKTrainingCards.actions(s.date,s.hall)+'<div class="nsk-training-delete-row"><button type="button" class="nsk-training-delete" data-delete-training>Ta bort</button></div></div></details>';};
       const upcoming=sessions.filter(s=>s.date>=today),past=sessions.filter(s=>s.date<today).reverse();
       root.innerHTML='<h3 class="training-section-title" id="upcomingTrainingsTitle">Kommande träningar ('+upcoming.length+')</h3>'+upcoming.map(savedRow).join('')+'<h3 class="training-section-title" id="pastTrainingsTitle">Avslutade träningar ('+past.length+')</h3>'+past.map(savedRow).join('');
+      window.NSKTrainingCards.reorder(root);
       window.dispatchEvent(new Event('nsk:saved-trainings-rendered'));
       root.onclick=async event=>{
         const button=event.target.closest?.('[data-delete-training]');

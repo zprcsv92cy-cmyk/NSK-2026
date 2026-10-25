@@ -8,3 +8,13 @@ test('read-only presentation separates goalies and colored skaters and escapes n
  assert.match(html,/Målvakter/);assert.equal(html.match(/Keeper Test/g).length,1);assert.match(html,/Player &lt;Test&gt;/);assert.match(html,/>Röd</);assert.match(html,/>Vit</);assert.doesNotMatch(html,/<(?:input|select|button)|draggable/);assert.doesNotMatch(source,/\.save\(|method:\s*['"](?:PUT|POST|DELETE)/);
 });
 test('missing allocations and missing sessions have explicit empty states',()=>{assert.match(cards.presentation(null,[]),/Ingen fördelning/);assert.match(cards.presentation({selected:[],goalies:[],allocation:[]},[]),/inte fördelade/);});
+test('training finishes exactly one hour after its Stockholm end time',()=>{
+ assert.equal(cards.finished('2026-10-27','18:00–19:15',new Date('2026-10-27T19:14:59Z')),false);
+ assert.equal(cards.finished('2026-10-27','18:00–19:15',new Date('2026-10-27T19:15:00Z')),true);
+ assert.equal(cards.finished('2026-07-01','18:00–19:15',new Date('2026-07-01T18:15:00Z')),true);
+});
+test('late trainings remain upcoming after midnight until the grace hour expires',()=>{
+ assert.equal(cards.finished('2026-10-27','22:00–23:45',new Date('2026-10-27T23:30:00Z')),false);
+ assert.equal(cards.finished('2026-10-27','22:00–23:45',new Date('2026-10-27T23:45:00Z')),true);
+ assert.equal(cards.finished('2026-10-27','23:30–00:30',new Date('2026-10-28T00:30:00Z')),true);
+});
