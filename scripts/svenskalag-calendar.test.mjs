@@ -98,3 +98,15 @@ test('Recognizes explicit SvenskaLag match title variants without guessing oppon
  const matches=parseSvenskalagIcal(feed,'2026-10-24').filter(x=>x.type==='match');
  assert.deepEqual(matches.map(x=>x.opponent),['Järna SK Röd','Södertälje SK Blå','Åker/Strängnäs HC Gul']);
 });
+
+test('NSK fixture resolves opponent from either home or away side, never guesses',()=>{
+ const feed=ical([
+ ['SUMMARY:Match: Nyköpings SK - Järna SK Röd','DTSTART:20261108T100000'],
+ ['SUMMARY:Match: Södertälje SK Blå - NSK','DTSTART:20261108T110000'],
+ ['SUMMARY:Match: Järna SK - Södertälje SK','DTSTART:20261108T120000'],
+ ['SUMMARY:Match: NSK - Nyköpings SK','DTSTART:20261108T130000'],
+ ['SUMMARY:Match: NSK - Järna SK - Extra','DTSTART:20261108T140000']
+ ]);
+ const matches=parseSvenskalagIcal(feed,'2026-10-24').filter(x=>x.type==='match');
+ assert.deepEqual(matches.map(x=>x.opponent),['Järna SK Röd','Södertälje SK Blå']);
+});
