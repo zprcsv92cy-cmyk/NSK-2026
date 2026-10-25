@@ -480,6 +480,10 @@ window.NSK2App = (() => {
       const isArchived = (p) => p.active === false;
       const upcoming = pools.filter(p => !isArchived(p)).sort((a,b) => String(a.pool_date || '').localeCompare(String(b.pool_date || '')));
       const archived = pools.filter(isArchived).sort((a,b) => String(b.pool_date || '').localeCompare(String(a.pool_date || '')));
+      const matchSummaries = new Map(await Promise.all(pools.map(async p => {
+        try { return [String(p.id), await DB.listPoolTeamMatchConfigs(p.id)]; }
+        catch { return [String(p.id), null]; }
+      })));
       const renderPools = (items) => items.map((p) => {
         const teams = safeInt(p.teams || "2", 2);
         const poolId = Number(p.id);
@@ -501,6 +505,14 @@ window.NSK2App = (() => {
             </summary>
             <div class="nsk-pool-content" data-selected-lag="1">
               ${teamChoices}
+              ${(() => {
+                const matches = matchSummaries.get(String(p.id));
+                if (!matches) return '<div class="small">Matchuppgifter kunde inte hämtas.</div>';
+                if (!matches.length) return '<div class="small">Inga matchuppgifter sparade ännu.</div>';
+                return `<div class="nsk-pool-match-summary"><strong>Matcher och motståndare</strong>${matches.map(m =>
+                  `<div class="small">Lag ${esc(m.lag_no)} · Match ${esc(m.match_no)} · ${esc(m.start_time || 'Tid saknas')} · ${esc(m.opponent || 'Motståndare saknas')}${m.plan ? ' · '+esc(m.plan) : ''}</div>`
+                ).join('')}</div>`;
+              })()}
               <div class="nsk-pool-grid">
                 <button class="nsk-pool-function" type="button" data-pool-team-action="lineup" data-pool-action-id="${poolId}">
                   <span class="nsk-pool-function-icon" aria-hidden="true">♙</span>
