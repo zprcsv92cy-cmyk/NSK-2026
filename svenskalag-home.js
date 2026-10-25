@@ -1,4 +1,4 @@
-// Read-only calendar section. No imports, deletes or edits are performed here.
+// Calendar rendering is read-only. Pool actions use explicit clicks and the protected save flow.
 (() => {
  const arenaCity=new Map([["Avicii Arena","Stockholm"],["Hovet","Stockholm"],["Scandinavium","Göteborg"],["Malmö Arena","Malmö"],["Löfbergs Arena","Karlstad"],["Monitor ERP Arena","Gävle"],["Saab Arena","Linköping"],["Husqvarna Garden","Jönköping"],["Vida Arena","Växjö"],["Behrn Arena","Örebro"],["Skellefteå Kraft Arena","Skellefteå"],["Coop Norrbotten Arena","Luleå"],["Winpos Arena","Umeå"],["Hägglunds Arena","Örnsköldsvik"],["Tegera Arena","Leksand"],["SCA Arena","Timrå"],["Catena Arena","Ängelholm"],["Be-Ge Hockey Center","Oskarshamn"],["ABB Arena Nord","Västerås"],["Nobelhallen","Karlskoga"],["Himmelstalundshallen","Norrköping"],["Stora Hallen","Nyköping"],["Plivit Arena","Västervik"],["Scaniarinken","Södertälje"],["Hatstore Arena","Kalmar"],["Liljas Arena","Nybro"],["Kristianstads Ishall","Kristianstad"],["Tyringe Kurort Arena","Tyringe"],["Halmstad Arena","Halmstad"],["Olympiarinken","Helsingborg"],["Järna Ishall","Järna"],["Visby Ishall","Visby"],["Matojärvi Ishall","Kiruna"],["Lombiahallen","Kiruna"],["Gällivare Ishall","Gällivare"],["Boden Energi Arena","Boden"],["Piteå Ishall","Piteå"],["Niphallen","Sollefteå"],["Modin開放 Ishall","Nyland"],["Kanalhallen","Härnösand"],["Brandcode Center","Sundsvall"],["Ånge Ishall","Ånge"],["Sveg Ishall","Sveg"],["Östersund Arena","Östersund"],["Strömsund Ishall","Strömsund"],["Lugnets Ishall","Falun"],["Jalas Arena","Mora"],["Smedjebacken Ishall","Smedjebacken"],["Ludvika Ishall","Ludvika"],["Avesta Ishall","Avesta"],["Hedemora Ishall","Hedemora"],["Boliden Ishall","Boliden"],["Clemensnäs Ishall","Skellefteå"],["Vännäs Ishall","Vännäs"],["Lycksele Ishall","Lycksele"],["Vilhelmina Ishall","Vilhelmina"],["Malå Ishall","Malå"],["Åsele Ishall","Åsele"],["Overkalix Ishall","Överkalix"],["Haparanda Ishall","Haparanda"],["Kalix Ishall","Kalix"],["Älvsbyn Ishall","Älvsbyn"],["Gunder Hägg-hallen","Alfta"],["Bollnäs Ishall","Bollnäs"],["Söderhamn Ishall","Söderhamn"],["Hudiksvall Ishall","Hudiksvall"],["Hofors Ishall","Hofors"],["Sandviken Ishall","Sandviken"],["Valbo Ishall","Gävle"],["Ljusne Ishall","Ljusne"],["Gränbyhallen","Uppsala"],["Enköping Ishall","Enköping"],["Bålsta Ishall","Bålsta"],["Tierp Ishall","Tierp"],["Osthammar Ishall","Östhammar"],["Hallstahammar Ishall","Hallstahammar"],["Surahammars Ishall","Surahammar"],["Sala Ishall","Sala"],["Fagersta Ishall","Fagersta"],["Arboga Ishall","Arboga"],["Köping Ishall","Köping"],["Glimma Ishall","Glimåkra"],["Osby Ishall","Osby"],["Kockumhallen","Kallinge"],["Karlskrona Arena","Karlskrona"],["Mörrum Ishall","Mörrum"],["Sölvesborg Ishall","Sölvesborg"],["Vellinge Ishall","Vellinge"],["Trelleborg Ishall","Trelleborg"],["Lunds Ishall","Lund"],["Landskrona Ishall","Landskrona"],["Åstorp Ishall","Åstorp"],["Höörs Ishall","Höör"],["Jonstorp Ishall","Jonstorp"],["Marconihallen","Göteborg"],["Ruddalens Ishall","Göteborg"],["Tuve Ishall","Göteborg"],["Angered Arena","Göteborg"],["Frölundaborg","Göteborg"],["Isdala Ishall","Göteborg"],["Wallenstamhallen","Göteborg"]].map(([arena,city])=>[arena.normalize('NFKC').trim().toLocaleLowerCase('sv-SE'),city]));
  const extraArenaCities=new Map([["Smehallen","Eskilstuna"],["Strängnäs Ishall","Strängnäs"],["Månsbrorinken","Södertälje"],["Åkers Ishall","Åkers styckebruk"],["Lilla Hallen","Nyköping"]].map(([arena,city])=>[arena.normalize('NFKC').trim().toLocaleLowerCase('sv-SE'),city]));
@@ -31,56 +31,9 @@
    .filter(m=>{const key=[m.startTime,m.opponent,m.place||''].join('|');if(seen.has(key))return false;seen.add(key);return true;})
    .sort((a,b)=>(a.startTime||'99:99').localeCompare(b.startTime||'99:99')).slice(0,16);
  };
- let latestSavedCalendar=null;
- function renderSavedCalendarActions(items,pools){
-  latestSavedCalendar=[items,pools];
-  const box=document.getElementById('savedPoolsList');
-  if(!box)return;
-  box.querySelectorAll('[data-calendar-completion]').forEach(node=>node.remove());
-  for(const edit of box.querySelectorAll('[data-edit-pool]')){
-   const pool=pools.find(p=>String(p.id)===edit.dataset.editPool);
-   if(!pool||pool.active===false)continue;
-   const event=items.find(item=>item.type==='pool'&&samePool(pool,item));
-   if(!event)continue;
-   const matches=matchesForPool(event,items.filter(item=>item.type==='match'));
-   if(!matches.length)continue;
-   const area=document.createElement('div');area.dataset.calendarCompletion='1';area.className='nsk-pool-actions';
-   const button=document.createElement('button');button.type='button';button.className='nsk-action nsk-action--neutral';
-   button.textContent='Komplettera matcher från kalender ('+matches.length+')';
-   const status=document.createElement('p');status.className='small';status.setAttribute('role','status');
-   button.onclick=async()=>{
-    button.disabled=true;status.textContent='Kontrollerar sparade matcher…';
-    try{
-     const team=Auth.activeTeam();
-     if(!await Auth.checkTeamFeature('pool',team)||!await Auth.checkTeamFeature('matches',team)||Auth.activeTeam()!==team)throw Error('Du saknar behörighet att komplettera poolspel och matcher.');
-     const moduleUrl=new URL('../calendar-match-plan.mjs',location.href);moduleUrl.searchParams.set('v',window.NSK_VERSION||'');
-     const {completeCalendarPool}=await import(moduleUrl.href);
-     await completeCalendarPool(DB,pool.id,matches);
-     location.reload();
-    }catch(error){status.textContent=error.message||'Kompletteringen misslyckades. Försök igen för att fortsätta.';button.disabled=false;}
-   };
-   const content=edit.closest('details').querySelector('.nsk-pool-content');
-   if(!content.querySelector('.nsk-pool-match-summary')){
-    const preview=document.createElement('div');preview.className='nsk-pool-match-summary';
-    const title=document.createElement('strong');title.textContent='Matcher från kalendern';preview.append(title);
-    const group=document.createElement('div');group.className='nsk-pool-match-team';preview.append(group);
-    const teamTitle=document.createElement('strong');teamTitle.textContent='Lag 1';group.append(teamTitle);
-    let activeGroup=group;const perTeam=Math.ceil(matches.length/(matches.length>4?2:1));
-    matches.forEach((match,index)=>{
-     if(index===perTeam&&matches.length>4){activeGroup=document.createElement('div');activeGroup.className='nsk-pool-match-team';const heading=document.createElement('strong');heading.textContent='Lag 2';activeGroup.append(heading);preview.append(activeGroup);}
-     const line=document.createElement('div');line.className='small nsk-pool-match-line';
-     for(const [cls,label] of [['nsk-pool-match-number','Match '+(index%perTeam+1)],['nsk-pool-match-time',match.startTime||'Tid ej angiven'],['nsk-pool-match-opponent',match.opponent]]){const span=document.createElement('span');span.className=cls;span.textContent=label;line.append(span);}
-     activeGroup.append(line);
-    });
-    area.append(preview);
-   }
-   area.append(button,status);content.append(area);
-  }
- }
  let latestCalendarPools=null;
  window.addEventListener('nsk:saved-pools-rendered',()=>{
   if(latestCalendarPools)renderUpcomingCalendarPools(...latestCalendarPools);
-  if(latestSavedCalendar)renderSavedCalendarActions(...latestSavedCalendar);
  });
  function renderUpcomingCalendarPools(items,calendarMatches=[]){
   latestCalendarPools=[items,calendarMatches];
@@ -120,7 +73,7 @@
    const note=document.createElement('p');
    note.textContent='Importerat från SvenskaLag. Matchschema och laguppställning är ännu inte skapade i NSK.';
    note.className='small';
-   note.textContent='Källa: SvenskaLag. Skapa poolspelet i NSK för att använda laguppställning och bytesschema.';
+   note.textContent='Källa: SvenskaLag.';
    const matches=matchesForPool(item,calendarMatches);
    if(matches.length){
     const matchBox=document.createElement('div');matchBox.className='nsk-pool-match-summary';
@@ -144,7 +97,7 @@
    const grid=document.createElement('div');grid.className='nsk-pool-grid';
    for(const [symbol,label] of [['♙','Laguppställning'],['↻','Bytesschema']]){
     const button=document.createElement('button');button.type='button';button.className='nsk-pool-function';
-    button.disabled=true;button.title='Skapa poolspelet i NSK för att använda '+label.toLowerCase();
+    button.addEventListener('click',()=>openCalendarPool(label==='Bytesschema'?'shift':'lineup',button));
     const icon=document.createElement('span');icon.className='nsk-pool-function-icon';icon.setAttribute('aria-hidden','true');icon.textContent=symbol;
     const name=document.createElement('span');name.textContent=label;button.append(icon,name);grid.append(button);
    }
@@ -155,27 +108,37 @@
    const create=document.createElement('button');
    create.type='button';
    create.className='start-pool-btn nsk-action nsk-action--primary nsk-action--wide';
-   create.textContent='Skapa och spara poolspel';
-   create.addEventListener('click',async()=>{
-    create.disabled=true;
+   create.textContent='Påbörja poolspel';
+   async function openCalendarPool(action,button){
+    if(action==='finish'&&!confirm('Avsluta poolspelet? Matcher, laguppställningar och bytesscheman sparas.'))return;
+    button.disabled=true;
     try{
      const pools=await DB.listPools();
      const match=pools.find(p=>samePool(p,item));
-     if(match){sessionStorage.setItem('nsk2_edit_pool_id',String(match.id));location.href='../skapapoolspel/';return;}
-    }catch(error){create.disabled=false;alert('Kunde inte kontrollera befintliga poolspel. Försök igen.');return;}
-
-    const validMatches=matchesForPool(item,calendarMatches);
-    if(!validMatches.length){
-     create.disabled=false;
-     alert('Kalendern saknar matchuppgifter för detta poolspel. Ingen import har startats och inget poolspel har sparats. Kontrollera att matcherna och motståndarna finns i SvenskaLag och synkronisera kalendern igen.');
-     return;
-    }
-    sessionStorage.removeItem('nsk2_edit_pool_id');
-    sessionStorage.setItem('nsk2_svenskalag_pool_draft',JSON.stringify({date:item.date,place:poolLocation(item).city,hall:poolLocation(item).hall,matches:validMatches.map(m=>({startTime:m.startTime,opponent:m.opponent,place:m.place||''}))}));
-    sessionStorage.setItem('nsk2_calendar_auto_save_once','1');
-    location.href='../skapapoolspel/';
-   });
+     if(match){
+      if(action==='edit'){sessionStorage.setItem('nsk2_edit_pool_id',String(match.id));location.href='../skapapoolspel/';return;}
+      if(action==='finish'){await DB.updatePoolActive(match.id,false);location.reload();return;}
+      sessionStorage.setItem('nsk2_pool_id',String(match.id));sessionStorage.setItem('nsk2_lag_nr','1');sessionStorage.setItem('nsk2_match_no','1');
+      location.href=action==='shift'?'../bytesschema/':action==='lineup'?'../laguppstallning/index.html':'../lag/';return;
+     }
+     const validMatches=matchesForPool(item,calendarMatches);
+     if(!validMatches.length&&action!=='edit')throw Error('Kalendern saknar matchuppgifter. Öppna Redigera för att komplettera och spara poolspelet.');
+     sessionStorage.removeItem('nsk2_edit_pool_id');
+     sessionStorage.removeItem('nsk2_calendar_auto_save_once');
+     sessionStorage.setItem('nsk2_svenskalag_pool_draft',JSON.stringify({date:item.date,place:poolLocation(item).city,hall:poolLocation(item).hall,matches:validMatches.map(m=>({startTime:m.startTime,opponent:m.opponent,place:m.place||''}))}));
+     if(action!=='edit')sessionStorage.setItem('nsk2_calendar_auto_save_once','1');
+     const query=new URLSearchParams({calendar_action:action,calendar_date:item.date,calendar_place:poolLocation(item).city||''});
+     location.href='../skapapoolspel/?'+query;
+    }catch(error){button.disabled=false;alert(error.message||'Poolspelet kunde inte öppnas.');}
+   }
+   create.addEventListener('click',()=>openCalendarPool('start',create));
    actions.append(create);
+   const secondary=document.createElement('div');secondary.className='nsk-pool-secondary-actions';
+   for(const [label,action,cls] of [['Redigera','edit','edit'],['Avsluta','finish','finish']]){
+    const button=document.createElement('button');button.type='button';button.className='row-btn nsk-action nsk-action--'+cls;button.textContent=label;
+    button.addEventListener('click',()=>openCalendarPool(action,button));secondary.append(button);
+   }
+   actions.append(secondary);
    content.append(actions);
    row.append(summary,content);
    fragment.append(row);
@@ -214,7 +177,6 @@
     renderUpcomingCalendarPools([]);
     return;
    }
-   renderSavedCalendarActions(items,existingPools);
    const calendarPools=items.filter(item=>item.type==='pool'&&!existingPools.some(p=>samePool(p,item)));
    const calendarOthers=items.filter(item=>item.type!=='pool');
    const calendarTrainings=calendarOthers.filter(item=>item.type==='training');
