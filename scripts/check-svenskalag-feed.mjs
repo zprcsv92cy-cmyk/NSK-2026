@@ -82,3 +82,21 @@ for(const title of summaries){
  if(!isNsk(left)&&!isNsk(right)&&!isNyk(left)&&!isNyk(right))fixtureTeams.neither++;
 }
 console.log('Fixture team identity counts only: '+JSON.stringify(fixtureTeams));
+
+// Count recognized Nyköping team-name shapes without exposing any names.
+const nykopingShapes={exactSK:0,exactSportklubb:0,skWithSuffix:0,sportklubbWithSuffix:0,other:0};
+for(const title of summaries){
+ if(!title.startsWith('match:'))continue;
+ const sides=title.slice(6).split(/\s+[-–]\s+/u);
+ if(sides.length!==2)continue;
+ for(const side of sides){
+  const name=side.trim();
+  if(!name.includes('nyköping'))continue;
+  if(/^nyköpings?\s+sk$/u.test(name))nykopingShapes.exactSK++;
+  else if(/^nyköpings?\s+sportklubb$/u.test(name))nykopingShapes.exactSportklubb++;
+  else if(/^nyköpings?\s+sk\s+\S/u.test(name))nykopingShapes.skWithSuffix++;
+  else if(/^nyköpings?\s+sportklubb\s+\S/u.test(name))nykopingShapes.sportklubbWithSuffix++;
+  else nykopingShapes.other++;
+ }
+}
+console.log('Nykoping team name shapes (counts only): '+JSON.stringify(nykopingShapes));
