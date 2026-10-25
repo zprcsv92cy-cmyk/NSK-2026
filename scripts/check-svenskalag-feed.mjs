@@ -371,3 +371,18 @@ for(const block of blocks){
  if(parseSvenskalagIcal(wrap(title.replace(/poolspel/giu,'')),'2000-01-01').some(x=>x.type==='match'))fixtureClassification.parsedWithoutPoolWord++;
 }
 console.log('Fixture classification gates (counts only): '+JSON.stringify(fixtureClassification));
+
+const caseIdentity={total:0,rawRecognized:0,lowerRecognized:0,rawSideCountTwo:0,lowerSideCountTwo:0};
+for(const block of blocks){
+ const event='BEGIN:VEVENT'+block.slice(0,block.indexOf('END:VEVENT')+10);
+ const raw=event.match(/^SUMMARY(?:;[^:]*)?:(.*)$/m)?.[1]||'';
+ if(!/^Match:/i.test(raw))continue;
+ caseIdentity.total++;
+ for(const [variant,lower] of [[raw,false],[raw.toLocaleLowerCase('sv-SE'),true]]){
+  const sides=variant.slice(6).trim().split(/\s+[-–]\s+/u);
+  if(sides.length!==2)continue;
+  if(lower)caseIdentity.lowerSideCountTwo++;else caseIdentity.rawSideCountTwo++;
+  if(sides.some(isNskLikeParser)){if(lower)caseIdentity.lowerRecognized++;else caseIdentity.rawRecognized++;}
+ }
+}
+console.log('Fixture casing identity gates (counts only): '+JSON.stringify(caseIdentity));
