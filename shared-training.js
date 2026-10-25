@@ -62,6 +62,18 @@
     }
     throw Error('För många sidor i truppsvaret');
   }
-  window.SharedTraining={list:()=>request(),get:date=>request(date),save:(date,data)=>request(date,data),remove,
+  async function calendarHall(date){
+    if(Auth.activeTeam()!=='NSK Team 18')return '';
+    const id=await resolveTeam();
+    const response=await fetch(base()+'/api/training?team_id='+encodeURIComponent(id)+'&action=svenskalag-saved',{headers:{Authorization:'Bearer '+Auth.getToken()},cache:'no-store'});
+    if(!response.ok)throw Error('Kalendern kunde inte hämtas');
+    const data=await response.json();
+    const halls=new Set((Array.isArray(data.items)?data.items:[]).filter(item=>item.type==='training'&&item.date===date).map(item=>{
+      const hall=String(item.hall||item.place||'').trim().toLocaleLowerCase('sv-SE');
+      return /^(lilla hallen|lilla ishallen)$/.test(hall)?'Lilla Hallen':/^(stora hallen|stora ishallen)$/.test(hall)?'Stora hallen':'';
+    }));
+    return halls.size===1?[...halls][0]:'';
+  }
+  window.SharedTraining={calendarHall,list:()=>request(),get:date=>request(date),save:(date,data)=>request(date,data),remove,
     listPlayers:()=>roster('spelare'),listCoaches:()=>roster('tranare')};
 })();
