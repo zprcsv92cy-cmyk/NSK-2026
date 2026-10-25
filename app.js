@@ -908,7 +908,11 @@ window.NSK2App = (() => {
         const calendarParams=new URLSearchParams(window.location.search);
         const calendarAction=calendarParams.get('calendar_date')===payload.pool_date&&calendarParams.get('calendar_place')===payload.place?calendarParams.get('calendar_action'):null;
         const savedPoolId=sessionStorage.getItem('nsk2_pool_id');
-        if(calendarAction==='finish')await DB.updatePoolActive(savedPoolId,false);
+        if(calendarAction==='finish'){
+          sessionStorage.setItem('nsk2_edit_pool_id',savedPoolId);
+          await DB.updatePoolActive(savedPoolId,false);
+          sessionStorage.removeItem('nsk2_edit_pool_id');
+        }
         if(['start','lineup','shift'].includes(calendarAction)){
           sessionStorage.setItem('nsk2_pool_id',savedPoolId);
           sessionStorage.setItem('nsk2_lag_nr','1');sessionStorage.setItem('nsk2_match_no','1');
