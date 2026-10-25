@@ -1,0 +1,42 @@
+name: Calendar isolated positive E2E (manual, test data only)
+on:
+  workflow_dispatch:
+    inputs:
+      confirmation:
+        description: Type ISOLATED_CALENDAR_E2E to create isolated test records
+        required: true
+        type: string
+      expected_version:
+        description: Reviewed deployed isolated Worker version UUID
+        required: true
+        type: string
+permissions:
+  contents: read
+concurrency:
+  group: nsk-isolated-positive-calendar-e2e
+  cancel-in-progress: false
+jobs:
+  positive-e2e:
+    if: ${{ inputs.confirmation == 'ISOLATED_CALENDAR_E2E' && github.ref == 'refs/heads/feat/calendar-match-metadata-401' }}
+    runs-on: ubuntu-latest
+    environment: isolated-preview
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Verify dedicated isolated manifests
+        run: |
+          set -euo pipefail
+          node scripts/calendar-isolated-worker-gate.mjs
+          node --check scripts/calendar-isolated-positive-e2e.mjs
+      - name: Create disposable isolated account and test calendar import
+        env:
+          NSK_E2E_CONFIRMATION: ${{ inputs.confirmation }}
+          NSK_E2E_EXPECTED_VERSION: ${{ inputs.expected_version }}
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+        run: node scripts/calendar-isolated-positive-e2e.mjs

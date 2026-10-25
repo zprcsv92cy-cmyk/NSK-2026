@@ -1,0 +1,46 @@
+name: Calendar match planning tests
+
+on:
+  pull_request:
+    paths:
+      - 'calendar-match-plan.mjs'
+      - 'app.js'
+      - 'scripts/calendar-match-plan.test.mjs'
+      - 'scripts/calendar-match-baserow-fields.test.mjs'
+      - 'scripts/calendar-match-concurrency.test.mjs'
+      - 'scripts/calendar-pool-idempotency.test.mjs'
+      - 'scripts/calendar-pool-reload.test.mjs'
+      - 'scripts/calendar-import-save-flow.test.mjs'
+      - 'scripts/calendar-isolated-worker-gate.mjs'
+      - 'scripts/calendar-isolated-positive-e2e.mjs'
+      - 'scripts/calendar-isolated-bound-e2e.mjs'
+      - '.github/workflows/calendar-isolated-positive-e2e.yml'
+      - 'wrangler.api.isolated-worker.toml'
+      - 'db.js'
+      - 'worker/production-api-v42-reference.js'
+      - '.github/workflows/calendar-match-plan-tests.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  calendar-match-plan:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Syntax check manual isolated positive E2E
+        run: |
+          node --check scripts/calendar-isolated-positive-e2e.mjs
+          node --check scripts/calendar-isolated-bound-e2e.mjs
+      - name: Verify isolated Worker release gate
+        run: node scripts/calendar-isolated-worker-gate.mjs
+      - name: Check app syntax
+        run: node --check app.js
+      - name: Verify calendar mapping and Baserow fields
+        run: node --test scripts/calendar-match-plan.test.mjs scripts/calendar-match-baserow-fields.test.mjs scripts/calendar-match-concurrency.test.mjs scripts/calendar-pool-idempotency.test.mjs scripts/calendar-pool-reload.test.mjs scripts/calendar-import-save-flow.test.mjs

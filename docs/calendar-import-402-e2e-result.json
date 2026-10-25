@@ -1,0 +1,95 @@
+{
+  "date": "2026-10-25",
+  "status": "passed",
+  "application_commit": "566cc982c8390804a636c2d296ca072fe27d0f48",
+  "isolated_api_version": "5b35e3a1-05fe-4785-b416-4983579405f5",
+  "isolated_app_version": "e51558d7-fa3e-4c9a-87c9-9385174fd187",
+  "baserow_database_id": 599495,
+  "auth_database_id": "b94c8dba-34be-4cff-a4e9-892caf4e3ddd",
+  "runner_sha256": "5fc11d8f10b5c3b13897a9f2a46ae1f166d885a44fd5ce80963b448b8a8d38ca",
+  "proof_sha256": "bc3f3d5741cc3ca306a747520a9d03160fdd53a6f0038eb8f03a11929e6e249c",
+  "cases": [
+    {
+      "poolId": 40,
+      "matchIds": [
+        53
+      ],
+      "count": 1
+    },
+    {
+      "poolId": 41,
+      "matchIds": [
+        54,
+        55,
+        56,
+        57
+      ],
+      "count": 4
+    },
+    {
+      "poolId": 42,
+      "matchIds": [
+        58,
+        59,
+        60,
+        61,
+        62
+      ],
+      "count": 5
+    },
+    {
+      "poolId": 43,
+      "matchIds": [
+        63,
+        64,
+        65,
+        66,
+        67,
+        68
+      ],
+      "count": 6
+    },
+    {
+      "poolId": 44,
+      "matchIds": [
+        69,
+        70,
+        71,
+        72,
+        73,
+        74,
+        75,
+        76,
+        77,
+        78,
+        79,
+        80,
+        81,
+        82,
+        83,
+        84
+      ],
+      "count": 16
+    }
+  ],
+  "assertions": [
+    "same import key returns same pool",
+    "changed payload with same key denied",
+    "duplicate match creation denied",
+    "schedule-only PATCH denied",
+    "partial import resumes without reposting completed rows",
+    "scoped read has exact times opponents plans and counts",
+    "goalie and player links empty",
+    "anonymous write denied",
+    "missing grant denied",
+    "missing team membership denied"
+  ],
+  "temporary_fixtures_remaining": {
+    "users": 0,
+    "sessions": 0,
+    "memberships": 0,
+    "permissions": 0
+  },
+  "production_changed": false,
+  "retained_data": "Synthetic Baserow records remain for audit. Earlier interrupted isolated run records also remain."
+}

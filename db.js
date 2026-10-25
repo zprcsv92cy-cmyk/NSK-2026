@@ -132,6 +132,21 @@ window.DB = (() => {
   const updateCoach=(rowId,name)=>writeName('tranare','PATCH',rowId,name);
   let pending=Promise.resolve();
   function serialWrite(fn){const next=pending.catch(()=>{}).then(fn);pending=next.catch(()=>{});return next}
+  async function saveCalendarMatchSchedule(payload){
+    return serialWrite(async()=>{
+      const poolId=id(payload.pool_id),lagNo=id(payload.lag_no),matchNo=id(payload.match_no);
+      const start=String(payload.start_time||''),opponent=String(payload.opponent||'').trim();
+      if(![poolId,lagNo,matchNo].every(positive) || !/^([01]\d|2[0-3]):[0-5]\d$/.test(start) || !opponent || opponent.length>150)
+        throw new Error('Ogiltig kalendermatch');
+      if(window.APP_CONFIG?.REQUIRE_PERSONAL_MATCH_WRITES!==true)
+        throw new Error('Personlig matchbehörighet måste vara aktiverad');
+      // Servern verifierar medlemskap och matchbehörighet och nekar dubbletter.
+      return (await adminRequest('/api/matchkonfiguration','POST',{
+        pool_id:poolId,lag_no:lagNo,match_no:matchNo,start_time:start,
+        opponent,plan:String(payload.plan||'Plan 1').slice(0,80),schedule_only:true
+      })).row;
+    });
+  }
   async function savePoolTeamMatchConfig(payload){
     return serialWrite(async()=>{
       const poolId=id(payload.pool_id),lagNo=id(payload.lag_no),matchNo=id(payload.match_no);
@@ -239,5 +254,5 @@ window.DB = (() => {
   }
   return {listPlayers,listCoaches,listStaff,listPools,getPool,listPoolTeamMatchConfigs,getPoolTeamMatchConfig,getPlayersOnField,getLineup,listUsedPlayersInPool,listShiftSchema,listGoalieStats,listPlayerCoachMap,
     addPlayer,updatePlayer,deletePlayer:failWrite,addCoach,updateCoach,deleteCoach:failWrite,addStaff:(role,name)=>writeStaff('POST',role,null,name),updateStaff:(role,rowId,name)=>writeStaff('PATCH',role,rowId,name),updatePoolTeams,addPool,updatePool,updatePoolActive,deletePool:failWrite,
-    savePoolTeamMatchConfig,saveLineup,getCoachSelection,saveCoachSelection,saveShiftSchema,deleteShiftSchema,setShiftDone,savePlayerCoachMap:failWrite,subscribeTruppen:async()=>({unsubscribe(){}})};
+    saveCalendarMatchSchedule,savePoolTeamMatchConfig,saveLineup,getCoachSelection,saveCoachSelection,saveShiftSchema,deleteShiftSchema,setShiftDone,savePlayerCoachMap:failWrite,subscribeTruppen:async()=>({unsubscribe(){}})};
 })();
