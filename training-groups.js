@@ -15,6 +15,8 @@
     const response=await SharedTraining.get(date);
     if($('trainingDate').value!==date)return false;
     const data=response.session||{};
+    const fetchedHall=data.hall?'':await SharedTraining.calendarHall(date).catch(()=> '');
+    if($('trainingDate').value!==date)return false;
     const allowed=new Set(players.map(p=>String(p.id)));
     const allowedCoaches=new Set(coaches.map(p=>String(p.id)));
     selected=new Set((data.selected||[]).map(String).filter(x=>allowed.has(x)));
@@ -25,6 +27,7 @@
     trainingHall=['Lilla Hallen','Stora hallen'].includes(data.hall)?data.hall:'';
     const calendarHall=new URLSearchParams(location.search).get('calendar_hall');
     if(!response.session&&new URLSearchParams(location.search).get('date')===date&&['Lilla Hallen','Stora hallen'].includes(calendarHall))trainingHall=calendarHall;
+    if(!trainingHall)trainingHall=fetchedHall;
     $('trainingHall').value=trainingHall;
     shirtColorCount=[2,3,4].includes(Number(data.shirtColorCount))?Number(data.shirtColorCount):3;
     $('trainingShirtColorCount').value=String(shirtColorCount);
