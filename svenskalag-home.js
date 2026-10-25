@@ -59,7 +59,22 @@
      location.reload();
     }catch(error){status.textContent=error.message||'Kompletteringen misslyckades. Försök igen för att fortsätta.';button.disabled=false;}
    };
-   area.append(button,status);edit.closest('details').querySelector('.nsk-pool-content').append(area);
+   const content=edit.closest('details').querySelector('.nsk-pool-content');
+   if(!content.querySelector('.nsk-pool-match-summary')){
+    const preview=document.createElement('div');preview.className='nsk-pool-match-summary';
+    const title=document.createElement('strong');title.textContent='Matcher från kalendern';preview.append(title);
+    const group=document.createElement('div');group.className='nsk-pool-match-team';preview.append(group);
+    const teamTitle=document.createElement('strong');teamTitle.textContent='Lag 1';group.append(teamTitle);
+    let activeGroup=group;const perTeam=Math.ceil(matches.length/(matches.length>4?2:1));
+    matches.forEach((match,index)=>{
+     if(index===perTeam&&matches.length>4){activeGroup=document.createElement('div');activeGroup.className='nsk-pool-match-team';const heading=document.createElement('strong');heading.textContent='Lag 2';activeGroup.append(heading);preview.append(activeGroup);}
+     const line=document.createElement('div');line.className='small nsk-pool-match-line';
+     for(const [cls,label] of [['nsk-pool-match-number','Match '+(index%perTeam+1)],['nsk-pool-match-time',match.startTime||'Tid ej angiven'],['nsk-pool-match-opponent',match.opponent]]){const span=document.createElement('span');span.className=cls;span.textContent=label;line.append(span);}
+     activeGroup.append(line);
+    });
+    area.append(preview);
+   }
+   area.append(button,status);content.append(area);
   }
  }
  let latestCalendarPools=null;
