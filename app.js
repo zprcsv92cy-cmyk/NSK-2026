@@ -510,7 +510,7 @@ window.NSK2App = (() => {
                 if (!matches) return '<div class="small">Matchuppgifter kunde inte hämtas.</div>';
                 if (!matches.length) return '<div class="small">Inga matchuppgifter sparade ännu.</div>';
                 return `<div class="nsk-pool-match-summary"><strong>Matcher och motståndare</strong>${matches.map(m =>
-                  `<div class="small">Lag ${esc(m.lag_no)} · Match ${esc(m.match_no)} · ${esc(!m.start_time || String(m.start_time).slice(0,5)==='00:00' ? 'Tid ej angiven' : String(m.start_time).slice(0,5))} · ${esc(m.opponent || 'Motståndare saknas')}${m.plan ? ' · '+esc(m.plan) : ''}</div>`
+                  `<div class="small">Match ${esc(m.match_no)} ${esc(!m.start_time || String(m.start_time).slice(0,5)==='00:00' ? 'Tid ej angiven' : String(m.start_time).slice(0,5))} ${esc(m.opponent || 'Motståndare saknas')}</div>`
                 ).join('')}</div>`;
               })()}
               <div class="nsk-pool-grid">
