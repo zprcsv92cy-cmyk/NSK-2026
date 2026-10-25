@@ -48,7 +48,7 @@ export function parseSvenskalagIcal(text,today){
         const opponent=!pool&&!training?calendarOpponent(title):'';
         const startTime=stockholmStartTime(event.DTSTART||'');
         const endTime=stockholmStartTime(event.DTEND||'');
-        if(!exclude&&event.STATUS!=='CANCELLED'&&date&&date>=today&&(training||pool||(opponent&&startTime))){
+        if(!exclude&&event.STATUS!=='CANCELLED'&&date&&date>=today&&(training||pool||opponent)){
           const place=normalizePlace(decode(event.LOCATION));
           // Never infer a venue from an opponent or from a free-form description.
           const hallText=(place+' '+title).toLocaleLowerCase('sv-SE');
