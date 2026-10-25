@@ -16,3 +16,14 @@ const counts={training:0,pool:0,match:0};
 for(const event of events)if(Object.hasOwn(counts,event.type))counts[event.type]++;
 if(!events.length)throw Error('No eligible upcoming training, pool or match events; check real feed classification');
 console.log('SvenskaLag feed accessible: '+counts.training+' trainings, '+counts.pool+' pools, '+counts.match+' matches. No dates, names, locations or raw calendar logged.');
+
+// Aggregate-only diagnostic: reveal whether the public feed contains standalone
+// fixture entries at all, without logging event titles, dates or identities.
+const summaries=[...calendar.matchAll(/^SUMMARY(?:;[^:]*)?:(.*)$/gm)].map(m=>m[1].toLocaleLowerCase('sv-SE'));
+const categories={total:summaries.length,matchWord:0,versusWord:0,poolWord:0};
+for(const title of summaries){
+ if(/\b(?:match|träningsmatch|matcher)\b/u.test(title))categories.matchWord++;
+ if(/\b(?:mot|vs|versus)\b/u.test(title))categories.versusWord++;
+ if(/\bpoolspel\b/u.test(title))categories.poolWord++;
+}
+console.log('SvenskaLag feed summary categories (counts only): '+JSON.stringify(categories));
