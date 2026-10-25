@@ -31,9 +31,41 @@
    .filter(m=>{const key=[m.startTime,m.opponent,m.place||''].join('|');if(seen.has(key))return false;seen.add(key);return true;})
    .sort((a,b)=>(a.startTime||'99:99').localeCompare(b.startTime||'99:99')).slice(0,16);
  };
+ let latestSavedCalendar=null;
+ function renderSavedCalendarActions(items,pools){
+  latestSavedCalendar=[items,pools];
+  const box=document.getElementById('savedPoolsList');
+  if(!box)return;
+  box.querySelectorAll('[data-calendar-completion]').forEach(node=>node.remove());
+  for(const edit of box.querySelectorAll('[data-edit-pool]')){
+   const pool=pools.find(p=>String(p.id)===edit.dataset.editPool);
+   if(!pool||pool.active===false)continue;
+   const event=items.find(item=>item.type==='pool'&&samePool(pool,item));
+   if(!event)continue;
+   const matches=matchesForPool(event,items.filter(item=>item.type==='match'));
+   if(!matches.length)continue;
+   const area=document.createElement('div');area.dataset.calendarCompletion='1';area.className='nsk-pool-actions';
+   const button=document.createElement('button');button.type='button';button.className='nsk-action nsk-action--neutral';
+   button.textContent='Komplettera matcher från kalender ('+matches.length+')';
+   const status=document.createElement('p');status.className='small';status.setAttribute('role','status');
+   button.onclick=async()=>{
+    button.disabled=true;status.textContent='Kontrollerar sparade matcher…';
+    try{
+     const team=Auth.activeTeam();
+     if(!await Auth.checkTeamFeature('pool',team)||!await Auth.checkTeamFeature('matches',team)||Auth.activeTeam()!==team)throw Error('Du saknar behörighet att komplettera poolspel och matcher.');
+     const moduleUrl=new URL('../calendar-match-plan.mjs',location.href);moduleUrl.searchParams.set('v',window.NSK_VERSION||'');
+     const {completeCalendarPool}=await import(moduleUrl.href);
+     await completeCalendarPool(DB,pool.id,matches);
+     location.reload();
+    }catch(error){status.textContent=error.message||'Kompletteringen misslyckades. Försök igen för att fortsätta.';button.disabled=false;}
+   };
+   area.append(button,status);edit.closest('details').querySelector('.nsk-pool-content').append(area);
+  }
+ }
  let latestCalendarPools=null;
  window.addEventListener('nsk:saved-pools-rendered',()=>{
   if(latestCalendarPools)renderUpcomingCalendarPools(...latestCalendarPools);
+  if(latestSavedCalendar)renderSavedCalendarActions(...latestSavedCalendar);
  });
  function renderUpcomingCalendarPools(items,calendarMatches=[]){
   latestCalendarPools=[items,calendarMatches];
@@ -167,6 +199,7 @@
     renderUpcomingCalendarPools([]);
     return;
    }
+   renderSavedCalendarActions(items,existingPools);
    const calendarPools=items.filter(item=>item.type==='pool'&&!existingPools.some(p=>samePool(p,item)));
    const calendarOthers=items.filter(item=>item.type!=='pool');
    const calendarTrainings=calendarOthers.filter(item=>item.type==='training');
@@ -177,11 +210,16 @@
    const upcomingCalendarTrainings=calendarTrainings.filter(item=>item.date>=today);
    if(trainingBox){
     trainingBox.querySelectorAll('[data-svenskalag-training]').forEach(node=>node.remove());
-    const savedSessions=Array.from(trainingBox.querySelectorAll('details[data-date]')).map(node=>({date:decodeURIComponent(node.dataset.date||''),hall:(node.querySelector('.nsk-pool-hall')?.textContent||'').trim().toLocaleLowerCase('sv-SE')}));
+    const savedSessions=Array.from(trainingBox.querySelectorAll('details[data-date]')).map(node=>({node,date:decodeURIComponent(node.dataset.date||''),hall:(node.querySelector('.nsk-pool-hall')?.textContent||'').trim().toLocaleLowerCase('sv-SE')}));
     for(const item of upcomingCalendarTrainings){
      const hallName=String(item.hall||item.place||'').trim().toLocaleLowerCase('sv-SE');
-     if(hallName&&savedSessions.some(s=>s.date===item.date&&s.hall===hallName))continue;
-     const row=document.createElement('details');row.className='nsk-pool-row';row.dataset.svenskalagTraining='1';
+     const saved=savedSessions.find(s=>s.date===item.date);
+     if(saved){
+      const time=saved.node.querySelector('.nsk-training-time');
+      if(time&&!time.textContent.trim()&&saved.hall===hallName)time.textContent=[item.startTime,item.endTime].filter(Boolean).join('–');
+      continue;
+     }
+     const row=document.createElement('details');row.className='nsk-pool-row';row.dataset.svenskalagTraining='1';row.dataset.date=item.date;
      const summary=document.createElement('summary');summary.className='nsk-pool-summary';
      const name=document.createElement('span');name.className='nsk-pool-name';name.textContent='Träning • '+item.date;
      const hall=document.createElement('span');hall.className='nsk-pool-hall';hall.textContent=item.hall||item.place||'Hall ej angiven';
@@ -190,9 +228,15 @@
      summary.append(name,hall,time,arrow);
      const content=document.createElement('div');content.className='nsk-pool-content';
      const note=document.createElement('p');note.className='small';note.textContent='Källa: SvenskaLag. Öppna träningen för att spara eller redigera den i NSK.';
-     const action=document.createElement('a');action.className='home-create-button';action.href='../traningsgrupper/?date='+encodeURIComponent(item.date);action.textContent='Visa / redigera träning';
+     const action=document.createElement('a');action.className='home-create-button';action.href='../traningsgrupper/?date='+encodeURIComponent(item.date)+'&calendar_hall='+encodeURIComponent(item.hall||'');action.textContent='Visa / redigera träning';
      content.append(note,action);row.append(summary,content);const pastTitle=trainingBox.querySelector('#pastTrainingsTitle');if(pastTitle)trainingBox.insertBefore(row,pastTitle);else trainingBox.append(row);
     }
+    const pastTitle=trainingBox.querySelector('#pastTrainingsTitle');
+    const upcomingRows=Array.from(trainingBox.querySelectorAll('details[data-date]')).filter(row=>decodeURIComponent(row.dataset.date)>=today);
+    upcomingRows.sort((a,b)=>decodeURIComponent(a.dataset.date).localeCompare(decodeURIComponent(b.dataset.date)));
+    for(const row of upcomingRows){if(pastTitle)trainingBox.insertBefore(row,pastTitle);else trainingBox.append(row);}
+    const upcomingTitle=trainingBox.querySelector('#upcomingTrainingsTitle');
+    if(upcomingTitle)upcomingTitle.textContent='Kommande träningar ('+upcomingRows.length+')';
     if(upcomingCalendarTrainings.length){const empty=Array.from(trainingBox.children).find(node=>node.tagName!=='DETAILS');if(empty&&/Inga gemensamt sparade träningar/.test(empty.textContent||''))empty.remove();}
    }
    if(calendarOtherEvents.length)root.innerHTML=calendarOtherEvents.map(item=>{

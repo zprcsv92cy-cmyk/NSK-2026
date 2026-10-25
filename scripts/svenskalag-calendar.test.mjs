@@ -166,3 +166,22 @@ test('home colour squad fixtures retain the explicit opponent and reject other a
  assert.deepEqual(items.map(x=>x.opponent),['IFK Mariefred Svart','Södertälje SK Gul']);
  assert.equal(items[0].startTime,'09:00');
 });
+
+test('plain Is for explicit U9 Team 18 is training with times; other teams and non-training remain excluded',()=>{
+ const events=[
+ ['SUMMARY:Is // U9 Team 18 - Nyköpings Sportklubb','DTSTART:20261028T180000','DTEND:20261028T191500','LOCATION:Stora Hallen'],
+ ['SUMMARY:Is // U10 Team 17 - Nyköpings Sportklubb','DTSTART:20261029T180000'],
+ ['SUMMARY:Hockeyfritids // Nyköpings Sportklubb','DTSTART:20261030T180000'],
+ ['SUMMARY:FOTOGRAFERING // U9 Team 18 - Nyköpings Sportklubb','DTSTART:20261031T180000']
+ ];
+ assert.deepEqual(parseSvenskalagIcal(ical(events),'2026-10-25'),[{type:'training',date:'2026-10-28',hall:'Stora hallen',startTime:'18:00',endTime:'19:15'}]);
+});
+test('identical training entries do not imply multiple sessions',()=>{
+ const event=['SUMMARY:Träning','DTSTART:20261111T180000','DTEND:20261111T191500','LOCATION:Lilla Hallen'];
+ assert.equal(parseSvenskalagIcal(ical([event,event]),'2026-10-25')[0].multipleSessions,undefined);
+});
+test('explicit U9 pool fixtures create one pool per date and venue without losing matches',()=>{
+ const events=['Lag A','Lag B'].map((name,i)=>['SUMMARY:Match: '+name+' - Poolspel U9 Nyköpings Sportklubb - Nyköpings Sportklubb','DTSTART:20261108T'+(10+i)+'0000','LOCATION:Smehallen']);
+ const items=parseSvenskalagIcal(ical(events),'2026-10-25');
+ assert.equal(items.filter(x=>x.type==='match').length,2);assert.equal(items.filter(x=>x.type==='pool').length,1);
+});

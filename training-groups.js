@@ -23,6 +23,8 @@
     goalies=(data.goalies||[]).map(String).filter(id=>allowed.has(id)&&selected.has(id));
     goalieCount=Number(data.goalieCount)||0;
     trainingHall=['Lilla Hallen','Stora hallen'].includes(data.hall)?data.hall:'';
+    const calendarHall=new URLSearchParams(location.search).get('calendar_hall');
+    if(!response.session&&new URLSearchParams(location.search).get('date')===date&&['Lilla Hallen','Stora hallen'].includes(calendarHall))trainingHall=calendarHall;
     $('trainingHall').value=trainingHall;
     shirtColorCount=[2,3,4].includes(Number(data.shirtColorCount))?Number(data.shirtColorCount):3;
     $('trainingShirtColorCount').value=String(shirtColorCount);
