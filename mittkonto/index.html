@@ -14,7 +14,8 @@ document.write('<link rel="stylesheet" href="../app.css?v=' + window.NSK_VERSION
 document.write('<script src="../config.js?v=' + window.NSK_VERSION + '"><\/script>');
 document.write('<script src="../auth.js?v=' + window.NSK_VERSION + '"><\/script>');
 </script>
-<script src="../navigation.js?v=training-menu-20261022" defer></script>
+<script>document.write('<script src="../navigation.js?v='+window.NSK_VERSION+'" defer><\/script>');</script>
+<style>#passwordChangeSection{max-width:650px;margin:18px auto}#changePasswordForm{display:grid;gap:12px}#changePasswordForm label{display:grid;gap:5px}#changePasswordForm input{width:100%;box-sizing:border-box}</style>
 </head>
 <body>
 <div class="wrap">
@@ -34,6 +35,7 @@ document.write('<script src="../auth.js?v=' + window.NSK_VERSION + '"><\/script>
 </div>
 <p><a href="../login/" id="accountLogin" hidden>Logga in</a></p>
 </section>
+<section id="passwordChangeSection" class="card" hidden><h2>Byt lösenord</h2><form id="changePasswordForm"><label>Nuvarande lösenord<input id="currentPassword" type="password" autocomplete="current-password" required maxlength="1024"></label><label>Nytt lösenord (minst 12 tecken)<input id="changeNewPassword" type="password" autocomplete="new-password" minlength="12" maxlength="1024" required></label><label>Bekräfta nytt lösenord<input id="changeConfirmPassword" type="password" autocomplete="new-password" minlength="12" maxlength="1024" required></label><button id="changePasswordSubmit" class="nsk-action nsk-action--save" type="submit">Byt lösenord</button><p id="changePasswordMessage" role="status"></p></form></section>
 </div>
 <script>
 (async () => {
@@ -71,7 +73,7 @@ document.write('<script src="../auth.js?v=' + window.NSK_VERSION + '"><\/script>
    pending.textContent='Kontrollerar behörigheter mot servern…';
    permissions.append(pending);
    const results=await Promise.all(permissionLabels.map(async ([key,label])=>({
-    label, allowed:await Auth.checkTeamFeature(key,team)
+    label, allowed:key==='read'?Auth.can('read',team):await Auth.checkTeamFeature(key,team)
    })));
    if(request!==permissionRequest || Auth.activeTeam()!==team)return;
    permissions.replaceChildren();
@@ -117,7 +119,7 @@ document.write('<script src="../auth.js?v=' + window.NSK_VERSION + '"><\/script>
  }
 })();
 </script>
-<section id="passwordChangeSection" class="card" hidden><h2>Byt lösenord</h2><form id="changePasswordForm"><label>Nuvarande lösenord<input id="currentPassword" type="password" autocomplete="current-password" required maxlength="1024"></label><label>Nytt lösenord (minst 12 tecken)<input id="changeNewPassword" type="password" autocomplete="new-password" minlength="12" maxlength="1024" required></label><label>Bekräfta nytt lösenord<input id="changeConfirmPassword" type="password" autocomplete="new-password" minlength="12" maxlength="1024" required></label><button id="changePasswordSubmit" class="nsk-action nsk-action--save" type="submit">Byt lösenord</button><p id="changePasswordMessage" role="status"></p></form></section>
+
 <script>document.write('<script src="../account-access.js?v='+window.NSK_VERSION+'"><\/script>');</script>
 </body>
 </html>
