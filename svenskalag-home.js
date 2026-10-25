@@ -99,8 +99,14 @@
      if(match){sessionStorage.setItem('nsk2_edit_pool_id',String(match.id));location.href='../skapapoolspel/';return;}
     }catch(error){create.disabled=false;alert('Kunde inte kontrollera befintliga poolspel. Försök igen.');return;}
 
+    const validMatches=matchesForPool(item,calendarMatches);
+    if(!validMatches.length){
+     create.disabled=false;
+     alert('Kalendern saknar matchuppgifter för detta poolspel. Ingen import har startats och inget poolspel har sparats. Kontrollera att matcherna och motståndarna finns i SvenskaLag och synkronisera kalendern igen.');
+     return;
+    }
     sessionStorage.removeItem('nsk2_edit_pool_id');
-    sessionStorage.setItem('nsk2_svenskalag_pool_draft',JSON.stringify({date:item.date,place:poolLocation(item).city,hall:poolLocation(item).hall,matches:matchesForPool(item,calendarMatches).map(m=>({startTime:m.startTime,opponent:m.opponent,place:m.place||''}))}));
+    sessionStorage.setItem('nsk2_svenskalag_pool_draft',JSON.stringify({date:item.date,place:poolLocation(item).city,hall:poolLocation(item).hall,matches:validMatches.map(m=>({startTime:m.startTime,opponent:m.opponent,place:m.place||''}))}));
     sessionStorage.setItem('nsk2_calendar_auto_save_once','1');
     location.href='../skapapoolspel/';
    });
