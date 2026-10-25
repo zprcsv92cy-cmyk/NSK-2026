@@ -168,7 +168,7 @@
    }).join('');
    else root.textContent='Poolspel visas under Kommande poolspel och träningar under Träningar.';
    renderUpcomingCalendarPools(calendarPools,items.filter(item=>item.type==='match'));
-   setTimeout(()=>{if(!document.querySelector('[data-svenskalag-pool]')&&calendarPools.length)renderUpcomingCalendarPools(calendarPools);},1200);
+   setTimeout(()=>{if(!document.querySelector('[data-svenskalag-pool]')&&calendarPools.length)renderUpcomingCalendarPools(calendarPools,items.filter(item=>item.type==='match'));},1200);
    const button=document.getElementById('svenskalagRefreshButton');
    if(button){
    button.textContent='Hämta SvenskaLag nu';
