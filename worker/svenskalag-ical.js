@@ -27,8 +27,27 @@ function calendarOpponent(title){
     || title.match(/^(?:match|träningsmatch)\s*[:–-]\s*(.+)$/i);
   if(!match)return '';
   const fixture=match[1].trim().split(/\s+[-–]\s+/);
+  // SvenskaLag also emits "Match: Opponent - Poolspel U9 ... - Nyköpings Sportklubb".
+  // Require an explicit U9 pool marker and the exact club name; reject ambiguous local opponents.
+  if(fixture.length===3){
+    const [opponent,middle,club]=fixture.map(part=>part.trim());
+    if(/^nyköpings\s+(?:sk|sportklubb)$/iu.test(club)
+      && /(?:^|\W)poolspel(?:\W|$)/iu.test(middle)
+      && /(?:^|\W)u\s*9(?:\W|$)/iu.test(middle)
+      && !/(?:^|\W)u\s*(?:[1-8]|1\d|2\d)(?:\W|$)/iu.test(middle)
+      && opponent && !/^nyköpings\s+(?:sk|sportklubb)(?:\s|$)/iu.test(opponent)
+      && !/^(?:poolspel|okänd|ej angiven)$/iu.test(opponent))return opponent.slice(0,120);
+    return '';
+  }
   if(fixture.length===2){
-    const isNsk=name=>/^(?:nsk|nyköpings\s+(?:sk|sportklubb))(?:\s+(?:u\s*9|team\s*18|u9\s*team\s*18))?$|^nyköpings\s+sportklubb\s+u\s*9$/iu.test(name.trim());
+    const isNsk=name=>{
+      const squad=name.trim();
+      if(/^(?:nsk|nyköpings\s+(?:sk|sportklubb))$/iu.test(squad))return true;
+      const suffix=squad.match(/^nyköpings\s+(?:sk|sportklubb)\s+(.+)$/iu)?.[1]||'';
+      // SvenskaLag may append a squad label to U9. Accept only an explicit U9/Team 18 token.
+      return /(?:^|\W)(?:u\s*9|team\s*18)(?:\W|$)/iu.test(suffix)
+        && !/(?:^|\W)(?:u\s*(?:[1-8]|1\d|2\d)|team\s*(?:[1-9]|1[0-7]|19|2\d))(?:\W|$)/iu.test(suffix);
+    };
     const home=isNsk(fixture[0]),away=isNsk(fixture[1]);
     if(home===away)return ''; // Unknown or both sides NSK: do not guess.
     const other=(home?fixture[1]:fixture[0]).trim();
@@ -57,7 +76,8 @@ export function parseSvenskalagIcal(text,today){
         const exclude=/hockeyfritids|fotografering|intresseanmälan|intresseanmäl|anmälan|inställt|cancelled|canceled|lagfoto/.test(lower);
         const date=stockholmDate(event.DTSTART||'');
         const training=/(^|[^\p{L}])träning([^\p{L}]|$)|(^|[^\p{L}])is\s*1[789]\s*\/\s*1[789]([^\p{L}]|$)/iu.test(lower);
-        const pool=/(^|[^\p{L}])poolspel([^\p{L}]|$)/iu.test(lower);
+        const pool=!/^(?:match|träningsmatch)\s*(?::|[-–]|\s+(?:mot|vs\.?|versus)\b)/iu.test(title)
+          && /(^|[^\p{L}])poolspel([^\p{L}]|$)/iu.test(lower);
         const opponent=!pool&&!training?calendarOpponent(title):'';
         const startTime=stockholmStartTime(event.DTSTART||'');
         const endTime=stockholmStartTime(event.DTEND||'');

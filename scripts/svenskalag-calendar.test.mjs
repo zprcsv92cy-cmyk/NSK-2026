@@ -120,3 +120,34 @@ test('Nyköpings Sportklubb U9 fixtures are recognized but unknown squads are no
  ]);
  assert.deepEqual(parseSvenskalagIcal(feed,'2026-10-24').filter(x=>x.type==='match').map(x=>x.opponent),['Järna SK Röd','Södertälje SK Blå']);
 });
+
+test('SvenskaLag U9 squad labels resolve fixtures, other age groups remain excluded',()=>{
+ const feed=ical([
+  ['SUMMARY:Match: Nyköpings Sportklubb U9 Röd - Järna SK','DTSTART:20261108T100000'],
+  ['SUMMARY:Match: Södertälje SK - Nyköpings Sportklubb Team 18 Blå','DTSTART:20261108T110000'],
+  ['SUMMARY:Match: Nyköpings Sportklubb U10 Blå - Lag A','DTSTART:20261108T120000'],
+  ['SUMMARY:Match: Nyköpings Sportklubb U9 U10 - Lag B','DTSTART:20261108T130000'],
+  ['SUMMARY:Match: Nyköpings Sportklubb Blå - Lag C','DTSTART:20261108T140000']
+ ]);
+ assert.deepEqual(parseSvenskalagIcal(feed,'2026-10-24').filter(x=>x.type==='match').map(x=>x.opponent),['Järna SK','Södertälje SK']);
+});
+
+test('Match fixture mentioning poolspel remains a match rather than a pool',()=>{
+ const feed=ical([
+ ['SUMMARY:Match: Nyköpings Sportklubb (U9) - Järna SK (poolspel)','DTSTART:20261108T100000','LOCATION:Smehallen'],
+ ['SUMMARY:Poolspel i Smehallen','DTSTART:20261108T090000','LOCATION:Smehallen']
+ ]);
+ const result=parseSvenskalagIcal(feed,'2026-10-24');
+ assert.deepEqual(result.map(x=>x.type),['match','pool']);
+ assert.equal(result[0].opponent,'Järna SK (poolspel)');
+});
+
+test('Three-segment SvenskaLag U9 fixtures import opponent safely',()=>{
+ const feed=ical([
+  ['SUMMARY:Match: Järna SK - Poolspel U9 Nyköpings Sportklubb - Nyköpings Sportklubb','DTSTART:20261108T100000'],
+  ['SUMMARY:Match: Järna SK - Poolspel U10 Nyköpings Sportklubb - Nyköpings Sportklubb','DTSTART:20261108T110000'],
+  ['SUMMARY:Match: Nyköpings Sportklubb U10 - Poolspel U9 Nyköpings Sportklubb - Nyköpings Sportklubb','DTSTART:20261108T120000'],
+  ['SUMMARY:Match: Järna SK - Poolspel U9 Nyköpings Sportklubb - Other Club','DTSTART:20261108T130000']
+ ]);
+ assert.deepEqual(parseSvenskalagIcal(feed,'2026-10-24').filter(x=>x.type==='match').map(x=>x.opponent),['Järna SK']);
+});
