@@ -18,3 +18,15 @@ test('late trainings remain upcoming after midnight until the grace hour expires
  assert.equal(cards.finished('2026-10-27','22:00–23:45',new Date('2026-10-27T23:45:00Z')),true);
  assert.equal(cards.finished('2026-10-27','23:30–00:30',new Date('2026-10-28T00:30:00Z')),true);
 });
+test('saved training with empty hall and times receives calendar data independently of pools',()=>{
+ const result=cards.enrich({date:'2026-10-25',hall:''},[{type:'training',date:'2026-10-25',hall:'Lilla Hallen',startTime:'13:45',endTime:'15:00'}]);
+ assert.equal(result.hall,'Lilla Hallen');assert.equal(result.startTime,'13:45');assert.equal(result.endTime,'15:00');
+ assert.equal(cards.finished(result.date,result.startTime+'–'+result.endTime,new Date('2026-10-25T15:00:00Z')),true);
+});
+test('calendar enrichment preserves saved data and refuses ambiguous or other-hall matches',()=>{
+ const event={type:'training',date:'2026-10-25',hall:'Lilla Hallen',startTime:'13:45',endTime:'15:00'};
+ const changed=cards.enrich({date:event.date,hall:'Stora hallen'},[event]);
+ assert.equal(changed.hall,'Stora hallen');assert.equal(changed.startTime,'13:45');
+ assert.equal(cards.enrich({date:event.date,hall:''},[event,{...event,startTime:'18:00'}]).hall,'');
+ assert.equal(cards.enrich({date:event.date,hall:'Lilla Hallen',startTime:'14:00'},[event]).startTime,'14:00');
+});

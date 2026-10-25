@@ -17,6 +17,16 @@
   if(!groups.length)return html+'<p>Tröjfärger är inte fördelade ännu.</p>';
   return html+'<div class="nsk-training-color-groups">'+groups.slice(0,4).map((ids,index)=>'<section class="nsk-training-color nsk-training-color-'+index+'"><h4>'+colors[index]+'</h4><ul>'+ids.filter(id=>selected.has(String(id))&&!goalies.has(String(id))).map(id=>'<li>'+name(id)+'</li>').join('')+'</ul></section>').join('')+'</div>';
  }
+ function enrich(session,events){
+  const hall=value=>String(value||'').trim().toLocaleLowerCase('sv-SE').replace(/ishallen/g,'hallen');
+  const savedHall=hall(session.hall);
+  const byDate=events.filter(event=>event.type==='training'&&event.date===session.date);
+  const matches=byDate.length===1?byDate:byDate.filter(event=>!savedHall||hall(event.hall||event.place)===savedHall);
+  if(matches.length!==1)return {...session};
+  const event=matches[0],key=hall(event.hall||event.place);
+  const fallback=key==='lilla hallen'?'Lilla Hallen':key==='stora hallen'?'Stora hallen':'';
+  return {...session,hall:session.hall||fallback,startTime:session.startTime||session.start_time||event.startTime||event.start_time||'',endTime:session.endTime||session.end_time||event.endTime||event.end_time||''};
+ }
  function finished(date,time,now=new Date()){
   const span=String(time||'').match(/^(\d{2}:\d{2})[–-](\d{2}:\d{2})$/);
   if(!span)return date<new Intl.DateTimeFormat('sv-SE',{timeZone:'Europe/Stockholm'}).format(now);
@@ -42,7 +52,7 @@
   }
   up.textContent='Kommande träningar ('+upcoming.length+')';title.textContent='Avslutade träningar ('+past.length+')';
  }
- window.NSKTrainingCards={actions,presentation,finished,reorder};
+ window.NSKTrainingCards={actions,presentation,enrich,finished,reorder};
  document.addEventListener('DOMContentLoaded',()=>{setInterval(()=>reorder(),15000);document.addEventListener('visibilitychange',()=>{if(!document.hidden)reorder();});});
  document.addEventListener('click',async event=>{
   const button=event.target.closest?.('[data-training-colors]');if(!button)return;
