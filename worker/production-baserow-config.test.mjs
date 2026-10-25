@@ -24,7 +24,7 @@ test('isolated Baserow GET cannot bypass personal team authorization', async () 
   };
   try {
     const response = await get({ BASEROW_TABLE_IDS: JSON.stringify(isolated), BASEROW_TOKEN: 'fake' });
-    assert.equal(response.status, 403);
+    assert.equal(response.status, 401);
     assert.equal(calls.length, 0);
   } finally { globalThis.fetch = original; }
 });

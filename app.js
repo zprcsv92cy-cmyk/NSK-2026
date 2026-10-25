@@ -1425,7 +1425,9 @@ window.NSK2App = (() => {
         return ids.length === expectedCount && new Set(ids).size === expectedCount &&
           ids.every(id => id && id !== "0");
       };
-      if (String(matchNo) !== "1" && !isValidLineup(lineup)) {
+      const savedEmptyDraft = rowCurrent && !rowCurrent.player_count && !rowCurrent.goalie_player_id &&
+        !(rowCurrent.players_on_field || []).length && !lineup.some(entry => entry.person_type === "player");
+      if (String(matchNo) !== "1" && !savedEmptyDraft && !isValidLineup(lineup)) {
         const baseLineup = row1?.id && typeof DB?.getLineup === "function"
           ? await DB.getLineup(row1.id) : [];
         if (isValidLineup(baseLineup)) {
@@ -1700,12 +1702,13 @@ window.NSK2App = (() => {
     const message = (id, value) => { if (stillSelected()) setText(id, value); };
     if (!poolId) { if (!silent) message("appError", "Saknar valt poolspel."); return; }
     const selectedPlayers = snapshot.players.filter(Boolean);
-    if (!goalie) { if (!silent) message("lineupMsg", "Välj målvakt först."); return; }
+    const emptyDraft = !goalie && selectedPlayers.length === 0;
+    if (!goalie && !emptyDraft) { if (!silent) message("lineupMsg", "Välj målvakt först."); return; }
     if (selectedPlayers.includes(goalie)) { message("lineupMsg", "Målvakt kan inte vara samma som spelare."); return; }
     if (new Set(selectedPlayers).size !== selectedPlayers.length) {
       message("lineupMsg", "En spelare kan bara väljas en gång."); return;
     }
-    if (selectedPlayers.length !== playerCount) {
+    if (!emptyDraft && selectedPlayers.length !== playerCount) {
       message("lineupMsg", "Välj spelare i den tomma positionen. Uppställningen sparas när alla platser är ifyllda."); return;
     }
     try {
@@ -1717,8 +1720,8 @@ window.NSK2App = (() => {
       const matchRow = await DB.savePoolTeamMatchConfig({
         pool_id: Number(poolId), lag_no: Number(lagNo), match_no: Number(matchNo),
         start_time: snapshot.startTime, opponent: snapshot.opponent, plan: snapshot.plan,
-        player_count: playerCount, goalie_player_id: Number(goalie),
-        players_on_field: [goalie, ...selectedPlayers].map(Number)
+        player_count: emptyDraft ? null : playerCount, goalie_player_id: emptyDraft ? null : Number(goalie),
+        players_on_field: emptyDraft ? [] : [goalie, ...selectedPlayers].map(Number)
       });
       await DB.saveLineup(matchRow.id, selectedPlayers.map(Number), coachIds.map(Number));
       message("appError", "");
