@@ -120,3 +120,14 @@ test('Nyköpings Sportklubb U9 fixtures are recognized but unknown squads are no
  ]);
  assert.deepEqual(parseSvenskalagIcal(feed,'2026-10-24').filter(x=>x.type==='match').map(x=>x.opponent),['Järna SK Röd','Södertälje SK Blå']);
 });
+
+test('SvenskaLag U9 squad labels resolve fixtures, other age groups remain excluded',()=>{
+ const feed=ical([
+  ['SUMMARY:Match: Nyköpings Sportklubb U9 Röd - Järna SK','DTSTART:20261108T100000'],
+  ['SUMMARY:Match: Södertälje SK - Nyköpings Sportklubb Team 18 Blå','DTSTART:20261108T110000'],
+  ['SUMMARY:Match: Nyköpings Sportklubb U10 Blå - Lag A','DTSTART:20261108T120000'],
+  ['SUMMARY:Match: Nyköpings Sportklubb U9 U10 - Lag B','DTSTART:20261108T130000'],
+  ['SUMMARY:Match: Nyköpings Sportklubb Blå - Lag C','DTSTART:20261108T140000']
+ ]);
+ assert.deepEqual(parseSvenskalagIcal(feed,'2026-10-24').filter(x=>x.type==='match').map(x=>x.opponent),['Järna SK','Södertälje SK']);
+});
