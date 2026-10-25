@@ -610,7 +610,7 @@ window.NSK2App = (() => {
              // Samma testade matchfördelning används i kalenderförhandsvisningen.
              const {planCalendarMatches}=await import(new URL('calendar-match-plan.mjs',nskVersionRoot()).href);
              const plan=planCalendarMatches(imported.matches||[]);
-             const calendarMatches=plan.schedule.map(m=>({startTime:m.start_time,opponent:m.opponent,plan:m.plan}));
+             const calendarMatches=plan.schedule.map(m=>({startTime:m.start_time || '',opponent:m.opponent,plan:m.plan}));
              const count=calendarMatches.length;
              sessionStorage.setItem('nsk2_calendar_match_pending',JSON.stringify(calendarMatches));
              const teamCount=plan.teams||1;
@@ -636,7 +636,7 @@ window.NSK2App = (() => {
                calendarMatches.forEach((match,index)=>{
                  const row=document.createElement('div');
                  const team=plan.schedule[index].lag_no;
-                 row.textContent='Lag '+team+' • Match '+plan.schedule[index].match_no+' • '+match.startTime+' – '+match.opponent;
+                 row.textContent='Lag '+team+' • Match '+plan.schedule[index].match_no+' • '+(match.startTime || 'Tid ej angiven')+' – '+match.opponent;
                  preview.append(row);
                });
                const note=document.createElement('p');
@@ -849,7 +849,7 @@ window.NSK2App = (() => {
               if(saved.length===1){
                 // Ett tidigare lyckat skrivsteg ska inte skrivas över eller skickas igen.
                 const row=saved[0];
-                if(String(row.start_time||'').slice(0,5)===match.start_time &&
+                if((String(row.start_time||'').slice(0,5)||null)===match.start_time &&
                    String(row.opponent||'').trim()===match.opponent.trim() &&
                    String(row.plan||'Plan 1')===String(match.plan||'Plan 1'))continue;
                 errors.push('Befintlig match skiljer sig från kalendern för lag '+match.lag_no+', match '+match.match_no);
