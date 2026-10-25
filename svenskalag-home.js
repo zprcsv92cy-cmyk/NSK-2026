@@ -76,13 +76,21 @@
    }else{
     const missing=document.createElement('p');missing.className='small';missing.textContent='Matchuppgifter har ännu inte hämtats till NSK. De kan finnas publicerade i SvenskaLag.';content.append(missing);
    }
+   const grid=document.createElement('div');grid.className='nsk-pool-grid';
+   for(const [symbol,label] of [['♙','Laguppställning'],['↻','Bytesschema']]){
+    const button=document.createElement('button');button.type='button';button.className='nsk-pool-function';
+    button.disabled=true;button.title='Skapa poolspelet i NSK för att använda '+label.toLowerCase();
+    const icon=document.createElement('span');icon.className='nsk-pool-function-icon';icon.setAttribute('aria-hidden','true');icon.textContent=symbol;
+    const name=document.createElement('span');name.textContent=label;button.append(icon,name);grid.append(button);
+   }
+   content.append(grid);
    content.append(note);
    const actions=document.createElement('div');
    actions.className='nsk-pool-actions';
    const create=document.createElement('button');
    create.type='button';
    create.className='start-pool-btn nsk-action nsk-action--primary nsk-action--wide';
-   create.textContent='Skapa och redigera poolspel';
+   create.textContent='Skapa poolspel för att aktivera funktionerna';
    create.addEventListener('click',async()=>{
     create.disabled=true;
     try{
