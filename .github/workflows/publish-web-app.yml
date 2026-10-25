@@ -72,6 +72,7 @@ jobs:
           node --check db.js
           node --check sw.js
           node --test worker/browser-auth-permissions.test.mjs
+          node --test worker/production-empty-match.test.mjs
           node --test scripts/scoped-roster-client.test.mjs scripts/personal-roster-write-client.test.mjs scripts/roster-staff-role-contract.test.mjs
           node --test scripts/shift-client-auth.test.mjs scripts/pool-save-permission-ui.test.mjs
           node --test scripts/preview-dispatch-lock.test.mjs
