@@ -2569,7 +2569,11 @@ window.NSK2App = (() => {
     }
   }
 
+  function updatePlayerLabel(id,name) {
+    document.querySelectorAll('[data-player-name]').forEach(label=>{if(label.dataset.playerName===String(id))label.textContent=name;});
+  }
   function rowHtml(item, type) {
+    if(type==='player')return `<details class="person-row roster-player-details"><summary><span data-player-name="${item.id}">${esc(item.full_name)}</span><span class="roster-player-chevron" aria-hidden="true">⌄</span></summary><div class="person-main"><input class="inline-name-input" aria-label="Redigera namn: ${esc(item.full_name)}" value="${esc(item.full_name)}" data-inline-player="${item.id}"></div><div class="row-actions"><button class="row-btn nsk-action" type="button" data-edit-player="${item.id}">Redigera</button><button class="row-btn danger nsk-action nsk-action--delete" type="button" data-delete-player="${item.id}">Ta bort</button></div></details>`;
     return `
       <div class="person-row">
         <div class="person-main">
@@ -2606,7 +2610,7 @@ window.NSK2App = (() => {
     saveTimers[`p_${id}`] = setTimeout(async () => {
       try {
         await DB.updatePlayer(id, String(value || "").trim());
-        clearRosterCache();setText("truppenMsg", "Namnet är sparat.");
+        clearRosterCache();updatePlayerLabel(id,String(value||" ").trim());setText("truppenMsg", "Namnet är sparat.");
       } catch(error) {setText("truppenMsg", error?.message || "Kunde inte spara namnet.");}
     }, 600);
   }
@@ -2622,7 +2626,7 @@ window.NSK2App = (() => {
   async function flushInlinePlayerSave(id, value) {
     clearTimeout(saveTimers[`p_${id}`]);
     await DB.updatePlayer(id, String(value || "").trim());
-    clearRosterCache();setText("truppenMsg", "Namnet är sparat.");
+    clearRosterCache();updatePlayerLabel(id,String(value||" ").trim());setText("truppenMsg", "Namnet är sparat.");
   }
 
   async function flushInlineCoachSave(id, value) {
