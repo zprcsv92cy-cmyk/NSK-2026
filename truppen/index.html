@@ -60,7 +60,8 @@
       .roster-page .roster-add-row input { flex-basis: 100%; }
       .roster-page .roster-add-row button { width: auto; }
     }
-  </style>
+  .roster-page #playersList .person-row{display:flex;flex-direction:column;align-items:stretch;gap:8px;padding:12px;border:1px solid var(--line);border-radius:12px;min-width:0}.roster-page #playersList .person-main{min-width:0;width:100%}.roster-page #playersList .inline-name-input{box-sizing:border-box;width:100%}.roster-page #playersList .row-actions{display:flex;gap:6px;flex-wrap:wrap}.roster-page #playersList .row-actions button{flex:1;min-height:36px;margin:0;padding:7px 9px;font-size:.8rem}
+</style>
 <script>document.write('<script src="../navigation.js?v='+window.NSK_VERSION+'" defer><\/script>');</script>
 </head>
 <body class="roster-page">
@@ -95,7 +96,8 @@
 
     <style>/* Keep authorization checks and staging logic intact, but remove their panels from the production roster view. */
       #rosterAccessCard, #stagingRosterPanel { display: none !important; }
-    </style>
+    .roster-page #playersList .person-row{display:flex;flex-direction:column;align-items:stretch;gap:8px;padding:12px;border:1px solid var(--line);border-radius:12px;min-width:0}.roster-page #playersList .person-main{min-width:0;width:100%}.roster-page #playersList .inline-name-input{box-sizing:border-box;width:100%}.roster-page #playersList .row-actions{display:flex;gap:6px;flex-wrap:wrap}.roster-page #playersList .row-actions button{flex:1;min-height:36px;margin:0;padding:7px 9px;font-size:.8rem}
+</style>
 
     <section class="card roster-card" id="rosterAccessCard" aria-label="Personlig lagbehörighet">
       <h2>Lagbehörighet</h2>
@@ -340,7 +342,7 @@ window.NSKRosterCanEdit = async function () {
 <script>
 (function(){
  const style=document.createElement('style');
- style.textContent=`body:not(.nsk-roster-admin) #playerInput,body:not(.nsk-roster-admin) #addPlayerBtn,body:not(.nsk-roster-admin) .inline-name-input{pointer-events:none}body:not(.nsk-roster-admin) .inline-name-input{border:0;background:transparent}body:not(.nsk-roster-admin) #coachInput,body:not(.nsk-roster-admin) #addCoachBtn,body:not(.nsk-roster-admin) #coachesList .inline-name-input{pointer-events:none}body:not(.nsk-roster-admin) #coachesList .inline-name-input{border:0;background:transparent}#coachesList [data-delete-coach],#playersList [data-delete-player],#importBackupBtn{display:none!important}`;
+ style.textContent=`body:not(.nsk-roster-admin) #playerInput,body:not(.nsk-roster-admin) #addPlayerBtn,body:not(.nsk-roster-admin) .inline-name-input{pointer-events:none}body:not(.nsk-roster-admin) .inline-name-input{border:0;background:transparent}body:not(.nsk-roster-admin) #coachInput,body:not(.nsk-roster-admin) #addCoachBtn,body:not(.nsk-roster-admin) #coachesList .inline-name-input{pointer-events:none}body:not(.nsk-roster-admin) #coachesList .inline-name-input{border:0;background:transparent}#coachesList [data-delete-coach],body:not(.nsk-roster-admin) #playersList [data-delete-player],body:not(.nsk-roster-admin) #playersList [data-edit-player],#importBackupBtn{display:none!important}`;
  document.head.appendChild(style);
  async function sync(){
   const allowed=await window.NSKRosterCanEdit();

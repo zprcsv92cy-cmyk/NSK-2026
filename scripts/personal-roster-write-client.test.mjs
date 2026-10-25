@@ -25,7 +25,8 @@ async function exercise({ enabled, authenticated = true, activeTeam = 'NSK Team 
   vm.runInNewContext(dbSource, sandbox);
   let error;
   try {
-    if (path === '/api/spelare') await sandbox.window.DB.addPlayer('Tester');
+    if (method === 'DELETE') await sandbox.window.DB.deletePlayer(1);
+    else if (path === '/api/spelare') await sandbox.window.DB.addPlayer('Tester');
     else if (path === '/api/tranare') await sandbox.window.DB.addCoach('Coach');
     else if (path.startsWith('/api/spelare/')) await sandbox.window.DB.updatePlayer(1, 'Tester 2');
     else if (path.startsWith('/api/tranare/')) await sandbox.window.DB.updateCoach(1, 'Coach 2');
@@ -124,4 +125,11 @@ test('staff form passes stable role keys supported by DB instead of Swedish labe
   assert.match(dbSource, /leader: 'Lagledare', fitness: 'Fysansvarig', equipment: 'Materialförvaltare'/);
   assert.match(page, /DB\.addStaff\(role,inp\.value\.trim\(\)\)/);
   assert.match(page, /DB\.updateStaff\(role,inp\.dataset\.staffId,newName\)/);
+});
+
+
+test('player deletion uses personal authorization and refuses missing rights before any request',async()=>{
+ const ok=await exercise({enabled:true,path:'/api/spelare/1',method:'DELETE'});
+ assert.equal(ok.error,undefined);assert.equal(ok.requests.length,1);assert.equal(ok.requests[0].options.method,'DELETE');assert.equal(ok.requests[0].options.headers.Authorization,'Bearer '+token);
+ for(const override of [{authenticated:false},{authorized:false},{activeTeam:'NSK Testlag 2'}]){const result=await exercise({enabled:true,path:'/api/spelare/1',method:'DELETE',...override});assert.ok(result.error);assert.equal(result.requests.length,0);}
 });
