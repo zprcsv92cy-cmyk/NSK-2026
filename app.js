@@ -541,7 +541,6 @@ window.NSK2App = (() => {
                 <div class="nsk-pool-secondary-actions">
                   <button class="row-btn nsk-action nsk-action--edit" type="button" data-edit-pool="${poolId}">Redigera</button>
                   <button class="row-btn nsk-action ${isArchived(p) ? "nsk-action--neutral" : "nsk-action--finish"}" type="button" data-pool-status-id="${poolId}" data-pool-status-next="${isArchived(p) ? "Aktiv" : "Avslutad"}">${isArchived(p) ? "Återöppna" : "Avsluta"}</button>
-                  <button class="row-btn danger nsk-action nsk-action--delete" type="button" data-delete-pool="${poolId}">Ta bort</button>
                 </div>
               </div>
             </div>

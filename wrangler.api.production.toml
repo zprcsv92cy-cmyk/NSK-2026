@@ -23,7 +23,8 @@ NSK_ENABLE_SHARED_TRAINING = "true"
 NSK_REQUIRE_PERSONAL_POOL_WRITES = "true"
 NSK_REQUIRE_PERSONAL_MATCH_WRITES = "true"
 # Enable only after coordinated client + Worker verification.
-NSK_REQUIRE_PERSONAL_COACH_SELECTION = "false"
+NSK_REQUIRE_PERSONAL_COACH_SELECTION = "true"
+NSK_DISABLE_LEGACY_AUTH = "true"
 
 # Validate that existing secrets are present; do not store their values here.
 [secrets]

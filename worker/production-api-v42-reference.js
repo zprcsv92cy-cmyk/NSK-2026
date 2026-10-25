@@ -48,6 +48,7 @@ function tokenFrom(req) {
 }
 __name(tokenFrom, "tokenFrom");
 async function session(req, env) {
+  if (env.NSK_DISABLE_LEGACY_AUTH === "true") return null;
   const t = tokenFrom(req);
   if (!t) return null;
   const id = await sha(t);
@@ -446,6 +447,9 @@ var worker_default = { async fetch(req, env) {
       return reply({ ok: false, error: "Baserow unavailable" }, 502);
     }
   }
+  if (env.NSK_DISABLE_LEGACY_AUTH === "true" &&
+      (url.pathname.startsWith("/api/admin/") || url.pathname === "/api/match/login"))
+    return reply({ok:false,error:"Äldre inloggning är avstängd. Använd ditt personliga NSK-konto."},410);
   if (url.pathname === "/api/match/login" && req.method === "POST") {
     if (!env.ADMIN_KV || !env.MATCH_PASSWORD || env.MATCH_PASSWORD.length < 8) return reply({ ok: false, error: "Matchkod \xE4r inte konfigurerad (minst 8 tecken)" }, 503);
     if (!(req.headers.get("Content-Type") || "").startsWith("application/json")) return reply({ ok: false, error: "JSON kr\xE4vs" }, 415);

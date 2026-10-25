@@ -61,8 +61,8 @@ jobs:
             assert.match(app,new RegExp('REQUIRE_PERSONAL_'+name+': true'));
             assert.match(api,new RegExp('NSK_REQUIRE_PERSONAL_'+name+' = "true"'));
           }
-          assert.match(app,/REQUIRE_PERSONAL_COACH_SELECTION: false/);
-          assert.match(api,/NSK_REQUIRE_PERSONAL_COACH_SELECTION = "false"/);
+          assert.match(app,/REQUIRE_PERSONAL_COACH_SELECTION: true/);
+          assert.match(api,/NSK_REQUIRE_PERSONAL_COACH_SELECTION = "true"/);
           // Personal roster writes remain protected.
           assert.match(app,/REQUIRE_PERSONAL_ROSTER_WRITES: true/);
           NODE

@@ -11,7 +11,7 @@ test('Worker integrates the guarded collection handler before legacy GET fallbac
   assert.ok(worker.includes("import { readPersonallyAuthorizedTeamCollection } from './production-team-collection-read.js';"));
   assert.ok(guard > 0, 'guard invocation is present');
   assert.ok(legacy > guard, 'guard precedes legacy reads');
-  assert.match(worker, /NSK_REQUIRE_SCOPED_COLLECTION_READS === "true" \|\| req\.headers\.has\("Authorization"\)/);
+  assert.match(worker, /NSK_REQUIRE_SCOPED_COLLECTION_READS !== "false" \|\| req\.headers\.has\("Authorization"\)/);
   assert.ok(worker.includes('poolspel|matchkonfiguration|laguppstallningar|bytesschema'), 'collection route alternatives are present');
 });
 

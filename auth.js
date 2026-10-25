@@ -1,5 +1,5 @@
 // NSK personal authentication. Enabled only with an explicitly configured AUTH_URL.
-// Legacy production admin/match functionality remains unchanged during migration.
+// Personal permissions control the production UI.
 (() => {
   const base = String(window.APP_CONFIG?.AUTH_URL || '').replace(/\/$/, '');
   const key = 'nsk_user_token';
@@ -11,7 +11,7 @@
     if (!base || !token()) { clear(); return null; }
     try {
       const response = await fetch(base + '/api/auth/me', {
-        headers: { Authorization: 'Bearer ' + token() }, cache: 'no-store', credentials: 'omit'
+        headers: { Authorization: 'Bearer ' + token() }, cache: 'no-store', credentials: 'omit', signal: typeof AbortSignal !== 'undefined' && AbortSignal.timeout ? AbortSignal.timeout(15000) : undefined
       });
       if (!response.ok) { clear(); return null; }
       const data = await response.json();
@@ -19,6 +19,7 @@
         clear(); return null;
       }
       identity = data;
+      try { localStorage.removeItem('nsk_admin_token'); localStorage.removeItem('nsk_match_token'); } catch {}
       // NSK Team 18 is the only selectable team. Never grant membership implicitly.
       if (data.memberships.some(m => m.team_id === 'NSK Team 18')) {
         sessionStorage.setItem(teamKey, 'NSK Team 18');
@@ -123,6 +124,7 @@
   async function logout() {
     const current = token();
     clear();
+    try { localStorage.removeItem('nsk_admin_token'); localStorage.removeItem('nsk_match_token'); } catch {}
     if (base && current) {
       try {
         await fetch(base + '/api/auth/logout', {

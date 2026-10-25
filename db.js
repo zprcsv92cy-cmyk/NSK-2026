@@ -134,7 +134,13 @@ window.DB = (() => {
     return data;
   }
   async function writeName(table,method,rowId,name){return (await adminRequest(`/api/${table}${rowId?'/'+encodeURIComponent(rowId):''}`,method,{name:String(name||'').trim()})).row}
-  async function updatePoolTeams(poolId,teams){return (await adminRequest(`/api/poolspel/${encodeURIComponent(poolId)}`,'PATCH',{teams})).row}
+  async function updatePoolTeams(poolId,teams){
+    const pool=await getPool(poolId);
+    if(!pool||pool.active===false)throw new Error('Välj ett aktivt poolspel.');
+    const payload={};
+    for(const key of ['title','place','hall','pool_date','matches','players_on_field','periods','period_time','sub_time'])payload[key]=pool[key];
+    return updatePool(poolId,{...payload,teams:Number(teams),status:'Aktiv'});
+  }
   async function writePool(method,rowId,payload){return (await adminRequest(`/api/poolspel${rowId?'/'+encodeURIComponent(rowId):''}`,method,payload)).row}
   const addPool=payload=>writePool('POST',null,payload);
   const updatePool=(rowId,payload)=>writePool('PATCH',rowId,payload);
@@ -207,6 +213,7 @@ window.DB = (() => {
   // Personal sessions take priority for shift writes. Legacy admin is used only without a personal session.
   async function shiftSaveRequest(payload){
     const token=(window.Auth?.getSession?.() ? window.Auth.getToken() : null);
+    if(!token&&window.APP_CONFIG?.REQUIRE_PERSONAL_MATCH_WRITES===true)throw new Error('Personlig inloggning krävs för byten.');
     if(!token)return adminRequest('/api/bytesschema/save','POST',payload);
     const response=await fetch(`${API}/api/bytesschema/save`,{
       method:'POST',headers:{'Content-Type':'application/json',Authorization:'Bearer '+token},
@@ -244,6 +251,7 @@ window.DB = (() => {
     }
     const personalToken=(window.Auth?.getSession?.() ? window.Auth.getToken() : null);
     if(personalToken)return send(personalToken);
+    if(window.APP_CONFIG?.REQUIRE_PERSONAL_MATCH_WRITES===true)throw new Error('Personlig inloggning krävs för att checka byten.');
     let token=localStorage.getItem(key);
     if(token){try{return await send(token)}catch(error){if(error.status!==401)throw error;localStorage.removeItem(key)}}
     const adminToken=localStorage.getItem('nsk_admin_token');

@@ -11,6 +11,6 @@ window.APP_CONFIG = {
   REQUIRE_PERSONAL_MATCH_WRITES: true,
   // Prepared client flow. Turn on only after live team-specific write checks pass.
   REQUIRE_PERSONAL_ROSTER_WRITES: true,
-  REQUIRE_PERSONAL_COACH_SELECTION: false,
+  REQUIRE_PERSONAL_COACH_SELECTION: true,
   APP_VERSION: "baserow-readonly-1"
 };
