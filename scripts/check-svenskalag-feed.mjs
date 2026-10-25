@@ -195,3 +195,25 @@ for(const title of summaries){
  if(/,/u.test(suffix))matchSuffixTokens.hasComma++;
 }
 console.log('Fixture suffix token counts only: '+JSON.stringify(matchSuffixTokens));
+
+const fixtureSideGate={total:0,exactlyTwoSides:0,oneU9Side:0,bothU9Sides:0,otherSideEmpty:0,otherSideContainsNykoping:0,otherSideContainsPool:0,otherSideContainsTraining:0,parsedWhenSyntheticDate:0};
+for(const title of summaries){
+ if(!title.startsWith('match:'))continue;
+ fixtureSideGate.total++;
+ const sides=title.slice(6).trim().split(/\s+[-–]\s+/u);
+ if(sides.length!==2)continue;
+ fixtureSideGate.exactlyTwoSides++;
+ const flags=sides.map(s=>/^nyköpings\s+sportklubb\b/u.test(s.trim())&&/(?:^|\W)(?:u\s*9|team\s*18)(?:\W|$)/u.test(s));
+ if(flags.every(Boolean)){fixtureSideGate.bothU9Sides++;continue;}
+ if(flags.filter(Boolean).length!==1)continue;
+ fixtureSideGate.oneU9Side++;
+ const other=sides[flags[0]?1:0].trim();
+ if(!other)fixtureSideGate.otherSideEmpty++;
+ if(/nyköping/u.test(other))fixtureSideGate.otherSideContainsNykoping++;
+ if(/poolspel/u.test(other))fixtureSideGate.otherSideContainsPool++;
+ if(/träning/u.test(other))fixtureSideGate.otherSideContainsTraining++;
+ const safeTitle=title.replace(/\\/g,'');
+ const synthetic='BEGIN:VCALENDAR\nBEGIN:VEVENT\nSUMMARY:'+safeTitle+'\nDTSTART:20261108T100000\nEND:VEVENT\nEND:VCALENDAR';
+ if(parseSvenskalagIcal(synthetic,'2026-10-24').some(x=>x.type==='match'))fixtureSideGate.parsedWhenSyntheticDate++;
+}
+console.log('Fixture side gate counts only: '+JSON.stringify(fixtureSideGate));
