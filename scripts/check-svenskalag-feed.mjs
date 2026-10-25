@@ -276,3 +276,20 @@ for(const block of blocks){
  if(accepts('BEGIN:VCALENDAR\n'+event+'\nEND:VCALENDAR'))isolatedMatchFields.fullEvent++;
 }
 console.log('Isolated match field gates (counts only): '+JSON.stringify(isolatedMatchFields));
+
+const escapedMatchSummary={total:0,hasBackslash:0,hasEscapedComma:0,hasEscapedSemicolon:0,hasEscapedNewline:0,rawSummaryParsed:0,unescapedSummaryParsed:0};
+for(const block of blocks){
+ const event='BEGIN:VEVENT'+block.slice(0,block.indexOf('END:VEVENT')+10);
+ const summary=event.match(/^SUMMARY(?:;[^:]*)?:(.*)$/m)?.[1]||'';
+ if(!/^Match:/i.test(summary))continue;
+ escapedMatchSummary.total++;
+ if(summary.includes('\\'))escapedMatchSummary.hasBackslash++;
+ if(summary.includes('\\,'))escapedMatchSummary.hasEscapedComma++;
+ if(summary.includes('\\;'))escapedMatchSummary.hasEscapedSemicolon++;
+ if(/\\n/i.test(summary))escapedMatchSummary.hasEscapedNewline++;
+ const start=event.match(/^DTSTART(?:;[^:]*)?:.*$/m)?.[0]||'';
+ const wrap=t=>'BEGIN:VCALENDAR\nBEGIN:VEVENT\nSUMMARY:'+t+'\n'+start+'\nEND:VEVENT\nEND:VCALENDAR';
+ if(parseSvenskalagIcal(wrap(summary),'2000-01-01').some(x=>x.type==='match'))escapedMatchSummary.rawSummaryParsed++;
+ if(parseSvenskalagIcal(wrap(summary.replace(/\\/g,'')),'2000-01-01').some(x=>x.type==='match'))escapedMatchSummary.unescapedSummaryParsed++;
+}
+console.log('Escaped fixture summary gates (counts only): '+JSON.stringify(escapedMatchSummary));
