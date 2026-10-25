@@ -418,3 +418,24 @@ for(const block of blocks){
  if(isNskLikeParser(parts[1]||''))fixtureSegments.secondHasNsk++;
 }
 console.log('Fixture segment structure (counts only): '+JSON.stringify(fixtureSegments));
+
+const threePartSemantics={total:0,thirdNsk:0,firstU9:0,secondU9:0,thirdU9:0,firstPool:0,secondPool:0,thirdPool:0,firstNykoping:0,secondNykoping:0,thirdNykoping:0,firstStartsNumber:0,thirdStartsNumber:0,thirdHasParentheses:0};
+for(const block of blocks){
+ const event='BEGIN:VEVENT'+block.slice(0,block.indexOf('END:VEVENT')+10);
+ const raw=event.match(/^SUMMARY(?:;[^:]*)?:(.*)$/m)?.[1]||'';
+ if(!/^Match:/i.test(raw))continue;
+ const parts=raw.slice(6).trim().split(/\s+[-–]\s+/u).map(x=>x.trim());
+ if(parts.length!==3)continue;
+ threePartSemantics.total++;
+ if(isNskLikeParser(parts[2]))threePartSemantics.thirdNsk++;
+ for(let i=0;i<3;i++){
+  const key=['first','second','third'][i],s=parts[i];
+  if(/(?:^|\W)u\s*9(?:\W|$)/iu.test(s))threePartSemantics[key+'U9']++;
+  if(/poolspel/iu.test(s))threePartSemantics[key+'Pool']++;
+  if(/nyköping/iu.test(s))threePartSemantics[key+'Nykoping']++;
+ }
+ if(/^\d/u.test(parts[0]))threePartSemantics.firstStartsNumber++;
+ if(/^\d/u.test(parts[2]))threePartSemantics.thirdStartsNumber++;
+ if(/[()]/u.test(parts[2]))threePartSemantics.thirdHasParentheses++;
+}
+console.log('Three-part fixture semantics (counts only): '+JSON.stringify(threePartSemantics));
