@@ -20,3 +20,11 @@ test('public account pages contain no administrator bootstrap SQL and package ve
  const workflow=readFileSync(new URL('../.github/workflows/publish-web-app.yml',import.meta.url),'utf8');
  assert.match(workflow,/cp -a account-access\.js account-users\.js/);
 });
+
+test('account navigation uses the current version on every page instead of a fixed old menu version',()=>{
+ for(const folder of ['startsida','truppen','traningsgrupper','ovningsarkiv','ritverktyg','skapapoolspel','malvaktsstatistik','bytesschema','matchvy','lag','laguppstallning','mittkonto']){
+  const html=readFileSync(new URL('../'+folder+'/index.html',import.meta.url),'utf8');
+  assert.doesNotMatch(html,/navigation\.js\?v=[a-zA-Z0-9]/);
+  assert.ok(html.includes('navigation.js?v=')&&html.includes('window.NSK_VERSION'),folder);
+ }
+});
