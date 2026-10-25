@@ -53,6 +53,7 @@
   });
   function can(permission, team = activeTeam()) {
     const required = permissionKeys[permission] || permission;
+    if(identity?.is_primary_admin===true&&Object.values(permissionKeys).includes(required))return true;
     const membership = identity?.memberships?.find(m => m && m.team_id === team);
     if (!team || !membership || !Array.isArray(identity?.permissions) ||
         !identity.permissions.includes(required)) return false;

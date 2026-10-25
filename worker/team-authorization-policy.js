@@ -17,6 +17,7 @@ export function authorizeTeamFeature(actor, teamId, feature) {
       !Object.prototype.hasOwnProperty.call(FEATURE_PERMISSIONS, feature)) {
     return { allowed: false, status: 400, reason: 'Ogiltigt lag eller funktion' };
   }
+  if(actor.is_primary_admin===true)return {allowed:true,status:200,reason:'Tillåtet',permission:FEATURE_PERMISSIONS[feature],role:'owner'};
   const membership = Array.isArray(actor.memberships)
     ? actor.memberships.find(m => m && m.team_id === teamId) : null;
   if (!membership) return { allowed: false, status: 403, reason: 'Ingen åtkomst till laget' };

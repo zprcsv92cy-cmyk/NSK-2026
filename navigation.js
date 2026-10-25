@@ -7,12 +7,14 @@
     ['bytesschema','Bytesschema'],['matchvy','Matchvy'],['lag','Lag'],
     ['mittkonto','Mitt konto']
   ];
-  function render() {
+  async function render() {
     const nav = document.querySelector('nav.mainmenu');
     if (!nav) return;
     const active = location.pathname.split('/').filter(Boolean).pop() || 'startsida';
     nav.innerHTML = '';
-    for (const [slug,label] of entries) {
+    const visibleEntries=[...entries];
+    try { if(window.Auth){await window.Auth.init();if(window.Auth.getSession()?.permissions?.includes('users:manage'))visibleEntries.push(['anvandare','Användare']);} }catch{}
+    for (const [slug,label] of visibleEntries) {
       const a = document.createElement('a');
       a.href = '../' + slug + '/';
       a.textContent = label;
