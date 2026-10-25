@@ -31,9 +31,9 @@ console.log('SvenskaLag feed summary categories (counts only): '+JSON.stringify(
 // Privacy-safe taxonomy of match-related titles. Never print title contents.
 const matchTitleForms={prefixMatch:0,containsMatch:0,fixtureSeparator:0,opponentMarker:0};
 for(const title of summaries){
- if(/^\\s*(?:match|träningsmatch)\\b/u.test(title))matchTitleForms.prefixMatch++;
- else if(/\\bmatch\\b/u.test(title))matchTitleForms.containsMatch++;
- if(/\\s+[-–]\\s+/u.test(title))matchTitleForms.fixtureSeparator++;
- if(/\\b(?:mot|vs|versus)\\b/u.test(title))matchTitleForms.opponentMarker++;
+ if(/^\s*(?:match|träningsmatch)\b/u.test(title))matchTitleForms.prefixMatch++;
+ else if(/\bmatch\b/u.test(title))matchTitleForms.containsMatch++;
+ if(/\s+[-–]\s+/u.test(title))matchTitleForms.fixtureSeparator++;
+ if(/\b(?:mot|vs|versus)\b/u.test(title))matchTitleForms.opponentMarker++;
 }
 console.log('SvenskaLag match title forms (counts only): '+JSON.stringify(matchTitleForms));
