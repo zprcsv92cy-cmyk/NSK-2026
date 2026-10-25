@@ -5,7 +5,7 @@ const source = readFileSync('worker/production-api-v42-reference.js', 'utf8');
 
 test('API reference routes staff writes through personal authorization', () => {
   assert.match(source, /import \{ handlePersonalLagpersonalWrite \} from '\.\/production-lagpersonal-write-handler\.js'/);
-  assert.match(source, /url\.pathname === "\/api\/lagpersonal" && \["POST", "PATCH"\]\.includes\(req\.method\)/);
+  assert.match(source, /url\.pathname === "\/api\/lagpersonal" && \["POST", "PATCH", "DELETE"\]\.includes\(req\.method\)/);
   assert.match(source, /await handlePersonalLagpersonalWrite\(req, env,/);
   assert.match(source, /return reply\(result, result\.status \|\| 500\)/);
 });

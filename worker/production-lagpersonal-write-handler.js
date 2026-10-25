@@ -7,7 +7,7 @@ import { authorizePersonalWorkerWrite } from './personal-roster-worker-adapter.j
  */
 export async function handlePersonalLagpersonalWrite(request, env, { listTeams } = {}) {
   if (!request || new URL(request.url).pathname !== '/api/lagpersonal' ||
-      !['POST', 'PATCH'].includes(request.method))
+      !['POST', 'PATCH', 'DELETE'].includes(request.method))
     return { ok: false, status: 405, error: 'Metoden är inte tillåten' };
   if (!env?.AUTH_DB || !env?.NSK_TRAINERS || typeof listTeams !== 'function')
     return { ok: false, status: 503, error: 'Säker lagring eller laguppslag saknas' };
@@ -29,8 +29,8 @@ export async function handlePersonalLagpersonalWrite(request, env, { listTeams }
       try { body = await authorizedRequest.clone().json(); }
       catch { return { ok: false, status: 400, error: 'Ogiltig JSON' }; }
       const allowed = ['Lagledare', 'Fysansvarig', 'Materialförvaltare'];
-      if (!body || typeof body.name !== 'string' || !body.name.trim() ||
-          body.name.trim().length > 150 || /[\x00-\x1f\x7f]/.test(body.name) || !allowed.includes(body.role))
+      if (!body || !allowed.includes(body.role) || (authorizedRequest.method!=='DELETE' && (typeof body.name !== 'string' || !body.name.trim() ||
+          body.name.trim().length > 150 || /[\x00-\x1f\x7f]/.test(body.name) || !allowed.includes(body.role))))
         return { ok: false, status: 400, error: 'Ogiltigt namn eller uppdrag' };
       const key = 'lagpersonal:team:' + teamId;
       const stored = await env.NSK_TRAINERS.get(key, 'json');
@@ -49,6 +49,7 @@ export async function handlePersonalLagpersonalWrite(request, env, { listTeams }
       if (typeof body.id !== 'string') return { ok: false, status: 400, error: 'Saknar ID' };
       const row = rows.find(item => item.id === body.id && item.role === body.role);
       if (!row) return { ok: false, status: 404, error: 'Personen saknas' };
+      if(authorizedRequest.method==='DELETE'){await env.NSK_TRAINERS.put(key,JSON.stringify(rows.filter(item=>item.id!==row.id)));return {ok:true,status:200,deleted:true};}
       if (rows.some(item => item.id !== row.id && item.role === row.role &&
           item.name?.toLocaleLowerCase('sv') === body.name.trim().toLocaleLowerCase('sv')))
         return { ok: false, status: 409, error: 'Personen finns redan' };
