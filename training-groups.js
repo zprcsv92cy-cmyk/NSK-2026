@@ -176,6 +176,7 @@
   // Only use the 'Kommer' list under 'Anmälda' when those headings are detected.
   const normalized = value => String(value||'').normalize('NFKD').replace(/[\u0300-\u036f]/g,'').toLocaleLowerCase('sv-SE').replace(/[^a-z0-9 ]/g,' ').replace(/\s+/g,' ').trim();
   const normalizeImportLine = line => String(line||'')
+    .replace(/^\s*\|\s*/, '')
     .replace(/^\s*(?:[•*✓✔☑-]|\d+[.)])\s*/, '')
     .replace(/\s*\|.*$/, '')
     .replace(/\s*[-–]\s*(ass\.?\s*tränare|huvudtränare|materialare|lagledare).*$/i, '')
@@ -191,7 +192,8 @@
     const status=section<0?-1:lines.findIndex((line,i)=>i>section&&/^kommer(?:\s|$)/.test(normalized(line)));
     // A missing OCR header must not silently turn a valid roster into zero matches.
     // If the Anmälda heading was recognized, skip the invitation section.
-    const relevant=lines.slice(status>=0?status+1:section>=0?section+1:0);
+    const table=section<0?-1:lines.findIndex((line,i)=>i>section&&/^namn(?: |$)/.test(normalized(line)));
+    const relevant=lines.slice(table>=0?table+1:status>=0?status+1:section>=0?section+1:0);
     const found=new Map();
     const skip=/^(kommer|kan ej|kallade|anmalda|anmalan|kalender|samling|svara senast|ej svarat)(?: |$)/;
     // Match each attendance entry against the active roster. Do not treat names
