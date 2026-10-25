@@ -136,13 +136,13 @@ window.DB = (() => {
     return serialWrite(async()=>{
       const poolId=id(payload.pool_id),lagNo=id(payload.lag_no),matchNo=id(payload.match_no);
       const start=String(payload.start_time||''),opponent=String(payload.opponent||'').trim();
-      if(![poolId,lagNo,matchNo].every(positive) || !/^([01]\d|2[0-3]):[0-5]\d$/.test(start) || !opponent || opponent.length>150)
+      if(![poolId,lagNo,matchNo].every(positive) || (start !== '' && !/^([01]\d|2[0-3]):[0-5]\d$/.test(start)) || !opponent || opponent.length>150)
         throw new Error('Ogiltig kalendermatch');
       if(window.APP_CONFIG?.REQUIRE_PERSONAL_MATCH_WRITES!==true)
         throw new Error('Personlig matchbehörighet måste vara aktiverad');
       // Servern verifierar medlemskap och matchbehörighet och nekar dubbletter.
       return (await adminRequest('/api/matchkonfiguration','POST',{
-        pool_id:poolId,lag_no:lagNo,match_no:matchNo,start_time:start,
+        pool_id:poolId,lag_no:lagNo,match_no:matchNo,start_time:start || null,
         opponent,plan:String(payload.plan||'Plan 1').slice(0,80),schedule_only:true
       })).row;
     });
