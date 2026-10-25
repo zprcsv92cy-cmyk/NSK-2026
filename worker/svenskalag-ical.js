@@ -27,6 +27,18 @@ function calendarOpponent(title){
     || title.match(/^(?:match|träningsmatch)\s*[:–-]\s*(.+)$/i);
   if(!match)return '';
   const fixture=match[1].trim().split(/\s+[-–]\s+/);
+  // SvenskaLag also emits "Match: Opponent - Poolspel U9 ... - Nyköpings Sportklubb".
+  // Require an explicit U9 pool marker and the exact club name; reject ambiguous local opponents.
+  if(fixture.length===3){
+    const [opponent,middle,club]=fixture.map(part=>part.trim());
+    if(/^nyköpings\\s+(?:sk|sportklubb)$/iu.test(club)
+      && /(?:^|\\W)poolspel(?:\\W|$)/iu.test(middle)
+      && /(?:^|\\W)u\\s*9(?:\\W|$)/iu.test(middle)
+      && !/(?:^|\\W)u\\s*(?:[1-8]|1\\d|2\\d)(?:\\W|$)/iu.test(middle)
+      && opponent && !/^nyköpings\\s+(?:sk|sportklubb)(?:\\s|$)/iu.test(opponent)
+      && !/^(?:poolspel|okänd|ej angiven)$/iu.test(opponent))return opponent.slice(0,120);
+    return '';
+  }
   if(fixture.length===2){
     const isNsk=name=>{
       const squad=name.trim();
