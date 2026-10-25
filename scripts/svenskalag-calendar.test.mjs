@@ -141,3 +141,13 @@ test('Match fixture mentioning poolspel remains a match rather than a pool',()=>
  assert.deepEqual(result.map(x=>x.type),['match','pool']);
  assert.equal(result[0].opponent,'Järna SK (poolspel)');
 });
+
+test('Three-segment SvenskaLag U9 fixtures import opponent safely',()=>{
+ const feed=ical([
+  ['SUMMARY:Match: Järna SK - Poolspel U9 Nyköpings Sportklubb - Nyköpings Sportklubb','DTSTART:20261108T100000'],
+  ['SUMMARY:Match: Järna SK - Poolspel U10 Nyköpings Sportklubb - Nyköpings Sportklubb','DTSTART:20261108T110000'],
+  ['SUMMARY:Match: Nyköpings Sportklubb U10 - Poolspel U9 Nyköpings Sportklubb - Nyköpings Sportklubb','DTSTART:20261108T120000'],
+  ['SUMMARY:Match: Järna SK - Poolspel U9 Nyköpings Sportklubb - Other Club','DTSTART:20261108T130000']
+ ]);
+ assert.deepEqual(parseSvenskalagIcal(feed,'2026-10-24').filter(x=>x.type==='match').map(x=>x.opponent),['Järna SK']);
+});
