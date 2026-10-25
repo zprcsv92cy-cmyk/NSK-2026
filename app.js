@@ -521,7 +521,7 @@ window.NSK2App = (() => {
                 if (!matches.length) return '<div class="small">Inga matchuppgifter sparade ännu.</div>';
                 return `<div class="nsk-pool-match-summary"><strong>Matcher</strong>${[...new Set(matches.map(m => Number(m.lag_no) || 1))].sort((a,b) => a-b).map(lagNo =>
                   `<div class="nsk-pool-match-team"><strong>Lag ${esc(lagNo)}</strong>${matches.filter(m => (Number(m.lag_no) || 1) === lagNo).map(m =>
-                    `<div class="small">Match ${esc(m.match_no)} ${esc(!m.start_time || String(m.start_time).slice(0,5)==='00:00' ? 'Tid ej angiven' : String(m.start_time).slice(0,5))} ${esc(m.opponent || 'Motståndare saknas')}</div>`
+                    `<div class="small nsk-pool-match-line"><span class="nsk-pool-match-number">Match ${esc(m.match_no)}</span> <span class="nsk-pool-match-time">${esc(!m.start_time || String(m.start_time).slice(0,5)==='00:00' ? 'Tid ej angiven' : String(m.start_time).slice(0,5))}</span> <span class="nsk-pool-match-opponent">${esc(m.opponent || 'Motståndare saknas')}</span></div>`
                   ).join('')}</div>`
                 ).join('')}</div>`;
               })()}
