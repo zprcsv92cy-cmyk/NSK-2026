@@ -15,9 +15,9 @@ test('match configuration and lineup writes invoke the personal guard behind a f
   assert.match(source, /else if \(!env\.ADMIN_KV \|\| !await session\(req, env\)\)/);
 });
 
-test('match-write client opt-in is prepared but Worker rollout remains disabled', () => {
+test('match-write client and Worker are jointly enabled for rollout', () => {
   assert.match(config, /REQUIRE_PERSONAL_MATCH_WRITES: true/);
-  assert.match(workerConfig, /NSK_REQUIRE_PERSONAL_MATCH_WRITES = "false"/);
+  assert.match(workerConfig, /NSK_REQUIRE_PERSONAL_MATCH_WRITES = "true"/);
   assert.match(client, /REQUIRE_PERSONAL_MATCH_WRITES === true/);
   assert.ok(client.includes("personalWrite ? personalToken : localStorage.getItem('nsk_admin_token')"));
 });
