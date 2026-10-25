@@ -328,3 +328,29 @@ for(const block of blocks){
  if(parseSvenskalagIcal(wrap(summary.normalize('NFKC')),'2000-01-01').some(x=>x.type==='match'))rawVsNormalizedFixture.normalizedAccepted++;
 }
 console.log('Raw versus normalized fixture gates (counts only): '+JSON.stringify(rawVsNormalizedFixture));
+
+const opponentDecisionGates={total:0,twoSides:0,homeNsk:0,awayNsk:0,bothNsk:0,neitherNsk:0,opponentNonempty:0,matchTitleRecognized:0};
+const isNskLikeParser=name=>{
+ const squad=name.trim();
+ if(/^(?:nsk|nyköpings\s+(?:sk|sportklubb))$/iu.test(squad))return true;
+ const suffix=squad.match(/^nyköpings\s+(?:sk|sportklubb)\s+(.+)$/iu)?.[1]||'';
+ return /(?:^|\W)(?:u\s*9|team\s*18)(?:\W|$)/iu.test(suffix)
+   && !/(?:^|\W)(?:u\s*(?:[1-8]|1\d|2\d)|team\s*(?:[1-9]|1[0-7]|19|2\d))(?:\W|$)/iu.test(suffix);
+};
+for(const summary of summaries){
+ if(!summary.startsWith('match:'))continue;
+ opponentDecisionGates.total++;
+ const m=summary.match(/^(?:match|träningsmatch)\s*[:–-]\s*(.+)$/iu);
+ if(!m)continue;
+ opponentDecisionGates.matchTitleRecognized++;
+ const sides=m[1].trim().split(/\s+[-–]\s+/u);
+ if(sides.length!==2)continue;
+ opponentDecisionGates.twoSides++;
+ const home=isNskLikeParser(sides[0]),away=isNskLikeParser(sides[1]);
+ if(home)opponentDecisionGates.homeNsk++;
+ if(away)opponentDecisionGates.awayNsk++;
+ if(home&&away)opponentDecisionGates.bothNsk++;
+ if(!home&&!away)opponentDecisionGates.neitherNsk++;
+ if(home!==away)opponentDecisionGates.opponentNonempty++;
+}
+console.log('Opponent decision gates (counts only): '+JSON.stringify(opponentDecisionGates));
