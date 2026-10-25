@@ -37,3 +37,16 @@ for(const title of summaries){
  if(/\b(?:mot|vs|versus)\b/u.test(title))matchTitleForms.opponentMarker++;
 }
 console.log('SvenskaLag match title forms (counts only): '+JSON.stringify(matchTitleForms));
+
+// Counts only; no event title, date or identity is printed.
+const matchSyntax={total:0,colon:0,dash:0,space:0,bare:0};
+for(const title of summaries){
+ const rest=title.replace(/^match\b/u,'');
+ if(rest===title)continue;
+ matchSyntax.total++;
+ if(!rest.trim())matchSyntax.bare++;
+ else if(rest.trimStart().startsWith(':'))matchSyntax.colon++;
+ else if(rest.trimStart().startsWith('-'))matchSyntax.dash++;
+ else matchSyntax.space++;
+}
+console.log('Match syntax counts only: '+JSON.stringify(matchSyntax));
