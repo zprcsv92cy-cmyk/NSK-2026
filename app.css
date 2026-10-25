@@ -1090,3 +1090,11 @@ button.ghost, .row-btn:not(.danger), .team-btn:not(.active-team-btn),
 .nsk-action--delete{background:#42242d;border-color:#985062;color:#ffe0e6}
 .nsk-action--save{background:#166534;border-color:#299452;color:#fff}
 .nsk-action--primary{background:linear-gradient(180deg,#c91c34,#951023);border-color:#d43b50;color:#fff}
+
+/* Shared match rows for saved pools and SvenskaLag previews. */
+.nsk-pool-match-summary{display:grid;gap:12px;margin:12px 0}
+.nsk-pool-match-team{display:grid;gap:6px;min-width:0}
+.nsk-pool-match-line{display:grid;grid-template-columns:5rem 7rem minmax(0,1fr);gap:8px;padding:8px 0;border-bottom:1px solid #494c56;align-items:baseline}
+.nsk-pool-match-time{font-variant-numeric:tabular-nums}
+.nsk-pool-match-opponent{min-width:0;overflow-wrap:anywhere}
+@media(max-width:480px){.nsk-pool-match-line{grid-template-columns:5rem minmax(0,1fr);gap:4px 8px}.nsk-pool-match-opponent{grid-column:1/-1}}
