@@ -631,7 +631,8 @@ window.NSK2App = (() => {
              const plan=planCalendarMatches(imported.matches||[]);
              const calendarMatches=plan.schedule.map(m=>({startTime:m.start_time || '',opponent:m.opponent,plan:m.plan}));
              const count=calendarMatches.length;
-             sessionStorage.setItem('nsk2_calendar_match_pending',JSON.stringify(calendarMatches));
+             if(count)sessionStorage.setItem('nsk2_calendar_match_pending',JSON.stringify(calendarMatches));
+             else sessionStorage.removeItem('nsk2_calendar_match_pending');
              const teamCount=plan.teams||1;
              const teamSelect=byId('teams');
              if(teamSelect){
@@ -904,7 +905,19 @@ window.NSK2App = (() => {
           }
         }
         setText("poolMsg", "Poolspel och berörda scheman sparade");
-        window.location.href = "../startsida/";
+        const calendarParams=new URLSearchParams(window.location.search);
+        const calendarAction=calendarParams.get('calendar_date')===payload.pool_date&&calendarParams.get('calendar_place')===payload.place?calendarParams.get('calendar_action'):null;
+        const savedPoolId=sessionStorage.getItem('nsk2_pool_id');
+        if(calendarAction==='finish'){
+          sessionStorage.setItem('nsk2_edit_pool_id',savedPoolId);
+          await DB.updatePoolActive(savedPoolId,false);
+          sessionStorage.removeItem('nsk2_edit_pool_id');
+        }
+        if(['start','lineup','shift'].includes(calendarAction)){
+          sessionStorage.setItem('nsk2_pool_id',savedPoolId);
+          sessionStorage.setItem('nsk2_lag_nr','1');sessionStorage.setItem('nsk2_match_no','1');
+          window.location.href=calendarAction==='shift'?'../bytesschema/':calendarAction==='lineup'?'../laguppstallning/index.html':'../lag/';
+        }else window.location.href = "../startsida/";
       } finally {
         if (saveButton) saveButton.disabled = false;
       }

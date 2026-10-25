@@ -11,8 +11,8 @@ assert.ok(start>=0&&end>start);
 const source=app.slice(start,end).replace(
   "const {planCalendarMatches}=await import(new URL('calendar-match-plan.mjs',nskVersionRoot()).href);",'');
 
-for(const count of [1,4,5,6,16]){
-  test('calendar save flow persists '+count+' matches and resumes partial import in the same pool',async()=>{
+for(const count of [1,4,5,6,16])for(const action of ['', 'start','lineup','shift','finish']){
+  test('calendar save flow persists '+count+' matches and resumes partial import in the same pool ('+action+')',async()=>{
     const matches=Array.from({length:count},(_,i)=>({startTime:String(9+Math.floor(i/2)).padStart(2,'0')+':'+(i%2?'30':'00'),opponent:'Opponent '+i,plan:'Plan 1'}));
     const plan=planCalendarMatches(matches);
     const values=new Map([['nsk2_calendar_match_pending',JSON.stringify(matches)]]);
@@ -20,10 +20,12 @@ for(const count of [1,4,5,6,16]){
     const fields=Object.fromEntries(Object.entries({poolPlace:'Testort',poolHall:'Testhall',poolDate:'2026-11-15',teams:plan.teams,matches:plan.matchesPerTeam,players:3,periods:1,periodTime:15,subTime:90}).map(([id,value])=>[id,{value:String(value)}]));
     fields.savePool={disabled:false};
     const messages=[];
-    const window={APP_CONFIG:{REQUIRE_PERSONAL_MATCH_WRITES:true},location:{href:''}};
+    const window={APP_CONFIG:{REQUIRE_PERSONAL_MATCH_WRITES:true},location:{href:'',search:action?'?'+new URLSearchParams({calendar_action:action,calendar_date:'2026-11-15',calendar_place:'Testort'}):''}};
     let creates=0,attempts=0,fail=true,pool;
     const rows=[];
+    let finished=0;
     const DB={
+      updatePoolActive:async(id,active)=>{assert.equal(String(id),'91');assert.equal(active,false);finished++;},
       addPool:async payload=>{creates++;assert.match(payload.calendar_import_key,/^[0-9a-f-]{36}$/);pool={id:91,...payload};return pool;},
       getPool:async id=>{assert.equal(Number(id),91);return pool;},
       listPoolTeamMatchConfigs:async()=>rows,
@@ -49,7 +51,8 @@ for(const count of [1,4,5,6,16]){
     assert.equal(creates,1,'resume must reuse the pool');
     assert.equal(attempts,count+1,'completed match steps must not be sent again');
     assert.equal(rows.length,count);
-    assert.equal(window.location.href,'../startsida/');
+    assert.equal(window.location.href,({start:'../lag/',lineup:'../laguppstallning/index.html',shift:'../bytesschema/'})[action]||'../startsida/');
+    assert.equal(finished,action==='finish'?1:0);
     assert.equal(values.has('nsk2_calendar_match_import_errors'),false);
     assert.equal(values.has('nsk2_calendar_match_pending'),false);
     assert.equal(values.has('nsk2_calendar_pool_import_key'),false);
