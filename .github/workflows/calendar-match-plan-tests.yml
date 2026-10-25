@@ -5,6 +5,10 @@ on:
     paths:
       - 'calendar-match-plan.mjs'
       - 'app.js'
+      - 'svenskalag-home.js'
+      - 'worker/svenskalag-ical.js'
+      - 'scripts/svenskalag-calendar.test.mjs'
+      - 'scripts/calendar-pool-association.test.mjs'
       - 'scripts/calendar-match-plan.test.mjs'
       - 'scripts/calendar-match-baserow-fields.test.mjs'
       - 'scripts/calendar-match-concurrency.test.mjs'
@@ -44,3 +48,5 @@ jobs:
         run: node --check app.js
       - name: Verify calendar mapping and Baserow fields
         run: node --test scripts/calendar-match-plan.test.mjs scripts/calendar-match-baserow-fields.test.mjs scripts/calendar-match-concurrency.test.mjs scripts/calendar-pool-idempotency.test.mjs scripts/calendar-pool-reload.test.mjs scripts/calendar-import-save-flow.test.mjs
+      - name: Verify calendar decoding and pool venue association
+        run: node --test scripts/svenskalag-calendar.test.mjs scripts/calendar-pool-association.test.mjs

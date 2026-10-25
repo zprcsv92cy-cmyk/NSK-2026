@@ -31,6 +31,13 @@ function calendarOpponent(title){
   // Require an explicit U9 pool marker and the exact club name; reject ambiguous local opponents.
   if(fixture.length===3){
     const [opponent,middle,club]=fixture.map(part=>part.trim());
+    // Home fixtures put our colour squad first and the opponent before the competition label.
+    // Require the explicit U9 / Team 18 context so other NSK squads remain excluded.
+    const homeOpponent=middle.match(/^(.+?)\s*\(U\s*9\s+P\s+Poolspel\)\s*\/\/\s*U\s*9\s+Team\s*18$/iu)?.[1]?.trim()||'';
+    if(/^nyköpings\s+(?:sk|sportklubb)$/iu.test(club)
+      && /^nyköpings\s+(?:sk|sportklubb)(?:\s+(?:röd|svart|vit|gul|blå|grön))?$/iu.test(opponent)
+      && homeOpponent && !/^nyköpings\s+(?:sk|sportklubb)(?:\s|$)/iu.test(homeOpponent)
+      && !/^(?:poolspel|okänd|ej angiven)$/iu.test(homeOpponent))return homeOpponent.slice(0,120);
     if(/^nyköpings\s+(?:sk|sportklubb)$/iu.test(club)
       && /(?:^|\W)poolspel(?:\W|$)/iu.test(middle)
       && /(?:^|\W)u\s*9(?:\W|$)/iu.test(middle)
