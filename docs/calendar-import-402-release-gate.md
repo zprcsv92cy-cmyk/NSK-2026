@@ -1,38 +1,37 @@
-# PR #402 — releasegräns för kalenderimport
+# PR #402 — verifierad kalenderimport
 
-**Status 2026-10-24: godkända kodtester, ej E2E-godkänd och inte klar för produktionspublicering.**
+Status 2026-10-25: funktion och isolerat positivt E2E godkända. Kalenderändringen är inte publicerad i produktionen.
 
-## Kontrollerat
+Kalenderns starttider, motståndare och planer sparas direkt i matchkonfiguration när poolspelet skapas. En importnyckel skyddar poolskapandet mot dubbletter. Delvis sparad import återupptas i samma poolspel och hoppar över matchrader med samma metadata. Avvikande metadata ger ett fel och skrivs inte över. Högst två lag och åtta matcher per lag stöds.
 
-- GitHub Actions på commit `a08b1b8c985fb3449a064820523170eedbe04748`: åtta relevanta workflow-körningar gröna, inklusive validering av isolerat Worker-paket **utan driftsättning**. Tidigare 10/10 gröna på `7fcb0cd1163b63bc7fcde01a7da8c6a5bea7a486`.
-- `nsk-api-isolated-preview` finns separat från produktionens `nsk-api`.
-- Dess Cloudflare-bindningar är isolerade: D1 `b94c8dba-34be-4cff-a4e9-892caf4e3ddd`, separata KV-resurser, eget `SHIFT_LOCK`, `NSK_ISOLATED_MODE=true`, Baserow-databas `599495`.
-- Cloudflare bekräftar att `nsk-api-isolated-preview` kör **version 11**, driftsatt 2026-10-24 22:20 UTC (`e326ca7f-4f46-45e5-b994-abbb1a2ad9bd`). Nedladdat aktivt Worker-paket saknar texten `calendar_import_key` och kan därför **inte** användas som bevis för PR #402:s idempotenta importväg. Kontrollera källkod/versionskoppling innan E2E.
-- `.github/workflows/start-isolated-api-preview.yml` är uttryckligen blockerad av `&& false`. Ta inte bort detta som en genväg.
-- Isolerad D1 innehåller bland annat `auth_users`, `auth_sessions`, `auth_team_memberships`, men ingen `pool_calendar_imports`. Den tabellen behövs av en separat `calendarImport:true`-väg, inte av `calendar_import_key`-vägen i PR #402.
+## Kod och byggpaket
 
-## Driftsättningsspärr och nästa säkra steg
+- Förenat med main efter PR #403, inklusive sparande och omladdning av tom match.
+- calendar-match-plan.mjs inkluderas nu i appens publiceringspaket och syntaxkontroll.
+- 51 riktade lokala tester passerade, inklusive sparflödets avbrott och återupptagning för 1, 4, 5, 6 och 16 matcher.
+- Åtta PR-workflows var gröna på 566cc982c8390804a636c2d296ca072fe27d0f48.
 
-- Den existerande preview-workflowen är avsiktligt inaktiverad. Aktivera inte den utan att först verifiera isolerade Baserow-tokenens tabellbehörigheter, samtliga bindningar och positiv skrivberedskap.
-- Ta fram och granska en separat, uttryckligen godkänd driftsättningsväg för PR #402:s Worker-kod till **endast** `nsk-api-isolated-preview`; behåll D1/KV/DO och Baserow `599495` isolerade och oförändrade.
-- Efter driftsättning, verifiera att den aktiva Worker-koden faktiskt innehåller `calendar_import_key` innan någon skrivning görs. CI:s gröna bundle-test är inte en driftsättning.
-- Håll produktionspublicering och merge blockerade tills nedanstående positiva E2E-fall passerat.
+## Verkligt positivt E2E
 
-## Kvarvarande riktad E2E-verifiering
+Kördes från den inloggade isolerade testappen via dess befintliga D1- och API-servicebindningar. API-versionen innehåller PR #402:s importnyckelväg och verifierades vid den separata isolerade driftsättningen. Den äldre blockerade preview-workflowen är fortsatt avstängd.
 
-Använd enbart godkänd, isolerad Worker-version av denna PR och isolerade Baserow-resurser, aldrig produktionen. Testa med ett syntetiskt konto som har medlemskap och `pool`- och `matches`-rättighet i testlaget:
+- API: nsk-api-isolated-preview, version 5b35e3a1-05fe-4785-b416-4983579405f5.
+- Testapp: nsk-app-isolated-preview, version e51558d7-fa3e-4c9a-87c9-9385174fd187.
+- Baserow: databas 599495, poolspel 1273721, matchkonfiguration 1273730.
+- D1: b94c8dba-34be-4cff-a4e9-892caf4e3ddd. Isolerade KV- och ShiftLock-resurser bevarades.
+- Samtliga fem fall passerade: 1, 4, 5, 6 och 16 matcher. Det gav 32 verifierade matchrader, tomma målvakts- och spelarlänkar och rätt kronologiska lagfördelning.
+- Samma importnyckel gav samma pool-ID. Ändrad payload gav 409.
+- Dubblett av match samt metadata-PATCH nekades. Sparad information bevarades.
+- Delvis sparad import lästes tillbaka och återupptogs utan ny pool eller omskrivning av redan lyckade matchsteg.
+- Anonymt anrop, saknad personlig behörighet och saknat medlemskap nekades.
+- Tillfälliga testkonton och deras sessioner, medlemskap och grants raderades. En separat D1-kontroll visade noll återstående rader i samtliga fyra kategorier.
 
-1. Kontrollera faktisk Workers-kodversion och att alla Baserow-tabell-ID:n är de isolerade. Bekräfta tillhörande tokenbehörighet utan att exponera token.
-2. Skapa syntetiskt poolspel med `calendar_import_key`, spara matchmetadata utan målvakt eller spelare.
-3. Upprepa exakt samma pool-POST med samma UUID och identisk payload: samma ID och inga dubbletter.
-4. Upprepa med samma UUID men ändrad payload: 409, ingen skrivning.
-5. Läs tillbaka matchkonfigurationen via personligt autentiserad, lagbegränsad läsväg.
-6. Avbryt efter ett framgångsrikt skrivsteg och återuppta; verifiera samma pool-ID och att matchdata inte skrivs över.
-7. Kontrollera nekade försök utan medlemskap/personlig behörighet.
-8. Ta bort de syntetiska testposterna i isolerad Baserow efter verifiering, om säkert och uttryckligen godkänt.
+Exakta test-ID:n och kontrollpunkter finns i [calendar-import-402-e2e-result.json](calendar-import-402-e2e-result.json). Den körda testfunktionen finns i [scripts/calendar-isolated-bound-e2e.mjs](../scripts/calendar-isolated-bound-e2e.mjs). Den används bara av testappens särskilda, inloggningsskyddade provsida och ingår inte i produktionsappen eller produktions-API:t.
 
-### Kända begränsningar
+CI-provet kunde inte skapa testidentiteten eftersom CI-anslutningen saknar D1-rättighet. Det godkända verkliga provet använde testappens befintliga databasbindning. Ett första samlat runtime-prov nådde anropsgränsen; slutprovet delades därför upp per matchantal. Syntetiska Baserow-poster har behållits för granskning, inklusive poster från det avbrutna försöket.
 
-Om Baserow hinner skriva men svaret aldrig når Durable Object registreras importnyckeln som *pending* och automatisk ny POST blockeras. Detta skyddar mot dublett men kan kräva manuell avstämning. Låsningen är inte ett globalt unikt index för skrivningar utanför denna Worker.
+## Kvar före produktion
 
-**Ingen merge till main och ingen produktiondeploy baserat enbart på gröna unit-/mocktester.**
+Publicera det nya API:t före klienten. Samordna aktivering av personliga pool- och matchskrivningar i API och klient; produktionsflaggorna är fortfarande avstängda. Kontrollera kontots medlemskap och relevanta personliga rättigheter innan ett avgränsat produktionsprov. Inga produktionsflaggor eller historiska matchdata ändrades under kalenderarbetet.
+
+Om Baserow skriver en pool men svaret inte når Durable Object förblir importnyckeln pending. Automatisk ny POST blockeras och importen behöver stämmas av manuellt. Låsningen ersätter inte ett globalt unikt databasindex för skrivningar utanför Workern.
