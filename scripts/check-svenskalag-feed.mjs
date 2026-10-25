@@ -386,3 +386,18 @@ for(const block of blocks){
  }
 }
 console.log('Fixture casing identity gates (counts only): '+JSON.stringify(caseIdentity));
+
+const eventSummaryExtraction={total:0,hasFixtureDash:0,split2:0,hasEscapedLiteralNewline:0,hasActualNewline:0,summaryLongerThan200:0,summaryEqualTopLevel:0};
+for(const block of blocks){
+ const event='BEGIN:VEVENT'+block.slice(0,block.indexOf('END:VEVENT')+10);
+ const raw=event.match(/^SUMMARY(?:;[^:]*)?:(.*)$/m)?.[1]||'';
+ if(!/^Match:/i.test(raw))continue;
+ eventSummaryExtraction.total++;
+ if(/\s+[-–]\s+/u.test(raw))eventSummaryExtraction.hasFixtureDash++;
+ if(raw.slice(6).split(/\s+[-–]\s+/u).length===2)eventSummaryExtraction.split2++;
+ if(raw.includes('\\n'))eventSummaryExtraction.hasEscapedLiteralNewline++;
+ if(raw.includes('\n'))eventSummaryExtraction.hasActualNewline++;
+ if(raw.length>200)eventSummaryExtraction.summaryLongerThan200++;
+ if(summaries.includes(raw.toLocaleLowerCase('sv-SE')))eventSummaryExtraction.summaryEqualTopLevel++;
+}
+console.log('Event summary extraction gates (counts only): '+JSON.stringify(eventSummaryExtraction));
