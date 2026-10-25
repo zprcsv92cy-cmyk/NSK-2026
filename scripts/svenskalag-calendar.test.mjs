@@ -110,3 +110,13 @@ test('NSK fixture resolves opponent from either home or away side, never guesses
  const matches=parseSvenskalagIcal(feed,'2026-10-24').filter(x=>x.type==='match');
  assert.deepEqual(matches.map(x=>x.opponent),['Järna SK Röd','Södertälje SK Blå']);
 });
+
+test('Nyköpings Sportklubb U9 fixtures are recognized but unknown squads are not',()=>{
+ const feed=ical([
+ ['SUMMARY:Match: Nyköpings Sportklubb U9 - Järna SK Röd','DTSTART:20261108T100000'],
+ ['SUMMARY:Match: Södertälje SK Blå - Nyköpings Sportklubb U9','DTSTART:20261108T110000'],
+ ['SUMMARY:Match: Nyköpings Sportklubb U10 - Lag A','DTSTART:20261108T120000'],
+ ['SUMMARY:Match: Nyköpings Sportklubb Blå - Lag B','DTSTART:20261108T130000']
+ ]);
+ assert.deepEqual(parseSvenskalagIcal(feed,'2026-10-24').filter(x=>x.type==='match').map(x=>x.opponent),['Järna SK Röd','Södertälje SK Blå']);
+});
