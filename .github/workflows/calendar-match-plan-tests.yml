@@ -10,6 +10,7 @@ on:
       - 'scripts/calendar-match-concurrency.test.mjs'
       - 'scripts/calendar-pool-idempotency.test.mjs'
       - 'scripts/calendar-pool-reload.test.mjs'
+      - 'scripts/calendar-import-save-flow.test.mjs'
       - 'scripts/calendar-isolated-worker-gate.mjs'
       - 'scripts/calendar-isolated-positive-e2e.mjs'
       - '.github/workflows/calendar-isolated-positive-e2e.yml'
@@ -39,4 +40,4 @@ jobs:
       - name: Check app syntax
         run: node --check app.js
       - name: Verify calendar mapping and Baserow fields
-        run: node --test scripts/calendar-match-plan.test.mjs scripts/calendar-match-baserow-fields.test.mjs scripts/calendar-match-concurrency.test.mjs scripts/calendar-pool-idempotency.test.mjs scripts/calendar-pool-reload.test.mjs
+        run: node --test scripts/calendar-match-plan.test.mjs scripts/calendar-match-baserow-fields.test.mjs scripts/calendar-match-concurrency.test.mjs scripts/calendar-pool-idempotency.test.mjs scripts/calendar-pool-reload.test.mjs scripts/calendar-import-save-flow.test.mjs

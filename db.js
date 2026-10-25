@@ -152,7 +152,8 @@ window.DB = (() => {
       const poolId=id(payload.pool_id),lagNo=id(payload.lag_no),matchNo=id(payload.match_no);
       const goalie=id(payload.goalie_player_id);
       const players=(payload.players_on_field||[]).map(Number);
-      if(![poolId,lagNo,matchNo,goalie,...players].every(positive))throw new Error('Ogiltiga ID:n i matchkonfiguration');
+      const emptyDraft=payload.player_count==null && goalie==null && Array.isArray(payload.players_on_field) && players.length===0;
+      if(![poolId,lagNo,matchNo,...(emptyDraft?[]:[goalie]),...players].every(positive))throw new Error('Ogiltiga ID:n i matchkonfiguration');
       const old=await getPoolTeamMatchConfig(poolId,lagNo,matchNo);
       const path=old?`/api/matchkonfiguration/${old.id}`:'/api/matchkonfiguration';
       const data=await adminRequest(path,old?'PATCH':'POST',{...payload,pool_id:poolId,lag_no:lagNo,match_no:matchNo,goalie_player_id:goalie,players_on_field:players});

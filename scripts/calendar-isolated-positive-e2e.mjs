@@ -1,5 +1,6 @@
 import assert from 'node:assert/strict';
 import {randomBytes,randomUUID,createHash} from 'node:crypto';
+import {planCalendarMatches} from '../calendar-match-plan.mjs';
 
 // Manual isolated test only. A synthetic D1 identity/session is created for
 // this run and removed in finally. No password or bearer token is printed.
@@ -11,7 +12,8 @@ assert.ok(cloudflareToken,'Cloudflare secret must be configured in isolated-prev
 const base='https://nsk-api-isolated-preview.peter-hasselberg.workers.dev';
 const dbId='b94c8dba-34be-4cff-a4e9-892caf4e3ddd';
 const api='https://api.cloudflare.com/client/v4/accounts/'+account;
-const expectedVersion=process.env.NSK_E2E_EXPECTED_VERSION || 'e326ca7f-4f46-45e5-b994-abbb1a2ad9bd';
+const expectedVersion=process.env.NSK_E2E_EXPECTED_VERSION;
+assert.match(expectedVersion||'',/^[0-9a-f-]{36}$/,'Pin the reviewed isolated Worker version before live writes');
 async function cfGet(path){
   const response=await fetch(api+path,{headers:{Authorization:'Bearer '+cloudflareToken},signal:AbortSignal.timeout(15000)});
   const data=await response.json();
@@ -84,45 +86,76 @@ try {
   console.log('Synthetic test account authenticated; isolated team verified.');
 
   const unique='ISOLATED_E2E_'+runId.slice(0,8);
-  const payload={
-    title:'Poolspel',place:unique,hall:'Testhall',pool_date:'2026-11-15',
-    status:'Aktiv',teams:1,matches:1,players_on_field:3,
-    periods:1,period_time:15,sub_time:90,calendar_import_key:randomUUID()
-  };
-  const created=await request('/api/poolspel',{method:'POST',body:payload,token:bearer});
-  // Never blindly retry if a write may have succeeded; the import key
-  // protects retries, but failed statuses require manual reconciliation.
-  assert.equal(created.status,201,'Pool creation did not return 201; inspect isolated Baserow before re-running');
-  const poolId=Number(created.data.row?.id);
-  assert.ok(Number.isSafeInteger(poolId)&&poolId>0);
-  console.log('Synthetic pool created in isolated Baserow; pool ID:',poolId);
-  const repeat=await request('/api/poolspel',{method:'POST',body:payload,token:bearer});
-  assert.equal(repeat.status,200,'Idempotent retry must return 200');
-  assert.equal(Number(repeat.data.row?.id),poolId);
-  assert.equal(repeat.data.reused,true);
-  const mismatch=await request('/api/poolspel',{method:'POST',body:{...payload,hall:'Changed'},
-    token:bearer});
-  assert.equal(mismatch.status,409,'Conflicting retry must return 409');
+  const retained=[];
+  for (const count of [1,4,5,6,16]) {
+    const plan=planCalendarMatches(Array.from({length:count},(_,i)=>({
+      startTime:String(9+Math.floor(i/2)).padStart(2,'0')+':'+(i%2?'30':'00'),
+      opponent:'Syntetisk motståndare '+(i+1),plan:'Testplan'
+    })));
+    const payload={title:'Poolspel',place:unique+'_'+count,hall:'Testhall',pool_date:'2026-11-15',
+      status:'Aktiv',teams:plan.teams,matches:plan.matchesPerTeam,players_on_field:3,
+      periods:1,period_time:15,sub_time:90,calendar_import_key:randomUUID()};
+    const created=await request('/api/poolspel',{method:'POST',body:payload,token:bearer});
+    assert.equal(created.status,201,'Pool '+count+' creation failed; inspect isolated Baserow before rerun: '+JSON.stringify(created.data));
+    const poolId=Number(created.data.row?.id);
+    assert.ok(Number.isSafeInteger(poolId)&&poolId>0);
+    retained.push({poolId,matchIds:[],count});
+    const repeat=await request('/api/poolspel',{method:'POST',body:payload,token:bearer});
+    assert.equal(repeat.status,200);
+    assert.equal(Number(repeat.data.row?.id),poolId);
+    assert.equal(repeat.data.reused,true);
+    const mismatch=await request('/api/poolspel',{method:'POST',body:{...payload,hall:'Changed'},token:bearer});
+    assert.equal(mismatch.status,409);
+    const first={pool_id:poolId,...plan.schedule[0],schedule_only:true};
+    const initial=await request('/api/matchkonfiguration',{method:'POST',body:first,token:bearer});
+    assert.equal(initial.status,201,JSON.stringify(initial.data));
+    retained.at(-1).matchIds.push(initial.data.row.id);
+    const duplicate=await request('/api/matchkonfiguration',{method:'POST',body:first,token:bearer});
+    assert.equal(duplicate.status,409);
+    const changed=await request('/api/matchkonfiguration/'+initial.data.row.id,{method:'PATCH',
+      body:{...first,opponent:'Must not overwrite'},token:bearer});
+    assert.equal(changed.status,409);
+    const scoped='/api/matchkonfiguration?team_id='+teamId;
+    const partial=await request(scoped,{token:bearer});
+    assert.equal(partial.status,200);
+    const existing=(partial.data.results||[]).filter(row=>row.Poolspel?.some(x=>Number(x.id)===poolId));
+    assert.equal(existing.length,1,'First completed step must survive partial import');
+    let skipped=0;
+    for(const match of plan.schedule){
+      if(existing.some(row=>Number(row.Lagnummer)===match.lag_no&&Number(row.Matchnummer)===match.match_no)){
+        skipped++;continue;
+      }
+      const result=await request('/api/matchkonfiguration',{method:'POST',body:{pool_id:poolId,...match,schedule_only:true},token:bearer});
+      assert.equal(result.status,201,JSON.stringify(result.data));
+      retained.at(-1).matchIds.push(result.data.row.id);
+    }
+    assert.equal(skipped,1);
+    const collection=await request(scoped,{token:bearer});
+    assert.equal(collection.status,200);
+    const saved=(collection.data.results||[]).filter(row=>row.Poolspel?.some(x=>Number(x.id)===poolId));
+    assert.equal(saved.length,count);
+    for(const match of plan.schedule){
+      const rows=saved.filter(row=>Number(row.Lagnummer)===match.lag_no&&Number(row.Matchnummer)===match.match_no);
+      assert.equal(rows.length,1);
+      assert.equal(rows[0]['Motståndare'],match.opponent);
+      assert.equal(String(rows[0].Starttid).slice(0,5),match.start_time);
+      assert.equal(rows[0].Plan,match.plan);
+      assert.ok(!rows[0]['Målvakt']?.length);
+      assert.ok(!rows[0]['Spelare på plan']?.length);
+    }
+    console.log('PASS:',count,'matches;',plan.teams,'teams; retry/conflict/resume/scoped read; empty lineup. Pool ID:',poolId);
+  }
+  const anonymous=await request('/api/poolspel',{method:'POST',body:{}});
+  assert.equal(anonymous.status,401);
+  await query('DELETE FROM auth_user_permissions WHERE user_id=? AND permission=?',[userId,'pool:create']);
+  const deniedPermission=await request('/api/poolspel',{method:'POST',body:{},token:bearer});
+  assert.equal(deniedPermission.status,403);
+  await query('DELETE FROM auth_team_memberships WHERE user_id=?',[userId]);
+  const deniedTeam=await request('/api/matchkonfiguration',{method:'POST',body:{pool_id:retained[0].poolId,lag_no:1,match_no:1,schedule_only:true},token:bearer});
+  assert.equal(deniedTeam.status,403);
+  console.log('PASS: anonymous, missing permission and missing membership denied.');
+  console.log('Synthetic isolated records retained for auditing:',JSON.stringify(retained));
 
-  const match={pool_id:poolId,lag_no:1,match_no:1,start_time:'10:15',
-    opponent:'Syntetisk motståndare',plan:'Testplan',schedule_only:true};
-  const matchCreated=await request('/api/matchkonfiguration',{method:'POST',body:match,token:bearer});
-  assert.equal(matchCreated.status,201,'Schedule-only match was not created');
-  const matchId=Number(matchCreated.data.row?.id);
-  assert.ok(Number.isSafeInteger(matchId)&&matchId>0);
-  const duplicate=await request('/api/matchkonfiguration',{method:'POST',body:match,token:bearer});
-  assert.equal(duplicate.status,409,'Duplicate schedule-only match must fail');
-  const collection=await request('/api/matchkonfiguration?team_id='+teamId,{token:bearer});
-  assert.equal(collection.status,200,'Authorized scoped match read failed');
-  const rows=collection.data.results||[];
-  const saved=rows.filter(row=>Number(row.id)===matchId);
-  assert.equal(saved.length,1,'Exactly one isolated match expected');
-  assert.equal(saved[0]['Motståndare'],'Syntetisk motståndare');
-  assert.equal(saved[0].Starttid,'10:15');
-  assert.ok(!saved[0]['Målvakt']?.length);
-  assert.ok(!saved[0]['Spelare på plan']?.length);
-  console.log('PASS: create/retry/conflict, match metadata, no goalie/players, scoped read, no duplicate.');
-  console.log('Isolated synthetic pool and match retained for auditing:',poolId,matchId);
 } finally {
   if(inserted){
     try {

@@ -7,6 +7,7 @@ on:
     paths:
       - '*.html'
       - '*.js'
+      - 'calendar-match-plan.mjs'
       - '*.css'
       - '*.png'
       - 'aktivera/**'
@@ -56,6 +57,7 @@ jobs:
         run: |
           set -euo pipefail
           node --test scripts/frontend-regression-guard.test.cjs scripts/training-image-import.test.cjs
+          node --check calendar-match-plan.mjs
           node --check app.js
           node --check navigation.js
           node --check home-training.js
@@ -72,6 +74,7 @@ jobs:
           node --check db.js
           node --check sw.js
           node --test worker/browser-auth-permissions.test.mjs
+          node --test worker/production-empty-match.test.mjs
           node --test scripts/scoped-roster-client.test.mjs scripts/personal-roster-write-client.test.mjs scripts/roster-staff-role-contract.test.mjs
           node --test scripts/shift-client-auth.test.mjs scripts/pool-save-permission-ui.test.mjs
           node --test scripts/preview-dispatch-lock.test.mjs
@@ -105,7 +108,7 @@ jobs:
         run: |
           set -euo pipefail
           mkdir -p _site
-          cp -a index.html app.css app.js navigation.js home-training.js svenskalag-home.js shared-training.js admin-mode.js auth.js config.js db.js deploy.json version.js sw.js manifest.webmanifest icon-192.png icon-512.png login-patch.js login-gate.js training-groups.js exercise-archive.js rink-drawer.js rink-text-parser.js exercise-rink-preview.js hockeyakademin-catalog.js pool-team-editor.js _site/
+          cp -a calendar-match-plan.mjs index.html app.css app.js navigation.js home-training.js svenskalag-home.js shared-training.js admin-mode.js auth.js config.js db.js deploy.json version.js sw.js manifest.webmanifest icon-192.png icon-512.png login-patch.js login-gate.js training-groups.js exercise-archive.js rink-drawer.js rink-text-parser.js exercise-rink-preview.js hockeyakademin-catalog.js pool-team-editor.js _site/
           for dir in aktivera anvandare bytesschema lag laguppstallning login malvaktsstatistik matchvy mittkonto skapapoolspel startsida truppen traningsgrupper ovningsarkiv ritverktyg; do
             cp -a "$dir" _site/
           done
@@ -113,6 +116,7 @@ jobs:
           test -s _site/startsida/index.html
           test -s _site/svenskalag-home.js
           test -s _site/version.js
+          test -s _site/calendar-match-plan.mjs
           ! test -e _site/worker
           ! test -e _site/wrangler.api.production.toml
       - uses: actions/configure-pages@v5

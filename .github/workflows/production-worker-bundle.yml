@@ -16,6 +16,7 @@ jobs:
       - uses: actions/checkout@v4
       - name: Bundle all Worker modules
         run: |
+          node --test worker/production-empty-match.test.mjs
           npx --yes esbuild@0.25.12 worker/production-api-v42-reference.js --bundle --format=esm --platform=browser --target=es2022 --outfile=dist/nsk-api-worker.mjs
           node --check dist/nsk-api-worker.mjs
           test -s dist/nsk-api-worker.mjs

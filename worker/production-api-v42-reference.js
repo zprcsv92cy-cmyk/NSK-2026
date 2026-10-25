@@ -315,6 +315,9 @@ async function listTrustedRosterTeams(env) {
 }
 
 var worker_default = { async fetch(req, env) {
+  const ORIGIN = env.NSK_ISOLATED_MODE === "true"
+    ? "https://nsk-app-isolated-preview.peter-hasselberg.workers.dev"
+    : "https://zprcsv92cy-cmyk.github.io";
   let TABLES;
   try { TABLES = resolveBaserowTables(env); } catch { return json({ ok: false, error: "Invalid Baserow table mapping" }, 503); }
   const url = new URL(req.url), origin = req.headers.get("Origin");
@@ -842,9 +845,11 @@ var worker_default = { async fetch(req, env) {
           });
           return new Response(locked.body,{status:locked.status,headers:{...cors,"Content-Type":"application/json","Cache-Control":"no-store"}});
         }
-        if (!positive(body.player_count) || body.player_count > 25) return reply({ ok: false, error: "Ogiltigt antal spelare" }, 400);
-        if (!positive(body.goalie_player_id)) return reply({ ok: false, error: "Ogiltig m\xE5lvakt" }, 400);
-        if (!Array.isArray(body.players_on_field) || body.players_on_field.some((x) => !positive(x)) || new Set(body.players_on_field).size !== body.players_on_field.length || !body.players_on_field.includes(body.goalie_player_id)) return reply({ ok: false, error: "Ogiltiga spelare" }, 400);
+        const emptyDraft = body.player_count == null && body.goalie_player_id == null &&
+          Array.isArray(body.players_on_field) && body.players_on_field.length === 0;
+        if (!emptyDraft && (!positive(body.player_count) || body.player_count > 25)) return reply({ ok: false, error: "Ogiltigt antal spelare" }, 400);
+        if (!emptyDraft && !positive(body.goalie_player_id)) return reply({ ok: false, error: "Ogiltig m\xE5lvakt" }, 400);
+        if (!emptyDraft && (!Array.isArray(body.players_on_field) || body.players_on_field.some((x) => !positive(x)) || new Set(body.players_on_field).size !== body.players_on_field.length || !body.players_on_field.includes(body.goalie_player_id))) return reply({ ok: false, error: "Ogiltiga spelare" }, 400);
         const teamResp2 = await fetch(`${base}${TABLES.lag}/?user_field_names=true&size=100`, { headers: auth });
         if (!teamResp2.ok) throw new Error("Kunde inte kontrollera lag");
         const team2 = (await teamResp2.json()).results?.find((x) => x.Namn === "NSK Team 18" && String(x["S\xE4song"]) === "2026");
@@ -860,13 +865,13 @@ var worker_default = { async fetch(req, env) {
           playerPage++;
         }
         if (playerPage > 100) throw new Error("F\xF6r m\xE5nga spelare");
-        if (!allowed.has(body.goalie_player_id) || body.players_on_field.some((pid) => !allowed.has(pid))) return reply({ ok: false, error: "En vald spelare tillh\xF6r inte laget" }, 403);
+        if (!emptyDraft && (!allowed.has(body.goalie_player_id) || body.players_on_field.some((pid) => !allowed.has(pid)))) return reply({ ok: false, error: "En vald spelare tillh\xF6r inte laget" }, 403);
         const rowId = req.method === "PATCH" ? Number(url.pathname.split("/").pop()) : null;
         if (rowId) {
           const old = await getRow("matchkonfiguration", rowId);
           if (!old || !linkIds(old.Poolspel).includes(poolId2) || Number(old.Lagnummer) !== lagNo || Number(old.Matchnummer) !== matchNo) return reply({ ok: false, error: "Matchkonfiguration tillh\xF6r inte vald match" }, 403);
         }
-        const payload = { Poolspel: [poolId2], Lagnummer: lagNo, Matchnummer: matchNo, Starttid: body.start_time || null, "Motst\xE5ndare": body.opponent, Plan: body.plan, "Antal spelare": body.player_count, "M\xE5lvakt": [body.goalie_player_id], "Spelare p\xE5 plan": body.players_on_field };
+        const payload = { Poolspel: [poolId2], Lagnummer: lagNo, Matchnummer: matchNo, Starttid: body.start_time || null, "Motst\xE5ndare": body.opponent, Plan: body.plan, "Antal spelare": emptyDraft ? null : body.player_count, "M\xE5lvakt": emptyDraft ? [] : [body.goalie_player_id], "Spelare p\xE5 plan": body.players_on_field };
         const r = await fetch(`${base}${TABLES.matchkonfiguration}/${rowId ? rowId + "/" : ""}?user_field_names=true`, { method: req.method, headers: { ...auth, "Content-Type": "application/json" }, body: JSON.stringify(payload) });
         const data = await r.json().catch(() => ({}));
         if (!r.ok) return reply({ ok: false, error: "Baserow kunde inte spara matchkonfiguration", status: r.status, detail: data.detail || data.error || null }, 502);
