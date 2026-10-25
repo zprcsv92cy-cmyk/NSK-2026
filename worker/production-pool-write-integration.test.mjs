@@ -15,9 +15,9 @@ test('production pool write routes use the personal guard when the rollout flag 
   assert.match(source, /else if \(!env\.ADMIN_KV \|\| !await session\(req, env\)\)/);
 });
 
-test('client pool-write opt-in is prepared but Worker rollout remains disabled', () => {
+test('client and Worker pool-write switches are jointly enabled', () => {
   assert.match(config, /REQUIRE_PERSONAL_POOL_WRITES: true/);
-  assert.match(workerConfig, /NSK_REQUIRE_PERSONAL_POOL_WRITES = "false"/);
+  assert.match(workerConfig, /NSK_REQUIRE_PERSONAL_POOL_WRITES = "true"/);
 });
 
 test('client sends the personal token only for pool writes after explicit opt-in', () => {
