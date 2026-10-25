@@ -481,9 +481,9 @@ window.NSK2App = (() => {
       // Normalize Baserow date values before sorting; keep every pool, including cancelled titles.
       const poolDay = p => {
         const raw = String(p.pool_date || '').trim();
-        const iso = raw.match(/^(\\d{4})-(\\d{2})-(\\d{2})/);
+        const iso = raw.match(/^(\d{4})-(\d{2})-(\d{2})/);
         if (iso) return iso[1] + iso[2] + iso[3];
-        const local = raw.match(/^(\\d{1,2})[.\\/-](\\d{1,2})[.\\/-](\\d{4})$/);
+        const local = raw.match(/^(\d{1,2})[.\/-](\d{1,2})[.\/-](\d{4})$/);
         if (local) return local[3] + local[2].padStart(2,'0') + local[1].padStart(2,'0');
         return '99999999';
       };
