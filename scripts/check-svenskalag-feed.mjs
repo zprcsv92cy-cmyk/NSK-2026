@@ -354,3 +354,20 @@ for(const summary of summaries){
  if(home!==away)opponentDecisionGates.opponentNonempty++;
 }
 console.log('Opponent decision gates (counts only): '+JSON.stringify(opponentDecisionGates));
+
+const fixtureClassification={total:0,explicitMatchExclusion:0,poolDetected:0,trainingDetected:0,opponentSideRecognized:0,parsedOriginal:0,parsedWithoutPoolWord:0};
+for(const block of blocks){
+ const event='BEGIN:VEVENT'+block.slice(0,block.indexOf('END:VEVENT')+10);
+ const title=event.match(/^SUMMARY(?:;[^:]*)?:(.*)$/m)?.[1]||'';
+ if(!/^Match:/i.test(title))continue;
+ fixtureClassification.total++;
+ if(/^(?:match|träningsmatch)\s*(?::|[-–]|\s+(?:mot|vs\.?|versus)\b)/iu.test(title))fixtureClassification.explicitMatchExclusion++;
+ if(!/^(?:match|träningsmatch)\s*(?::|[-–]|\s+(?:mot|vs\.?|versus)\b)/iu.test(title)&&/(^|[^\p{L}])poolspel([^\p{L}]|$)/iu.test(title))fixtureClassification.poolDetected++;
+ if(/(^|[^\p{L}])träning([^\p{L}]|$)|(^|[^\p{L}])is\s*1[789]\s*\/\s*1[789]([^\p{L}]|$)/iu.test(title))fixtureClassification.trainingDetected++;
+ const parts=title.slice(6).trim().split(/\s+[-–]\s+/u);
+ if(parts.length===2&&parts.some(isNskLikeParser))fixtureClassification.opponentSideRecognized++;
+ const wrap=t=>'BEGIN:VCALENDAR\nBEGIN:VEVENT\nSUMMARY:'+t+'\nDTSTART:20261108T100000\nEND:VEVENT\nEND:VCALENDAR';
+ if(parseSvenskalagIcal(wrap(title),'2000-01-01').some(x=>x.type==='match'))fixtureClassification.parsedOriginal++;
+ if(parseSvenskalagIcal(wrap(title.replace(/poolspel/giu,'')),'2000-01-01').some(x=>x.type==='match'))fixtureClassification.parsedWithoutPoolWord++;
+}
+console.log('Fixture classification gates (counts only): '+JSON.stringify(fixtureClassification));
