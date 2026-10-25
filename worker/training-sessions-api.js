@@ -49,8 +49,8 @@ export function createTrainingHandler(env,listTeams){
     if(dates.length)return fail(400,'Calendar is team-scoped');
     const trusted=await listTeams();
     if(!trusted.some(t=>String(t.id)===team[0]&&t.Namn==='NSK Team 18'&&String(t['Säsong'])==='2026'))return fail(403,'Wrong team');
-    const result=await db.prepare("SELECT event_key,event_type,event_date,event_json FROM svenskalag_calendar_events WHERE team_id=? AND event_date>=? ORDER BY event_date,event_key LIMIT 500")
-      .bind('NSK Team 18',new Intl.DateTimeFormat('sv-SE',{timeZone:'Europe/Stockholm',year:'numeric',month:'2-digit',day:'2-digit'}).format(new Date())).all();
+    const result=await db.prepare("SELECT event_key,event_type,event_date,event_json FROM svenskalag_calendar_events WHERE team_id=? AND (event_date>=? OR (event_type='training' AND ?=1)) ORDER BY event_date DESC,event_key LIMIT 500")
+      .bind('NSK Team 18',new Intl.DateTimeFormat('sv-SE',{timeZone:'Europe/Stockholm',year:'numeric',month:'2-digit',day:'2-digit'}).format(new Date()),url.searchParams.get('training_history')==='1'?1:0).all();
     return Response.json({ok:true,items:(result.results||[]).map(r=>({key:r.event_key,type:r.event_type,date:r.event_date,...JSON.parse(r.event_json)}))},{headers:{'cache-control':'private, no-store'}});
    }
    if(request.method==='GET'&&url.searchParams.get('action')==='svenskalag-calendar'){

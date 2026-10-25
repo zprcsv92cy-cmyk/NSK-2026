@@ -203,7 +203,7 @@
    const teams=Array.isArray(data.results)?data.results:Array.isArray(data)?data:[];
    const matched=teams.filter(t=>t.Namn===team&&String(t['Säsong'])==='2026');
    if(matched.length!==1)throw Error('Lagkopplingen saknas');
-   const events=await fetch(base+'/api/training?team_id='+encodeURIComponent(matched[0].id)+'&action=svenskalag-saved',{headers,cache:'no-store'});
+   const events=await fetch(base+'/api/training?team_id='+encodeURIComponent(matched[0].id)+'&action=svenskalag-saved&training_history=1',{headers,cache:'no-store'});
    if(!events.ok)throw Error('Kalendern kunde inte läsas');
    const result=await events.json(),items=Array.isArray(result.items)?result.items:[];
    if(!items.length){root.textContent='Inga kommande kalenderaktiviteter importerade ännu.';renderUpcomingCalendarPools([]);}
@@ -222,7 +222,7 @@
    window.addEventListener('nsk:saved-trainings-rendered',()=>{show();},{once:true});
    const trainingBox=document.getElementById('savedTrainingsList');
    const today=new Date().toLocaleDateString('sv-SE',{year:'numeric',month:'2-digit',day:'2-digit'});
-   const upcomingCalendarTrainings=calendarTrainings.filter(item=>item.date>=today);
+   const upcomingCalendarTrainings=calendarTrainings;
    if(trainingBox){
     trainingBox.querySelectorAll('[data-svenskalag-training]').forEach(node=>node.remove());
     const savedSessions=Array.from(trainingBox.querySelectorAll('details[data-date]')).map(node=>({node,date:decodeURIComponent(node.dataset.date||''),hall:(node.querySelector('.nsk-pool-hall')?.dataset.roomHall||node.querySelector('.nsk-pool-hall')?.textContent||'').trim().toLocaleLowerCase('sv-SE')}));
@@ -231,7 +231,8 @@
      const saved=savedSessions.find(s=>s.date===item.date);
      if(saved){
       const time=saved.node.querySelector('.nsk-training-time');
-      if(time&&!time.textContent.trim()&&saved.hall===hallName)time.textContent=[item.startTime,item.endTime].filter(Boolean).join('–');
+      const matching=calendarTrainings.filter(event=>event.date===item.date&&String(event.hall||event.place||'').trim().toLocaleLowerCase('sv-SE')===hallName);
+      if(time&&!time.textContent.trim()&&matching.length===1&&(saved.hall===hallName||saved.hall==='hall ej vald'))time.textContent=[item.startTime,item.endTime].filter(Boolean).join('–');
       continue;
      }
      const row=document.createElement('details');row.className='nsk-pool-row';row.dataset.svenskalagTraining='1';row.dataset.date=item.date;
@@ -253,6 +254,7 @@
     for(const row of upcomingRows){if(pastTitle)trainingBox.insertBefore(row,pastTitle);else trainingBox.append(row);}
     const upcomingTitle=trainingBox.querySelector('#upcomingTrainingsTitle');
     if(upcomingTitle)upcomingTitle.textContent='Kommande träningar ('+upcomingRows.length+')';
+    window.NSKTrainingCards.reorder(trainingBox);
     if(upcomingCalendarTrainings.length){const empty=Array.from(trainingBox.children).find(node=>node.tagName!=='DETAILS');if(empty&&/Inga gemensamt sparade träningar/.test(empty.textContent||''))empty.remove();}
    }
    if(calendarOtherEvents.length)root.innerHTML=calendarOtherEvents.map(item=>{
