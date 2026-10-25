@@ -48,7 +48,7 @@
       if(saveBlocked)return;
       const saved=await SharedTraining.save(date,{...snapshot,revision});
       revision=saved.revision;
-      $('trainingStatus').textContent='Träningen är sparad för laget.';
+      $('trainingStatus').textContent='Sparat';
     }).catch(error=>{saveBlocked=true;$('trainingStatus').textContent='Kunde inte spara: '+error.message+' Ladda om sidan för att hämta den senaste träningen.';});
   }
   function renderRoster() {
@@ -81,7 +81,7 @@
   }
   function renderCoachesSummary(){
     const names=coaches.filter(p=>selectedCoaches.has(String(p.id))).map(p=>p.full_name);
-    $('trainingCoachCount').textContent=names.length+' av '+coaches.length+' tränare kommer';
+    $('trainingCoachCount').textContent=names.length+' av '+coaches.length+' valda';
     $('trainingCoachSummary').textContent=names.join(', ')||'Inga tränare markerade';
   }
   function renderGoalieSelectors(){
@@ -110,7 +110,7 @@
     const count=goalies.filter(Boolean).length;
     $('trainingGoalieSummary').textContent=count?goalies.filter(Boolean).map(id=>attendees.find(p=>String(p.id)===id)?.full_name).filter(Boolean).join(', '):'Inga målvakter valda';
   }
-  function renderCount(){$('trainingCount').textContent=selected.size+' av '+players.length+' spelare kommer';}
+  function renderCount(){$('trainingCount').textContent=selected.size+' av '+players.length+' valda';}
   function movePlayerToColor(playerId,targetIndex){
     const id=String(playerId);
     if(!selected.has(id)||goalies.includes(id)||targetIndex<0||targetIndex>=shirtColorCount)return;
@@ -167,7 +167,7 @@
     allocation=Array.from({length:count},()=>[]);
     ids.forEach((id,i)=>allocation[i%count].push(id));
     persist();renderGroups();
-    $('trainingStatus').textContent='Grupperna är fördelade. Du kan slumpa om genom att trycka igen.';
+    $('trainingStatus').textContent='Grupperna är fördelade.';
   }
 
   // Import is explicitly reviewed before any attendance state is changed.
@@ -414,7 +414,7 @@
       if(!team)throw Error('Välj ett aktivt lag under Mitt konto.');
       [players,coaches]=await Promise.all([SharedTraining.listPlayers(),SharedTraining.listCoaches()]);
       await restore();saveBlocked=false;renderRoster();renderCoaches();renderGoalieSelectors();renderGroups();
-      $('trainingStatus').textContent=players.length+' spelare och '+coaches.length+' tränare hämtade från NSK-truppen.';
+      $('trainingStatus').textContent='';
     }catch(error){$('trainingStatus').textContent=error.message||'Kunde inte läsa truppen.';}
   });
 })();
