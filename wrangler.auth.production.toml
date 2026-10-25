@@ -1,5 +1,6 @@
 # Production authentication, isolated from staging and the existing nsk-api Worker.
-# Deployment is intentionally not enabled until production-entry.js is reviewed.
+# Account activation and recovery require migrations/20261025_account_recovery.sql.
+# Email delivery stays disabled until a verified sender and ACCOUNT_EMAIL binding are configured.
 name = "nsk-auth"
 main = "worker/production-entry.js"
 compatibility_date = "2026-10-01"

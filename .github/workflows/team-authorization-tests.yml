@@ -43,7 +43,17 @@ jobs:
           node --test scripts/preview-dispatch-lock.test.mjs
       - name: Confirm login page uses existing auth client without rewriting legacy data
         run: |
-          node --input-type=module -e "import {readFileSync as read} from 'node:fs'; import assert from 'node:assert/strict'; const h=read('login/index.html','utf8'); assert.match(h,/Auth\\.login\\(/); assert.match(h,/\.\.\\/auth\\.js/); assert.doesNotMatch(h,/nsk_admin_token|nsk_match_token/); console.log('Login integration verified');"
+          node --input-type=module <<'NODE'
+          import {readFileSync as read} from 'node:fs';
+          import assert from 'node:assert/strict';
+          const html=read('login/index.html','utf8');
+          const client=read('account-access.js','utf8');
+          assert.match(html,/account-access\.js/);
+          assert.match(html,/\.\.\/auth\.js/);
+          assert.match(client,/Auth\.login\(/);
+          assert.doesNotMatch(html+client,/nsk_admin_token|nsk_match_token/);
+          console.log('Personal login integration verified');
+          NODE
   authorization:
     runs-on: ubuntu-latest
     permissions:
