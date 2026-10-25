@@ -131,3 +131,13 @@ test('SvenskaLag U9 squad labels resolve fixtures, other age groups remain exclu
  ]);
  assert.deepEqual(parseSvenskalagIcal(feed,'2026-10-24').filter(x=>x.type==='match').map(x=>x.opponent),['Järna SK','Södertälje SK']);
 });
+
+test('Match fixture mentioning poolspel remains a match rather than a pool',()=>{
+ const feed=ical([
+ ['SUMMARY:Match: Nyköpings Sportklubb (U9) - Järna SK (poolspel)','DTSTART:20261108T100000','LOCATION:Smehallen'],
+ ['SUMMARY:Poolspel i Smehallen','DTSTART:20261108T090000','LOCATION:Smehallen']
+ ]);
+ const result=parseSvenskalagIcal(feed,'2026-10-24');
+ assert.deepEqual(result.map(x=>x.type),['match','pool']);
+ assert.equal(result[0].opponent,'Järna SK (poolspel)');
+});
