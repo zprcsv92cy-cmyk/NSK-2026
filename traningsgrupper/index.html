@@ -30,10 +30,12 @@ document.write('<script src="../training-groups.js?v='+window.NSK_VERSION+'"><\/
 .training-group ul{padding:6px 12px 12px 28px;margin:0}
 .training-group li{padding:4px 0}.training-player{cursor:grab;display:flex;align-items:center;justify-content:space-between;gap:6px;flex-wrap:wrap}.training-player select{max-width:110px;min-height:36px;font-size:14px}.training-player:active{cursor:grabbing}@media print{.training-player select{display:none!important}}
 @media print {nav,.training-controls,.training-roster,.training-actions,.no-print{display:none!important}body{background:white;color:black}.card{border:0;box-shadow:none}}
+
+.training-page .training-controls{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:16px 12px}.training-page .training-controls label{min-width:0;font-size:.85rem;color:var(--muted,#b9bdc7)}.training-page .training-controls input,.training-page .training-controls select{box-sizing:border-box;min-width:0;width:100%;min-height:44px;margin-top:6px;font:inherit;color:var(--text,#fff)}.training-page .card{padding:20px}.training-page h2{font-size:1.05rem;margin-bottom:6px}.training-page .training-roster{grid-template-columns:repeat(2,minmax(0,1fr));gap:8px}.training-page .training-roster label{min-width:0;padding:12px 10px;min-height:48px;box-sizing:border-box;font-size:.9rem;overflow-wrap:anywhere;transition:background .15s,border-color .15s}.training-page .training-roster label:has(input:checked){background:rgba(177,18,38,.18);border-color:#db3551}.training-page input[type=checkbox]{accent-color:#c91735}.training-page .training-count{color:var(--muted,#b9bdc7);font-size:.85rem;font-weight:400;margin:0 0 12px}.training-import{margin-top:20px;border:1px solid var(--line);border-radius:12px}.training-import summary{padding:14px;cursor:pointer;font-weight:600;font-size:.9rem}.training-import-body{padding:0 14px 14px;display:grid;gap:10px}.training-import-body label{font-size:.85rem}.training-import-body textarea,.training-import-body input[type=file]{box-sizing:border-box;width:100%;min-width:0;max-width:100%}.training-import-body textarea{resize:vertical}.training-import-body .training-actions{margin-top:0}.training-save-status{font-size:.8rem;color:var(--muted,#b9bdc7);margin:12px 0}.training-save-status:empty{display:none}.training-page .training-actions button{flex:1;min-height:44px}.training-page .training-import-preview{max-height:220px}.training-page .training-group h3{font-size:1rem}@media(min-width:700px){.training-page .training-controls{grid-template-columns:repeat(4,minmax(0,1fr))}.training-page .training-roster{grid-template-columns:repeat(3,minmax(0,1fr))}}@media(max-width:380px){.training-page .card{padding:14px}.training-page .training-roster label{font-size:.85rem;padding:10px 8px;gap:8px}}
 </style>
 <script>document.write('<script src="../navigation.js?v='+window.NSK_VERSION+'" defer><\/script>');</script>
 </head>
-<body>
+<body class="training-page">
 <div class="wrap">
 <nav class="mainmenu">
 <a href="../startsida/">Startsida</a><a href="../truppen/">Truppen</a>
@@ -52,17 +54,16 @@ document.write('<script src="../training-groups.js?v='+window.NSK_VERSION+'"><\/
 <label>Antal målvakter<select id="trainingGoalieCount"><option value="0">0 målvakter</option><option value="1">1 målvakt</option><option value="2">2 målvakter</option></select></label>
 <label>Antal tröjfärger<select id="trainingShirtColorCount"><option value="2">2 – röd och vit</option><option value="3" selected>3 – röd, vit och svart</option><option value="4">4 – röd, vit, svart och grön</option></select></label>
 </div>
-<section class="no-print" aria-label="Importera närvaro"><h2>Importera närvaro från SvenskaLag</h2><p class="small">Välj skärmbilder från fliken Kommer. Bilderna används bara till tillfällig lokal texttolkning och rensas direkt efteråt. Inga bilder eller OCR-texter sparas. OCR-bibliotek och språkmodeller laddas från en extern leverantör.</p><input id="trainingImportImages" type="file" accept="image/*" multiple aria-label="Välj skärmbilder"><label for="trainingImportText">Namn från listan Kommer (ett namn per rad)</label><textarea id="trainingImportText" rows="5" style="width:100%" placeholder="Exempel: Oliver E"></textarea><div class="training-actions"><button type="button" id="trainingImportRead">Läs bildtext / granska namn</button><button type="button" id="trainingImportApply" disabled>Bekräfta import</button></div><p id="trainingImportStatus" role="status" aria-live="polite"></p><div id="trainingImportReview" class="training-import-review"></div></section><p id="trainingStatus" role="status" aria-live="polite">Hämtar spelare…</p>
-<p class="small">Markera de spelare som kommer. Uppgifterna sparas tills vidare endast i den här webbläsaren, inte gemensamt mellan ledare.</p>
-<h2>Spelare som kommer</h2><p class="training-count" id="trainingCount">0 anmälda</p>
+<details class="training-import no-print"><summary>Importera från SvenskaLag</summary><div class="training-import-body"><label class="training-file-label" for="trainingImportImages">Välj bilder</label><input id="trainingImportImages" type="file" accept="image/*" multiple aria-label="Välj skärmbilder"><label for="trainingImportText">Klistra in namn</label><textarea id="trainingImportText" rows="4" placeholder="Ett namn per rad"></textarea><div class="training-actions"><button type="button" id="trainingImportRead">Granska</button><button type="button" id="trainingImportApply" disabled>Importera</button></div><p id="trainingImportStatus" role="status" aria-live="polite"></p><div id="trainingImportReview" class="training-import-review"></div></div></details><p id="trainingStatus" class="training-save-status" role="status" aria-live="polite">Hämtar…</p>
+<h2>Spelare</h2><p class="training-count" id="trainingCount">0 anmälda</p>
 <div class="training-roster" id="trainingRoster"></div>
-<h2 style="margin-top:18px">Tränare som kommer</h2>
+<h2 style="margin-top:18px">Tränare</h2>
 <p class="training-count" id="trainingCoachCount">0 tränare</p>
 <div class="training-roster" id="trainingCoachRoster"></div>
-<h2 style="margin-top:18px">Välj målvakter</h2>
+<h2 style="margin-top:18px">Målvakter</h2>
 <div class="training-controls" id="trainingGoalies"></div>
-<p class="small">Målvakterna väljs bland spelarna som kommer och visas separat från utespelarnas tröjfärger. Dra spelare mellan färgerna på datorn eller välj ny färg i listan på mobilen.</p>
-<div class="training-actions"><button type="button" id="trainingGroupButton">Dela in i tröjfärger</button><button type="button" id="trainingPrintButton">Skriv ut grupper</button></div>
+
+<div class="training-actions"><button type="button" id="trainingGroupButton">Fördela grupper</button><button type="button" id="trainingPrintButton">Skriv ut</button></div>
 </section>
 <section class="card"><h2>Tränare</h2><div id="trainingCoachSummary">Inga tränare markerade</div><h2 style="margin-top:18px">Målvakter</h2><div id="trainingGoalieSummary">Inga målvakter valda</div><h2 style="margin-top:18px">Tröjfärger</h2><div class="training-groups" id="trainingGroups"></div></section>
 </div>
