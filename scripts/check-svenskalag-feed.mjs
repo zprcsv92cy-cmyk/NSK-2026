@@ -117,3 +117,28 @@ for(const title of summaries){
  }
 }
 console.log('Nykoping squad suffix counts only: '+JSON.stringify(squadShape));
+
+ // Aggregate-only diagnosis of why U9 fixture summaries are excluded by the parser.
+const fixtureGates={total:0,recognizedSquad:0,unrecognizedSquad:0,excludedTitle:0,datedFuture:0,datedPast:0,missingDate:0};
+const lines=calendar.replace(/\r\n[ \t]|\n[ \t]/g,'').replace(/\r\n?/g,'\n').split('\n');
+let record=null;
+for(const line of lines){
+ if(line==='BEGIN:VEVENT'){record={};continue;}
+ if(line==='END:VEVENT'){
+  if(record?.SUMMARY?.toLowerCase().startsWith('match:')){
+   fixtureGates.total++;
+   const title=record.SUMMARY.toLowerCase();
+   const sides=title.slice(6).split(/\s+[-–]\s+/u);
+   const nsk=sides.filter(s=>/^nyköpings\s+sportklubb\s+.+/u.test(s.trim())&&/(?:^|\W)(?:u\s*9|team\s*18)(?:\W|$)/u.test(s));
+   if(nsk.length===1)fixtureGates.recognizedSquad++;else fixtureGates.unrecognizedSquad++;
+   if(/inställt|anmälan|cancelled|canceled|fotografering/u.test(title))fixtureGates.excludedTitle++;
+   const date=record.DTSTART?.slice(0,8);
+   if(!/^\d{8}$/.test(date||''))fixtureGates.missingDate++;
+   else if(date>=today.replaceAll('-',''))fixtureGates.datedFuture++;
+   else fixtureGates.datedPast++;
+  }
+  record=null;continue;
+ }
+ if(record){const idx=line.indexOf(':');if(idx>=0){const k=line.slice(0,idx).split(';')[0];if(k==='SUMMARY'||k==='DTSTART')record[k]=line.slice(idx+1);}}
+}
+console.log('Match import gate counts only: '+JSON.stringify(fixtureGates));
