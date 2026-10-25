@@ -236,7 +236,9 @@
      }
      const row=document.createElement('details');row.className='nsk-pool-row';row.dataset.svenskalagTraining='1';row.dataset.date=item.date;
      const summary=document.createElement('summary');summary.className='nsk-pool-summary';
-     const name=document.createElement('span');name.className='nsk-pool-name';name.textContent='Träning • '+item.date;
+     const name=document.createElement('span');name.className='nsk-pool-name';const day=new Date(item.date+'T12:00:00');
+     const weekday=Number.isNaN(day.getTime())?'Träning':day.toLocaleDateString('sv-SE',{weekday:'long'});
+     name.textContent=weekday.charAt(0).toLocaleUpperCase('sv-SE')+weekday.slice(1)+' • '+item.date;
      const hall=document.createElement('span');hall.className='nsk-pool-hall';hall.textContent=item.hall||item.place||'Hall ej angiven';
      const time=document.createElement('span');time.className='nsk-training-time';time.textContent=[item.startTime||item.start_time,item.endTime||item.end_time].filter(Boolean).join('–');
      const arrow=document.createElement('span');arrow.className='nsk-pool-chevron';arrow.setAttribute('aria-hidden','true');arrow.textContent='⌄';
