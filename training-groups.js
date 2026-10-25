@@ -405,9 +405,9 @@
     const requestedDate=new URLSearchParams(location.search).get('date');
     const today=new Date().toLocaleDateString('sv-SE',{timeZone:'Europe/Stockholm',year:'numeric',month:'2-digit',day:'2-digit'});
     $('trainingDate').value=/^\d{4}-\d{2}-\d{2}$/.test(requestedDate||'')?requestedDate:today;
-    const changeTraining=async()=>{try{await saveQueue;if(saveBlocked)throw Error('Sparningen misslyckades. Ladda om sidan innan du byter träning.');if(!await restore())return;renderRoster();renderCoaches();renderGoalieSelectors();renderGroups();$('trainingStatus').textContent='Träningen för '+loadedDate+' är inläst.';}catch(error){if(loadedDate){$('trainingDate').value=loadedDate;$('trainingCalendar').value=[...$('trainingCalendar').options].some(o=>o.value===loadedDate)?loadedDate:'manual';$('trainingDate').hidden=$('trainingCalendar').value!=='manual';}$('trainingStatus').textContent=error.message;}};
+    const changeTraining=async()=>{try{await saveQueue;if(saveBlocked)throw Error('Sparningen misslyckades. Ladda om sidan innan du byter träning.');if(!await restore())return;renderRoster();renderCoaches();renderGoalieSelectors();renderGroups();$('trainingStatus').textContent='Träningen för '+loadedDate+' är inläst.';}catch(error){if(loadedDate){$('trainingDate').value=loadedDate;$('trainingCalendar').value=loadedDate;}$('trainingStatus').textContent=error.message;}};
     $('trainingDate').addEventListener('change',changeTraining);
-    $('trainingCalendar').addEventListener('change',()=>{const manual=$('trainingCalendar').value==='manual';$('trainingDate').hidden=!manual;if(!manual)$('trainingDate').value=$('trainingCalendar').value;else if(!$('trainingDate').value)$('trainingDate').value=today;changeTraining();});
+    $('trainingCalendar').addEventListener('change',()=>{$('trainingDate').value=$('trainingCalendar').value;changeTraining();});
     $('trainingGoalieCount').addEventListener('change',()=>{
       goalieCount=Number($('trainingGoalieCount').value);
       goalies=goalies.slice(0,goalieCount);
@@ -427,12 +427,15 @@
       const choices=SharedTraining.upcomingDates(events,today);
       const picker=$('trainingCalendar');picker.replaceChildren();
       for(const choice of choices){const option=document.createElement('option');option.value=choice.date;option.textContent=choice.label;picker.append(option);}
-      const manual=document.createElement('option');manual.value='manual';manual.textContent='Skapa egen träning…';picker.append(manual);
       const explicit=/^\d{4}-\d{2}-\d{2}$/.test(requestedDate||'');
-      const date=explicit?requestedDate:(choices[0]?.date||today);
-      // Keep direct links to saved/manual or completed sessions editable.
-      picker.value=choices.some(choice=>choice.date===date)?date:'manual';
-      $('trainingDate').value=date;$('trainingDate').hidden=picker.value!=='manual';picker.disabled=false;
+      const manualMode=new URLSearchParams(location.search).get('new')==='1';
+      if(explicit&&!choices.some(choice=>choice.date===requestedDate)){
+        const option=document.createElement('option');option.value=requestedDate;option.textContent=requestedDate;picker.append(option);
+      }
+      const date=explicit?requestedDate:(manualMode?today:(choices[0]?.date||''));
+      if(!date){const option=document.createElement('option');option.value='';option.textContent='Inga kommande träningar';picker.append(option);}
+      picker.value=date;picker.hidden=manualMode;picker.disabled=!date;
+      $('trainingDate').value=date;$('trainingDate').hidden=!manualMode;
       await restore();saveBlocked=false;renderRoster();renderCoaches();renderGoalieSelectors();renderGroups();
       $('trainingStatus').textContent=calendarError;
     }catch(error){$('trainingStatus').textContent=error.message||'Kunde inte läsa truppen.';}
