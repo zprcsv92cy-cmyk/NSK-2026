@@ -100,3 +100,20 @@ for(const title of summaries){
  }
 }
 console.log('Nykoping team name shapes (counts only): '+JSON.stringify(nykopingShapes));
+
+// Distinguish known Team 18/U9 suffix from other club squads; aggregate only.
+const squadShape={team18:0,u9:0,otherNumber:0,unknownSuffix:0};
+for(const title of summaries){
+ if(!title.startsWith('match:'))continue;
+ const sides=title.slice(6).split(/\s+[-–]\s+/u);
+ if(sides.length!==2)continue;
+ for(const side of sides){
+  const name=side.trim();
+  if(!/^nyköpings?\s+sportklubb\s+/u.test(name))continue;
+  if(/(?:^|\W)team\s*18(?:\W|$)/u.test(name))squadShape.team18++;
+  else if(/(?:^|\W)u\s*9(?:\W|$)/u.test(name))squadShape.u9++;
+  else if(/\d/u.test(name))squadShape.otherNumber++;
+  else squadShape.unknownSuffix++;
+ }
+}
+console.log('Nykoping squad suffix counts only: '+JSON.stringify(squadShape));
