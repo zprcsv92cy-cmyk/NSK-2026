@@ -175,3 +175,23 @@ for(const title of summaries){
  }
 }
 console.log('Fixture parser regex gates (counts only): '+JSON.stringify(matchShapeGates));
+
+const matchSuffixTokens={total:0,containsU9:0,hasExactU9Token:0,containsTeam18:0,hasOtherDigits:0,hasParentheses:0,hasUnderscore:0,hasSlash:0,hasComma:0};
+for(const title of summaries){
+ if(!title.startsWith('match:'))continue;
+ const sides=title.slice(6).trim().split(/\s+[-–]\s+/u);
+ if(sides.length!==2)continue;
+ const side=sides.find(x=>/^nyköpings\s+sportklubb\b/u.test(x.trim()));
+ if(!side)continue;
+ const suffix=side.trim().replace(/^nyköpings\s+sportklubb\s*/u,'');
+ matchSuffixTokens.total++;
+ if(/u\s*9/u.test(suffix))matchSuffixTokens.containsU9++;
+ if(/(?:^|\W)u\s*9(?:\W|$)/u.test(suffix))matchSuffixTokens.hasExactU9Token++;
+ if(/team\s*18/u.test(suffix))matchSuffixTokens.containsTeam18++;
+ if(/\d/u.test(suffix.replace(/u\s*9|team\s*18/gu,'')))matchSuffixTokens.hasOtherDigits++;
+ if(/[()]/u.test(suffix))matchSuffixTokens.hasParentheses++;
+ if(/_/u.test(suffix))matchSuffixTokens.hasUnderscore++;
+ if(/\//u.test(suffix))matchSuffixTokens.hasSlash++;
+ if(/,/u.test(suffix))matchSuffixTokens.hasComma++;
+}
+console.log('Fixture suffix token counts only: '+JSON.stringify(matchSuffixTokens));
