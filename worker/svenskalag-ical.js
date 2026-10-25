@@ -23,12 +23,12 @@ function stockholmStartTime(value){
 }
 function calendarOpponent(title){
   // Accept explicit match/opponent titles; never infer an opponent from a venue.
-  const match=title.match(/^(?:match|träningsmatch)\s+(?:mot|vs\\.?|versus)\s+(.+)$/i)
+  const match=title.match(/^(?:match|träningsmatch)\s+(?:mot|vs\.?|versus)\s+(.+)$/i)
     || title.match(/^(?:match|träningsmatch)\s*[:–-]\s*(.+)$/i);
   if(!match)return '';
   const opponent=match[1].trim();
   // A fixture such as "Match: Team A - Team B" does not identify our opponent unambiguously.
-  if(!opponent || /\\s+[-–]\\s+/.test(opponent) || /^(?:poolspel|okänd|ej angiven)$/i.test(opponent))return '';
+  if(!opponent || /\s+[-–]\s+/.test(opponent) || /^(?:poolspel|okänd|ej angiven)$/i.test(opponent))return '';
   return opponent.slice(0,120);
 }
 function normalizePlace(text){
