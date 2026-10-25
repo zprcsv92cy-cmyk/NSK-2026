@@ -509,8 +509,10 @@ window.NSK2App = (() => {
                 const matches = matchSummaries.get(String(p.id));
                 if (!matches) return '<div class="small">Matchuppgifter kunde inte hämtas.</div>';
                 if (!matches.length) return '<div class="small">Inga matchuppgifter sparade ännu.</div>';
-                return `<div class="nsk-pool-match-summary"><strong>Matcher och motståndare</strong>${matches.map(m =>
-                  `<div class="small">Lag ${esc(m.lag_no)} · Match ${esc(m.match_no)} · ${esc(!m.start_time || String(m.start_time).slice(0,5)==='00:00' ? 'Tid ej angiven' : String(m.start_time).slice(0,5))} · ${esc(m.opponent || 'Motståndare saknas')}${m.plan ? ' · '+esc(m.plan) : ''}</div>`
+                return `<div class="nsk-pool-match-summary"><strong>Matcher</strong>${[...new Set(matches.map(m => Number(m.lag_no) || 1))].sort((a,b) => a-b).map(lagNo =>
+                  `<div class="nsk-pool-match-team"><strong>Lag ${esc(lagNo)}</strong>${matches.filter(m => (Number(m.lag_no) || 1) === lagNo).map(m =>
+                    `<div class="small">Match ${esc(m.match_no)} ${esc(!m.start_time || String(m.start_time).slice(0,5)==='00:00' ? 'Tid ej angiven' : String(m.start_time).slice(0,5))} ${esc(m.opponent || 'Motståndare saknas')}</div>`
+                  ).join('')}</div>`
                 ).join('')}</div>`;
               })()}
               <div class="nsk-pool-grid">
