@@ -43,6 +43,23 @@
    note.textContent='Importerat från SvenskaLag. Matchschema och laguppställning är ännu inte skapade i NSK.';
    note.className='small';
    note.textContent='Källa: SvenskaLag. Skapa poolspelet i NSK för att använda laguppställning och bytesschema.';
+   const matches=calendarMatches.filter(m=>m.date===item.date&&/^\d{2}:\d{2}$/.test(m.startTime||'')&&String(m.opponent||'').trim()).sort((a,b)=>a.startTime.localeCompare(b.startTime)).slice(0,16);
+   if(matches.length){
+    const matchBox=document.createElement('div');matchBox.className='nsk-pool-match-summary';
+    const heading=document.createElement('strong');heading.textContent='Matcher och motståndare';matchBox.append(heading);
+    const teamCount=matches.length>4?2:1;
+    const firstTeamCount=Math.ceil(matches.length/teamCount);
+    matches.forEach((m,i)=>{
+     const team=i<firstTeamCount?1:2;
+     const matchNo=team===1?i+1:i-firstTeamCount+1;
+     const line=document.createElement('div');line.className='small';
+     line.textContent='Lag '+team+' · Match '+matchNo+' · '+m.startTime+' · '+m.opponent+(m.place?' · '+m.place:'');
+     matchBox.append(line);
+    });
+    content.append(matchBox);
+   }else{
+    const missing=document.createElement('p');missing.className='small';missing.textContent='Inga matchtider eller motståndare finns i kalenderunderlaget.';content.append(missing);
+   }
    content.append(note);
    const actions=document.createElement('div');
    actions.className='nsk-pool-actions';
