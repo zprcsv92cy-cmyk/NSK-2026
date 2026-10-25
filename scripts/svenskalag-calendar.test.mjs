@@ -86,3 +86,15 @@ test('Match calendar review remains read-only for pool match configuration',()=>
  assert.match(front,/match.opponent/);
  assert.match(front,/Matcherna visas endast och sparas inte/);
 });
+
+test('Recognizes explicit SvenskaLag match title variants without guessing opponents',()=>{
+ const feed=ical([
+  ['SUMMARY:Match vs Järna SK Röd','DTSTART:20261108T000000','LOCATION:Smehallen'],
+  ['SUMMARY:Match: Södertälje SK Blå','DTSTART:20261108T000000','LOCATION:Smehallen'],
+  ['SUMMARY:Träningsmatch mot Åker/Strängnäs HC Gul','DTSTART:20261108T000000','LOCATION:Smehallen'],
+  ['SUMMARY:Match: Lag A - Lag B','DTSTART:20261108T000000','LOCATION:Smehallen'],
+  ['SUMMARY:Match: Poolspel','DTSTART:20261108T000000','LOCATION:Smehallen']
+ ]);
+ const matches=parseSvenskalagIcal(feed,'2026-10-24').filter(x=>x.type==='match');
+ assert.deepEqual(matches.map(x=>x.opponent),['Järna SK Röd','Södertälje SK Blå','Åker/Strängnäs HC Gul']);
+});
