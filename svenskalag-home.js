@@ -7,7 +7,7 @@
  const samePool=(p,item)=>p.pool_date===item.date&&String(p.place||'').trim().toLocaleLowerCase('sv-SE')===poolLocation(item).city.toLocaleLowerCase('sv-SE')&&(!p.hall||String(p.hall).trim().toLocaleLowerCase('sv-SE')===poolLocation(item).hall.toLocaleLowerCase('sv-SE'));
  const esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
  const calendarDate=value=>String(value||'').slice(0,10);
- const calendarMatchTime=m=>String(m.startTime||m.start_time||m.time||'').trim().match(/\b\d{1,2}:\d{2}\b/)?.[0]||'';
+ const calendarMatchTime=m=>{const time=String(m.startTime||m.start_time||m.time||'').trim().match(/\b\d{1,2}:\d{2}\b/)?.[0]||'';return time==='00:00'?'':time;};
  const calendarMatchOpponent=m=>String(m.opponent||m.motstandare||m['Motståndare']||'').trim();
  const matchesForPool=(item,calendarMatches)=>{
   const linked=Array.isArray(item.matches)?item.matches:[];
@@ -18,7 +18,7 @@
   })];
   const seen=new Set();
   return candidates.map(m=>({...m,startTime:calendarMatchTime(m),opponent:calendarMatchOpponent(m)}))
-   .filter(m=>/^\d{1,2}:\d{2}$/.test(m.startTime)&&m.opponent)
+   .filter(m=>m.opponent)
    .filter(m=>{const key=[m.startTime,m.opponent,m.place||''].join('|');if(seen.has(key))return false;seen.add(key);return true;})
    .sort((a,b)=>a.startTime.localeCompare(b.startTime)).slice(0,16);
  };
@@ -69,7 +69,7 @@
      const team=i<firstTeamCount?1:2;
      const matchNo=team===1?i+1:i-firstTeamCount+1;
      const line=document.createElement('div');line.className='small';
-     line.textContent='Lag '+team+' · Match '+matchNo+' · '+m.startTime+' · '+m.opponent+(m.place?' · '+m.place:'');
+     line.textContent='Lag '+team+' · Match '+matchNo+' · '+(m.startTime||'Tid ej angiven')+' · '+m.opponent+(m.place?' · '+m.place:'');
      matchBox.append(line);
     });
     content.append(matchBox);
