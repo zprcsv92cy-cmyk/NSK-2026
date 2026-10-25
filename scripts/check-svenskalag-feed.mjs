@@ -293,3 +293,23 @@ for(const block of blocks){
  if(parseSvenskalagIcal(wrap(summary.replace(/\\/g,'')),'2000-01-01').some(x=>x.type==='match'))escapedMatchSummary.unescapedSummaryParsed++;
 }
 console.log('Escaped fixture summary gates (counts only): '+JSON.stringify(escapedMatchSummary));
+
+const realVersusSyntheticStart={total:0,syntheticAccepted:0,realAccepted:0,dtstartParam:0,dtstartRawLength15:0,dtstartRawLength16:0,dtstartRawOtherLength:0,dtstartHasTrailingWhitespace:0,dtstartHasColon:0};
+for(const block of blocks){
+ const event='BEGIN:VEVENT'+block.slice(0,block.indexOf('END:VEVENT')+10);
+ const summary=event.match(/^SUMMARY(?:;[^:]*)?:(.*)$/m)?.[1]||'';
+ if(!/^Match:/i.test(summary))continue;
+ realVersusSyntheticStart.total++;
+ const rawStart=event.match(/^(DTSTART(?:;[^:]*)?):(.*)$/m);
+ const dt=rawStart?.[2]||'';
+ if(rawStart?.[1]?.includes(';'))realVersusSyntheticStart.dtstartParam++;
+ if(dt.length===15)realVersusSyntheticStart.dtstartRawLength15++;
+ else if(dt.length===16)realVersusSyntheticStart.dtstartRawLength16++;
+ else realVersusSyntheticStart.dtstartRawOtherLength++;
+ if(dt.trim()!==dt)realVersusSyntheticStart.dtstartHasTrailingWhitespace++;
+ if(dt.includes(':'))realVersusSyntheticStart.dtstartHasColon++;
+ const wrap=start=>'BEGIN:VCALENDAR\nBEGIN:VEVENT\nSUMMARY:'+summary+'\n'+start+'\nEND:VEVENT\nEND:VCALENDAR';
+ if(parseSvenskalagIcal(wrap('DTSTART:20261108T100000'),'2000-01-01').some(x=>x.type==='match'))realVersusSyntheticStart.syntheticAccepted++;
+ if(rawStart&&parseSvenskalagIcal(wrap(rawStart[0]),'2000-01-01').some(x=>x.type==='match'))realVersusSyntheticStart.realAccepted++;
+}
+console.log('Real versus synthetic DTSTART gates (counts only): '+JSON.stringify(realVersusSyntheticStart));
