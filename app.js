@@ -812,8 +812,10 @@ window.NSK2App = (() => {
               const {planCalendarMatches}=await import(new URL('calendar-match-plan.mjs',nskVersionRoot()).href);
               schedule=planCalendarMatches(JSON.parse(pending));
             } catch {throw new Error('Kalenderimporten kunde inte läsas. Öppna poolspelet från kalendern igen.');}
-            if(!schedule.schedule.length || window.APP_CONFIG?.REQUIRE_PERSONAL_MATCH_WRITES!==true)
-              throw new Error('Kalenderimporten saknar matcher eller personlig matchbehörighet.');
+            if(!schedule.schedule.length)
+              throw new Error('Kalenderimporten saknar giltiga matcher. Öppna poolspelet från kalendern igen.');
+            if(window.APP_CONFIG?.REQUIRE_PERSONAL_MATCH_WRITES!==true)
+              throw new Error('Kalenderimporten är ännu inte aktiverad i produktionskonfigurationen. Inget poolspel har skapats.');
           }
           if(retry){
             // Ett sparat poolspel får aldrig skapas igen efter ett delvis misslyckat försök.
