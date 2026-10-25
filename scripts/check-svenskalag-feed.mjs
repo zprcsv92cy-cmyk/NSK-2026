@@ -142,3 +142,19 @@ for(const line of lines){
  if(record){const idx=line.indexOf(':');if(idx>=0){const k=line.slice(0,idx).split(';')[0];if(k==='SUMMARY'||k==='DTSTART')record[k]=line.slice(idx+1);}}
 }
 console.log('Match import gate counts only: '+JSON.stringify(fixtureGates));
+
+const matchParseGates={total:0,validDate:0,validTime:0,recognizedOpponent:0,recognizedFuture:0};
+const blocks=calendar.replace(/\r\n[ \t]|\n[ \t]/g,'').replace(/\r\n?/g,'\n').split('BEGIN:VEVENT').slice(1);
+for(const block of blocks){
+ const event='BEGIN:VEVENT'+block.slice(0,block.indexOf('END:VEVENT')+10);
+ const title=event.match(/^SUMMARY(?:;[^:]*)?:(.*)$/m)?.[1]||'';
+ if(!/^match:/i.test(title))continue;
+ matchParseGates.total++;
+ const dateValue=event.match(/^DTSTART(?:;[^:]*)?:(.*)$/m)?.[1]||'';
+ if(/^\d{8}(?:T\d{6}Z?)?$/.test(dateValue))matchParseGates.validDate++;
+ if(/^\d{8}T\d{6}Z?$/.test(dateValue))matchParseGates.validTime++;
+ const parsed=parseSvenskalagIcal('BEGIN:VCALENDAR\n'+event+'\nEND:VCALENDAR','2000-01-01');
+ if(parsed.some(x=>x.type==='match'))matchParseGates.recognizedOpponent++;
+ if(parsed.some(x=>x.type==='match'&&x.date>=today))matchParseGates.recognizedFuture++;
+}
+console.log('Individual match parser gates (counts only): '+JSON.stringify(matchParseGates));
