@@ -1,4 +1,5 @@
 import { runSvenskalagScheduledSync } from './svenskalag-scheduled-sync.js';
+import { runChangingRoomCheck } from './rbok-changing-rooms.js';
 import { createTrainingHandler } from './training-sessions-api.js';
 import { readPersonallyAuthorizedTeams } from './production-team-read.js';
 import { authorizePersonalWorkerWrite } from './personal-roster-worker-adapter.js';
@@ -1218,7 +1219,11 @@ var worker_default = { async fetch(req, env) {
 } };
 // Preserve the existing fetch handler; scheduled sync is separately gated.
 worker_default.scheduled = async (_event,env,ctx) => {
- const job=runSvenskalagScheduledSync(env);
+ const job=(async()=>{
+  // Preserve the calendar's existing six-hour schedule.
+  if(!_event?.cron||_event.cron==='15 */6 * * *')await runSvenskalagScheduledSync(env);
+  await runChangingRoomCheck(env);
+ })();
  if(ctx?.waitUntil)ctx.waitUntil(job);
  else await job;
 };

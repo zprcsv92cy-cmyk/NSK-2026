@@ -6,7 +6,7 @@ workers_dev = true
 
 # Scheduled every six hours; writes are limited to calendar-owned D1 cache rows.
 [triggers]
-crons = ["15 */6 * * *"]
+crons = ["15 */6 * * *", "*/15 * * * *"]
 
 [vars]
 NSK_ENABLE_SVENSKALAG_AUTO_SYNC = "true"
