@@ -64,7 +64,7 @@ export function parseSvenskalagIcal(text,today){
         const exclude=/hockeyfritids|fotografering|intresseanmälan|intresseanmäl|anmälan|inställt|cancelled|canceled|lagfoto/.test(lower);
         const date=stockholmDate(event.DTSTART||'');
         const training=/(^|[^\p{L}])träning([^\p{L}]|$)|(^|[^\p{L}])is\s*1[789]\s*\/\s*1[789]([^\p{L}]|$)/iu.test(lower);
-        const pool=/(^|[^\p{L}])poolspel([^\p{L}]|$)/iu.test(lower);
+        const pool=!/^(?:match|träningsmatch)\s*(?::|[-–]|\s+(?:mot|vs\.?|versus)\b)/iu.test(title)\n          && /(^|[^\p{L}])poolspel([^\p{L}]|$)/iu.test(lower);
         const opponent=!pool&&!training?calendarOpponent(title):'';
         const startTime=stockholmStartTime(event.DTSTART||'');
         const endTime=stockholmStartTime(event.DTEND||'');
