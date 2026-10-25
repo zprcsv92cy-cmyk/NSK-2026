@@ -139,3 +139,12 @@ test('shirt colors support red/white, black and green in order',()=>{
  assert.ok(js.indexOf("name:'Vit'")<js.indexOf("name:'Svart'"));
  assert.ok(js.indexOf("name:'Svart'")<js.indexOf("name:'Grön'"));
 });
+
+test('desktop table skips the response tabs and ignores a leading OCR table border',()=>{
+ const vm=require('node:vm');
+ const begin=js.indexOf('  const normalized ='),end=js.indexOf('  async function readImageText()',begin);
+ const context={players:[{id:1,full_name:'Anna Testsson'},{id:2,full_name:'Erik Exempelsson'}],coaches:[{id:3,full_name:'Patrik Ledarsson'}]};
+ vm.createContext(context);vm.runInContext(js.slice(begin,end)+';globalThis.parseAttendance=importCandidates;',context);
+ const result=context.parseAttendance('Anmälan\nErik Exempelsson Kan ej\nAnmälda\nKan ej Kallade\n4+5 4+3\nNamn Anmäld\n| Anna Testsson 20 okt, 20:14\nPatrik Ledarsson | Tränare 20 okt, 21:00');
+ assert.deepEqual([...result.map(x=>x.id)],[1,3]);
+});
