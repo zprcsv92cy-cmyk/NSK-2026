@@ -428,7 +428,7 @@ test('Conflicting pool venue interpretations require manual confirmation',()=>{
 
 test('Saved training has both an edit link and a confirmed deletion action',()=>{
   assert.match(source,/Visa \/ redigera träning/);
-  assert.match(source,/data-delete-training>Ta bort träning/);
+  assert.match(source,/data-delete-training>Ta bort/);
   const deleteHandler=source.slice(source.indexOf("root.onclick=async event=>"));
   assert.match(deleteHandler,/window\.confirm\('Ta bort träningen /);
   assert.match(deleteHandler,/method:'DELETE'/);

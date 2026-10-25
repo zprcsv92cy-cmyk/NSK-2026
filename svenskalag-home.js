@@ -244,9 +244,8 @@
      const arrow=document.createElement('span');arrow.className='nsk-pool-chevron';arrow.setAttribute('aria-hidden','true');arrow.textContent='⌄';
      summary.append(name,hall,time,arrow);
      const content=document.createElement('div');content.className='nsk-pool-content';
-     const note=document.createElement('p');note.className='small';note.textContent='Källa: SvenskaLag. Öppna träningen för att spara eller redigera den i NSK.';
-     const action=document.createElement('a');action.className='home-create-button';action.href='../traningsgrupper/?date='+encodeURIComponent(item.date)+'&calendar_hall='+encodeURIComponent(item.hall||'');action.textContent='Visa / redigera träning';
-     content.append(note,action);row.append(summary,content);const pastTitle=trainingBox.querySelector('#pastTrainingsTitle');if(pastTitle)trainingBox.insertBefore(row,pastTitle);else trainingBox.append(row);
+     content.innerHTML=window.NSKTrainingCards.actions(item.date,item.hall||'');
+     row.append(summary,content);const pastTitle=trainingBox.querySelector('#pastTrainingsTitle');if(pastTitle)trainingBox.insertBefore(row,pastTitle);else trainingBox.append(row);
     }
     const pastTitle=trainingBox.querySelector('#pastTrainingsTitle');
     const upcomingRows=Array.from(trainingBox.querySelectorAll('details[data-date]')).filter(row=>decodeURIComponent(row.dataset.date)>=today);
