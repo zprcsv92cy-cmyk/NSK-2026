@@ -50,3 +50,17 @@ for(const title of summaries){
  else matchSyntax.space++;
 }
 console.log('Match syntax counts only: '+JSON.stringify(matchSyntax));
+
+// Match detail shape, aggregated only. Never log opponents or title text.
+const fixtureShape={total:0,empty:0,teamSeparator:0,versusSeparator:0,parentheses:0,other:0};
+for(const title of summaries){
+ if(!title.startsWith('match:'))continue;
+ fixtureShape.total++;
+ const detail=title.slice(6).trim();
+ if(!detail)fixtureShape.empty++;
+ else if(/\s+[-–]\s+/u.test(detail))fixtureShape.teamSeparator++;
+ else if(/\s+(?:vs\.?|mot|versus)\s+/u.test(detail))fixtureShape.versusSeparator++;
+ else if(/[()]/u.test(detail))fixtureShape.parentheses++;
+ else fixtureShape.other++;
+}
+console.log('Match fixture shape counts only: '+JSON.stringify(fixtureShape));
