@@ -64,3 +64,21 @@ for(const title of summaries){
  else fixtureShape.other++;
 }
 console.log('Match fixture shape counts only: '+JSON.stringify(fixtureShape));
+
+// Aggregate NSK naming patterns only; never log team names.
+const fixtureTeams={total:0,nskLeft:0,nskRight:0,nykopingLeft:0,nykopingRight:0,neither:0};
+for(const title of summaries){
+ if(!title.startsWith('match:'))continue;
+ const sides=title.slice(6).split(/\s+[-–]\s+/u);
+ if(sides.length!==2)continue;
+ fixtureTeams.total++;
+ const [left,right]=sides.map(x=>x.trim());
+ const isNsk=x=>/\bnsk\b/u.test(x);
+ const isNyk=x=>/nyköping/u.test(x);
+ if(isNsk(left))fixtureTeams.nskLeft++;
+ if(isNsk(right))fixtureTeams.nskRight++;
+ if(isNyk(left))fixtureTeams.nykopingLeft++;
+ if(isNyk(right))fixtureTeams.nykopingRight++;
+ if(!isNsk(left)&&!isNsk(right)&&!isNyk(left)&&!isNyk(right))fixtureTeams.neither++;
+}
+console.log('Fixture team identity counts only: '+JSON.stringify(fixtureTeams));
