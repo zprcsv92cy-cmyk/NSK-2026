@@ -151,3 +151,18 @@ test('Three-segment SvenskaLag U9 fixtures import opponent safely',()=>{
  ]);
  assert.deepEqual(parseSvenskalagIcal(feed,'2026-10-24').filter(x=>x.type==='match').map(x=>x.opponent),['Järna SK']);
 });
+
+
+test('home colour squad fixtures retain the explicit opponent and reject other age groups',()=>{
+ const titles=[
+  'Nyköpings Sportklubb Svart - IFK Mariefred Svart (U9 P Poolspel) // U9 Team 18 - Nyköpings Sportklubb',
+  'Nyköpings Sportklubb Röd - Södertälje SK Gul (U9 P Poolspel) // U9 Team 18 - Nyköpings Sportklubb',
+  'Nyköpings Sportklubb U10 - Södertälje SK Gul (U9 P Poolspel) // U9 Team 18 - Nyköpings Sportklubb',
+  'Nyköpings Sportklubb Röd - Södertälje SK Gul (U10 P Poolspel) // U9 Team 18 - Nyköpings Sportklubb',
+  'Nyköpings Sportklubb Röd - Södertälje SK Gul (U9 P Poolspel) // U9 Team 19 - Nyköpings Sportklubb',
+  'Nyköpings Sportklubb Röd - Nyköpings Sportklubb Svart (U9 P Poolspel) // U9 Team 18 - Nyköpings Sportklubb'
+ ];
+ const items=parseSvenskalagIcal(ical(titles.map((title,i)=>['SUMMARY:Match: '+title,'DTSTART:20261213T'+String(9+i).padStart(2,'0')+'0000'])),'2026-10-25');
+ assert.deepEqual(items.map(x=>x.opponent),['IFK Mariefred Svart','Södertälje SK Gul']);
+ assert.equal(items[0].startTime,'09:00');
+});

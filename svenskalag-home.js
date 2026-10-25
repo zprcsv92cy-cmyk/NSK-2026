@@ -19,7 +19,11 @@
   const poolId=String(item.activityId||item.activity_id||item.id||'').trim();
   const candidates=[...linked,...calendarMatches.filter(m=>{
    const matchPoolId=String(m.poolActivityId||m.pool_activity_id||m.poolId||m.pool_id||'').trim();
-   return poolId&&matchPoolId?poolId===matchPoolId:calendarDate(m.date)===calendarDate(item.date);
+   if(poolId&&matchPoolId)return poolId===matchPoolId;
+   // A date can contain multiple pools at different venues. Never attach by date alone.
+   const venue=value=>String(value||'').normalize('NFKC').replace(/\s+/g,' ').trim().toLocaleLowerCase('sv-SE');
+   const poolVenue=venue(item.hall||item.place),matchVenue=venue(m.hall||m.place);
+   return calendarDate(m.date)===calendarDate(item.date)&&!!poolVenue&&poolVenue===matchVenue;
   })];
   const seen=new Set();
   return candidates.map(m=>({...m,startTime:calendarMatchTime(m),opponent:calendarMatchOpponent(m)}))
