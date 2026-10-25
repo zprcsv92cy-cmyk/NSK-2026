@@ -478,8 +478,18 @@ window.NSK2App = (() => {
       const today = new Date();
       const localToday = `${today.getFullYear()}-${String(today.getMonth()+1).padStart(2,'0')}-${String(today.getDate()).padStart(2,'0')}`;
       const isArchived = (p) => p.active === false;
-      const upcoming = pools.filter(p => !isArchived(p)).sort((a,b) => String(a.pool_date || '').localeCompare(String(b.pool_date || '')));
-      const archived = pools.filter(isArchived).sort((a,b) => String(b.pool_date || '').localeCompare(String(a.pool_date || '')));
+      // Normalize Baserow date values before sorting; keep every pool, including cancelled titles.
+      const poolDay = p => {
+        const raw = String(p.pool_date || '').trim();
+        const iso = raw.match(/^(\d{4})-(\d{2})-(\d{2})/);
+        if (iso) return iso[1] + iso[2] + iso[3];
+        const local = raw.match(/^(\d{1,2})[.\/-](\d{1,2})[.\/-](\d{4})$/);
+        if (local) return local[3] + local[2].padStart(2,'0') + local[1].padStart(2,'0');
+        return '99999999';
+      };
+      const byDate = (a,b) => poolDay(a).localeCompare(poolDay(b)) || String(a.id).localeCompare(String(b.id));
+      const upcoming = pools.filter(p => !isArchived(p)).sort(byDate);
+      const archived = pools.filter(isArchived).sort((a,b) => -byDate(a,b));
       const matchSummaries = new Map(await Promise.all(pools.map(async p => {
         try { return [String(p.id), await DB.listPoolTeamMatchConfigs(p.id)]; }
         catch { return [String(p.id), null]; }
