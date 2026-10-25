@@ -4,12 +4,19 @@
 
 ## Kontrollerat
 
-- GitHub Actions på commit `7fcb0cd1163b63bc7fcde01a7da8c6a5bea7a486`: 10/10 gröna.
+- GitHub Actions på commit `a08b1b8c985fb3449a064820523170eedbe04748`: åtta relevanta workflow-körningar gröna, inklusive validering av isolerat Worker-paket **utan driftsättning**. Tidigare 10/10 gröna på `7fcb0cd1163b63bc7fcde01a7da8c6a5bea7a486`.
 - `nsk-api-isolated-preview` finns separat från produktionens `nsk-api`.
 - Dess Cloudflare-bindningar är isolerade: D1 `b94c8dba-34be-4cff-a4e9-892caf4e3ddd`, separata KV-resurser, eget `SHIFT_LOCK`, `NSK_ISOLATED_MODE=true`, Baserow-databas `599495`.
-- Den isolerade Workern kör version 10 från 2026-10-24 20:16 UTC, alltså **inte** den nya importnyckelkoden i denna PR.
+- Cloudflare bekräftar att `nsk-api-isolated-preview` kör **version 11**, driftsatt 2026-10-24 22:20 UTC (`e326ca7f-4f46-45e5-b994-abbb1a2ad9bd`). Nedladdat aktivt Worker-paket saknar texten `calendar_import_key` och kan därför **inte** användas som bevis för PR #402:s idempotenta importväg. Kontrollera källkod/versionskoppling innan E2E.
 - `.github/workflows/start-isolated-api-preview.yml` är uttryckligen blockerad av `&& false`. Ta inte bort detta som en genväg.
 - Isolerad D1 innehåller bland annat `auth_users`, `auth_sessions`, `auth_team_memberships`, men ingen `pool_calendar_imports`. Den tabellen behövs av en separat `calendarImport:true`-väg, inte av `calendar_import_key`-vägen i PR #402.
+
+## Driftsättningsspärr och nästa säkra steg
+
+- Den existerande preview-workflowen är avsiktligt inaktiverad. Aktivera inte den utan att först verifiera isolerade Baserow-tokenens tabellbehörigheter, samtliga bindningar och positiv skrivberedskap.
+- Ta fram och granska en separat, uttryckligen godkänd driftsättningsväg för PR #402:s Worker-kod till **endast** `nsk-api-isolated-preview`; behåll D1/KV/DO och Baserow `599495` isolerade och oförändrade.
+- Efter driftsättning, verifiera att den aktiva Worker-koden faktiskt innehåller `calendar_import_key` innan någon skrivning görs. CI:s gröna bundle-test är inte en driftsättning.
+- Håll produktionspublicering och merge blockerade tills nedanstående positiva E2E-fall passerat.
 
 ## Kvarvarande riktad E2E-verifiering
 
