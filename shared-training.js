@@ -62,6 +62,14 @@
     }
     throw Error('För många sidor i truppsvaret');
   }
+  async function calendarTrainings(){
+    if(Auth.activeTeam()!=='NSK Team 18')return [];
+    const id=await resolveTeam();
+    const response=await fetch(base()+'/api/training?team_id='+encodeURIComponent(id)+'&action=svenskalag-saved&training_history=1',{headers:{Authorization:'Bearer '+Auth.getToken()},cache:'no-store'});
+    if(!response.ok)throw Error('Kalendern kunde inte hämtas');
+    const data=await response.json();
+    return (Array.isArray(data.items)?data.items:[]).filter(item=>item.type==='training');
+  }
   async function calendarHall(date){
     if(Auth.activeTeam()!=='NSK Team 18')return '';
     const id=await resolveTeam();
@@ -74,6 +82,6 @@
     }));
     return halls.size===1?[...halls][0]:'';
   }
-  window.SharedTraining={calendarHall,list:()=>request(),get:date=>request(date),save:(date,data)=>request(date,data),remove,
+  window.SharedTraining={calendarTrainings,calendarHall,list:()=>request(),get:date=>request(date),save:(date,data)=>request(date,data),remove,
     listPlayers:()=>roster('spelare'),listCoaches:()=>roster('tranare')};
 })();

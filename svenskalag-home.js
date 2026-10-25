@@ -230,6 +230,8 @@
      const hallName=String(item.hall||item.place||'').trim().toLocaleLowerCase('sv-SE');
      const saved=savedSessions.find(s=>s.date===item.date);
      if(saved){
+      const hall=saved.node.querySelector('.nsk-pool-hall');
+      if(hall&&(saved.hall==='hall ej vald'||!saved.hall)&&calendarTrainings.filter(event=>event.date===item.date).length===1){hall.textContent=item.hall||item.place||'Hall ej vald';hall.dataset.roomHall=hall.textContent;saved.hall=hallName;}
       const time=saved.node.querySelector('.nsk-training-time');
       const matching=calendarTrainings.filter(event=>event.date===item.date&&String(event.hall||event.place||'').trim().toLocaleLowerCase('sv-SE')===hallName);
       if(time&&!time.textContent.trim()&&matching.length===1&&(saved.hall===hallName||saved.hall==='hall ej vald'))time.textContent=[item.startTime,item.endTime].filter(Boolean).join('–');

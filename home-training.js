@@ -21,7 +21,8 @@
       const response=await fetch(base+'/api/training?team_id='+encodeURIComponent(matches[0].id),{headers:{Authorization:'Bearer '+token},cache:'no-store'});
       if(!response.ok)throw Error('Gemensamma träningar är ännu inte aktiverade');
       const data=await response.json();
-      const sessions=Array.isArray(data.sessions)?data.sessions:[];
+      const calendar=await SharedTraining.calendarTrainings().catch(()=>[]);
+      const sessions=(Array.isArray(data.sessions)?data.sessions:[]).map(session=>window.NSKTrainingCards.enrich(session,calendar));
       currentContext={base,token,teamId:String(matches[0].id),dates:new Set(sessions.map(s=>s.date))};
       sessions.sort((a,b)=>a.date.localeCompare(b.date));
       if(!sessions.length){root.innerHTML='<h3 class="training-section-title" id="upcomingTrainingsTitle">Kommande träningar (0)</h3><h3 class="training-section-title" id="pastTrainingsTitle">Avslutade träningar (0)</h3>';window.dispatchEvent(new Event('nsk:saved-trainings-rendered'));return;}
@@ -66,6 +67,8 @@
           info.textContent='Kunde inte ta bort: '+(error.message||String(error));
         }finally{button.disabled=false;}
       };
+      root._trainingToggleAbort?.abort();
+      root._trainingToggleAbort=new AbortController();
       root.addEventListener('toggle',async event=>{
         const details=event.target;
         if(!(details instanceof HTMLDetailsElement)||!details.open||details.dataset.loaded==='pending')return;
@@ -84,7 +87,7 @@
           info.textContent=(session.selected||[]).length+' spelare • '+(session.selectedCoaches||[]).length+' tränare • '+(Number(session.goalieCount)||0)+' målvakter • '+groups+' grupper';
           delete details.dataset.loaded;
         }catch(error){delete details.dataset.loaded;info.textContent=error.message||'Kunde inte hämta träningsuppgifter';}
-      },true);
+      },{capture:true,signal:root._trainingToggleAbort.signal});
     }catch(error){root.textContent='Kunde inte läsa sparade träningar: '+(error.message||String(error));}
   }
   const monthNames=['januari','februari','mars','april','maj','juni','juli','augusti','september','oktober','november','december'];
@@ -786,4 +789,5 @@
     });
   }
   document.addEventListener('DOMContentLoaded',()=>{setupCalendarImport();render();});
+  window.addEventListener('pageshow',event=>{if(event.persisted)render();});
 })();
