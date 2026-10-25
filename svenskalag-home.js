@@ -62,15 +62,17 @@
    const matches=matchesForPool(item,calendarMatches);
    if(matches.length){
     const matchBox=document.createElement('div');matchBox.className='nsk-pool-match-summary';
-    const heading=document.createElement('strong');heading.textContent='Matcher och motståndare';matchBox.append(heading);
+    const heading=document.createElement('strong');heading.textContent='Matcher';matchBox.append(heading);
     const teamCount=matches.length>4?2:1;
     const firstTeamCount=Math.ceil(matches.length/teamCount);
+    let lastTeam=0;
     matches.forEach((m,i)=>{
      const team=i<firstTeamCount?1:2;
      const matchNo=team===1?i+1:i-firstTeamCount+1;
-     const line=document.createElement('div');line.className='small';
-     line.textContent='Lag '+team+' · Match '+matchNo+' · '+(m.startTime||'Tid ej angiven')+' · '+m.opponent+(m.place?' · '+m.place:'');
-     matchBox.append(line);
+     if(team!==lastTeam){const teamHeading=document.createElement('strong');teamHeading.textContent='Lag '+team;const group=document.createElement('div');group.className='nsk-pool-match-team';group.append(teamHeading);matchBox.append(group);lastTeam=team;}
+     const group=matchBox.lastElementChild;
+     const line=document.createElement('div');line.className='small nsk-pool-match-line';
+     for(const [cls,label] of [['nsk-pool-match-number','Match '+matchNo],['nsk-pool-match-time',m.startTime||'Tid ej angiven'],['nsk-pool-match-opponent',m.opponent]]){const span=document.createElement('span');span.className=cls;span.textContent=label;group.append(line);line.append(span);}
     });
     content.append(matchBox);
    }else{
