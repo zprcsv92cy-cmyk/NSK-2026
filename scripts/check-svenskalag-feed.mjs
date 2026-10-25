@@ -401,3 +401,20 @@ for(const block of blocks){
  if(summaries.includes(raw.toLocaleLowerCase('sv-SE')))eventSummaryExtraction.summaryEqualTopLevel++;
 }
 console.log('Event summary extraction gates (counts only): '+JSON.stringify(eventSummaryExtraction));
+
+const fixtureSegments={total:0,two:0,three:0,fourPlus:0,lastIsPool:0,lastIsOther:0,firstHasNsk:0,secondHasNsk:0};
+for(const block of blocks){
+ const event='BEGIN:VEVENT'+block.slice(0,block.indexOf('END:VEVENT')+10);
+ const raw=event.match(/^SUMMARY(?:;[^:]*)?:(.*)$/m)?.[1]||'';
+ if(!/^Match:/i.test(raw))continue;
+ fixtureSegments.total++;
+ const parts=raw.slice(6).trim().split(/\s+[-–]\s+/u);
+ if(parts.length===2)fixtureSegments.two++;
+ else if(parts.length===3)fixtureSegments.three++;
+ else if(parts.length>3)fixtureSegments.fourPlus++;
+ if(/poolspel/iu.test(parts.at(-1)||''))fixtureSegments.lastIsPool++;
+ else fixtureSegments.lastIsOther++;
+ if(isNskLikeParser(parts[0]||''))fixtureSegments.firstHasNsk++;
+ if(isNskLikeParser(parts[1]||''))fixtureSegments.secondHasNsk++;
+}
+console.log('Fixture segment structure (counts only): '+JSON.stringify(fixtureSegments));
