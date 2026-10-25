@@ -90,7 +90,7 @@
    const create=document.createElement('button');
    create.type='button';
    create.className='start-pool-btn nsk-action nsk-action--primary nsk-action--wide';
-   create.textContent='Skapa poolspel för att aktivera funktionerna';
+   create.textContent='Skapa och spara poolspel';
    create.addEventListener('click',async()=>{
     create.disabled=true;
     try{
@@ -101,6 +101,7 @@
 
     sessionStorage.removeItem('nsk2_edit_pool_id');
     sessionStorage.setItem('nsk2_svenskalag_pool_draft',JSON.stringify({date:item.date,place:poolLocation(item).city,hall:poolLocation(item).hall,matches:matchesForPool(item,calendarMatches).map(m=>({startTime:m.startTime,opponent:m.opponent,place:m.place||''}))}));
+    sessionStorage.setItem('nsk2_calendar_auto_save_once','1');
     location.href='../skapapoolspel/';
    });
    actions.append(create);

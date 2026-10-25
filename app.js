@@ -668,6 +668,16 @@ window.NSK2App = (() => {
     renderLaguppstallningButtons();
     teamsSel.addEventListener("change", () => renderLaguppstallningButtons());
     saveBtn.addEventListener("click", savePool);
+    // En uttrycklig kalenderknapp får starta samma behörighetsstyrda, återupptagbara sparflöde.
+    // Konsumera markören innan anropet så omladdning aldrig utlöser ett nytt försök.
+    if(sessionStorage.getItem('nsk2_calendar_auto_save_once')==='1'){
+      sessionStorage.removeItem('nsk2_calendar_auto_save_once');
+      if(!editId && !interruptedImport && !unconfirmedPoolKey && sessionStorage.getItem('nsk2_calendar_match_pending')){
+        await savePool();
+      }else{
+        setText('appError','Automatisk sparning avbröts. Kontrollera kalenderimporten och tryck Spara för att återuppta.');
+      }
+    }
   }
 
   function renderLaguppstallningButtons() {
