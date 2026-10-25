@@ -146,7 +146,7 @@ window.DB = (() => {
   const updatePool=(rowId,payload)=>writePool('PATCH',rowId,payload);
   const updatePoolActive=(rowId,active)=>adminRequest(`/api/poolspel/${encodeURIComponent(rowId)}/aktiv`,'PATCH',{active});
   const addPlayer=name=>writeName('spelare','POST',null,name);
-  const updatePlayer=(rowId,name)=>writeName('spelare','PATCH',rowId,name);
+  const updatePlayer=(rowId,name)=>serialWrite(()=>writeName('spelare','PATCH',rowId,name));
   const addCoach=name=>writeName('tranare','POST',null,name);
   const updateCoach=(rowId,name)=>writeName('tranare','PATCH',rowId,name);
   let pending=Promise.resolve();
@@ -274,6 +274,6 @@ window.DB = (() => {
     });
   }
   return {listPlayers,listCoaches,listStaff,listPools,getPool,listPoolTeamMatchConfigs,getPoolTeamMatchConfig,getPlayersOnField,getLineup,listUsedPlayersInPool,listShiftSchema,listGoalieStats,listPlayerCoachMap,
-    addPlayer,updatePlayer,deletePlayer:failWrite,addCoach,updateCoach,deleteCoach:failWrite,addStaff:(role,name)=>writeStaff('POST',role,null,name),updateStaff:(role,rowId,name)=>writeStaff('PATCH',role,rowId,name),updatePoolTeams,addPool,updatePool,updatePoolActive,deletePool:failWrite,
+    addPlayer,updatePlayer,deletePlayer:rowId=>serialWrite(()=>adminRequest(`/api/spelare/${encodeURIComponent(rowId)}`,'DELETE',{})),addCoach,updateCoach,deleteCoach:failWrite,addStaff:(role,name)=>writeStaff('POST',role,null,name),updateStaff:(role,rowId,name)=>writeStaff('PATCH',role,rowId,name),updatePoolTeams,addPool,updatePool,updatePoolActive,deletePool:failWrite,
     listPoolMatchSummaries,saveCalendarMatchSchedule,savePoolTeamMatchConfig,saveLineup,getCoachSelection,saveCoachSelection,saveShiftSchema,deleteShiftSchema,setShiftDone,savePlayerCoachMap:failWrite,subscribeTruppen:async()=>({unsubscribe(){}})};
 })();

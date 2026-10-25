@@ -323,7 +323,7 @@ var worker_default = { async fetch(req, env) {
   let TABLES;
   try { TABLES = resolveBaserowTables(env); } catch { return json({ ok: false, error: "Invalid Baserow table mapping" }, 503); }
   const url = new URL(req.url), origin = req.headers.get("Origin");
-  const cors = { "Vary": "Origin", ...origin === ORIGIN ? { "Access-Control-Allow-Origin": ORIGIN, "Access-Control-Allow-Headers": "Content-Type,Authorization", "Access-Control-Allow-Methods": "GET,POST,PATCH,OPTIONS" } : {} };
+  const cors = { "Vary": "Origin", ...origin === ORIGIN ? { "Access-Control-Allow-Origin": ORIGIN, "Access-Control-Allow-Headers": "Content-Type,Authorization", "Access-Control-Allow-Methods": "GET,POST,PATCH,DELETE,OPTIONS" } : {} };
   const reply = /* @__PURE__ */ __name((obj, status = 200) => json(obj, status, cors), "reply");
   if (url.pathname === "/api/training") {
     if (req.method === "OPTIONS") return new Response(null,{status:204,headers:{...cors,"Access-Control-Allow-Methods":"GET,PUT,POST,DELETE,OPTIONS","Cache-Control":"no-store"}});

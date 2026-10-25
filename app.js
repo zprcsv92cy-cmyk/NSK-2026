@@ -410,6 +410,12 @@ window.NSK2App = (() => {
           return;
         }
 
+        if (t.dataset.editPlayer) {
+          if (!document.body.classList.contains('nsk-roster-admin')) return;
+          const input=t.closest('.person-row')?.querySelector('[data-inline-player]');
+          if(input&&!input.readOnly){input.focus();input.select();}
+          return;
+        }
         if (t.dataset.deletePlayer) {
           await deletePlayer(t.dataset.deletePlayer);
           return;
@@ -2567,9 +2573,10 @@ window.NSK2App = (() => {
     return `
       <div class="person-row">
         <div class="person-main">
-          <input class="inline-name-input" value="${esc(item.full_name)}" data-inline-${type}="${item.id}">
+          <input class="inline-name-input" aria-label="Namn: ${esc(item.full_name)}" value="${esc(item.full_name)}" data-inline-${type}="${item.id}">
         </div>
         <div class="row-actions">
+          ${type === "player" ? `<button class="row-btn nsk-action" type="button" data-edit-player="${item.id}">Redigera</button>` : ""}
           <button class="row-btn danger nsk-action nsk-action--delete" type="button" data-delete-${type}="${item.id}">Ta bort</button>
         </div>
       </div>
@@ -2597,8 +2604,10 @@ window.NSK2App = (() => {
   function queueInlinePlayerSave(id, value) {
     clearTimeout(saveTimers[`p_${id}`]);
     saveTimers[`p_${id}`] = setTimeout(async () => {
-      await DB.updatePlayer(id, String(value || "").trim());
-      clearRosterCache();
+      try {
+        await DB.updatePlayer(id, String(value || "").trim());
+        clearRosterCache();setText("truppenMsg", "Namnet är sparat.");
+      } catch(error) {setText("truppenMsg", error?.message || "Kunde inte spara namnet.");}
     }, 600);
   }
 
@@ -2613,7 +2622,7 @@ window.NSK2App = (() => {
   async function flushInlinePlayerSave(id, value) {
     clearTimeout(saveTimers[`p_${id}`]);
     await DB.updatePlayer(id, String(value || "").trim());
-    clearRosterCache();
+    clearRosterCache();setText("truppenMsg", "Namnet är sparat.");
   }
 
   async function flushInlineCoachSave(id, value) {
@@ -2644,6 +2653,7 @@ window.NSK2App = (() => {
 
   async function deletePlayer(id) {
     if (!window.confirm("Ta bort spelaren från truppen? Detta kan inte ångras.")) return;
+    clearTimeout(saveTimers[`p_${id}`]);
     await DB.deletePlayer(id);
     clearRosterCache();
     await renderPlayers();
