@@ -132,7 +132,12 @@
    const result=await events.json(),items=Array.isArray(result.items)?result.items:[];
    if(!items.length){root.textContent='Inga kommande kalenderaktiviteter importerade ännu.';renderUpcomingCalendarPools([]);}
    let existingPools=[];
-   try{existingPools=await DB.listPools();}catch{}
+   try{existingPools=await DB.listPools();}
+   catch(error){
+    root.textContent='Kunde inte kontrollera sparade poolspel. Kalenderimporten är tillfälligt spärrad för att undvika dubbletter.';
+    renderUpcomingCalendarPools([]);
+    return;
+   }
    const calendarPools=items.filter(item=>item.type==='pool'&&!existingPools.some(p=>samePool(p,item)));
    const calendarOthers=items.filter(item=>item.type!=='pool');
    const calendarTrainings=calendarOthers.filter(item=>item.type==='training');
