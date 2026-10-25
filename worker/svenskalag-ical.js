@@ -28,7 +28,7 @@ function calendarOpponent(title){
   if(!match)return '';
   const fixture=match[1].trim().split(/\s+[-–]\s+/);
   if(fixture.length===2){
-    const isNsk=name=>/^(?:nsk|nyköpings\s+(?:sk|sportklubb))(?:\s+(?:u\s*9|team\s*18|u9\s*team\s*18))?$/iu.test(name.trim());
+    const isNsk=name=>/^(?:nsk|nyköpings\s+(?:sk|sportklubb))(?:\s+(?:u\s*9|team\s*18|u9\s*team\s*18))?$|^nyköpings\s+sportklubb\s+u\s*9$/iu.test(name.trim());
     const home=isNsk(fixture[0]),away=isNsk(fixture[1]);
     if(home===away)return ''; // Unknown or both sides NSK: do not guess.
     const other=(home?fixture[1]:fixture[0]).trim();
