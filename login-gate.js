@@ -12,7 +12,8 @@
   if (!token || !authBase || !/^https:\/\//.test(authBase)) { redirect(); return; }
   fetch(authBase + '/api/auth/me', {
     headers: { Authorization: 'Bearer ' + token },
-    credentials: 'omit', cache: 'no-store'
+    credentials: 'omit', cache: 'no-store',
+    signal: typeof AbortSignal !== 'undefined' && AbortSignal.timeout ? AbortSignal.timeout(15000) : undefined
   }).then(async response => {
     if (!response.ok) { redirect(); return; }
     const identity = await response.json();
