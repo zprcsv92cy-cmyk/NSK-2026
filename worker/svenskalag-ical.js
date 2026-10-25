@@ -82,7 +82,8 @@ export function parseSvenskalagIcal(text,today){
         const lower=title.toLocaleLowerCase('sv-SE');
         const exclude=/hockeyfritids|fotografering|intresseanmälan|intresseanmäl|anmälan|inställt|cancelled|canceled|lagfoto/.test(lower);
         const date=stockholmDate(event.DTSTART||'');
-        const training=/(^|[^\p{L}])träning([^\p{L}]|$)|(^|[^\p{L}])is\s*1[789]\s*\/\s*1[789]([^\p{L}]|$)/iu.test(lower);
+        const plainIce=/^is\s*\/\/\s*u\s*9\s+team\s*18\s*[-–]\s*nyköpings\s+(?:sk|sportklubb)$/iu.test(title);
+        const training=plainIce||/(^|[^\p{L}])träning([^\p{L}]|$)|(^|[^\p{L}])is\s*1[789]\s*\/\s*1[789]([^\p{L}]|$)/iu.test(lower);
         const pool=!/^(?:match|träningsmatch)\s*(?::|[-–]|\s+(?:mot|vs\.?|versus)\b)/iu.test(title)
           && /(^|[^\p{L}])poolspel([^\p{L}]|$)/iu.test(lower);
         const opponent=!pool&&!training?calendarOpponent(title):'';
@@ -96,6 +97,9 @@ export function parseSvenskalagIcal(text,today){
           const hasStora=/\bstora\s+hallen\b/.test(hallText);
           const hall=hasLilla!==hasStora?(hasLilla?'Lilla Hallen':'Stora hallen'):'';
           items.push(pool?{type:'pool',date,place,hall:''}:training?{type:'training',date,hall,startTime,endTime}:{type:'match',date,startTime,opponent,place});
+          // Explicit U9 pool fixture groups also supply future pool cards, even without a standalone pool event.
+          if(opponent&&place&&title.split(/\s+[-–]\s+/u).length===3&&/poolspel/iu.test(title)&&/(?:^|\W)u\s*9(?:\W|$)/iu.test(title))
+            items.push({type:'pool',date,place,hall:''});
         }
       }
       event=null;continue;
@@ -110,7 +114,7 @@ export function parseSvenskalagIcal(text,today){
   for(const item of items){
     const key=item.type+':'+item.date+':'+(item.type==='pool'?normalizePlace(item.place).toLocaleLowerCase('sv-SE'):item.type==='match'?item.startTime+':'+item.opponent.toLocaleLowerCase('sv-SE'):'');
     const older=unique.get(key);
-    if(older&&item.type==='training')older.multipleSessions=true;
+    if(older&&item.type==='training'&&(older.hall!==item.hall||older.startTime!==item.startTime||older.endTime!==item.endTime))older.multipleSessions=true;
     else if(!older)unique.set(key,item);
   }
   return [...unique.values()].slice(0,500);
