@@ -217,3 +217,25 @@ for(const title of summaries){
  if(parseSvenskalagIcal(synthetic,'2026-10-24').some(x=>x.type==='match'))fixtureSideGate.parsedWhenSyntheticDate++;
 }
 console.log('Fixture side gate counts only: '+JSON.stringify(fixtureSideGate));
+
+const liveMatchDateGates={total:0,parsedAt2000:0,parsedAtCurrent:0,parsedAtEventDay:0,futureAndParsedAt2000:0,unparsedFuture:0,allDayDate:0,localTimed:0,utcTimed:0};
+for(const block of blocks){
+ const event='BEGIN:VEVENT'+block.slice(0,block.indexOf('END:VEVENT')+10);
+ const title=event.match(/^SUMMARY(?:;[^:]*)?:(.*)$/m)?.[1]||'';
+ if(!/^match:/i.test(title))continue;
+ liveMatchDateGates.total++;
+ const dt=event.match(/^DTSTART(?:;[^:]*)?:(.*)$/m)?.[1]||'';
+ const iso=/^\d{8}/.test(dt)?dt.slice(0,4)+'-'+dt.slice(4,6)+'-'+dt.slice(6,8):'';
+ if(/^\d{8}$/.test(dt))liveMatchDateGates.allDayDate++;
+ if(/^\d{8}T\d{6}$/.test(dt))liveMatchDateGates.localTimed++;
+ if(/^\d{8}T\d{6}Z$/.test(dt))liveMatchDateGates.utcTimed++;
+ const feed='BEGIN:VCALENDAR\n'+event+'\nEND:VCALENDAR';
+ const p2000=parseSvenskalagIcal(feed,'2000-01-01').some(x=>x.type==='match');
+ const pnow=parseSvenskalagIcal(feed,today).some(x=>x.type==='match');
+ if(p2000)liveMatchDateGates.parsedAt2000++;
+ if(pnow)liveMatchDateGates.parsedAtCurrent++;
+ if(iso&&parseSvenskalagIcal(feed,iso).some(x=>x.type==='match'))liveMatchDateGates.parsedAtEventDay++;
+ if(iso>=today&&p2000)liveMatchDateGates.futureAndParsedAt2000++;
+ if(iso>=today&&!p2000)liveMatchDateGates.unparsedFuture++;
+}
+console.log('Live match date gate counts only: '+JSON.stringify(liveMatchDateGates));
