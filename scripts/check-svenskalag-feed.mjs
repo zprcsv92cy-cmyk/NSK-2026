@@ -313,3 +313,18 @@ for(const block of blocks){
  if(rawStart&&parseSvenskalagIcal(wrap(rawStart[0]),'2000-01-01').some(x=>x.type==='match'))realVersusSyntheticStart.realAccepted++;
 }
 console.log('Real versus synthetic DTSTART gates (counts only): '+JSON.stringify(realVersusSyntheticStart));
+
+const rawVsNormalizedFixture={total:0,rawAccepted:0,lowercaseAccepted:0,normalizedAccepted:0,containsUppercase:0,hasNonAscii:0};
+for(const block of blocks){
+ const event='BEGIN:VEVENT'+block.slice(0,block.indexOf('END:VEVENT')+10);
+ const summary=event.match(/^SUMMARY(?:;[^:]*)?:(.*)$/m)?.[1]||'';
+ if(!/^Match:/i.test(summary))continue;
+ rawVsNormalizedFixture.total++;
+ if(summary!==summary.toLocaleLowerCase('sv-SE'))rawVsNormalizedFixture.containsUppercase++;
+ if(/[^\x00-\x7F]/u.test(summary))rawVsNormalizedFixture.hasNonAscii++;
+ const wrap=t=>'BEGIN:VCALENDAR\nBEGIN:VEVENT\nSUMMARY:'+t+'\nDTSTART:20261108T100000\nEND:VEVENT\nEND:VCALENDAR';
+ if(parseSvenskalagIcal(wrap(summary),'2000-01-01').some(x=>x.type==='match'))rawVsNormalizedFixture.rawAccepted++;
+ if(parseSvenskalagIcal(wrap(summary.toLocaleLowerCase('sv-SE')),'2000-01-01').some(x=>x.type==='match'))rawVsNormalizedFixture.lowercaseAccepted++;
+ if(parseSvenskalagIcal(wrap(summary.normalize('NFKC')),'2000-01-01').some(x=>x.type==='match'))rawVsNormalizedFixture.normalizedAccepted++;
+}
+console.log('Raw versus normalized fixture gates (counts only): '+JSON.stringify(rawVsNormalizedFixture));
