@@ -75,6 +75,8 @@
    note.className='small';
    note.textContent='Källa: SvenskaLag.';
    const matches=matchesForPool(item,calendarMatches);
+   const gathering=nskPoolGathering(matches.map(match=>match.startTime));
+   if(gathering)origin.textContent+=' • '+gathering;
    if(matches.length){
     const matchBox=document.createElement('div');matchBox.className='nsk-pool-match-summary';
     const heading=document.createElement('strong');heading.textContent='Matcher';matchBox.append(heading);
@@ -176,6 +178,14 @@
     root.textContent='Kunde inte kontrollera sparade poolspel. Kalenderimporten är tillfälligt spärrad för att undvika dubbletter.';
     renderUpcomingCalendarPools([]);
     return;
+   }
+   for(const hall of document.querySelectorAll('[data-pool-hall-id]')){
+    if(hall.dataset.gathering)continue;
+    const pool=existingPools.find(pool=>String(pool.id)===hall.dataset.poolHallId);
+    const event=pool&&items.find(item=>item.type==='pool'&&samePool(pool,item));
+    if(!event)continue;
+    const gathering=nskPoolGathering(matchesForPool(event,items.filter(item=>item.type==='match')).map(match=>match.startTime));
+    if(gathering){hall.dataset.gathering=gathering;hall.textContent=[pool.hall,gathering].filter(Boolean).join(' • ');}
    }
    const calendarPools=items.filter(item=>item.type==='pool'&&!existingPools.some(p=>samePool(p,item)));
    const calendarOthers=items.filter(item=>item.type!=='pool');

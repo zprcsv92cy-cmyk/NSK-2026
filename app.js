@@ -3,6 +3,14 @@ const NSK_UPDATE_INTERVAL_MS = 5 * 60 * 1000;
 let nskPendingVersion = "";
 let nskDismissedVersion = "";
 
+function nskPoolGathering(times) {
+  const minutes=times.map(value=>String(value||'').trim().match(/^([01]\d|2[0-3]):([0-5]\d)(?::[0-5]\d)?$/))
+    .filter(match=>match&&match[0].slice(0,5)!=='00:00').map(match=>Number(match[1])*60+Number(match[2]));
+  if(!minutes.length)return '';
+  const gathering=(Math.min(...minutes)+1440-60)%1440;
+  return 'Samling kl '+String(Math.floor(gathering/60)).padStart(2,'0')+':'+String(gathering%60).padStart(2,'0');
+}
+
 function nskVersionRoot() {
   const src = document.querySelector('script[src*="app.js"]')?.src;
   return new URL("./", src || new URL("../", location.href));
@@ -504,6 +512,7 @@ window.NSK2App = (() => {
       const renderPools = (items) => items.map((p) => {
         const teams = safeInt(p.teams || "2", 2);
         const poolId = Number(p.id);
+        const gathering=nskPoolGathering((matchSummaries.get(String(p.id))||[]).map(match=>match.start_time));
         const teamChoices = teams > 1 ? `
           <div class="nsk-pool-team-selector">
             <div class="nsk-pool-team-label">Välj lag</div>
@@ -517,7 +526,7 @@ window.NSK2App = (() => {
           <details class="nsk-pool-row" data-pool-date="${esc(poolDay(p))}">
             <summary class="nsk-pool-summary">
               <span class="nsk-pool-name">${esc(p.place || "Ort")} • ${esc(p.pool_date || "Datum")}</span>
-              <span class="nsk-pool-hall">${esc(p.hall || "")}</span>
+              <span class="nsk-pool-hall" data-pool-hall-id="${poolId}" data-gathering="${esc(gathering)}">${esc([p.hall,gathering].filter(Boolean).join(" • "))}</span>
               <span class="nsk-pool-chevron" aria-hidden="true">⌄</span>
             </summary>
             <div class="nsk-pool-content" data-selected-lag="1">
