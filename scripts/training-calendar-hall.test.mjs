@@ -12,3 +12,17 @@ test('pool locations and conflicting or unknown training halls cannot select a h
  assert.equal(await client([{type:'pool',date:'2026-10-27',hall:'Stora Hallen'}]).calendarHall('2026-10-27'),'');
  assert.equal(await client([{type:'training',date:'2026-10-27',hall:'Stora Hallen'},{type:'training',date:'2026-10-27',hall:'Lilla Hallen'}]).calendarHall('2026-10-27'),'');
 });
+test('upcoming training choices are ordered, exclude past dates and pools, and preserve same-day information',()=>{
+ const c=client([]);
+ const choices=c.upcomingDates([
+ {type:'training',date:'2026-10-29',startTime:'18:00',hall:'Stora Hallen'},
+ {type:'pool',date:'2026-10-28'},
+ {type:'training',date:'2026-10-25'},
+ {type:'training',date:'2026-10-27',startTime:'13:45',hall:'Lilla Hallen'},
+ {type:'training',date:'2026-10-27',startTime:'18:00',hall:'Stora Hallen'},
+ {type:'training',date:'invalid'}
+ ],'2026-10-26');
+ assert.deepEqual(Array.from(choices,x=>x.date),['2026-10-27','2026-10-29']);
+ assert.match(choices[0].label,/13:45 Lilla Hallen.*18:00 Stora Hallen/);
+ assert.equal(c.upcomingDates([],'2026-10-26').length,0);
+});

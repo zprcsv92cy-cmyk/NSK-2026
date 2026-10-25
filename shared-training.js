@@ -70,6 +70,17 @@
     const data=await response.json();
     return (Array.isArray(data.items)?data.items:[]).filter(item=>item.type==='training');
   }
+  function upcomingDates(items,today){
+    const dates=new Map();
+    for(const item of items){
+      if(item.type!=='training'||!/^\d{4}-\d{2}-\d{2}$/.test(item.date)||item.date<today)continue;
+      const labels=dates.get(item.date)||[];
+      const detail=[item.startTime,item.hall||item.place].filter(Boolean).join(' ');
+      if(detail&&!labels.includes(detail))labels.push(detail);
+      dates.set(item.date,labels);
+    }
+    return [...dates].sort(([a],[b])=>a.localeCompare(b)).map(([date,details])=>({date,label:date+(details.length?' · '+details.join(' / '):'')}));
+  }
   async function calendarHall(date){
     if(Auth.activeTeam()!=='NSK Team 18')return '';
     const id=await resolveTeam();
@@ -82,6 +93,6 @@
     }));
     return halls.size===1?[...halls][0]:'';
   }
-  window.SharedTraining={calendarTrainings,calendarHall,list:()=>request(),get:date=>request(date),save:(date,data)=>request(date,data),remove,
+  window.SharedTraining={upcomingDates,calendarTrainings,calendarHall,list:()=>request(),get:date=>request(date),save:(date,data)=>request(date,data),remove,
     listPlayers:()=>roster('spelare'),listCoaches:()=>roster('tranare')};
 })();

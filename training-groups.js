@@ -12,6 +12,7 @@
   let trainingHall = '';
   async function restore(){
     const date=$('trainingDate').value;
+    if(!date)return false;
     const response=await SharedTraining.get(date);
     if($('trainingDate').value!==date)return false;
     const data=response.session||{};
@@ -44,6 +45,7 @@
     if(saveBlocked){$('trainingStatus').textContent='Sparning stoppad efter konflikt. Ladda om sidan innan du ändrar träningen igen.';return;}
     if($('trainingDate').value!==loadedDate){$('trainingStatus').textContent='Vänta tills träningen för valt datum har lästs in.';return;}
     const date=$('trainingDate').value;
+    if(!date){$('trainingStatus').textContent='Välj en träning först.';return;}
     if(goalies.filter(Boolean).length!==goalieCount){$('trainingStatus').textContent='Välj namn för alla målvakter innan träningen sparas.';return;}
     const snapshot={selected:[...selected],selectedCoaches:[...selectedCoaches],allocation:allocation.map(group=>[...group]),goalies:[...goalies],goalieCount,shirtColorCount,hall:trainingHall};
     $('trainingStatus').textContent='Sparar träningen…';
@@ -401,9 +403,11 @@
   document.addEventListener('DOMContentLoaded',async()=>{
     initImport();
     const requestedDate=new URLSearchParams(location.search).get('date');
-    const today=new Date().toLocaleDateString('sv-SE',{year:'numeric',month:'2-digit',day:'2-digit'});
+    const today=new Date().toLocaleDateString('sv-SE',{timeZone:'Europe/Stockholm',year:'numeric',month:'2-digit',day:'2-digit'});
     $('trainingDate').value=/^\d{4}-\d{2}-\d{2}$/.test(requestedDate||'')?requestedDate:today;
-    $('trainingDate').addEventListener('change',async()=>{try{await saveQueue;if(saveBlocked)throw Error('Sparningen misslyckades. Ladda om sidan innan du byter träning.');if(!await restore())return;renderRoster();renderCoaches();renderGoalieSelectors();renderGroups();$('trainingStatus').textContent='Träningen för '+loadedDate+' är inläst.';}catch(error){if(loadedDate)$('trainingDate').value=loadedDate;$('trainingStatus').textContent=error.message;}});
+    const changeTraining=async()=>{try{await saveQueue;if(saveBlocked)throw Error('Sparningen misslyckades. Ladda om sidan innan du byter träning.');if(!await restore())return;renderRoster();renderCoaches();renderGoalieSelectors();renderGroups();$('trainingStatus').textContent='Träningen för '+loadedDate+' är inläst.';}catch(error){if(loadedDate){$('trainingDate').value=loadedDate;$('trainingCalendar').value=[...$('trainingCalendar').options].some(o=>o.value===loadedDate)?loadedDate:'manual';$('trainingDate').hidden=$('trainingCalendar').value!=='manual';}$('trainingStatus').textContent=error.message;}};
+    $('trainingDate').addEventListener('change',changeTraining);
+    $('trainingCalendar').addEventListener('change',()=>{const manual=$('trainingCalendar').value==='manual';$('trainingDate').hidden=!manual;if(!manual)$('trainingDate').value=$('trainingCalendar').value;else if(!$('trainingDate').value)$('trainingDate').value=today;changeTraining();});
     $('trainingGoalieCount').addEventListener('change',()=>{
       goalieCount=Number($('trainingGoalieCount').value);
       goalies=goalies.slice(0,goalieCount);
@@ -418,8 +422,19 @@
       team=Auth.activeTeam();
       if(!team)throw Error('Välj ett aktivt lag under Mitt konto.');
       [players,coaches]=await Promise.all([SharedTraining.listPlayers(),SharedTraining.listCoaches()]);
+      let calendarError='';
+      const events=await SharedTraining.calendarTrainings().catch(()=>{calendarError='Kalendern kunde inte hämtas. Försök ladda om sidan.';return [];});
+      const choices=SharedTraining.upcomingDates(events,today);
+      const picker=$('trainingCalendar');picker.replaceChildren();
+      for(const choice of choices){const option=document.createElement('option');option.value=choice.date;option.textContent=choice.label;picker.append(option);}
+      const manual=document.createElement('option');manual.value='manual';manual.textContent='Skapa egen träning…';picker.append(manual);
+      const explicit=/^\d{4}-\d{2}-\d{2}$/.test(requestedDate||'');
+      const date=explicit?requestedDate:(choices[0]?.date||today);
+      // Keep direct links to saved/manual or completed sessions editable.
+      picker.value=choices.some(choice=>choice.date===date)?date:'manual';
+      $('trainingDate').value=date;$('trainingDate').hidden=picker.value!=='manual';picker.disabled=false;
       await restore();saveBlocked=false;renderRoster();renderCoaches();renderGoalieSelectors();renderGroups();
-      $('trainingStatus').textContent='';
+      $('trainingStatus').textContent=calendarError;
     }catch(error){$('trainingStatus').textContent=error.message||'Kunde inte läsa truppen.';}
   });
 })();
