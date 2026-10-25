@@ -62,6 +62,19 @@ window.DB = (() => {
   async function listPools(){const t=await teamId();return (await rows('poolspel',t)).filter(r=>linked(r.Lag).includes(t)).map(r=>({id:r.id,team_id:t,title:r.Namn,place:r.Plats,hall:r.Ishall||"",pool_date:r.Datum,active:(typeof r.Status === 'object' ? r.Status?.value : r.Status) !== 'Avslutat',status:(typeof r.Status === 'object' ? r.Status?.value : r.Status) || 'Planerat',teams:num(r['Antal lag']),matches:num(r['Antal matcher']),players_on_field:num(r['Spelare på plan']),periods:num(r.Perioder),period_time:num(r.Periodtid),sub_time:num(r.Bytestid)})).sort((a,b)=>String(b.pool_date||'').localeCompare(String(a.pool_date||'')))}
   async function getPool(poolId){return (await listPools()).find(r=>String(r.id)===String(poolId))||null}
   async function listPoolTeamMatchConfigs(poolId){return (await rows('matchkonfiguration',await teamId())).filter(r=>first(r.Poolspel)==id(poolId)).map(r=>({id:r.id,pool_id:id(poolId),lag_no:num(r.Lagnummer,1),match_no:num(r.Matchnummer,1),start_time:r.Starttid||null,opponent:r.Motståndare||'',plan:r.Plan||'',player_count:num(r['Antal spelare']),goalie_player_id:first(r.Målvakt),players_on_field:linked(r['Spelare på plan'])})).sort((a,b)=>a.lag_no-b.lag_no||a.match_no-b.match_no)}
+  async function listPoolMatchSummaries(poolIds){
+    const wanted=new Set(poolIds.map(Number));
+    const team=await teamId();
+    const configs=await rows('matchkonfiguration',team);
+    const grouped=new Map(poolIds.map(poolId=>[String(poolId),[]]));
+    for(const r of configs){
+      const poolId=first(r.Poolspel);if(!wanted.has(poolId))continue;
+      grouped.get(String(poolId)).push({id:r.id,pool_id:poolId,lag_no:num(r.Lagnummer,1),match_no:num(r.Matchnummer,1),start_time:r.Starttid||null,opponent:r.Motståndare||'',plan:r.Plan||''});
+    }
+    for(const rows of grouped.values())rows.sort((a,b)=>a.lag_no-b.lag_no||a.match_no-b.match_no);
+    return grouped;
+  }
+
   async function getPoolTeamMatchConfig(poolId,lagNo,matchNo){return (await listPoolTeamMatchConfigs(poolId)).find(r=>r.lag_no==lagNo&&r.match_no==matchNo)||null}
   async function getPlayersOnField(poolId,lagNo,matchNo){const players=await listPlayers();const row=await getPoolTeamMatchConfig(poolId,lagNo,matchNo)||await getPoolTeamMatchConfig(poolId,lagNo,1);return row?.players_on_field?.length?players.filter(p=>row.players_on_field.includes(p.id)):players}
   async function getLineup(matchConfigId){return (await rows('laguppstallningar',await teamId())).filter(r=>first(r.Matchkonfiguration)==id(matchConfigId)).map(r=>({id:r.id,pool_id:first(r.Poolspel),match_config_id:id(matchConfigId),person_type:(typeof r.Persontyp==='object'?r.Persontyp?.value:r.Persontyp)==='Spelare'?'player':(typeof r.Persontyp==='object'?r.Persontyp?.value:r.Persontyp)==='Tränare'?'coach':null,person_id:num(r['Person-ID']),sort_order:num(r.Sorteringsordning)})).filter(r=>r.person_id&&r.person_type).sort((a,b)=>a.sort_order-b.sort_order)}
@@ -254,5 +267,5 @@ window.DB = (() => {
   }
   return {listPlayers,listCoaches,listStaff,listPools,getPool,listPoolTeamMatchConfigs,getPoolTeamMatchConfig,getPlayersOnField,getLineup,listUsedPlayersInPool,listShiftSchema,listGoalieStats,listPlayerCoachMap,
     addPlayer,updatePlayer,deletePlayer:failWrite,addCoach,updateCoach,deleteCoach:failWrite,addStaff:(role,name)=>writeStaff('POST',role,null,name),updateStaff:(role,rowId,name)=>writeStaff('PATCH',role,rowId,name),updatePoolTeams,addPool,updatePool,updatePoolActive,deletePool:failWrite,
-    saveCalendarMatchSchedule,savePoolTeamMatchConfig,saveLineup,getCoachSelection,saveCoachSelection,saveShiftSchema,deleteShiftSchema,setShiftDone,savePlayerCoachMap:failWrite,subscribeTruppen:async()=>({unsubscribe(){}})};
+    listPoolMatchSummaries,saveCalendarMatchSchedule,savePoolTeamMatchConfig,saveLineup,getCoachSelection,saveCoachSelection,saveShiftSchema,deleteShiftSchema,setShiftDone,savePlayerCoachMap:failWrite,subscribeTruppen:async()=>({unsubscribe(){}})};
 })();

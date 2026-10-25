@@ -485,10 +485,16 @@ window.NSK2App = (() => {
       const byDate = (a,b) => poolDay(a).localeCompare(poolDay(b)) || String(a.id).localeCompare(String(b.id));
       const upcoming = pools.filter(p => !isArchived(p)).sort(byDate);
       const archived = pools.filter(isArchived).sort((a,b) => -byDate(a,b));
-      const matchSummaries = new Map(await Promise.all(pools.map(async p => {
-        try { return [String(p.id), await DB.listPoolTeamMatchConfigs(p.id)]; }
-        catch { return [String(p.id), null]; }
-      })));
+      let matchSummaries;
+      if(typeof DB.listPoolMatchSummaries==='function'){
+        try { matchSummaries=await DB.listPoolMatchSummaries(pools.map(p=>p.id)); }
+        catch { matchSummaries=new Map(pools.map(p=>[String(p.id),null])); }
+      }else{
+        matchSummaries = new Map(await Promise.all(pools.map(async p => {
+          try { return [String(p.id), await DB.listPoolTeamMatchConfigs(p.id)]; }
+          catch { return [String(p.id), null]; }
+        })));
+      }
       const renderPools = (items) => items.map((p) => {
         const teams = safeInt(p.teams || "2", 2);
         const poolId = Number(p.id);
