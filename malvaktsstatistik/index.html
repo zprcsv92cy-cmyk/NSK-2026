@@ -30,7 +30,7 @@
   </style>
   <style>
     .goalie-print-row { display:flex; justify-content:flex-end; margin:0 0 12px; }
-    .goalie-print-row button { width:auto; margin:0; }
+    .goalie-print-row button { width:auto; min-height:36px; margin:0; padding:7px 12px; font-size:12px; font-weight:600; border-radius:9px; }
     @media print {
       @page { margin:10mm; }
       body { background:#fff !important; color:#111 !important; padding:0 !important; }
@@ -66,7 +66,9 @@
       </div>
     </section>
 
-    <div class="goalie-print-row"><button id="goaliePrintButton" type="button">Skriv ut statistik / PDF</button></div>\n\n    <section class="card">
+    <div class="goalie-print-row"><button id="goaliePrintButton" type="button">Skriv ut statistik / PDF</button></div>
+
+    <section class="card">
       <h2>Översikt</h2>
       <div id="goalieStatsList"></div>
     </section>
