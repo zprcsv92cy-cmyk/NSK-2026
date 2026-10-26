@@ -1,6 +1,7 @@
 import {createPersonalRosterIdentityVerifier} from './personal-roster-identity-adapter.js';
 import {mapTrustedMembershipsToLegacyTeams} from './production-team-id-map.js';
 import {PRIMARY_ADMIN_ID} from './primary-administrator.js';
+import {skillsPinGate} from './private-skills-pin.js';
 import {SKILL_GROUPS,SKILL_KEYS,planSkills} from './skills-planner.js';
 const reply=(status,data)=>Response.json(data,{status,headers:{'Cache-Control':'private, no-store, max-age=0','Pragma':'no-cache','Vary':'Authorization','X-Content-Type-Options':'nosniff'}});
 const positive=v=>typeof v==='string'&&/^[1-9][0-9]*$/.test(v)&&Number.isSafeInteger(Number(v));
@@ -22,7 +23,7 @@ function validPlan(input){
 export function createPrivateSkillsHandler(env,listTeams,{verifyIdentity=createPersonalRosterIdentityVerifier(env),readRoster}={}){
  return async request=>{
   const url=new URL(request.url),suggest=url.pathname==='/api/skills/suggest';
-  if(!suggest&&url.pathname!=='/api/skills')return reply(404,{ok:false,error:'Okänd adress'});
+  if(!suggest&&!['/api/skills','/api/skills/pin'].includes(url.pathname))return reply(404,{ok:false,error:'Okänd adress'});
   const token=/^Bearer ([^\s]+)$/.exec(request.headers.get('Authorization')||'')?.[1];if(!token)return reply(401,{ok:false,error:'Logga in först'});
   try{
    const actor=await verifyIdentity(token);if(!actor)return reply(401,{ok:false,error:'Logga in igen'});
@@ -30,6 +31,7 @@ export function createPrivateSkillsHandler(env,listTeams,{verifyIdentity=createP
    // Global administrators, team owners and browser flags never grant access here.
    if(actor.is_primary_admin!==true||actor.user?.id!==PRIMARY_ADMIN_ID)return reply(403,{ok:false,error:'Åtkomst nekad'});
    if(env.NSK_DISABLE_PRIVATE_SKILLS==='true')return reply(404,{ok:false,error:'Funktionen är avstängd'});
+   const gate=await skillsPinGate(env,request,token);if(gate)return gate;
    if(!(suggest?['POST']:['GET','PUT','DELETE']).includes(request.method))return reply(405,{ok:false,error:'Otillåten metod'});
    const teamValues=url.searchParams.getAll('team_id');if(teamValues.length!==1||!positive(teamValues[0])||[...url.searchParams.keys()].some(k=>k!=='team_id'))return reply(400,{ok:false,error:'Välj ett lag'});
    const team=teamValues[0],access=mapTrustedMembershipsToLegacyTeams(actor,await listTeams());

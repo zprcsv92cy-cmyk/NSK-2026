@@ -1,7 +1,7 @@
 // Loaded only in the private view. Assessments are kept in memory, never browser storage.
 (() => {
  const $=id=>document.getElementById(id),base=()=>String(window.APP_CONFIG?.API_URL||'https://nsk-api.peter-hasselberg.workers.dev').replace(/\/$/,'');
- let board=null,team=null,token=null,player=null,dirty=false,busy=false,proposal=null,pools=[],generation=0;
+ let board=null,team=null,token=null,player=null,dirty=false,busy=false,proposal=null,pools=[],generation=0,unlock=null,unlockTimer=null,unlockExpires=0,pinConfigured=true,pinBusy=false;
  const node=(tag,text)=>{const n=document.createElement(tag);if(text!==undefined)n.textContent=text;return n;};
  const message=text=>{$('skillsStatus').textContent=text;};
  const planMessage=text=>{$('skillsPlanStatus').textContent=text;};
@@ -10,8 +10,10 @@
  function lock(){for(const control of document.querySelectorAll('#skillsContent input,#skillsContent textarea,#skillsContent select,#skillsContent button'))control.disabled=busy;$('skillsSuggest').disabled=busy||!board?.enabled;}
  async function api(method='GET',payload,suggest=false){
   if(!identity())throw Error('Åtkomst nekad. Logga in igen.');
-  const response=await fetch(base()+'/api/skills'+(suggest?'/suggest':'')+'?team_id='+encodeURIComponent(team),{method,headers:{Authorization:'Bearer '+token,...(payload?{'Content-Type':'application/json'}:{})},body:payload?JSON.stringify(payload):undefined,cache:'no-store',credentials:'omit'});
-  const data=await response.json().catch(()=>({}));if(!identity())throw Error('Inloggningen har ändrats.');
+  const activeUnlock=unlock;
+  const response=await fetch(base()+'/api/skills'+(suggest?'/suggest':'')+'?team_id='+encodeURIComponent(team),{method,headers:{Authorization:'Bearer '+token,'X-NSK-Skills-Unlock':unlock||'',...(payload?{'Content-Type':'application/json'}:{})},body:payload?JSON.stringify(payload):undefined,cache:'no-store',credentials:'omit'});
+  const data=await response.json().catch(()=>({}));if(!identity()||activeUnlock!==unlock)throw Error('Inloggningen eller kodskyddet har ändrats.');
+  if(response.status===423){showPinGate();throw Error(data.error||'Ange koden igen.');}
   if(!response.ok||!data.ok){if(response.status===401||response.status===403){board=null;proposal=null;$('skillsContent').hidden=true;$('skillsFields').replaceChildren();$('skillsPreview').replaceChildren();}throw Error(data.error||'Kunde inte hämta eller spara.');}return data;
  }
  const keys=()=>board.groups.flatMap(g=>g.items.map(([key])=>key));
@@ -90,12 +92,40 @@
    invalidate();planMessage('Förslaget är sparat för laget. Endast grupp- eller bytesindelningen delas, inga skillsvärden.');
   }catch(error){planMessage(error.message+' Inget nytt förslag markeras som sparat.');}finally{busy=false;lock();}
  }
+ async function pinRequest(method='GET',payload){
+  if(!identity())throw Error('Åtkomst nekad. Logga in igen.');
+  const response=await fetch(base()+'/api/skills/pin',{method,headers:{Authorization:'Bearer '+token,...(payload?{'Content-Type':'application/json'}:{})},body:payload?JSON.stringify(payload):undefined,cache:'no-store',credentials:'omit'});
+  const data=await response.json().catch(()=>({}));if(!identity())throw Error('Inloggningen har ändrats.');
+  if(!response.ok||!data.ok)throw Error(data.error||'Kodskyddet kunde inte kontrolleras.');return data;
+ }
+ function showPinGate(){
+  clearTimeout(unlockTimer);unlock=null;unlockExpires=0;board=null;dirty=false;player=null;invalidate();
+  $('skillsContent').hidden=true;$('skillsFields').replaceChildren();$('skillsNotes').value='';$('skillsPlayer').replaceChildren();$('skillsPlayerName').textContent='';$('skillsCoverage').textContent='';$('skillsAssessedAt').textContent='';
+  $('skillsPinGate').hidden=false;$('skillsPinForm').reset();
+  $('skillsPinTitle').textContent=pinConfigured?'Lås upp Specialfunktioner':'Välj kod för Specialfunktioner';
+  $('skillsPinHelp').textContent=pinConfigured?'Ange din kod. Fem felaktiga försök ger 15 minuters spärr.':'Välj en fyrsiffrig kod och bekräfta den. Koden gäller bara tillsammans med ditt huvudadministratörskonto. Spara koden på en säker plats.';
+  $('skillsPinConfirmField').hidden=pinConfigured;$('skillsPinConfirm').required=!pinConfigured;$('skillsPinSubmit').textContent=pinConfigured?'Lås upp':'Spara kod och lås upp';
+  message('Specialfunktioner är låsta.');
+ }
+ async function loadUnlocked(){
+  const response=await fetch(base()+'/api/lag',{headers:{Authorization:'Bearer '+token},cache:'no-store'});if(!response.ok)throw Error('Laget kunde inte verifieras.');const data=await response.json(),teams=(data.results||[]).filter(t=>t.Namn===Auth.activeTeam()&&String(t['Säsong'])==='2026');if(teams.length!==1)throw Error('Lagkopplingen kunde inte verifieras.');team=String(teams[0].id);board=await api();renderBoard();message('Privata uppgifter inlästa. Bedömningarna är bara tillgängliga för huvudadministratören.');
+  pools=await DB.listPools();$('skillsPool').replaceChildren(new Option('Välj poolspel',''));pools.filter(p=>p.active!==false).forEach(p=>$('skillsPool').append(new Option([p.pool_date,p.place,p.title].filter(Boolean).join(' · '),String(p.id))));renderPoolChoices();
+  $('skillsDate').value=new Date().toLocaleDateString('sv-SE',{timeZone:'Europe/Stockholm',year:'numeric',month:'2-digit',day:'2-digit'});
+ }
  document.addEventListener('DOMContentLoaded',async()=>{
-  try{const session=await Auth.init();if(session?.is_primary_admin!==true)throw Error('Åtkomst nekad.');token=Auth.getToken();const response=await fetch(base()+'/api/lag',{headers:{Authorization:'Bearer '+token},cache:'no-store'});if(!response.ok)throw Error('Laget kunde inte verifieras.');const data=await response.json(),teams=(data.results||[]).filter(t=>t.Namn===Auth.activeTeam()&&String(t['Säsong'])==='2026');if(teams.length!==1)throw Error('Lagkopplingen kunde inte verifieras.');team=String(teams[0].id);board=await api();renderBoard();message('Privata uppgifter inlästa. Bedömningarna är bara tillgängliga för huvudadministratören.');
-   pools=await DB.listPools();$('skillsPool').replaceChildren(new Option('Välj poolspel',''));pools.filter(p=>p.active!==false).forEach(p=>$('skillsPool').append(new Option([p.pool_date,p.place,p.title].filter(Boolean).join(' · '),String(p.id))));renderPoolChoices();
-   $('skillsDate').value=new Date().toLocaleDateString('sv-SE',{timeZone:'Europe/Stockholm',year:'numeric',month:'2-digit',day:'2-digit'});
-  }catch(error){message(error.message);}
+  try{const session=await Auth.init();if(session?.is_primary_admin!==true)throw Error('Åtkomst nekad.');token=Auth.getToken();const state=await pinRequest();pinConfigured=state.configured;showPinGate();if(state.retryAfter)$('skillsPinMessage').textContent='Kodskyddet är spärrat. Försök igen om '+Math.ceil(state.retryAfter/60)+' minuter.';}
+  catch(error){message(error.message);}
  });
+ $('skillsPinForm').onsubmit=async event=>{
+  event.preventDefault();if(pinBusy)return;pinBusy=true;$('skillsPinSubmit').disabled=true;$('skillsPinMessage').textContent='Kontrollerar…';
+  const payload={action:pinConfigured?'unlock':'setup',pin:$('skillsPin').value,...(!pinConfigured?{confirmPin:$('skillsPinConfirm').value}:{})};$('skillsPinForm').reset();
+  try{const data=await pinRequest('POST',payload);pinConfigured=true;unlock=data.unlock;unlockExpires=data.expiresAt*1000;$('skillsPinGate').hidden=true;$('skillsPinMessage').textContent='';clearTimeout(unlockTimer);unlockTimer=setTimeout(()=>{showPinGate();$('skillsPinMessage').textContent='Tiden har gått ut. Ange koden igen.';},Math.max(0,data.expiresAt*1000-Date.now()));await loadUnlocked();}
+  catch(error){if(unlock)showPinGate();$('skillsPinMessage').textContent=error.message;message(error.message);}
+  finally{pinBusy=false;$('skillsPinSubmit').disabled=false;}
+ };
+ $('skillsPinLock').onclick=async()=>{if(dirty&&!confirm('Lås och lämna osparade bedömningar?'))return;showPinGate();try{await pinRequest('DELETE');}catch(error){message(error.message);}};
+ document.addEventListener('visibilitychange',()=>{if(!document.hidden&&unlock&&Date.now()>=unlockExpires)showPinGate();});
+ document.addEventListener('nsk:page-show',()=>{if(unlock&&Date.now()>=unlockExpires)showPinGate();if(!identity()&&token){showPinGate();$('skillsPinGate').hidden=true;message('Logga in igen.');}});
  $('skillsPlayer').onchange=()=>{player=$('skillsPlayer').value;renderCard();};
  $('skillsNotes').oninput=()=>{if(!player)return;if(!board.cards[player])board.cards[player]=blank();board.cards[player].notes=$('skillsNotes').value;dirty=true;invalidate();message('Ändringar är inte sparade.');};
  $('skillsForm').onsubmit=event=>{event.preventDefault();void save();};

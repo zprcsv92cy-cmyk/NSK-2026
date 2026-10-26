@@ -5,10 +5,10 @@ import {SKILL_KEYS,planSkills,SKILL_GROUPS} from '../worker/skills-planner.js';
 import {PRIMARY_ADMIN_ID} from '../worker/primary-administrator.js';
 const teams=[{id:18,Namn:'A','Säsong':'2026'},{id:19,Namn:'B','Säsong':'2026'}];
 const blank=()=>({ratings:Object.fromEntries(SKILL_KEYS.map(k=>[k,null])),notes:''});
-const request=(method='GET',data,token='valid',query='18',path='/api/skills')=>new Request('https://test'+path+'?team_id='+query,{method,headers:{...(token?{Authorization:'Bearer '+token}:{}),...(data?{'Content-Type':'application/json'}:{})},...(data?{body:JSON.stringify(data)}:{})});
+const request=(method='GET',data,token='valid',query='18',path='/api/skills',unlock='a'.repeat(64))=>new Request('https://test'+path+'?team_id='+query,{method,headers:{'X-NSK-Skills-Unlock':unlock,...(token?{Authorization:'Bearer '+token}:{}),...(data?{'Content-Type':'application/json'}:{})},...(data?{body:JSON.stringify(data)}:{})});
 function fixture(){
  let actor={user:{id:PRIMARY_ADMIN_ID},is_primary_admin:true,is_global_admin:true,memberships:[{team_id:'A',role:'owner'}],permissions:['read']},storageCalls=0,rosterCalls=0,teamCalls=0;const rows=new Map();
- const db={prepare(sql){storageCalls++;let args;const statement={bind(...values){args=values;return statement;},async first(){return rows.get(args[0])||null;},async run(){
+ const db={prepare(sql){storageCalls++;let args;const statement={bind(...values){args=values;return statement;},async first(){if(sql.includes('FROM private_skills_unlocks'))return {valid:1};return rows.get(args[0])||null;},async run(){
   if(sql.startsWith('INSERT')){const [team,json,enabled]=args;if(rows.has(team))return {meta:{changes:0}};rows.set(team,{cards_json:json,enabled,revision:1});}
   else{const [json,enabled,,team,revision]=args;if(rows.get(team)?.revision!==revision)return {meta:{changes:0}};rows.set(team,{cards_json:json,enabled,revision:revision+1});}
   return {meta:{changes:1}};
@@ -56,9 +56,13 @@ test('assessment categories affect balanced planning without a single permanent 
 test('real D1 identity grants only the protected primary account; revocation immediately denies access',async t=>{
  const {fixture:authFixture}=await import('./helpers/auth-d1-fixture.mjs');const {tokenDigest}=await import('../worker/account-recovery.js');const {PRIMARY_ADMIN_EMAIL}=await import('../worker/primary-administrator.js');const {readFileSync}=await import('node:fs');
  const f=await authFixture(t);await f.db.prepare(readFileSync(new URL('../migrations/20261026_private_skills.sql',import.meta.url),'utf8')).run();
+ for(const sql of readFileSync(new URL('../migrations/20261026_private_skills_pin.sql',import.meta.url),'utf8').split(';').filter(s=>s.trim()))await f.db.prepare(sql).run();
  const verifiedTeams=[{id:18,Namn:'NSK Team 18','Säsong':'2026'}];let rosterReads=0;const handler=createPrivateSkillsHandler(f.env,async()=>verifiedTeams,{readRoster:async()=>{rosterReads++;return [{id:'101',name:'Synthetic Player'}];}});
  assert.equal((await handler(request('GET',undefined,f.tokens.root))).status,403);assert.equal((await handler(request('GET',undefined,f.tokens.user))).status,403);assert.equal(rosterReads,0);
  const token='primary-private-skills-test-session-2026';await f.db.prepare('INSERT INTO auth_users(id,email,display_name,password_hash,disabled) VALUES(?,?,?,?,0)').bind(PRIMARY_ADMIN_ID,PRIMARY_ADMIN_EMAIL,'Primary test','unused').run();await f.db.prepare("INSERT INTO auth_sessions(token_hash,user_id,expires_at) VALUES(?,?,datetime('now','+2 hours'))").bind(await tokenDigest(token),PRIMARY_ADMIN_ID).run();
- assert.equal((await handler(request('PUT',{revision:0,enabled:true,cards:{101:blank()}},token))).status,200);assert.equal((await handler(request('GET',undefined,token))).status,200);assert.equal((await f.db.prepare('SELECT revision FROM private_skills_boards WHERE team_id=?').bind('18').first()).revision,1);
+ const setup=await handler(request('POST',{action:'setup',pin:'7392',confirmPin:'7392'},token,'18','/api/skills/pin'));assert.equal(setup.status,400);
+ const pinRequest=new Request('https://test/api/skills/pin',{method:'POST',headers:{Authorization:'Bearer '+token,'Content-Type':'application/json'},body:JSON.stringify({action:'setup',pin:'7392',confirmPin:'7392'})});const pin=await(await handler(pinRequest)).json();assert(pin.unlock);
+ assert.equal((await handler(request('GET',undefined,token))).status,423);
+ assert.equal((await handler(request('PUT',{revision:0,enabled:true,cards:{101:blank()}},token,'18','/api/skills',pin.unlock))).status,200);assert.equal((await handler(request('GET',undefined,token,'18','/api/skills',pin.unlock))).status,200);assert.equal((await f.db.prepare('SELECT revision FROM private_skills_boards WHERE team_id=?').bind('18').first()).revision,1);
  await f.db.prepare("UPDATE auth_sessions SET revoked_at=datetime('now') WHERE token_hash=?").bind(await tokenDigest(token)).run();const before=rosterReads;assert.equal((await handler(request('GET',undefined,token))).status,401);assert.equal(rosterReads,before);
 });
