@@ -20,10 +20,12 @@
    const ordered=sortEntries(entries),up=ordered.filter(item=>!item.finished),past=ordered.filter(item=>item.finished);
    const upTitle=document.getElementById('upcomingActivitiesTitle'),pastTitle=document.getElementById('pastActivitiesTitle');
    upTitle.textContent='Kommande ('+up.length+')';pastTitle.textContent='Avslutade ('+past.length+')';
+   const actions=root.querySelector('.calendar-create-actions');
+   if(actions.nextElementSibling!==pastTitle)root.insertBefore(actions,pastTitle);
    // Compare real DOM order before moving cards, preserving keyboard focus and open state.
    const current=[...root.children].filter(node=>node.matches('details.nsk-pool-row'));
    const correct=current.length===ordered.length&&current.every((row,i)=>row===ordered[i].row)&&up.every(item=>item.row.compareDocumentPosition(pastTitle)&Node.DOCUMENT_POSITION_FOLLOWING)&&past.every(item=>pastTitle.compareDocumentPosition(item.row)&Node.DOCUMENT_POSITION_FOLLOWING);
-   if(!correct){for(const item of up)root.insertBefore(item.row,pastTitle);for(const item of past)root.insertBefore(item.row,root.querySelector('.calendar-create-actions'));}
+   if(!correct){for(const item of up)root.insertBefore(item.row,actions);for(const item of past)root.append(item.row);}
   }finally{observer?.observe(root,{subtree:true,childList:true,characterData:true});}
  }
  window.NSKCalendarList={sortEntries,render};
