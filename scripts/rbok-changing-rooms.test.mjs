@@ -52,7 +52,7 @@ test('manual room refresh bypasses saved snapshots and preserves them on failure
  const writes=[];let calls=0;
  const env={NSK_TRAINERS:{get:async()=>{throw Error('Must not use old snapshot');},put:async(...args)=>writes.push(args)}};
  const now=new Date('2026-10-25T08:00:00Z');
- const data=await refreshChangingRooms(env,now,async()=>{calls++;return new Response('<table>'+row()+'</table>',{headers:{'content-type':'text/html'}});});
+ const data=await refreshChangingRooms(env,now,async()=>{calls++;return new Response(board(row()),{headers:{'content-type':'text/html'}});});
  assert.equal(calls,1);assert.equal(writes.length,1);assert.equal(data.checkedAt,now.toISOString());
  await assert.rejects(refreshChangingRooms(env,now,async()=>{throw Error('unavailable');}));
  assert.equal(writes.length,1);
