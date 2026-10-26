@@ -71,6 +71,7 @@ jobs:
           node --check sharpening-link-manager.js
           node --check sharpening-public.js
           node --check qr-code.js
+          node --check skate-fields.js
           node --check private-skills.js
           node --check home-training.js
           node --check svenskalag-home.js
@@ -130,7 +131,7 @@ jobs:
         run: |
           set -euo pipefail
           mkdir -p _site
-          cp -a account-access.js account-users.js shell-entry.js app-shell.js private-skills.js view-cache.js equipment.js person-cards.js calendar-match-plan.mjs calendar-list.js index.html app.css app.js navigation.js home-training.js svenskalag-home.js changing-rooms.js training-cards.js shared-training.js admin-mode.js auth.js config.js db.js deploy.json version.js sw.js manifest.webmanifest icon-192.png icon-512.png login-patch.js login-gate.js training-groups.js exercise-archive.js rink-drawer.js rink-text-parser.js exercise-rink-preview.js hockeyakademin-catalog.js pool-team-editor.js qr-code.js sharpening-link-manager.js sharpening-public.js _site/
+          cp -a account-access.js account-users.js shell-entry.js app-shell.js private-skills.js view-cache.js equipment.js person-cards.js calendar-match-plan.mjs calendar-list.js index.html app.css app.js navigation.js home-training.js svenskalag-home.js changing-rooms.js training-cards.js shared-training.js admin-mode.js auth.js config.js db.js deploy.json version.js sw.js manifest.webmanifest icon-192.png icon-512.png login-patch.js login-gate.js training-groups.js exercise-archive.js rink-drawer.js rink-text-parser.js exercise-rink-preview.js hockeyakademin-catalog.js pool-team-editor.js skate-fields.js qr-code.js sharpening-link-manager.js sharpening-public.js _site/
           for dir in skills app aktivera anvandare bytesschema lag laguppstallning login malvaktsstatistik matchvy mittkonto skapapoolspel startsida truppen traningsgrupper ovningsarkiv ritverktyg materialforvaltare slipning; do
             cp -a "$dir" _site/
           done

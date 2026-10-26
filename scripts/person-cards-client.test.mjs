@@ -5,7 +5,7 @@ import fs from 'node:fs';
 const script=fs.readFileSync(new URL('../person-cards.js',import.meta.url),'utf8');
 function client(respond){
  const calls=[];const context={window:{APP_CONFIG:{API_URL:'https://api.example.test'}},Auth:{getToken:()=> 'personal-token'},document:{getElementById:()=>null},crypto:{randomUUID:()=> 'new-order'},fetch:async(url,options)=>{calls.push({url,options});const {status=200,data}=respond(url,options);return {ok:status<400,status,json:async()=>data};}};
- vm.runInNewContext(script,context);return {api:context.window.PersonCards,calls};
+ vm.runInNewContext(fs.readFileSync(new URL('../skate-fields.js',import.meta.url),'utf8')+'\n'+script,context);return {api:context.window.PersonCards,calls};
 }
 test('card client targets explicit person kind and team with personal credentials and current revision',async()=>{
  const f=client(()=>({data:{ok:true,card:{hollow:'16 mm'},revision:3}}));

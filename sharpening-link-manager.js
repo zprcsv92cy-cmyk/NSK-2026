@@ -35,6 +35,24 @@
    finally{if(!disposed){busy=false;controls();}}
   };void load();return ()=>{disposed=true;state=null;root.replaceChildren();};
  }
+ let bulkDispose=null;
+ function bulk(root,{team,people}){
+  bulkDispose?.();let disposed=false,busy=false,records=[],chosen=new Set();const token=Auth.getToken(),activeTeam=Auth.activeTeam();
+  const $=id=>root.querySelector('#'+id);$('qrPlayers').replaceChildren();$('qrPrintAgain').hidden=true;
+  const render=()=>{const query=$('qrNameSearch').value.trim().toLocaleLowerCase('sv-SE');$('qrPlayers').replaceChildren();for(const p of people.filter(p=>p.full_name.toLocaleLowerCase('sv-SE').includes(query))){const label=el('label'),check=el('input');check.type='checkbox';check.checked=chosen.has(String(p.id));check.disabled=busy;check.onchange=()=>{if(check.checked)chosen.add(String(p.id));else chosen.delete(String(p.id));};label.append(check,document.createTextNode(p.full_name));$('qrPlayers').append(label);}};
+  const print=()=>{if(!allowed()||Auth.getToken()!==token||Auth.activeTeam()!==activeTeam||!records.length)return;document.querySelector('.qr-print-sheet')?.remove();const sheet=el('div');sheet.className='qr-print-sheet';for(const r of records){const card=el('section');card.className='qr-print-card';const qr=qrcode(0,'M');qr.addData(r.url);qr.make();const img=el('img');img.src=qr.createDataURL(5,4);img.alt='QR-kod för '+r.name;card.append(el('h2',r.name),img,el('p','NSK · Personlig slipningssida'));sheet.append(card);}document.body.append(sheet);document.body.classList.add('qr-printing');window.print();};
+  $('qrNameSearch').oninput=render;$('qrPrintAgain').onclick=print;
+  $('qrCreateList').onclick=async()=>{
+   if(busy||!chosen.size)return;if(!confirm('Skapa nya länkar för '+chosen.size+' valda spelare? Deras tidigare länkar slutar fungera.'))return;
+   const mode=$('qrMode').value;busy=true;$('qrMode').disabled=true;records=[];$('qrPrintAgain').hidden=true;$('qrCreateList').disabled=true;render();const failures=[];
+   for(const p of people.filter(p=>chosen.has(String(p.id)))){if(disposed||!allowed()||Auth.getToken()!==token||Auth.activeTeam()!==activeTeam)break;
+    try{const url=base()+'/api/sharpening/link?team_id='+encodeURIComponent(team)+'&person_id='+encodeURIComponent(p.id),headers={Authorization:'Bearer '+token},currentResponse=await fetch(url,{headers,cache:'no-store'}),current=await currentResponse.json();if(!currentResponse.ok||!current.ok)throw Error();const response=await fetch(url,{method:'PUT',headers:{...headers,'Content-Type':'application/json'},body:JSON.stringify({mode,revision:current.revision}),cache:'no-store'}),data=await response.json();if(!response.ok||!data.ok||!data.token)throw Error();const link=new URL('../slipning/',location.href);link.hash='nyckel='+data.token;records.push({name:p.full_name,url:link.href});}
+    catch{failures.push(p.full_name);}if(!disposed)$('qrBulkStatus').textContent=records.length+' länkar klara…';
+   }
+   if(disposed)return;busy=false;$('qrMode').disabled=false;render();$('qrCreateList').disabled=false;$('qrPrintAgain').hidden=!records.length;$('qrBulkStatus').textContent=records.length+' QR-koder klara.'+(failures.length?' Kunde inte skapa för: '+failures.join(', ')+'. Skriv ut de klara innan du försöker igen.':' Välj Skriv ut QR-listan.');
+  };render();bulkDispose=()=>{disposed=true;records=[];document.querySelector('.qr-print-sheet')?.remove();document.body.classList.remove('qr-printing');};
+ }
+ window.addEventListener('afterprint',()=>{document.body.classList.remove('qr-printing');document.querySelector('.qr-print-sheet')?.remove();});
  const style=el('style');style.textContent='.sharpening-link-label{display:grid;gap:7px}.sharpening-link-label select,.sharpening-link-result input{box-sizing:border-box;width:100%;min-width:0}.sharpening-link-actions{display:flex;flex-wrap:wrap;gap:10px;align-items:center;margin:12px 0}.sharpening-link-actions button,.sharpening-link-actions a{min-height:44px}.sharpening-link-actions a{display:inline-flex;align-items:center}.sharpening-link-qr{display:block;max-width:100%;width:224px;height:auto;background:white;padding:8px;margin:14px auto;image-rendering:pixelated}.sharpening-link-result .small{line-height:1.5}@media print{.sharpening-link-manager{display:none!important}}';document.head.append(style);
- window.SharpeningLinks={allowed,mount};
+ window.SharpeningLinks={allowed,mount,bulk};
 })();
