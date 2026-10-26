@@ -812,5 +812,6 @@
     });
   }
   document.addEventListener('DOMContentLoaded',()=>{setupCalendarImport();render();});
+  document.addEventListener('nsk:page-show',()=>void render());
   window.addEventListener('pageshow',event=>{if(event.persisted)render();});
 })();

@@ -22,7 +22,7 @@
   save.disabled=true;message.textContent='Sparar…';
   try{
    if(!await allowed()||poolId!==sessionStorage.getItem('nsk2_pool_id'))throw Error('Välj poolspel och kontrollera din personliga behörighet.');
-   await window.DB.updatePoolTeams(poolId,teams);location.reload();
+   await window.DB.updatePoolTeams(poolId,teams);(window.NSKNavigate?window.NSKNavigate(location.href,{reload:true,replace:true}):location.reload());
   }catch(error){message.textContent=error.message||'Kunde inte spara';}
   finally{save.disabled=false;}
  });

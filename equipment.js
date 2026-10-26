@@ -142,7 +142,7 @@
  };
  $('checklistCancel').onclick=()=>{if(busy)return;setCreation(false);editingChecklistId=null;editingChecklistBase=null;$('checklistForm').reset();$('checklistCreateButton').focus();};
  async function refresh(){
-  if(busy||refreshing||!board||document.hidden)return;
+  if(busy||refreshing||!board||document.hidden||window.NSKShellActive===false)return;
   const generation=changeVersion,expectedTeam=team,expectedToken=Auth.getToken();refreshing=true;
   try{
    const data=await request();

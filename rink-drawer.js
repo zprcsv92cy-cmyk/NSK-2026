@@ -219,7 +219,7 @@
   $('rinkExport').onclick=exportImage;$('rinkFromText').onclick=drawFromText;
   $('rinkTextExample').onclick=()=>{$('rinkDescription').value='Två röda spelare vid nedre vänstra hörnet. En puck i mittcirkeln. Tre koner vid övre högra hörnet. Åkväg från nedre vänstra hörnet till mittcirkeln. Passning från mittcirkeln till övre högra hörnet.';saveDraft();};
   $('rinkFullscreen').onclick=()=>{closeMenus();const on=document.body.classList.toggle('rink-fullscreen');$('rinkFullscreen').textContent=on?'Avsluta helskärm':'Helskärm';};
-  const saveOnLeave=()=>{if(drag?.changed)draftDirty=true;flushDraft();};window.addEventListener('pagehide',saveOnLeave);document.addEventListener('visibilitychange',()=>{if(document.hidden)saveOnLeave();});
+  const saveOnLeave=()=>{if(drag?.changed)draftDirty=true;flushDraft();};window.addEventListener('pagehide',saveOnLeave);window.addEventListener('nsk:page-hide',saveOnLeave);document.addEventListener('visibilitychange',()=>{if(document.hidden)saveOnLeave();});
   restore();
  });
 })();
