@@ -79,7 +79,7 @@
     const more=document.createElement('details');more.className='arena-more';
     const summary=document.createElement('summary');summary.innerHTML='<span aria-hidden="true">•••</span>Mer';more.append(summary);
     const menu=document.createElement('div');menu.className='arena-more-menu';
-    for(const [slug,label] of visibleEntries.filter(([slug])=>!Object.hasOwn(icons,slug))){const link=document.createElement('a');link.href='../'+slug+'/';link.textContent=label;if(slug===active){link.className='active';summary.classList.add('active');}menu.append(link);}
+    for(const [slug,label] of visibleEntries.filter(([slug])=>!Object.hasOwn(icons,slug)&&slug!=='skapapoolspel')){const link=document.createElement('a');link.href='../'+slug+'/';link.textContent=label;if(slug===active){link.className='active';summary.classList.add('active');}menu.append(link);}
     more.append(menu);bottom.append(more);
     // Keep the mobile bar outside the scrolling content; avoid iOS fixed-footer drift.
     let scroll=document.querySelector('body > .arena-scroll');
