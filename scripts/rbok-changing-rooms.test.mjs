@@ -57,3 +57,9 @@ test('manual room refresh bypasses saved snapshots and preserves them on failure
  await assert.rejects(refreshChangingRooms(env,now,async()=>{throw Error('unavailable');}));
  assert.equal(writes.length,1);
 });
+
+test('Cloudflare fetch uses manual redirects and rejects upstream redirects',async()=>{
+ let mode;
+ await assert.rejects(fetchChangingRooms(async(url,options)=>{mode=options.redirect;return new Response('',{status:302,headers:{location:'https://example.invalid/'}});},null,new Date('2026-10-26T08:00:00Z')));
+ assert.equal(mode,'manual');
+});
