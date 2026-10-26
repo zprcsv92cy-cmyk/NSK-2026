@@ -1,0 +1,23 @@
+import test from 'node:test';
+import assert from 'node:assert/strict';
+import vm from 'node:vm';
+import {readFileSync} from 'node:fs';
+const source=readFileSync(new URL('../app.js',import.meta.url),'utf8');
+const section=source.slice(source.indexOf('  let matchvyCache = null;'),source.indexOf('  async function importPlayersAndCoachesFromJsonObject'));
+function setup(count,index=0,finished=false){
+ const elements=new Map();const byId=id=>{if(!elements.has(id))elements.set(id,{hidden:false,disabled:false,textContent:'',innerHTML:'',dataset:{},handlers:{},addEventListener(type,fn){this.handlers[type]=fn;}});return elements.get(id);};
+ const values=new Map([['nsk2_pool_id','10'],['nsk2_lag_nr','2'],['nsk2_match_no','1']]);
+ const rows=Array.from({length:count},(_,i)=>({shift_no:i+1,done:finished||i<index,players_json:[],time_left:'10:00'}));
+ const configs=[{lag_no:2,match_no:1},{lag_no:1,match_no:2,opponent:'Wrong team'},{lag_no:2,match_no:2,opponent:'Next',start_time:'12:00'}];
+ const writes=[];const context={byId,setText:(id,text)=>byId(id).textContent=text,setHtml:(id,text)=>byId(id).innerHTML=text,esc:String,shortName:String,matchCurrentShiftIndex:index,safeInt:(x,d)=>Number(x)||d,matchShiftKey:()=> 'shift',rememberMatchShift:()=>{},getPlayersCached:async()=>[],getCoachNamesForLag:async()=> 'Peter',DB:{listShiftSchema:async()=>rows,getPoolTeamMatchConfig:async()=>configs[0],listPoolTeamMatchConfigs:async()=>configs,setShiftDone:async(...a)=>writes.push(a),updatePoolActive:async(...a)=>writes.push(a)},sessionStorage:{getItem:k=>values.get(k)||null,setItem:(k,v)=>values.set(k,v)},location:{href:''},confirm:()=>true,document:{hidden:false,addEventListener(){}},window:{setInterval(){},addEventListener(){}},console};
+ vm.runInNewContext(section+';globalThis.flow={init:initMatchvyPage,set(data){matchvyCache=data;paintCoachMatchView();}};',context);
+ const data={rows,configs,poolId:'10',lagNo:'2',matchNo:'1',playerMap:{},row:{},coachNames:'Peter'};
+ return {context,byId,rows,writes,values,data};
+}
+for(const count of [3,4])test(`last of ${count} shifts hides next panel and offers match finish`,()=>{const x=setup(count,count-1);x.context.flow.set(x.data);assert.equal(x.byId('nextShiftPanel').hidden,true);assert.equal(x.byId('nextShiftMeta').hidden,true);assert.equal(x.byId('nextShiftBtn').textContent,'Avsluta match');assert.equal(x.byId('matchFinishedPanel').hidden,true);});
+test('ordinary shift shows next and completed match prepares correct own team via schedule',()=>{const x=setup(3,0);x.context.flow.set(x.data);assert.equal(x.byId('nextShiftPanel').hidden,false);x.rows.forEach(r=>r.done=true);x.context.flow.set(x.data);assert.equal(x.byId('matchFinishedPanel').hidden,false);assert.match(x.byId('matchFinishedNext').textContent,/Next/);assert.doesNotMatch(x.byId('matchFinishedNext').textContent,/Wrong/);x.byId('prepareNextMatch').onclick();assert.equal(x.values.get('nsk2_match_no'),'2');assert.equal(x.values.get('nsk2_team_match_10_2'),'2');assert.equal(x.context.location.href,'../bytesschema/');});
+test('finishing final shift writes its real shift number and reveals transition only on success',async()=>{const x=setup(3,2);x.rows[2].shift_no=7;await x.context.flow.init();await x.byId('nextShiftBtn').handlers.click();assert.equal(x.writes.length,1);assert.equal(x.writes[0][3],7);assert.equal(x.byId('matchFinishedPanel').hidden,false);});
+test('failed final shift save keeps match open',async()=>{const x=setup(3,2);x.context.DB.setShiftDone=async()=>{throw Error('offline')};await x.context.flow.init();await x.byId('nextShiftBtn').handlers.click();assert.equal(x.byId('matchFinishedPanel').hidden,true);assert.equal(x.rows[2].done,false);assert.match(x.byId('appError').textContent,/offline/);});
+test('cancel whole-pool finish never writes or navigates',async()=>{const x=setup(3,2,true);await x.context.flow.init();x.context.confirm=()=>false;await x.byId('finishWholePool').onclick();assert.equal(x.writes.length,0);assert.equal(x.context.location.href,'');});
+test('whole pool finish warns about other own team and writes only after confirmation',async()=>{const x=setup(3,2,true);await x.context.flow.init();x.context.DB.listShiftSchema=async(pool,lag)=>lag===1?[{done:false}]:x.rows;let message='';x.context.confirm=text=>{message=text;return true;};await x.byId('finishWholePool').onclick();assert.match(message,/Lag 1, match 2/);assert.deepEqual(x.writes,[['10',false]]);assert.equal(x.context.location.href,'../startsida/');});
+test('no shift schema hides next and completion controls',()=>{const x=setup(0);x.context.flow.set(x.data);assert.equal(x.byId('nextShiftPanel').hidden,true);assert.equal(x.byId('nextShiftBtn').hidden,true);assert.equal(x.byId('matchFinishedPanel').hidden,true);});

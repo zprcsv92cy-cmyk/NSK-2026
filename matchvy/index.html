@@ -115,9 +115,6 @@
       <a href="../truppen/">Truppen</a>
       <a href="../skapapoolspel/">Skapa poolspel</a>
       <a href="../malvaktsstatistik/">Målvaktsstatistik</a>
-      <a href="../bytesschema/">Bytesschema</a>
-      <a href="../matchvy/" class="active">Matchvy</a>
-      <a href="../lag/">Lag</a>
     </nav>
 
     <section class="hero-card matchview-hero">
@@ -126,6 +123,8 @@
         <h1 class="hero-title matchview-hero-title">Matchvy</h1>
       </div>
     </section>
+<nav class="pool-flow-actions" aria-label="Poolspelsflöde"><a class="nsk-action" href="../lag/">Välj eget lag</a><a class="nsk-action nsk-action--primary" href="../bytesschema/">Visa bytesschema</a></nav>
+
 
     <div class="matchview-print-row"><button id="matchviewPrintButton" type="button">Skriv ut matchvy / PDF</button></div>
 
@@ -140,7 +139,7 @@
       </div>
 
       <div id="nextShiftMeta" class="coach-byte-meta-box single-meta">Nästa byte: —</div>
-      <div class="coach-panel compact-panel v726-next-panel">
+      <div id="nextShiftPanel" class="coach-panel compact-panel v726-next-panel">
         <div class="coach-panel-label coach-panel-label-big">NÄSTA</div>
         <div id="nextPlayers" class="coach-panel-next coach-panel-next-big">—</div>
       </div>
@@ -151,6 +150,13 @@
       </div>
     </section>
 
+    <section id="matchFinishedPanel" class="card" hidden aria-live="polite">
+      <h2 id="matchFinishedTitle">Match avslutad</h2>
+      <p id="matchFinishedNext"></p>
+      <button id="prepareNextMatch" type="button">Förbered nästa match</button>
+      <a class="nsk-action" href="../lag/">Välj annat eget lag</a>
+      <button id="finishWholePool" class="nsk-action" type="button">Avsluta hela poolspelet</button>
+    </section>
     <div id="appError" class="small"></div>
     <script>
       document.write('<script src="../config.js?v=' + window.NSK_VERSION + '"><\/script>');

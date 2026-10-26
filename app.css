@@ -1157,3 +1157,8 @@ body.nsk-arena #activityList .nsk-pool-actions .start-pool-btn{background:linear
   }
   .arena-bottom>a,.arena-more>summary{min-height:48px}
 }
+
+.pool-flow-actions{display:flex;gap:8px;flex-wrap:wrap;margin:0 0 16px}
+.pool-flow-actions a{display:flex;align-items:center;justify-content:center;min-height:44px;padding:10px 14px;text-decoration:none;flex:1;text-align:center}
+#matchFinishedPanel[hidden],#nextShiftPanel[hidden],#nextShiftMeta[hidden],#nextShiftBtn[hidden]{display:none!important}
+@media print{.pool-flow-actions,#matchFinishedPanel{display:none!important}}

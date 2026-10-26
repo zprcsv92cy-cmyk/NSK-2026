@@ -4,7 +4,6 @@
     ['startsida','Kalender'],['truppen','Truppen'],['traningsgrupper','Träningsplanering'],
     ['ovningsarkiv','Övningsarkiv'],['ritverktyg','Ritverktyg'],
     ['skapapoolspel','Skapa poolspel'],['malvaktsstatistik','Målvaktsstatistik'],
-    ['bytesschema','Bytesschema'],['matchvy','Matchvy'],['lag','Lag'],
     ['mittkonto','Mitt konto']
   ];
 
