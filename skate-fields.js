@@ -24,6 +24,11 @@
    ['Zuperior Medium','Standardstorleken för seniorer, mycket populär bland forwards'],
    ['Zuperior Large','För stora skridskostorlekar och tyngre spelare']
   ]],
+  ['MÅLVAKTER',[
+   ['Goalie SAM','Trippelprofil (10 ft / 50 mm plan / 27 ft). Populär målvaktsprofil som ger aggressivt tågrepp vid förflyttningar på knä och bra balans stående.'],
+   ['Goalie Ellipse','Oval profil som ger en sömlös, flytande övergång från häl till tå för maximal smidighet och explosiva T-pushar.'],
+   ['Goalie WIN','Fokus på kraftfulla, jämna skär och stabilt glid i stående position i målgården.']
+  ]],
   ['QUAD-PROFILER (Fyra radier)',[
    ['Quad 3XS','Fyrdelad profil för de allra minsta skridskorna'],
    ['Quad 2XS','För mindre barnskridskor'],
