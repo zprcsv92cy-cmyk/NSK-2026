@@ -88,7 +88,7 @@ export function createTrainingHandler(env,listTeams){
    if(request.method==='GET'){
     if(!dates.length){
      const result=await db.prepare('SELECT training_date, selected_players_json, selected_coaches_json, hall FROM training_sessions WHERE team_id=? ORDER BY training_date DESC LIMIT 500').bind(team[0]).all();
-     return Response.json({ok:true,sessions:(result.results||[]).map(r=>({date:r.training_date,players:JSON.parse(r.selected_players_json).length,coaches:JSON.parse(r.selected_coaches_json).length,hall:r.hall||''}))});
+     return Response.json({ok:true,sessions:(result.results||[]).map(r=>({date:r.training_date,players:JSON.parse(r.selected_players_json).length,coaches:JSON.parse(r.selected_coaches_json).filter(id=>!String(id).startsWith('equipment:')).length,equipment:JSON.parse(r.selected_coaches_json).filter(id=>String(id).startsWith('equipment:')).length,hall:r.hall||''}))});
     }
     const row=await db.prepare('SELECT * FROM training_sessions WHERE team_id=? AND training_date=?').bind(team[0],dates[0]).first();
     return Response.json({ok:true,session:row?{selected:JSON.parse(row.selected_players_json),selectedCoaches:JSON.parse(row.selected_coaches_json),goalies:JSON.parse(row.goalies_json),goalieCount:row.goalie_count,hall:row.hall||'',shirtColorCount:row.shirt_color_count||3,allocation:JSON.parse(row.allocation_json),revision:row.revision}:null});

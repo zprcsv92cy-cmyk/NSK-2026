@@ -62,6 +62,13 @@
     }
     throw Error('För många sidor i truppsvaret');
   }
+  async function listEquipment(){
+    const id=await resolveTeam();
+    const response=await fetch(base()+'/api/lagpersonal?team_id='+encodeURIComponent(id),{headers:{Authorization:'Bearer '+Auth.getToken()},cache:'no-store'});
+    const data=await response.json();
+    if(!response.ok||!data.ok)throw Error('Materialförvaltare kunde inte hämtas');
+    return (data.results||[]).filter(person=>['equipment','Materialförvaltare'].includes(person.role)).map(person=>({id:String(person.id),full_name:person.name})).sort((a,b)=>a.full_name.localeCompare(b.full_name,'sv'));
+  }
   async function calendarTrainings(){
     if(Auth.activeTeam()!=='NSK Team 18')return [];
     const id=await resolveTeam();
@@ -93,6 +100,6 @@
     }));
     return halls.size===1?[...halls][0]:'';
   }
-  window.SharedTraining={upcomingDates,calendarTrainings,calendarHall,list:()=>request(),get:date=>request(date),save:(date,data)=>request(date,data),remove,
+  window.SharedTraining={listEquipment,upcomingDates,calendarTrainings,calendarHall,list:()=>request(),get:date=>request(date),save:(date,data)=>request(date,data),remove,
     listPlayers:()=>roster('spelare'),listCoaches:()=>roster('tranare')};
 })();

@@ -2,7 +2,8 @@
 (() => {
   const palette = [{name:'Röd',hex:'#b11226',text:'#fff'},{name:'Vit',hex:'#fff',text:'#17181b'},{name:'Svart',hex:'#17181b',text:'#fff'},{name:'Grön',hex:'#17834b',text:'#fff'}];
   const $ = id => document.getElementById(id);
-  let players = [], coaches = [], team = '';
+  let players = [], coaches = [], equipment = [], team = '';
+  let selectedEquipment = new Set();
   let selectedCoaches = new Set();
   let selected = new Set();
   let allocation = [];
@@ -20,6 +21,8 @@
     if($('trainingDate').value!==date)return false;
     const allowed=new Set(players.map(p=>String(p.id)));
     const allowedCoaches=new Set(coaches.map(p=>String(p.id)));
+    const allowedEquipment=new Set(equipment.map(p=>String(p.id)));
+    selectedEquipment=new Set((data.selectedCoaches||[]).filter(id=>String(id).startsWith('equipment:')).map(id=>String(id).slice(10)).filter(id=>allowedEquipment.has(id)));
     selected=new Set((data.selected||[]).map(String).filter(x=>allowed.has(x)));
     selectedCoaches=new Set((data.selectedCoaches||[]).map(String).filter(x=>allowedCoaches.has(x)));
     allocation=Array.isArray(data.allocation)?data.allocation:[];
@@ -47,7 +50,7 @@
     const date=$('trainingDate').value;
     if(!date){$('trainingStatus').textContent='Välj en träning först.';return;}
     if(goalies.filter(Boolean).length!==goalieCount){$('trainingStatus').textContent='Välj namn för alla målvakter innan träningen sparas.';return;}
-    const snapshot={selected:[...selected],selectedCoaches:[...selectedCoaches],allocation:allocation.map(group=>[...group]),goalies:[...goalies],goalieCount,shirtColorCount,hall:trainingHall};
+    const snapshot={selected:[...selected],selectedCoaches:[...selectedCoaches,...[...selectedEquipment].map(id=>'equipment:'+id)],allocation:allocation.map(group=>[...group]),goalies:[...goalies],goalieCount,shirtColorCount,hall:trainingHall};
     $('trainingStatus').textContent='Sparar träningen…';
     saveQueue=saveQueue.then(async()=>{
       if(saveBlocked)return;
@@ -83,6 +86,20 @@
       label.append(check,document.createTextNode(coach.full_name));root.append(label);
     }
     renderCoachesSummary();
+  }
+  function renderEquipment(){
+    const root=$('trainingEquipmentRoster');root.replaceChildren();
+    for(const person of equipment){
+      const label=document.createElement('label');const check=document.createElement('input');check.type='checkbox';check.checked=selectedEquipment.has(String(person.id));
+      check.addEventListener('change',()=>{if(check.checked)selectedEquipment.add(String(person.id));else selectedEquipment.delete(String(person.id));persist();renderEquipmentSummary();});
+      label.append(check,document.createTextNode(person.full_name));root.append(label);
+    }
+    renderEquipmentSummary();
+  }
+  function renderEquipmentSummary(){
+    const names=equipment.filter(person=>selectedEquipment.has(String(person.id))).map(person=>person.full_name);
+    $('trainingEquipmentCount').textContent=names.length+' av '+equipment.length+' valda';
+    $('trainingEquipmentSummary').textContent=names.join(', ')||'Inga materialförvaltare markerade';
   }
   function renderCoachesSummary(){
     const names=coaches.filter(p=>selectedCoaches.has(String(p.id))).map(p=>p.full_name);
@@ -184,12 +201,12 @@
     .replace(/^\s*\|\s*/, '')
     .replace(/^\s*(?:[•*✓✔☑-]|\d+[.)])\s*/, '')
     .replace(/\s*\|.*$/, '')
-    .replace(/\s*[-–]\s*(ass\.?\s*tränare|huvudtränare|materialare|lagledare).*$/i, '')
-    .replace(/\s*\((?:spelare|tränare|kommer)\)\s*$/i, '')
+    .replace(/\s*[-–]\s*(ass\.?\s*tränare|huvudtränare|materialare|materialförvaltare|lagledare).*$/i, '')
+    .replace(/\s*\((?:spelare|tränare|materialförvaltare|materialare|kommer)\)\s*$/i, '')
     .trim();
   function importCandidates(text){
-    const coachNames=new Set(coaches.map(p=>normalized(p.full_name)));
-    const roster=[...players.filter(p=>!coachNames.has(normalized(p.full_name))).map(p=>({...p,kind:'player'})),...coaches.map(p=>({...p,kind:'coach'}))];
+    const coachNames=new Set([...coaches,...equipment].map(p=>normalized(p.full_name)));
+    const roster=[...players.filter(p=>!coachNames.has(normalized(p.full_name))).map(p=>({...p,kind:'player'})),...coaches.map(p=>({...p,kind:'coach'})),...equipment.map(p=>({...p,kind:'equipment'}))];
     const lines=String(text||'').split(/\n/).map(x=>x.trim()).filter(Boolean);
     const section=lines.findIndex(line=>/^anmalda(?:\s|$)/.test(normalized(line)));
     // OCR often separates "Kommer" and "14+9" into different lines, or
@@ -266,7 +283,8 @@
             for(let attempt=0;attempt<variants.length;attempt++){
               const target=header();
               const matchedPlayers=[...recognized.values()].filter(p=>p.kind==='player').length;
-              if(target&&matchedPlayers>=Number(target[1]))break;
+              const matchedStaff=[...recognized.values()].filter(p=>p.kind!=='player').length;
+              if(target&&matchedPlayers>=Number(target[1])&&matchedStaff>=Number(target[2]))break;
               const variant=variants[attempt];
               $('trainingImportStatus').textContent='Förbättrar bildtolkning '+(attempt+2)+' av '+(variants.length+1)+'…';
               const canvas=document.createElement('canvas');
@@ -312,7 +330,7 @@
     for(const person of matches.filter(p=>!p.exact)){
       const label=document.createElement('label'),check=document.createElement('input');
       check.type='checkbox';check.checked=person.exact===true;check.dataset.kind=person.kind;check.dataset.id=String(person.id);
-      label.append(check,document.createTextNode(person.full_name+' ('+(person.kind==='player'?'spelare':'tränare')+')'+(person.exact?'':' – kontrollera, endast initial matchade')));
+      label.append(check,document.createTextNode(person.full_name+' ('+(person.kind==='player'?'spelare':person.kind==='equipment'?'materialförvaltare':'tränare')+')'+(person.exact?'':' – kontrollera, endast initial matchade')));
       root.append(label);
     }
     $('trainingImportApply').disabled=!matches.length;
@@ -330,7 +348,7 @@
     });
     $('trainingImportRead').addEventListener('click',async()=>{
       $('trainingImportApply').disabled=true;
-      if(!players.length&&!coaches.length){clearImportImages();$('trainingImportStatus').textContent='Truppen måste hämtas först.';return;}
+      if(!players.length&&!coaches.length&&!equipment.length){clearImportImages();$('trainingImportStatus').textContent='Truppen måste hämtas först.';return;}
       let text=$('trainingImportText').value;
       try{
         const detected=await readImageText();
@@ -358,11 +376,11 @@
       const sourcePlayers=attendanceHeader?Number(attendanceHeader[1]):null;
       const sourceStaff=attendanceHeader?Number(attendanceHeader[2]):null;
       const matchedPlayers=importMatches.filter(p=>p.kind==='player').length;
-      const matchedStaff=importMatches.filter(p=>p.kind==='coach').length;
+      const matchedStaff=importMatches.filter(p=>p.kind!=='player').length;
       const playerCountMatches=sourcePlayers!==null&&matchedPlayers===sourcePlayers;
       const sourceSummary=attendanceHeader
-        ?'SvenskaLag: '+sourcePlayers+' spelare och '+sourceStaff+' ledare/funktionärer. Matchade i NSK: '+matchedPlayers+' spelare och '+matchedStaff+' tränare. Ej matchade mot NSK: '+Math.max(0,sourcePlayers-matchedPlayers)+' spelare och '+Math.max(0,sourceStaff-matchedStaff)+' ledare/funktionärer (kan saknas i truppen). '
-        :'Antalet anmälda kunde inte avläsas säkert. Matchade i NSK: '+matchedPlayers+' spelare och '+matchedStaff+' tränare. ';
+        ?'SvenskaLag: '+sourcePlayers+' spelare och '+sourceStaff+' ledare/funktionärer. Matchade i NSK: '+matchedPlayers+' spelare och '+matchedStaff+' ledare/funktionärer. Ej matchade mot NSK: '+Math.max(0,sourcePlayers-matchedPlayers)+' spelare och '+Math.max(0,sourceStaff-matchedStaff)+' ledare/funktionärer (kan saknas i truppen). '
+        :'Antalet anmälda kunde inte avläsas säkert. Matchade i NSK: '+matchedPlayers+' spelare och '+matchedStaff+' ledare/funktionärer. ';
       const countWarning=sourcePlayers===null?'OBS: Kontrollera antalet spelare mot SvenskaLag innan du bekräftar. ':playerCountMatches?'Spelarantalet stämmer med SvenskaLag. ':'OBS: '+Math.abs(sourcePlayers-matchedPlayers)+' spelare skiljer mot SvenskaLag. Kontrollera saknade namn före bekräftelse. ';
       text=''; // OCR output is never copied to a field or persisted.
       showImportReview(importMatches);
@@ -385,13 +403,14 @@
       // A new confirmed import replaces the previous attendance for this date.
       selected=new Set(approved.filter(p=>p.kind==='player').map(p=>String(p.id)));
       selectedCoaches=new Set(approved.filter(p=>p.kind==='coach').map(p=>String(p.id)));
+      selectedEquipment=new Set(approved.filter(p=>p.kind==='equipment').map(p=>String(p.id)));
       goalies=goalies.filter(id=>selected.has(id));
       if(goalies.length<goalieCount){
         goalies=[];
         goalieCount=0;
         $('trainingGoalieCount').value='0';
       }
-      allocation=[];persist();renderRoster();renderCoaches();renderGoalieSelectors();renderGroups();
+      allocation=[];persist();renderRoster();renderCoaches();renderEquipment();renderGoalieSelectors();renderGroups();
       $('trainingImportStatus').textContent=approved.length+' deltagare markerade som Kommer. Tidigare närvaro har ersatts.';
       $('trainingImportApply').disabled=true;
       importMatches=[];
@@ -405,7 +424,7 @@
     const requestedDate=new URLSearchParams(location.search).get('date');
     const today=new Date().toLocaleDateString('sv-SE',{timeZone:'Europe/Stockholm',year:'numeric',month:'2-digit',day:'2-digit'});
     $('trainingDate').value=/^\d{4}-\d{2}-\d{2}$/.test(requestedDate||'')?requestedDate:today;
-    const changeTraining=async()=>{try{await saveQueue;if(saveBlocked)throw Error('Sparningen misslyckades. Ladda om sidan innan du byter träning.');if(!await restore())return;renderRoster();renderCoaches();renderGoalieSelectors();renderGroups();$('trainingStatus').textContent='Träningen för '+loadedDate+' är inläst.';}catch(error){if(loadedDate){$('trainingDate').value=loadedDate;$('trainingCalendar').value=loadedDate;}$('trainingStatus').textContent=error.message;}};
+    const changeTraining=async()=>{try{await saveQueue;if(saveBlocked)throw Error('Sparningen misslyckades. Ladda om sidan innan du byter träning.');if(!await restore())return;renderRoster();renderCoaches();renderEquipment();renderGoalieSelectors();renderGroups();$('trainingStatus').textContent='Träningen för '+loadedDate+' är inläst.';}catch(error){if(loadedDate){$('trainingDate').value=loadedDate;$('trainingCalendar').value=loadedDate;}$('trainingStatus').textContent=error.message;}};
     $('trainingDate').addEventListener('change',changeTraining);
     $('trainingCalendar').addEventListener('change',()=>{$('trainingDate').value=$('trainingCalendar').value;changeTraining();});
     $('trainingGoalieCount').addEventListener('change',()=>{
@@ -421,7 +440,7 @@
       if(!Auth.activeTeam() && session.memberships?.length)Auth.selectTeam(session.memberships[0].team_id);
       team=Auth.activeTeam();
       if(!team)throw Error('Välj ett aktivt lag under Mitt konto.');
-      [players,coaches]=await Promise.all([SharedTraining.listPlayers(),SharedTraining.listCoaches()]);
+      [players,coaches,equipment]=await Promise.all([SharedTraining.listPlayers(),SharedTraining.listCoaches(),SharedTraining.listEquipment()]);
       let calendarError='';
       const events=await SharedTraining.calendarTrainings().catch(()=>{calendarError='Kalendern kunde inte hämtas. Försök ladda om sidan.';return [];});
       const choices=SharedTraining.upcomingDates(events,today);
@@ -436,7 +455,7 @@
       if(!date){const option=document.createElement('option');option.value='';option.textContent='Inga kommande träningar';picker.append(option);}
       picker.value=date;picker.hidden=manualMode;picker.disabled=!date;
       $('trainingDate').value=date;$('trainingDate').hidden=!manualMode;
-      await restore();saveBlocked=false;renderRoster();renderCoaches();renderGoalieSelectors();renderGroups();
+      await restore();saveBlocked=false;renderRoster();renderCoaches();renderEquipment();renderGoalieSelectors();renderGroups();
       $('trainingStatus').textContent=calendarError;
     }catch(error){$('trainingStatus').textContent=error.message||'Kunde inte läsa truppen.';}
   });

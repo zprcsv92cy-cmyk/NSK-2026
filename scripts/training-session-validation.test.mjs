@@ -24,3 +24,11 @@ test('goalie count must match confirmed goalie names',()=>{
  assert.equal(validateTrainingPayload({...good,goalieCount:2}),false);
  assert.equal(validateTrainingPayload({...good,goalieCount:0,goalies:[]}),true);
 });
+
+test('equipment attendance accepts only namespaced UUIDs in staff attendance, never as players or goalies',()=>{
+ const id='equipment:12345678-1234-1234-1234-123456789abc';
+ assert.equal(validateTrainingPayload({...good,selectedCoaches:['2',id]}),true);
+ assert.equal(validateTrainingPayload({...good,selectedCoaches:[id,id]}),false);
+ assert.equal(validateTrainingPayload({...good,selectedCoaches:['equipment:arbitrary']}),false);
+ assert.equal(validateTrainingPayload({...good,selected:[id],goalies:[id]}),false);
+});
