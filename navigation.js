@@ -4,7 +4,7 @@
     ['startsida','Kalender'],['truppen','Truppen'],['traningsgrupper','Träningsplanering'],
     ['ovningsarkiv','Övningsarkiv'],['ritverktyg','Ritverktyg'],
     ['skapapoolspel','Skapa poolspel'],['malvaktsstatistik','Målvaktsstatistik'],
-    ['mittkonto','Mitt konto']
+    ['materialforvaltare','Materialförvaltare'],['mittkonto','Mitt konto']
   ];
 
   const iconPaths={"shirt":"<path d=\"m8 3-5 3 2 5 3-1v11h8V10l3 1 2-5-5-3-2 2h-2z\"/>","mask":"<path d=\"M12 2c-5 0-8 4-8 9 0 6 4 11 8 11s8-5 8-11c0-5-3-9-8-9Z\"/><path d=\"M5 9h14M5 13h14M8 5v12m8-12v12M8 17h8m-4-8v12M9 4l3 3 3-3\"/>","calendar":"<rect x=\"3\" y=\"5\" width=\"18\" height=\"16\" rx=\"2\"/><path d=\"M7 2v6m10-6v6M3 11h18\"/>","image":"<rect x=\"3\" y=\"3\" width=\"18\" height=\"18\" rx=\"2\"/><circle cx=\"8\" cy=\"8\" r=\"1.5\"/><path d=\"m3 17 6-6 4 4 3-3 5 5\"/>","person":"<circle cx=\"12\" cy=\"7\" r=\"4\"/><path d=\"M4 21v-2a8 8 0 0 1 16 0v2Z\"/>","group":"<circle cx=\"9\" cy=\"7\" r=\"3\"/><path d=\"M2 21v-3a7 7 0 0 1 14 0v3M17 4a3 3 0 0 1 0 6m2 4a6 6 0 0 1 3 5v2\"/>","case":"<rect x=\"3\" y=\"7\" width=\"18\" height=\"14\" rx=\"2\"/><path d=\"M8 7V3h8v4M3 12h18m-12 0v4h6v-4\"/>","plan":"<rect x=\"5\" y=\"4\" width=\"14\" height=\"18\" rx=\"2\"/><rect x=\"9\" y=\"2\" width=\"6\" height=\"4\" rx=\"1\"/><path d=\"M9 11h6m-6 4h6m-6 4h4\"/>"};

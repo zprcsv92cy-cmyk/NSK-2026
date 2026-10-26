@@ -1,0 +1,27 @@
+<!doctype html>
+<html lang="sv"><head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<script>document.documentElement.style.visibility='hidden';</script>
+<script src="../config.js"></script><script src="../login-gate.js"></script>
+<title>Materialförvaltare – NSK</title><meta name="theme-color" content="#b11226">
+<script src="../version.js?v=872"></script>
+<script>
+document.write('<link rel="stylesheet" href="../app.css?v='+window.NSK_VERSION+'">');
+document.write('<script src="../auth.js?v='+window.NSK_VERSION+'"><\/script>');
+document.write('<script src="../shared-training.js?v='+window.NSK_VERSION+'"><\/script>');
+document.write('<script src="../navigation.js?v='+window.NSK_VERSION+'" defer><\/script>');
+document.write('<script src="../equipment.js?v='+window.NSK_VERSION+'" defer><\/script>');
+</script>
+<style>
+.equipment-form{display:grid;gap:12px}.equipment-form label{display:grid;gap:6px}.equipment-form input,.equipment-form select,.equipment-form textarea{width:100%;min-width:0;box-sizing:border-box}.equipment-row{display:flex;align-items:center;gap:12px;padding:12px 0;border-bottom:1px solid var(--line);overflow-wrap:anywhere}.equipment-row label{display:flex;gap:10px;align-items:center;flex:1;min-width:0}.equipment-row input[type=checkbox]{width:22px;height:22px;flex:none}.equipment-row small{display:block;color:var(--muted)}.equipment-row button{flex:none;min-height:44px}.equipment-actions{display:flex;flex-wrap:wrap;gap:10px;margin-top:12px}.equipment-done{opacity:.65}.equipment-done label>span{text-decoration:line-through}.equipment-list{margin-top:16px}#equipmentStatus{min-height:24px}#equipmentTeam{color:var(--muted)}[hidden]{display:none!important}
+</style></head><body><div class="wrap">
+<nav class="mainmenu"></nav>
+<section class="home-hero"><div class="home-hero-logo-box"><img class="home-hero-logo" src="../icon-192.png" alt="NSK"></div><div class="home-hero-text"><h1>Materialförvaltare</h1><div class="home-hero-sub">Slipning och lagets checklistor</div></div></section>
+<p id="equipmentTeam"></p><p id="equipmentStatus" role="status" aria-live="polite">Hämtar materialuppgifter…</p><button type="button" id="equipmentReload">Ladda om</button>
+<section class="card"><h2>Önska skridskoslipning</h2><p>Välj spelare eller tränare. Materialförvaltaren markerar önskemålet som klart efter slipning.</p>
+<form id="sharpeningForm" class="equipment-form" hidden><label>Spelare eller tränare<select id="equipmentPerson" required><option value="">Välj person</option></select></label><label>Önskemål eller kommentar<input id="equipmentNote" maxlength="300" placeholder="Till exempel inför nästa träning"></label><button class="nsk-action nsk-action--save" type="submit">Önska slipning</button></form>
+<div id="sharpeningList" class="equipment-list"></div></section>
+<section class="card"><h2>Checklistor</h2><p>Skapa en lista för exempelvis bortamatch. Avbockningar delas med laget.</p>
+<form id="checklistForm" class="equipment-form" hidden><label>Namn<input id="checklistTitle" maxlength="100" required placeholder="Material bortamatch"></label><label>Material – en sak per rad<textarea id="checklistItems" rows="6" maxlength="15000" required placeholder="Puckar&#10;Vattenflaskor&#10;Matchtröjor"></textarea></label><div class="equipment-actions"><button type="button" id="equipmentAwayTemplate">Mall: Material bortamatch</button><button class="nsk-action nsk-action--save" type="submit">Skapa checklista</button></div></form>
+<div id="equipmentChecklists" class="equipment-list"></div></section>
+</div></body></html>
