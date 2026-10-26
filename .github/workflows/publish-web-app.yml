@@ -71,6 +71,7 @@ jobs:
           node --check shared-training.js
           node --check account-access.js
           node --check account-users.js
+          node --check view-cache.js
           node --check auth.js
           node --check login-gate.js
           node --check training-groups.js
@@ -116,7 +117,7 @@ jobs:
         run: |
           set -euo pipefail
           mkdir -p _site
-          cp -a account-access.js account-users.js equipment.js person-cards.js calendar-match-plan.mjs calendar-list.js index.html app.css app.js navigation.js home-training.js svenskalag-home.js changing-rooms.js training-cards.js shared-training.js admin-mode.js auth.js config.js db.js deploy.json version.js sw.js manifest.webmanifest icon-192.png icon-512.png login-patch.js login-gate.js training-groups.js exercise-archive.js rink-drawer.js rink-text-parser.js exercise-rink-preview.js hockeyakademin-catalog.js pool-team-editor.js _site/
+          cp -a account-access.js account-users.js view-cache.js equipment.js person-cards.js calendar-match-plan.mjs calendar-list.js index.html app.css app.js navigation.js home-training.js svenskalag-home.js changing-rooms.js training-cards.js shared-training.js admin-mode.js auth.js config.js db.js deploy.json version.js sw.js manifest.webmanifest icon-192.png icon-512.png login-patch.js login-gate.js training-groups.js exercise-archive.js rink-drawer.js rink-text-parser.js exercise-rink-preview.js hockeyakademin-catalog.js pool-team-editor.js _site/
           for dir in aktivera anvandare bytesschema lag laguppstallning login malvaktsstatistik matchvy mittkonto skapapoolspel startsida truppen traningsgrupper ovningsarkiv ritverktyg materialforvaltare; do
             cp -a "$dir" _site/
           done

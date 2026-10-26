@@ -158,6 +158,7 @@ window.DB = (() => {
     const response=await fetch(`${API}${path}`,{method,headers:{'Content-Type':'application/json',Authorization:'Bearer '+token},body:JSON.stringify(payload)});
     let data;try{data=await response.json()}catch{throw new Error('Ogiltigt svar från servern')}
     if(!response.ok||!data.ok)throw new Error(data.error||'Kunde inte spara');
+    window.NSKViewCache?.clear();try{sessionStorage.removeItem('nsk_view_cache_v1');}catch{}
     return data;
   }
   async function writeName(table,method,rowId,name){return (await adminRequest(`/api/${table}${rowId?'/'+encodeURIComponent(rowId):''}`,method,{name:String(name||'').trim()})).row}

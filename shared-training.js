@@ -36,6 +36,7 @@
     const response=await fetch(url,{method:payload===undefined?'GET':'PUT',headers,body:payload===undefined?undefined:JSON.stringify(payload),cache:'no-store'});
     const data=await response.json().catch(()=>({}));
     if(!response.ok)throw Error(response.status===409?'Träningen ändrades av en annan ledare. Ladda om sidan.':data.error||'Träningen kunde inte sparas.');
+    if(payload!==undefined){window.NSKViewCache?.clear();try{sessionStorage.removeItem('nsk_view_cache_v1');}catch{}}
     return data;
   }
   async function remove(date,revision){
@@ -47,6 +48,7 @@
     });
     const data=await response.json().catch(()=>({}));
     if(!response.ok)throw Error(response.status===409?'Träningen har ändrats eller tagits bort av någon annan. Ladda om sidan.':data.error||'Träningen kunde inte tas bort.');
+    window.NSKViewCache?.clear();try{sessionStorage.removeItem('nsk_view_cache_v1');}catch{}
     return data;
   }
   async function roster(kind){

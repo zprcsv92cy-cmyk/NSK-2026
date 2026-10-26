@@ -8,21 +8,23 @@
   if(Auth.activeTeam()!==teamName)throw Error('Laget har ändrats. Ladda om sidan.');
   const response=await fetch(base()+'/api/equipment?team_id='+encodeURIComponent(team),{method:payload?'PUT':'GET',headers:{Authorization:'Bearer '+Auth.getToken(),...(payload?{'Content-Type':'application/json'}:{})},body:payload?JSON.stringify(payload):undefined,cache:'no-store'});
   const data=await response.json().catch(()=>({}));
-  if(!response.ok||!data.ok){if(response.status===409)canWrite=false;throw Error(data.error||'Materialuppgifterna kunde inte hämtas eller sparas.');}
+  if(!response.ok||!data.ok){if(response.status===409)canWrite=false;throw Object.assign(Error(data.error||'Materialuppgifterna kunde inte hämtas eller sparas.'),{status:response.status});}
   return data;
  }
+ function denyBoard(){window.NSKViewCache?.clear();board=null;people=[];canWrite=false;$('sharpeningList').replaceChildren();$('equipmentChecklists').replaceChildren();for(const id of ['sharpeningCreate','sharpeningForm','checklistCreateButton','checklistForm'])$(id).hidden=true;lock();}
+ async function rememberBoard(){if(!window.NSKViewCache||!board)return;const data={team,board};const view=await NSKViewCache.open('equipment');view.save(data);}
  function element(tag,text){const node=document.createElement(tag);if(text!==undefined)node.textContent=text;return node;}
  function button(text,run){const b=element('button',text);b.type='button';b.onclick=run;return b;}
  async function change(update){
-  if(busy||!canWrite)return;changeVersion++;busy=true;lock();status('Sparar…');
-  try{const next=structuredClone(board);update(next);const result=await request(next);next.revision=result.revision;next.requests=result.requests;next.checklists=result.checklists;board=next;status('Sparat för laget.');render();return true;}
+  if(busy||!canWrite)return;const expectedToken=Auth.getToken(),expectedTeam=teamName;changeVersion++;busy=true;lock();status('Sparar…');
+  try{const next=structuredClone(board);update(next);const result=await request(next);if(Auth.getToken()!==expectedToken||Auth.activeTeam()!==expectedTeam){canWrite=false;return false;}next.revision=result.revision;next.requests=result.requests;next.checklists=result.checklists;board=next;window.NSKViewCache?.clear();void rememberBoard();status('Sparat för laget.');render();return true;}
   catch(error){status(error.message+' Ändringen har inte bekräftats som sparad.');render();return false;}
   finally{busy=false;lock();}
  }
  function row(label,done,toggle,remove){
   const r=element('div');r.className='equipment-row'+(done?' equipment-done':'');
   const l=element('label'),check=element('input');check.type='checkbox';check.checked=done;check.disabled=!canWrite;
-  check.onchange=()=>{const selected=check.checked;check.checked=done;void toggle(selected);};
+  check.onchange=event=>{const control=event.currentTarget,selected=control.checked;control.checked=done;void toggle(selected);};
   l.append(check,label);r.append(l);
   if(canWrite&&remove)r.append(button('Ta bort',remove));return r;
  }
@@ -45,16 +47,17 @@
   $('checklistSaveButton').textContent=editingChecklistId?'Spara ändringar':'Spara checklista';
  }
  function render(){
+  const scroller=document.querySelector('.arena-scroll')||document.scrollingElement,top=scroller?.scrollTop;
   $('sharpeningCreate').hidden=!canWrite;$('sharpeningForm').hidden=!canWrite;
   $('checklistCreateButton').hidden=!canWrite;setCreation(creatingChecklist);
   const requests=$('sharpeningList');
   const openRequests=new Set([...requests.querySelectorAll('details[open]')].map(d=>d.dataset.requestId));
-  requests.replaceChildren();
-  if(!board.requests.length)requests.append(element('p','Inga slipönskemål ännu.'));
+  const requestContent=document.createDocumentFragment();
+  if(!board.requests.length)requestContent.append(element('p','Inga slipönskemål ännu.'));
   const pending=board.requests.filter(r=>!r.done).length;
   $('sharpeningCount').textContent=pending+' önskar slipning · '+(board.requests.length-pending)+' klara';
   for(const item of [...board.requests].sort((a,b)=>Number(a.done)-Number(b.done))){
-   const section=element('details');section.className='equipment-slip';section.dataset.requestId=item.id;section.open=openRequests.has(item.id);
+   const section=element('details');section.className='equipment-slip';section.dataset.requestId=item.id;section.dataset.viewKey='slip:'+item.id;section.open=openRequests.has(item.id);
    const summary=element('summary'),name=element('span',item.name);name.className='equipment-slip-name';name.append(element('small',item.kind==='player'?'Spelare':'Tränare'));
    summary.append(name,lamp(item.done));section.append(summary);
    const body=element('div');body.className='equipment-slip-body';body.append(skateFacts(item.skates));
@@ -65,40 +68,45 @@
    if(canWrite){const actions=element('div');actions.className='equipment-actions';
     actions.append(button(item.done?'Markera som önskar slipning':'Markera klar',()=>void change(b=>{b.requests.find(r=>r.id===item.id).done=!item.done;})),button('Ta bort',()=>{if(confirm('Ta bort slipönskemålet för '+item.name+'?'))void change(b=>{b.requests=b.requests.filter(r=>r.id!==item.id);});}));body.append(actions);
    }
-   section.append(body);requests.append(section);
+   section.append(body);requestContent.append(section);
   }
   const lists=$('equipmentChecklists');
-  const openLists=new Set([...lists.querySelectorAll('details[open]')].map(d=>d.dataset.checklistId));lists.replaceChildren();
-  if(!board.checklists.length)lists.append(element('p','Inga checklistor ännu.'));
+  const openLists=new Set([...lists.querySelectorAll('details[open]')].map(d=>d.dataset.checklistId));const checklistContent=document.createDocumentFragment();
+  if(!board.checklists.length)checklistContent.append(element('p','Inga checklistor ännu.'));
   for(const list of board.checklists){
-   const section=element('details');section.className='equipment-checklist';section.dataset.checklistId=list.id;section.open=openLists.has(list.id);
+   const section=element('details');section.className='equipment-checklist';section.dataset.checklistId=list.id;section.dataset.viewKey='checklist:'+list.id;section.open=openLists.has(list.id);
    const summary=element('summary'),name=element('span',list.title);name.className='equipment-checklist-name';
    name.append(element('small',list.items.filter(i=>i.done).length+' av '+list.items.length+' klara'));summary.append(name);section.append(summary);
    const body=element('div');body.className='equipment-checklist-body';
-   for(const item of list.items)body.append(row(element('span',item.label),item.done,done=>change(b=>{b.checklists.find(c=>c.id===list.id).items.find(i=>i.id===item.id).done=done;})));
+   for(const item of list.items){const itemRow=row(element('span',item.label),item.done,done=>change(b=>{b.checklists.find(c=>c.id===list.id).items.find(i=>i.id===item.id).done=done;}));itemRow.dataset.viewKey='item:'+list.id+':'+item.id;body.append(itemRow);}
    if(canWrite){const actions=element('div');actions.className='equipment-actions';actions.append(button('Redigera',()=>editChecklist(list.id)),button('Återställ bockar',()=>{if(confirm('Återställ alla bockar i '+list.title+'?'))void change(b=>{b.checklists.find(c=>c.id===list.id).items.forEach(i=>{i.done=false;});});}),button('Ta bort lista',()=>{if(confirm('Ta bort checklistan '+list.title+'?'))void change(b=>{b.checklists=b.checklists.filter(c=>c.id!==list.id);});}));body.append(actions);}
-   section.append(body);lists.append(section);
+   section.append(body);checklistContent.append(section);
   }
-  lock();
+  if(window.NSKViewCache){NSKViewCache.patch(requests,requestContent);NSKViewCache.patch(lists,checklistContent);}else{requests.replaceChildren(requestContent);lists.replaceChildren(checklistContent);}
+  lock();if(scroller&&Number.isFinite(top))scroller.scrollTop=top;
  }
  async function load(){
   if(busy)return;changeVersion++;busy=true;canWrite=false;lock();status('Hämtar materialuppgifter…');
   try{
    await Auth.init();teamName=Auth.activeTeam();if(!teamName)throw Error('Välj ett lag i Mitt konto.');
+   const expectedToken=Auth.getToken(),expectedTeam=teamName;
+   const view=window.NSKViewCache?await NSKViewCache.open('equipment'):null;
+   if(!board&&view?.data){team=view.data.team;board=view.data.board;render();status('Visar senast hämtade uppgifter.');}
    $('equipmentTeam').textContent=teamName;
    const response=await fetch(base()+'/api/lag',{headers:{Authorization:'Bearer '+Auth.getToken()},cache:'no-store'});
-   if(!response.ok)throw Error('Laget kunde inte hämtas.');
+   if(!response.ok)throw Object.assign(Error('Laget kunde inte hämtas.'),{status:response.status});
    const data=await response.json(),teams=(data.results||[]).filter(t=>t.Namn===teamName&&String(t['Säsong'])==='2026');
    if(teams.length!==1)throw Error('Lagkopplingen kunde inte verifieras.');team=String(teams[0].id);
-   const saved=await request();board={revision:saved.revision,requests:saved.requests,checklists:saved.checklists};
+   const saved=await request();if(Auth.getToken()!==expectedToken||Auth.activeTeam()!==expectedTeam)return;board={revision:saved.revision,requests:saved.requests,checklists:saved.checklists};
    if(saved.canWrite){
     const [players,coaches]=await Promise.all([SharedTraining.listPlayers(),SharedTraining.listCoaches()]);
     people=[...players.map(p=>({...p,kind:'player'})),...coaches.map(p=>({...p,kind:'coach'}))];
     const select=$('equipmentPerson');select.replaceChildren(new Option('Välj person',''));
     for(const [kind,title] of [['player','Spelare'],['coach','Tränare']]){const group=element('optgroup');group.label=title;people.filter(p=>p.kind===kind).forEach(p=>group.append(new Option(p.full_name,kind+':'+p.id)));select.append(group);}
    }
-   canWrite=saved.canWrite;render();status(canWrite?'Alla ändringar sparas för laget.':'Läsbehörighet. Ledare och materialförvaltare kan ändra.');
-  }catch(error){canWrite=false;status(error.message);if(board)render();}
+   if(Auth.getToken()!==expectedToken||Auth.activeTeam()!==expectedTeam)return;
+   canWrite=saved.canWrite;void rememberBoard();render();status(canWrite?'Alla ändringar sparas för laget.':'Läsbehörighet. Ledare och materialförvaltare kan ändra.');
+  }catch(error){canWrite=false;if(window.NSKViewCache?.denied(error)){denyBoard();}status(error.message);if(board)render();}
   finally{busy=false;lock();}
  }
  let selectionVersion=0;
@@ -140,8 +148,8 @@
    const data=await request();
    if(busy||generation!==changeVersion||team!==expectedTeam||Auth.getToken()!==expectedToken)return;
    const changed=data.revision!==board.revision||data.canWrite!==canWrite||JSON.stringify(data.requests)!==JSON.stringify(board.requests);
-   if(changed){board={revision:data.revision,requests:data.requests,checklists:data.checklists};canWrite=data.canWrite;render();status('Uppdaterat från lagets personkort och checklistor.');}
-  }catch(error){if(!busy&&generation===changeVersion)status('Automatisk uppdatering misslyckades. '+error.message);}
+   if(changed){board={revision:data.revision,requests:data.requests,checklists:data.checklists};canWrite=data.canWrite;render();status('Uppdaterat från lagets personkort och checklistor.');}void rememberBoard();
+  }catch(error){if(!busy&&generation===changeVersion){if(window.NSKViewCache?.denied(error))denyBoard();status('Automatisk uppdatering misslyckades. '+error.message);}}
   finally{refreshing=false;}
  }
  window.addEventListener('focus',()=>void refresh());

@@ -6,7 +6,7 @@
   const teamKey = 'nsk_active_team';
   let identity = null;
   const token = () => sessionStorage.getItem(key);
-  const clear = () => { identity = null; sessionStorage.removeItem(key); sessionStorage.removeItem(teamKey); };
+  const clear = () => { window.NSKViewCache?.clear(); try { sessionStorage.removeItem('nsk_view_cache_v1'); } catch {} identity = null; sessionStorage.removeItem(key); sessionStorage.removeItem(teamKey); };
   let pendingIdentity=null;
   function init() {
     const current=token();
