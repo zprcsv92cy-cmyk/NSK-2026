@@ -134,7 +134,7 @@ test('failed trusted team lookup returns 503 without reading collections', async
 });
 
 test('incomplete collection snapshot returns 503 instead of partial data', async () => {
-  const res = await readPersonallyAuthorizedTeamCollection(req('poolspel'), {}, {
+  const res = await readPersonallyAuthorizedTeamCollection(req('bytesschema'), {}, {
     ...deps(),
     readRows: async name => name === 'bytesschema' ? null : data[name]
   });
@@ -221,4 +221,15 @@ test('associations reject invalid roster ownership',async()=>{
   const rows={...associationRows,spelare:[{id:601,Lag:'11'}]};
   const res=await readPersonallyAuthorizedTeamCollection(req('spelaretranare'),{},assocDeps(rows));
   assert.equal(res.status,503);
+});
+
+
+test('pool metadata remains available when unrelated match tables are offline', async () => {
+  const reads=[];
+  const res=await readPersonallyAuthorizedTeamCollection(req('poolspel'),{}, {
+    ...deps(),readRows:async name=>{reads.push(name);if(name!=='poolspel')throw Error('offline');return data.poolspel;}
+  });
+  assert.equal(res.status,200);
+  assert.deepEqual((await res.json()).results.map(r=>r.id),[101]);
+  assert.deepEqual(reads,['poolspel']);
 });
