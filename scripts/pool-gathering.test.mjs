@@ -14,3 +14,10 @@ test('missing, placeholder and invalid match times do not invent a gathering',()
  assert.equal(context.nskPoolGathering(['','00:00:00',null,'25:12','11:99']),'');
  assert.equal(context.nskPoolGathering(['00:00','invalid','11:00']),'Samling kl 10:00');
 });
+
+test('pool weekday matches Swedish calendar and rejects invalid dates',()=>{
+ assert.equal(context.nskPoolWeekday('2026-11-08'),'Söndag');
+ assert.equal(context.nskPoolWeekday('20261121'),'Lördag');
+ assert.equal(context.nskPoolWeekday('2026-02-30'),'');
+ assert.equal(context.nskPoolWeekday(''),'');
+});

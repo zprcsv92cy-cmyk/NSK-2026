@@ -59,7 +59,7 @@
    summary.className='nsk-pool-summary';
    const name=document.createElement('span');
    name.className='nsk-pool-name';
-   name.textContent=(poolLocation(item).city||'Poolspel')+' • '+item.date;
+   name.textContent=[nskPoolWeekday(item.date),poolLocation(item).city||'Poolspel',item.date].filter(Boolean).join(' • ');
    const origin=document.createElement('span');
    origin.className='nsk-pool-hall';
    origin.textContent=poolLocation(item).hall||'Ishall ej angiven';
