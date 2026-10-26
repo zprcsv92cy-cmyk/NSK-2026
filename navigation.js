@@ -24,6 +24,25 @@
     }
     for(const [slug,name] of Object.entries({startsida:'calendar',truppen:'group',traningsgrupper:'plan'}))attach(document.querySelector('.arena-bottom>a[href="../'+slug+'/"]>span'),name,true);
   }
+  let viewportBound=false;
+  function bindMobileViewport(){
+    if(viewportBound)return;viewportBound=true;
+    let frame=0;
+    const sync=()=>{
+      frame=0;
+      document.documentElement.style.setProperty('--nsk-app-height',Math.round(window.innerHeight)+'px');
+      const editing=document.activeElement?.matches('input,textarea,select,[contenteditable="true"]');
+      // Safari can leave the root document panned after dismissing its keyboard.
+      // Only the inner content is scrollable; do not reset that content or a zoomed page.
+      if(window.innerWidth<=760&&!editing&&(!window.visualViewport||Math.abs(window.visualViewport.scale-1)<0.01)&&window.scrollY!==0)window.scrollTo({top:0,left:0,behavior:'instant'});
+    };
+    const schedule=()=>{if(!frame)frame=requestAnimationFrame(sync);};
+    for(const event of ['resize','orientationchange','pageshow','scroll'])window.addEventListener(event,schedule,{passive:true});
+    window.visualViewport?.addEventListener('resize',schedule,{passive:true});
+    window.visualViewport?.addEventListener('scroll',schedule,{passive:true});
+    document.addEventListener('focusout',()=>{schedule();setTimeout(schedule,150);setTimeout(schedule,500);});
+    sync();
+  }
   async function render() {
     const nav = document.querySelector('nav.mainmenu');
     if (!nav) return;
@@ -71,7 +90,7 @@
       }
       document.body.prepend(scroll);
     }
-    document.body.append(bottom);decorateIcons();
+    document.body.append(bottom);bindMobileViewport();decorateIcons();
 
   }
   if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', render);
