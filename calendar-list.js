@@ -10,6 +10,10 @@
   try{
    const entries=[...root.querySelectorAll('details.nsk-pool-row[data-date],details.nsk-pool-row[data-pool-date]')].map(row=>{
     const training=!!row.dataset.date;
+    const name=row.querySelector('.nsk-pool-name');
+    if(name&&!name.querySelector('.calendar-kind')){
+      const label=document.createElement('span');label.className='calendar-kind';label.textContent=training?'Träning':'Poolspel';name.prepend(label);
+    }
     const raw=training?decodeURIComponent(row.dataset.date):row.dataset.poolDate;
     const date=raw.replaceAll('-','');
     const time=training?(row.querySelector('.nsk-training-time')?.textContent||'').trim():'';
