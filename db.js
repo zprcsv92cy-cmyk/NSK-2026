@@ -151,7 +151,7 @@ window.DB = (() => {
   async function listPlayerCoachMap(){const [map,players,coaches]=await Promise.all([rows('spelaretranare',await teamId()),listPlayers(),listCoaches()]);return map.map(r=>({id:r.id,player_name:players.find(p=>p.id===first(r.Spelare))?.full_name||'',coach_name:coaches.find(c=>c.id===first(r.Tränare))?.full_name||''})).filter(r=>r.player_name)}
   async function adminRequest(path,method,payload){
     const personalPoolWrite = window.APP_CONFIG?.REQUIRE_PERSONAL_POOL_WRITES === true &&
-      /^\/api\/poolspel(?:\/\d+(?:\/(?:aktiv|match-info|lineup|material))?)?$/.test(path) &&
+      (/^\/api\/bytesschema\/retime$/.test(path) || /^\/api\/poolspel(?:\/\d+(?:\/(?:aktiv|match-info|lineup|material))?)?$/.test(path)) &&
       ['POST','PATCH','PUT','DELETE'].includes(method);
     const personalMatchWrite = window.APP_CONFIG?.REQUIRE_PERSONAL_MATCH_WRITES === true &&
       (/^\/api\/matchkonfiguration(?:\/\d+)?$/.test(path) ||
@@ -289,6 +289,13 @@ window.DB = (() => {
       throw new Error('Uppdateringen tog för många omgångar. Kontrollera sparade byten innan nytt försök.');
     });
   }
+  async function retimeShiftSchema(poolId,lagNo,matchNo){
+    for(let attempt=0;attempt<100;attempt++){
+      const result=await adminRequest('/api/bytesschema/retime','POST',{pool_id:Number(poolId),lag_no:Number(lagNo),match_no:Number(matchNo)});
+      if(!result.pending)return result;
+    }
+    throw Error('Uppdateringen behöver fortsätta. Tryck Spara igen.');
+  }
   async function deleteShiftSchema(poolId,lagNo,matchNo){
     return saveShiftSchema(poolId,lagNo,matchNo,[]);
   }
@@ -330,5 +337,5 @@ window.DB = (() => {
   }
   return {listPlayers,listCoaches,listStaff,listPools,getPool,listPoolTeamMatchConfigs,getPoolTeamMatchConfig,getPlayersOnField,getLineup,listUsedPlayersInPool,listShiftSchema,listGoalieStats,listPlayerMatchStats,listPlayerCoachMap,
     addPlayer,updatePlayer,deletePlayer:rowId=>serialWrite(()=>adminRequest(`/api/spelare/${encodeURIComponent(rowId)}`,'DELETE',{})),addCoach,updateCoach,deleteCoach:rowId=>serialWrite(()=>adminRequest(`/api/tranare/${encodeURIComponent(rowId)}`,'DELETE',{})),addEquipmentCoach,addStaff:(role,name)=>writeStaff('POST',role,null,name),updateStaff:(role,rowId,name)=>writeStaff('PATCH',role,rowId,name),deleteStaff:(role,rowId)=>writeStaff('DELETE',role,rowId,''),updatePoolTeams,addPool,updatePool,updatePoolActive,deletePool:async rowId=>{for(let i=0;i<100;i++){const result=await adminRequest('/api/poolspel/'+encodeURIComponent(rowId),'DELETE',{});if(result.deleted)return result;}throw Error('Raderingen behöver fortsätta. Tryck Ta bort igen.');},
-    getPoolMaterial,savePoolMaterial,assertMatchReady,listPoolMatchPlan,saveMatchInfo,saveFullLineup:window.APP_CONFIG?.POOL_FLOW_ENABLED===true?saveFullLineup:undefined,listPoolMatchSummaries,saveCalendarMatchSchedule,savePoolTeamMatchConfig,saveLineup,getCoachSelection,saveCoachSelection,saveShiftSchema,deleteShiftSchema,setShiftDone,savePlayerCoachMap:failWrite,subscribeTruppen:async()=>({unsubscribe(){}})};
+    retimeShiftSchema,getPoolMaterial,savePoolMaterial,assertMatchReady,listPoolMatchPlan,saveMatchInfo,saveFullLineup:window.APP_CONFIG?.POOL_FLOW_ENABLED===true?saveFullLineup:undefined,listPoolMatchSummaries,saveCalendarMatchSchedule,savePoolTeamMatchConfig,saveLineup,getCoachSelection,saveCoachSelection,saveShiftSchema,deleteShiftSchema,setShiftDone,savePlayerCoachMap:failWrite,subscribeTruppen:async()=>({unsubscribe(){}})};
 })();

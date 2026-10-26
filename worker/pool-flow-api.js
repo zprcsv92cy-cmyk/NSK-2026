@@ -48,7 +48,7 @@ export function withPoolFlow(original,{resolveTables,listTeams,verifyIdentity,au
    if(!pool&&!deletion)return reply(404,'Poolspelet saknas');
    const teamIds=pool?links(pool.Lag):[Number(deletion.team_row_id)];if(teamIds.length!==1)return reply(503,'Lagkopplingen kunde inte verifieras');
    const teams=(await listTeams(env)).filter(t=>Number(t.id)===teamIds[0]&&String(t['Säsong'])==='2026');if(teams.length!==1)return reply(503,'Laget kunde inte verifieras');
-   let feature=remove?'pool':special?.[2]==='material'?'lineup':special?'matches':path==='/api/coach-selection'?'lineup':path.startsWith('/api/laguppstallningar')?'lineup':path==='/api/bytesschema/save'?'lineup':path.startsWith('/api/bytesschema')?'shifts':path.endsWith('/aktiv')?(body.active?'pool_reopen':'pool_finish'):path.startsWith('/api/poolspel')?'pool':'matches';
+   let feature=remove?'pool':special?.[2]==='material'?'lineup':special?'matches':path==='/api/coach-selection'?'lineup':path.startsWith('/api/laguppstallningar')?'lineup':['/api/bytesschema/save','/api/bytesschema/retime'].includes(path)?(path.endsWith('/retime')?'pool':'lineup'):path.startsWith('/api/bytesschema')?'shifts':path.endsWith('/aktiv')?(body.active?'pool_reopen':'pool_finish'):path.startsWith('/api/poolspel')?'pool':'matches';
    const access=special?.[2]==='material'&&req.method==='GET'?{allowed:actor.permissions?.includes('read')&&actor.memberships?.some(m=>m.team_id===teams[0].Namn),status:403}:authorize(actor,teams[0].Namn,feature);if(!access.allowed)return reply(access.status||403,access.reason||'Saknar behörighet');
    if(remove){
     // Delete in resumable batches, children before parent. A tombstone blocks all further writes.
@@ -70,7 +70,7 @@ export function withPoolFlow(original,{resolveTables,listTeams,verifyIdentity,au
    }
    if(deletion)return reply(409,'Poolspelet håller på att tas bort.');
    if(path==='/api/poolspel/'+poolId&&req.method==='PATCH'){
-    const fields={teams:'Antal lag',matches:'Antal matcher',players_on_field:'Spelare på plan',periods:'Perioder',period_time:'Periodtid',sub_time:'Bytestid'};
+    const fields={teams:'Antal lag',matches:'Antal matcher',players_on_field:'Spelare på plan',periods:'Perioder',period_time:'Periodtid'};
     if(Object.entries(fields).some(([key,field])=>body[key]!==undefined&&Number(body[key])!==Number(pool[field]))&&(await rows('bytesschema')).some(r=>links(r.Poolspel).includes(poolId)&&r.Genomfört===true))return reply(409,'Poolspelet har genomförda byten. Antal lag, matcher och spelregler är låsta.');
    }
    if(special?.[2]==='material'){
@@ -134,7 +134,13 @@ export function withPoolFlow(original,{resolveTables,listTeams,verifyIdentity,au
    if(path.startsWith('/api/bytesschema')){
     const pending=await env.AUTH_DB.prepare("SELECT 1 AS pending FROM pool_flow_saves WHERE pool_id=? AND status='pending' LIMIT 1").bind(poolId).first();if(pending)return reply(409,'En laguppställning är inte färdigsparad. Spara den igen innan matchen fortsätter.');
    }
+   if(path==='/api/bytesschema/retime'){
+    if(req.method!=='POST'||!positive(body.lag_no)||!positive(body.match_no))return reply(400,'Ogiltig match');
+    const stub=env.SHIFT_LOCK?.get(env.SHIFT_LOCK.idFromName(poolId+':'+body.lag_no+':'+body.match_no));if(!stub)return reply(503,'Matchlås saknas');
+    const result=await stub.fetch('https://shift-lock.internal/',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({action:'save',retime:true,pool_id:poolId,lag_no:body.lag_no,match_no:body.match_no})});return new Response(result.body,{status:result.status,headers});
+   }
    if(path==='/api/bytesschema/save'){
+    if(body.retime!==undefined)return reply(400,'Använd omräkning av bytestid');
     if(!positive(body.lag_no)||!positive(body.match_no)||!Array.isArray(body.shifts)||body.shifts.length>200)return reply(400,'Ogiltigt bytesschema');
     const stub=env.SHIFT_LOCK?.get(env.SHIFT_LOCK.idFromName(poolId+':'+body.lag_no+':'+body.match_no));if(!stub)return reply(503,'Matchlås saknas');
     const result=await stub.fetch('https://shift-lock.internal/',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({...body,action:'save'})});return new Response(result.body,{status:result.status,headers});
