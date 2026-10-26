@@ -63,3 +63,9 @@ test('Cloudflare fetch uses manual redirects and rejects upstream redirects',asy
  await assert.rejects(fetchChangingRooms(async(url,options)=>{mode=options.redirect;return new Response('',{status:302,headers:{location:'https://example.invalid/'}});},null,new Date('2026-10-26T08:00:00Z')));
  assert.equal(mode,'manual');
 });
+
+test('shared NSK 18 and NSK 17 bookings include both rooms without matching J18 or NSK 180',()=>{
+ const rows=parseChangingRooms(board(row('NSK 18, NSK 17','4','Tis 27 Okt'),row('NSK 17, NSK 18','5','Tis 27 Okt'),row('J18, NSK 17'),row('NSK 180, NSK 17')),'2026-10-26');
+ assert.deepEqual(rows.map(item=>item.room),['4','5']);
+ assert.equal(match(rows,'2026-10-27','Lilla Hallen','13:45–15:00'),' Omkl. 4 och 5');
+});
