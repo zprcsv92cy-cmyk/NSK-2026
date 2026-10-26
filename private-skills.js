@@ -32,15 +32,20 @@
    const body=node('div');body.className='skills-category-body';
    for(const [key,label] of group.items){
     const row=node('div');row.className='skill-row';const left=node('div'),caption=node('label',label),select=node('select'),meter=node('div');select.id='skill-'+key;caption.htmlFor=select.id;meter.className='skill-meter';meter.setAttribute('aria-hidden','true');
-    select.append(new Option('Ej bedömd',''));for(let i=1;i<=10;i++)select.append(new Option(i+' / 10',String(i)));select.value=card.ratings[key]===null?'':String(card.ratings[key]);
-    const paint=()=>{meter.replaceChildren();for(let i=1;i<=10;i++){const block=node('span');if(i<=Number(select.value))block.className='filled';meter.append(block);}};
-    paint();select.onchange=()=>{if(!board.cards[player])board.cards[player]=blank();board.cards[player].ratings[key]=select.value===''?null:Number(select.value);dirty=true;invalidate();paint();averages();message('Ändringar är inte sparade.');};left.append(caption,meter);row.append(left,select);body.append(row);
+    select.append(new Option('Ej bedömd',''));for(let i=1;i<=10;i++)select.append(new Option(String(i),String(i)));select.value=card.ratings[key]===null?'':String(card.ratings[key]);
+    const criterion=board.criteria?.[key],question=node('p',criterion?.question||''),selected=node('p');question.className='skill-question';question.id='skill-question-'+key;selected.className='skill-selected-level';selected.id='skill-level-'+key;selected.setAttribute('aria-live','polite');select.setAttribute('aria-describedby',question.id+' '+selected.id);
+    const guide=node('details');guide.className='skill-guide';guide.append(node('summary','Bedömningsstöd 1–10'));
+    if(criterion){const list=node('dl');criterion.bands.forEach((text,index)=>{list.append(node('dt',bandLabels(group)[index]),node('dd',text));});guide.append(list);}
+    const paint=()=>{meter.replaceChildren();for(let i=1;i<=10;i++){const block=node('span');if(i<=Number(select.value))block.className='filled';meter.append(block);}selected.textContent=select.value?select.value+' / 10 · '+(criterion?.bands[Math.floor((Number(select.value)-1)/2)]||''):'Ej bedömd · Välj när du har tillräckligt underlag.';};
+    paint();select.onchange=()=>{if(!board.cards[player])board.cards[player]=blank();board.cards[player].ratings[key]=select.value===''?null:Number(select.value);dirty=true;invalidate();paint();averages();message('Ändringar är inte sparade.');};left.append(caption,question,meter);row.append(left,select,selected,guide);body.append(row);
    }details.append(body);$('skillsFields').append(details);
   }averages();
  }
+ function bandLabels(group){return ['team','attitude'].includes(group.key)?board.guidance.behaviorBands:board.guidance.bands;}
+ function renderGuidance(){const root=$('skillsGuidanceBody');root.replaceChildren();if(!board.guidance)return;for(const key of ['intro','withinBand','unknown','behavior','passing'])root.append(node('p',board.guidance[key]));}
  function renderBoard(){
   $('skillsPlayer').replaceChildren();for(const person of board.roster)$('skillsPlayer').append(new Option(person.name,person.id));if(!board.roster.some(p=>p.id===player))player=board.roster[0]?.id||null;$('skillsPlayer').value=player||'';
-  $('skillsOffNotice').hidden=board.enabled;$('skillsToggle').textContent=board.enabled?'Avaktivera Skills':'Aktivera Skills';renderCard();$('skillsContent').hidden=false;lock();
+  $('skillsOffNotice').hidden=board.enabled;$('skillsToggle').textContent=board.enabled?'Avaktivera Skills':'Aktivera Skills';renderGuidance();renderCard();$('skillsContent').hidden=false;lock();
  }
  async function save(nextEnabled=board.enabled,removeAll=false){
   if(busy)return;busy=true;lock();invalidate();message('Sparar privat…');
@@ -92,6 +97,30 @@
    invalidate();planMessage('Förslaget är sparat för laget. Endast grupp- eller bytesindelningen delas, inga skillsvärden.');
   }catch(error){planMessage(error.message+' Inget nytt förslag markeras som sparat.');}finally{busy=false;lock();}
  }
+ function clearPrint(){document.body.classList.remove('skills-printing');$('skillsPrintout')?.remove();}
+ function printSkills(mode){
+  if(busy)return;
+  if(!identity()||!unlock||Date.now()>=unlockExpires){showPinGate();message('Lås upp med koden innan du skriver ut.');return;}
+  if(!board?.guidance||!board?.criteria){message('Läs om för att hämta bedömningskriterierna.');return;}
+  const person=board.roster.find(p=>p.id===player);if(mode==='player'&&!person){message('Välj en spelare att skriva ut.');return;}
+  clearPrint();const out=node('article');out.id='skillsPrintout';out.dataset.mode=mode;const header=node('header');header.append(node('p','PRIVAT · Endast huvudadministratören'),node('h1',mode==='criteria'?'Bedömningskriterier 1–10':'Spelarbedömning · '+person.name),node('p',Auth.activeTeam()+' · Utskriftsdatum '+new Date().toLocaleDateString('sv-SE',{timeZone:'Europe/Stockholm'})));
+  for(const key of (mode==='criteria'?['intro','withinBand','unknown','behavior','passing']:['intro','withinBand','unknown']))header.append(node('p',board.guidance[key]));out.append(header);
+  const card=mode==='player'?edit():null;
+  if(card){out.append(node('p',dirty?'Arbetskopia · Innehåller osparade ändringar.':$('skillsAssessedAt').textContent));}
+  for(const group of board.groups){
+   const section=node('section');section.className='skills-print-category';section.append(node('h2',group.name));
+   for(const [key,label] of group.items){const criterion=board.criteria[key],item=node('section');item.className='skills-print-item';item.append(node('h3',label),node('p',criterion.question));
+    if(card){const value=card.ratings[key];item.append(node('p',value===null?'Ej bedömd':value+' / 10 · '+criterion.bands[Math.floor((value-1)/2)]));}
+    else{const list=node('dl');criterion.bands.forEach((text,index)=>list.append(node('dt',bandLabels(group)[index].split(' · ')[0]),node('dd',text)));item.append(list);}
+    section.append(item);
+   }out.append(section);
+  }
+  if(card){const notes=node('section');notes.className='skills-print-notes';notes.append(node('h2','Privata tränaranteckningar'),node('p',card.notes||'Inga anteckningar.'));out.append(notes);}
+  document.body.append(out);document.body.classList.add('skills-printing');
+  try{window.print();}catch{clearPrint();message('Utskriften kunde inte öppnas. Försök igen.');}
+ }
+ window.addEventListener('afterprint',clearPrint);
+ $('skillsPrintCriteria').onclick=()=>printSkills('criteria');$('skillsPrintPlayer').onclick=()=>printSkills('player');
  async function pinRequest(method='GET',payload){
   if(!identity())throw Error('Åtkomst nekad. Logga in igen.');
   const response=await fetch(base()+'/api/skills/pin',{method,headers:{Authorization:'Bearer '+token,...(payload?{'Content-Type':'application/json'}:{})},body:payload?JSON.stringify(payload):undefined,cache:'no-store',credentials:'omit'});
@@ -99,7 +128,7 @@
   if(!response.ok||!data.ok)throw Error(data.error||'Kodskyddet kunde inte kontrolleras.');return data;
  }
  function showPinGate(){
-  clearTimeout(unlockTimer);unlock=null;unlockExpires=0;board=null;dirty=false;player=null;invalidate();
+  clearPrint();$('skillsGuidanceBody').replaceChildren();clearTimeout(unlockTimer);unlock=null;unlockExpires=0;board=null;dirty=false;player=null;invalidate();
   $('skillsContent').hidden=true;$('skillsFields').replaceChildren();$('skillsNotes').value='';$('skillsPlayer').replaceChildren();$('skillsPlayerName').textContent='';$('skillsCoverage').textContent='';$('skillsAssessedAt').textContent='';
   $('skillsPinGate').hidden=false;$('skillsPinForm').reset();
   $('skillsPinTitle').textContent=pinConfigured?'Lås upp Specialfunktioner':'Välj kod för Specialfunktioner';

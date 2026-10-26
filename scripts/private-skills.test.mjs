@@ -50,7 +50,7 @@ test('match groups preserve equal opportunity: no duplicates, correct size and a
  for(let n=3;n<=12;n++)for(const size of [2,3]){const ids=Array.from({length:n},(_,i)=>String(i+1)),result=planSkills({mode:'match',playerIds:ids,goalieIds:[],playersOnField:size,shiftCount:13},{},n);assert(result.groups.every(g=>g.length===size&&new Set(g).size===size));const counts=Object.values(result.appearances);assert(Math.max(...counts)-Math.min(...counts)<=1);}
 });
 test('assessment categories affect balanced planning without a single permanent player rank',()=>{
- const ids=['1','2','3','4'],cards={};ids.forEach((id,i)=>{cards[id]=blank();for(const key of SKILL_KEYS)cards[id].ratings[key]=i<2?10:1;});const result=planSkills({mode:'training',playerIds:ids,goalieIds:[],groupCount:2},cards,9);assert(result.groups.every(group=>group.filter(id=>['1','2'].includes(id)).length===1));assert.equal(SKILL_GROUPS.length,5);assert.equal(SKILL_KEYS.length,20);assert.deepEqual(result.incomplete,[]);
+ const ids=['1','2','3','4'],cards={};ids.forEach((id,i)=>{cards[id]=blank();for(const key of SKILL_KEYS)cards[id].ratings[key]=i<2?10:1;});const result=planSkills({mode:'training',playerIds:ids,goalieIds:[],groupCount:2},cards,9);assert(result.groups.every(group=>group.filter(id=>['1','2'].includes(id)).length===1));assert.equal(SKILL_GROUPS.length,5);assert.equal(SKILL_KEYS.length,21);assert.deepEqual(result.incomplete,[]);
 });
 
 test('real D1 identity grants only the protected primary account; revocation immediately denies access',async t=>{
@@ -65,4 +65,27 @@ test('real D1 identity grants only the protected primary account; revocation imm
  assert.equal((await handler(request('GET',undefined,token))).status,423);
  assert.equal((await handler(request('PUT',{revision:0,enabled:true,cards:{101:blank()}},token,'18','/api/skills',pin.unlock))).status,200);assert.equal((await handler(request('GET',undefined,token,'18','/api/skills',pin.unlock))).status,200);assert.equal((await f.db.prepare('SELECT revision FROM private_skills_boards WHERE team_id=?').bind('18').first()).revision,1);
  await f.db.prepare("UPDATE auth_sessions SET revoked_at=datetime('now') WHERE token_hash=?").bind(await tokenDigest(token)).run();const before=rosterReads;assert.equal((await handler(request('GET',undefined,token))).status,401);assert.equal(rosterReads,before);
+});
+
+
+test('criteria cover all 21 skills and distinguish passing decisions from passing technique',async()=>{
+ const {SKILL_CRITERIA,SKILLS_GUIDANCE}=await import('../worker/skills-criteria.js');
+ assert.deepEqual(Object.keys(SKILL_CRITERIA).sort(),[...SKILL_KEYS].sort());
+ for(const criterion of Object.values(SKILL_CRITERIA)){assert(criterion.question.endsWith('?'));assert.equal(criterion.bands.length,5);assert(criterion.bands.every(text=>typeof text==='string'&&text.length>20));}
+ assert.equal(SKILLS_GUIDANCE.bands.length,5);assert.equal(SKILLS_GUIDANCE.behaviorBands.length,5);
+ assert.notEqual(SKILL_CRITERIA.pass.question,SKILL_CRITERIA.passing.question);
+ const f=fixture(),response=await(await f.handler(request())).json();assert.equal(response.criteria.passing.question,SKILL_CRITERIA.passing.question);assert(response.guidance.withinBand);
+});
+test('legacy 20-skill cards keep ratings and assessment date; old clients cannot erase a new passing rating',async()=>{
+ const f=fixture(),legacy=blank();legacy.ratings.forward=8;delete legacy.ratings.passing;const date='2026-10-20T10:00:00.000Z';
+ const raw=JSON.stringify({101:{...legacy,assessedAt:date}});f.rows.set('18',{cards_json:raw,revision:1,enabled:1});
+ const read=await(await f.handler(request())).json();assert.equal(read.cards['101'].ratings.forward,8);assert.equal(read.cards['101'].ratings.passing,null);assert.equal(read.assessedAt['101'],date);assert.equal(f.rows.get('18').cards_json,raw);
+ assert.equal(validSkillsCards({101:legacy}),true);const invalid=structuredClone(legacy);delete invalid.ratings.shot;assert.equal(validSkillsCards({101:invalid}),false);
+ const card=read.cards['101'];card.ratings.passing=9;assert.equal((await f.handler(request('PUT',{revision:1,enabled:true,cards:{101:card}}))).status,200);
+ const old=structuredClone(legacy);old.notes='Legacy client edit';const saved=await(await f.handler(request('PUT',{revision:2,enabled:true,cards:{101:old}}))).json();assert.equal(saved.cards['101'].ratings.passing,9);assert.equal(saved.cards['101'].ratings.forward,8);
+ saved.cards['101'].ratings.passing=null;const reset=await(await f.handler(request('PUT',{revision:3,enabled:true,cards:saved.cards}))).json();assert.equal(reset.cards['101'].ratings.passing,null);
+});
+test('passing awareness contributes to balanced groups independently of pass execution',()=>{
+ const cards={};for(const id of ['1','2','3','4']){cards[id]=blank();for(const key of SKILL_KEYS)cards[id].ratings[key]=5;cards[id].ratings.passing=['1','2'].includes(id)?10:1;}
+ const result=planSkills({mode:'training',playerIds:['1','2','3','4'],groupCount:2},cards,4);assert(result.groups.every(group=>group.filter(id=>['1','2'].includes(id)).length===1));
 });

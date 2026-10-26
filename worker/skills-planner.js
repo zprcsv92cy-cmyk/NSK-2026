@@ -2,7 +2,7 @@
 export const SKILL_GROUPS=Object.freeze([
  {key:'skating',name:'Skridskoåkning',color:'#36a4f4',items:[['forward','Framåtåkning'],['backward','Bakåtåkning'],['balance','Balans och kroppskontroll'],['turns','Svängar och översteg'],['acceleration','Start, stopp och acceleration']]},
  {key:'stick',name:'Klubbteknik',color:'#ff3b61',items:[['puck','Puckkontroll'],['dribble','Dribbla i fart'],['pass','Passningsteknik'],['receive','Ta emot passningar'],['shot','Skotteknik']]},
- {key:'game',name:'Spelförståelse',color:'#40d58d',items:[['space','Hitta fria ytor'],['position','Positionering'],['decisions','Beslutsfattande'],['attack_defend','Förstå anfall och försvar']]},
+ {key:'game',name:'Spelförståelse',color:'#40d58d',items:[['space','Hitta fria ytor'],['position','Positionering'],['decisions','Beslutsfattande'],['passing','Passningsspel och blick för medspelare'],['attack_defend','Förstå anfall och försvar']]},
  {key:'team',name:'Lagspel',color:'#aa72f3',items:[['cooperate','Samarbete'],['communicate','Kommunikation'],['support','Hjälpa lagkamrater']]},
  {key:'attitude',name:'Inställning',color:'#ff9b39',items:[['effort','Träningsvilja'],['courage','Mod att prova nya saker'],['focus','Koncentration']]}
 ]);
@@ -54,5 +54,5 @@ export function planSkills({playerIds,goalieIds=[],mode,groupCount=3,playersOnFi
  }
  const appearances=Object.fromEntries(ids.map(id=>[id,groups.filter(group=>group.includes(id)).length]));
  const incomplete=ids.filter(id=>SKILL_KEYS.some(key=>cards[id]?.ratings?.[key]==null));
- return {mode,groups,goalieIds:[...goalieIds],appearances,incomplete,version:1};
+ return {mode,groups,goalieIds:[...goalieIds],appearances,incomplete,version:2};
 }
