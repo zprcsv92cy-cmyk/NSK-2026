@@ -1,3 +1,4 @@
+import { fetchBaserowRead as fetch } from './baserow-read-fetch.js';
 import { runSvenskalagScheduledSync } from './svenskalag-scheduled-sync.js';
 import { runChangingRoomCheck } from './rbok-changing-rooms.js';
 import { createTrainingHandler } from './training-sessions-api.js';

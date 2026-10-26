@@ -67,6 +67,17 @@ export async function readPersonallyAuthorizedTeamCollection(request, env, {
       return Response.json({ok:true,table:'spelaretranare',results,count:results.length,next:null,previous:null},
         {headers:{'cache-control':'no-store','x-content-type-options':'nosniff'}});
     }
+    // Pool metadata only depends on pool ownership, never on match/shift availability.
+    if (match[1] === 'poolspel') {
+      const pools = await readRows('poolspel');
+      if (!Array.isArray(pools)) throw Error('Incomplete pool snapshot');
+      const results = pools.filter(p => {
+        rowId(p);
+        return linkedIds(p.Lag).includes(teams[0]);
+      });
+      return Response.json({ok:true,table:'poolspel',results,count:results.length,next:null,previous:null},
+        {headers:{'cache-control':'no-store','x-content-type-options':'nosniff'}});
+    }
     const [pools, configs, lineups, shifts] = await Promise.all([
       readRows('poolspel'), readRows('matchkonfiguration'),
       readRows('laguppstallningar'), readRows('bytesschema')
