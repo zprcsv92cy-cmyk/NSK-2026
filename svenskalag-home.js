@@ -118,10 +118,10 @@
      const pools=await DB.listPools();
      const match=pools.find(p=>samePool(p,item));
      if(match){
-      if(action==='edit'){sessionStorage.setItem('nsk2_edit_pool_id',String(match.id));location.href='../skapapoolspel/';return;}
-      if(action==='finish'){await DB.updatePoolActive(match.id,false);location.reload();return;}
+      if(action==='edit'){sessionStorage.setItem('nsk2_edit_pool_id',String(match.id));(window.NSKNavigate||((url)=>{(window.location||location).href=url;}))('../skapapoolspel/');return;}
+      if(action==='finish'){await DB.updatePoolActive(match.id,false);(window.NSKNavigate?window.NSKNavigate(location.href,{reload:true,replace:true}):location.reload());return;}
       sessionStorage.setItem('nsk2_pool_id',String(match.id));sessionStorage.setItem('nsk2_lag_nr','1');sessionStorage.setItem('nsk2_match_no','1');
-      location.href=action==='shift'?'../bytesschema/':action==='lineup'?'../laguppstallning/index.html':'../lag/';return;
+      (window.NSKNavigate||((url)=>{(window.location||location).href=url;}))(action==='shift'?'../bytesschema/':action==='lineup'?'../laguppstallning/index.html':'../lag/');return;
      }
      const validMatches=matchesForPool(item,calendarMatches);
      if(!validMatches.length&&action!=='edit')throw Error('Kalendern saknar matchuppgifter. Öppna Redigera för att komplettera och spara poolspelet.');
@@ -130,7 +130,7 @@
      sessionStorage.setItem('nsk2_svenskalag_pool_draft',JSON.stringify({date:item.date,place:poolLocation(item).city,hall:poolLocation(item).hall,matches:validMatches.map(m=>({startTime:m.startTime,opponent:m.opponent,place:m.place||''}))}));
      if(action!=='edit')sessionStorage.setItem('nsk2_calendar_auto_save_once','1');
      const query=new URLSearchParams({calendar_action:action,calendar_date:item.date,calendar_place:poolLocation(item).city||''});
-     location.href='../skapapoolspel/?'+query;
+     (window.NSKNavigate||((url)=>{(window.location||location).href=url;}))('../skapapoolspel/?'+query);
     }catch(error){button.disabled=false;alert(error.message||'Poolspelet kunde inte öppnas.');}
    }
    create.addEventListener('click',()=>openCalendarPool('start',create));

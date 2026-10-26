@@ -6,7 +6,7 @@
   const teamKey = 'nsk_active_team';
   let identity = null;
   const token = () => sessionStorage.getItem(key);
-  const clear = () => { window.NSKViewCache?.clear(); try { sessionStorage.removeItem('nsk_view_cache_v1'); } catch {} identity = null; sessionStorage.removeItem(key); sessionStorage.removeItem(teamKey); };
+  const clear = (redirect = true) => { window.NSKViewCache?.clear(); try { sessionStorage.removeItem('nsk_view_cache_v1'); sessionStorage.removeItem('nsk_shell_ui_v1'); } catch {} identity = null; sessionStorage.removeItem(key); sessionStorage.removeItem(teamKey); if(redirect){window.NSKShellHost?.signedOut(); window.NSKAppShell?.signedOut();} };
   let pendingIdentity=null;
   function init() {
     const current=token();
@@ -134,15 +134,16 @@
   }
   async function logout() {
     const current = token();
-    clear();
+    clear(false);
     try { localStorage.removeItem('nsk_admin_token'); localStorage.removeItem('nsk_match_token'); } catch {}
     if (base && current) {
       try {
         await fetch(base + '/api/auth/logout', {
-          method: 'POST', headers: { Authorization: 'Bearer ' + current }, credentials: 'omit'
+          method: 'POST', headers: { Authorization: 'Bearer ' + current }, credentials: 'omit', keepalive: true
         });
       } catch { /* Local logout succeeds even if the server is unavailable. */ }
     }
+    window.NSKShellHost?.signedOut(); window.NSKAppShell?.signedOut();
   }
   window.Auth = Object.freeze({
     init, login, logout, can, checkTeamFeature, stagingRosterList, stagingRosterWrite, activeTeam, selectTeam,

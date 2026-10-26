@@ -67,7 +67,7 @@ function showNskUpdate(version) {
       } catch (err) {
         console.warn("Kunde inte rensa äldre appcache", err);
       }
-      location.replace(next.href);
+      if(window.NSKNavigate)window.NSKNavigate(next.href,{reloadApp:true});else location.replace(next.href);
     });
     notice.querySelector("#nsk-update-later").addEventListener("click", () => {
       nskDismissedVersion = nskPendingVersion;
@@ -79,6 +79,7 @@ function showNskUpdate(version) {
 }
 
 async function checkAppVersion() {
+  if(window.NSKShellActive===false)return;
   try {
     const res = await fetch(new URL("deploy.json?ts=" + Date.now(), nskVersionRoot()), { cache: "no-store" });
     if (!res.ok) throw new Error("Versionsfilen kunde inte hämtas");
@@ -310,7 +311,7 @@ window.NSK2App = (() => {
       try {
         if (t.dataset.editPool) {
           sessionStorage.setItem("nsk2_edit_pool_id", t.dataset.editPool);
-          window.location.href = "../skapapoolspel/";
+          (window.NSKNavigate||((url)=>{(window.location||location).href=url;}))("../skapapoolspel/");
           return;
         }
 
@@ -322,7 +323,7 @@ window.NSK2App = (() => {
           if (!current) throw new Error("Poolspelet hittades inte. Ladda om sidan.");
           const currentlyClosed = current.active === false;
           if (currentlyClosed === (nextStatus === "Avslutad")) {
-            window.location.reload();
+            (window.NSKNavigate?window.NSKNavigate(location.href,{reload:true,replace:true}):window.location.reload());
             return;
           }
           const question = nextStatus === "Avslutad"
@@ -332,7 +333,7 @@ window.NSK2App = (() => {
           t.disabled = true;
           try {
             await DB.updatePoolActive(poolId, nextStatus === "Aktiv");
-            window.location.reload();
+            (window.NSKNavigate?window.NSKNavigate(location.href,{reload:true,replace:true}):window.location.reload());
           } finally {
             t.disabled = false;
           }
@@ -343,7 +344,7 @@ window.NSK2App = (() => {
           const ok = window.confirm("Ta bort poolspelet permanent? Detta kan inte ångras.");
           if (!ok) return;
           await DB.deletePool(t.dataset.deletePool);
-          window.location.reload();
+          (window.NSKNavigate?window.NSKNavigate(location.href,{reload:true,replace:true}):window.location.reload());
           return;
         }
 
@@ -352,7 +353,7 @@ window.NSK2App = (() => {
           e.preventDefault();
           await Promise.all([lineupSaveChain,coachSaveChain]);
           if(byId('appError')?.textContent?.trim())return;
-          window.location.href=flowLink.href;return;
+          (window.NSKNavigate||((url)=>{(window.location||location).href=url;}))(flowLink.href);return;
         }
         if(flowLink&&matchvySaving){e.preventDefault();return;}
         const teamChoice = t.closest("[data-pool-team-choice]");
@@ -377,29 +378,29 @@ window.NSK2App = (() => {
           if (!poolId) return;
           sessionStorage.setItem("nsk2_pool_id", poolId);
           sessionStorage.setItem("nsk2_lag_nr", lagNo);
-          window.location.href = poolAction.dataset.poolTeamAction === "shift"
-            ? "../bytesschema/" : "../laguppstallning/index.html";
+          (window.NSKNavigate||((url)=>{(window.location||location).href=url;}))(poolAction.dataset.poolTeamAction === "shift"
+            ? "../bytesschema/" : "../laguppstallning/index.html");
           return;
         }
 
         if (t.dataset.poolId && t.dataset.lagNo) {
           sessionStorage.setItem("nsk2_pool_id", t.dataset.poolId || "");
           sessionStorage.setItem("nsk2_lag_nr", t.dataset.lagNo || "1");
-          window.location.href = "../laguppstallning/index.html";
+          (window.NSKNavigate||((url)=>{(window.location||location).href=url;}))("../laguppstallning/index.html");
           return;
         }
 
         if (t.dataset.poolShifts && t.dataset.lagNo) {
           sessionStorage.setItem("nsk2_pool_id", t.dataset.poolShifts || "");
           sessionStorage.setItem("nsk2_lag_nr", t.dataset.lagNo || "1");
-          window.location.href = "../bytesschema/";
+          (window.NSKNavigate||((url)=>{(window.location||location).href=url;}))("../bytesschema/");
           return;
         }
 
         if (t.dataset.startPoolId) {
           sessionStorage.setItem("nsk2_pool_id", t.dataset.startPoolId || "");
           sessionStorage.setItem("nsk2_match_no", "1");
-          window.location.href = "../lag/";
+          (window.NSKNavigate||((url)=>{(window.location||location).href=url;}))("../lag/");
           return;
         }
 
@@ -407,7 +408,7 @@ window.NSK2App = (() => {
           sessionStorage.setItem("nsk2_pool_id", t.dataset.activePool || "");
           sessionStorage.setItem("nsk2_lag_nr", t.dataset.activeLag || "1");
           sessionStorage.setItem("nsk2_match_no", sessionStorage.getItem(`nsk2_team_match_${t.dataset.activePool}_${t.dataset.activeLag}`)||"1");
-          window.location.href = "../bytesschema/";
+          (window.NSKNavigate||((url)=>{(window.location||location).href=url;}))("../bytesschema/");
           return;
         }
 
@@ -766,7 +767,7 @@ window.NSK2App = (() => {
         sessionStorage.removeItem("nsk2_pool_id");
         sessionStorage.setItem("nsk2_lag_nr", String(i));
         sessionStorage.setItem("nsk2_lineup_from_create", "1");
-        window.location.href = "../laguppstallning/index.html";
+        (window.NSKNavigate||((url)=>{(window.location||location).href=url;}))("../laguppstallning/index.html");
       });
       box.appendChild(btn);
     }
@@ -967,8 +968,8 @@ window.NSK2App = (() => {
         if(['start','lineup','shift'].includes(calendarAction)){
           sessionStorage.setItem('nsk2_pool_id',savedPoolId);
           sessionStorage.setItem('nsk2_lag_nr','1');sessionStorage.setItem('nsk2_match_no','1');
-          window.location.href=calendarAction==='shift'?'../bytesschema/':calendarAction==='lineup'?'../laguppstallning/index.html':'../lag/';
-        }else window.location.href = "../startsida/";
+          (window.NSKNavigate||((url)=>{(window.location||location).href=url;}))(calendarAction==='shift'?'../bytesschema/':calendarAction==='lineup'?'../laguppstallning/index.html':'../lag/');
+        }else (window.NSKNavigate||((url)=>{(window.location||location).href=url;}))("../startsida/");
       } finally {
         if (saveButton) saveButton.disabled = false;
       }
@@ -1028,6 +1029,8 @@ window.NSK2App = (() => {
   }
 
   function setActiveMatchButton(matchNo) {
+    sessionStorage.setItem('nsk2_match_no',String(matchNo));
+    sessionStorage.setItem('nsk2_lineup_match_'+sessionStorage.getItem('nsk2_pool_id')+'_'+(sessionStorage.getItem('nsk2_lag_nr')||'1'),String(matchNo));
     document.querySelectorAll(".match-btn").forEach((btn) => {
       if (btn.dataset.matchNo === String(matchNo)) btn.classList.add("active-team-btn");
       else btn.classList.remove("active-team-btn");
@@ -1989,6 +1992,8 @@ window.NSK2App = (() => {
 
       renderLaguppstallningTeamButtons(teams);
       renderLaguppstallningMatchOptions(matches);
+      const rememberedMatch=sessionStorage.getItem('nsk2_lineup_match_'+poolId+'_'+(sessionStorage.getItem('nsk2_lag_nr')||'1'))||sessionStorage.getItem('nsk2_match_no')||'1';
+      if(Number(rememberedMatch)>=1&&Number(rememberedMatch)<=matches)matchSelect.value=rememberedMatch;
       renderMatchButtons(matches);
       renderPlayerCountOptions(playersOnField);
       await renderCoachOptions();
@@ -2107,7 +2112,7 @@ window.NSK2App = (() => {
 
   // Synkronisera enbart avbockningarna. Bygg inte om tabellen under match.
   async function refreshShiftDoneMarks() {
-    if (document.hidden || shiftRefreshBusy || shiftToggleSaving || !byId("shiftTableWrap")) return;
+    if (document.hidden || window.NSKShellActive===false || shiftRefreshBusy || shiftToggleSaving || !byId("shiftTableWrap")) return;
     const poolId = sessionStorage.getItem("nsk2_pool_id");
     const lagNo = sessionStorage.getItem("nsk2_lag_nr") || "1";
     const matchNo = byId("shiftMatch")?.value || "1";
@@ -2431,7 +2436,7 @@ window.NSK2App = (() => {
     const nextMatch=data.configs.filter(c=>Number(c.lag_no)===Number(lagNo)&&Number(c.match_no)>Number(matchNo)).sort((a,b)=>a.match_no-b.match_no)[0];
     byId('prepareNextMatch').hidden=!nextMatch;
     setText('matchFinishedNext',nextMatch?`Nästa: Match ${nextMatch.match_no} · ${nextMatch.opponent||'Motståndare ej angiven'} · ${nextMatch.start_time||'Tid ej angiven'}`:'Ingen senare match finns planerad för valt lag. Kontrollera samtliga matcher och övriga egna lag innan hela poolspelet avslutas.');
-    if(nextMatch)byId('prepareNextMatch').onclick=()=>{sessionStorage.setItem('nsk2_match_no',String(nextMatch.match_no));sessionStorage.setItem(`nsk2_team_match_${data.poolId}_${lagNo}`,String(nextMatch.match_no));location.href='../bytesschema/';};
+    if(nextMatch)byId('prepareNextMatch').onclick=()=>{sessionStorage.setItem('nsk2_match_no',String(nextMatch.match_no));sessionStorage.setItem(`nsk2_team_match_${data.poolId}_${lagNo}`,String(nextMatch.match_no));(window.NSKNavigate||((url)=>{(window.location||location).href=url;}))('../bytesschema/');};
 
 
     setText("shiftLabel", `Lag ${lagNo} • Match ${matchNo}`);
@@ -2488,7 +2493,7 @@ window.NSK2App = (() => {
     if (!window.__nskMatchSyncBound) {
       window.__nskMatchSyncBound = true;
       const refreshMatch = async () => {
-        if (document.hidden || matchvySaving || matchvyRefreshing || !matchvyCache) return;
+        if (document.hidden || window.NSKShellActive===false || matchvySaving || matchvyRefreshing || !matchvyCache) return;
         matchvyRefreshing = true;
         try {
           const [fresh, currentRow] = await Promise.all([
@@ -2518,7 +2523,7 @@ window.NSK2App = (() => {
         const unfinished=states.filter(s=>!s.rows.length||s.rows.some(row=>!row.done));
         const warning=unfinished.length?'Kvar att avsluta: '+unfinished.map(s=>`Lag ${s.config.lag_no}, match ${s.config.match_no}`).join('; ')+'. ':'';
         if(!confirm(warning+'Avsluta hela poolspelet för alla egna lag? Uppställningar och byten sparas.'))return;
-        await DB.updatePoolActive(poolId,false);location.href='../startsida/';
+        await DB.updatePoolActive(poolId,false);(window.NSKNavigate||((url)=>{(window.location||location).href=url;}))('../startsida/');
       }catch(error){setText('appError',error.message||'Poolspelet kunde inte avslutas.');}
       finally{button.disabled=false;}
     };
@@ -2839,7 +2844,7 @@ window.addEventListener("DOMContentLoaded", () => {
   checkAppVersion();
   setInterval(checkAppVersion, NSK_UPDATE_INTERVAL_MS);
   document.addEventListener("visibilitychange", () => {
-    if (!document.hidden) checkAppVersion();
+    if (!document.hidden&&window.NSKShellActive!==false) checkAppVersion();
   });
   window.NSK2App.init().catch((err) => {
     const el = document.getElementById("appError");

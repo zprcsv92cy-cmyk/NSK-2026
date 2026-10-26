@@ -93,6 +93,8 @@
     document.body.append(bottom);bindMobileViewport();decorateIcons();
 
   }
+  function select(active){document.querySelectorAll('nav.mainmenu a,.arena-bottom a').forEach(link=>{const selected=link.getAttribute('href')==='../'+active+'/';link.classList.toggle('active',selected);if(selected)link.setAttribute('aria-current','page');else link.removeAttribute('aria-current');});document.querySelector('.arena-more>summary')?.classList.toggle('active',!!document.querySelector('.arena-more-menu a.active'));}
+  window.NSKNavigation={select,refresh:render};
   if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', render);
   else render();
 })();

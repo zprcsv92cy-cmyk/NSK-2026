@@ -8,7 +8,7 @@
   const fallback=new URL('../startsida/',location.href),raw=new URLSearchParams(location.search).get('next');
   if(!raw||!raw.startsWith('/')||raw.startsWith('//')||raw.includes('\\'))return fallback.href;
   const target=new URL(raw,location.origin),root=new URL('../',location.href).pathname,slug=target.pathname.startsWith(root)?target.pathname.slice(root.length).split('/')[0]:'';
-  return target.origin===location.origin&&['startsida','truppen','skapapoolspel','malvaktsstatistik','bytesschema','matchvy','lag','laguppstallning','anvandare','mittkonto','traningsgrupper','ovningsarkiv','ritverktyg'].includes(slug)?target.href:fallback.href;
+  return target.origin===location.origin&&['app','materialforvaltare','startsida','truppen','skapapoolspel','malvaktsstatistik','bytesschema','matchvy','lag','laguppstallning','anvandare','mittkonto','traningsgrupper','ovningsarkiv','ritverktyg'].includes(slug)?target.href:fallback.href;
  }
  if($('loginForm')){
   let busy=false;window.Auth.init().then(actor=>{if(actor)location.replace(destination());}).catch(()=>{});
