@@ -425,6 +425,7 @@
     const today=new Date().toLocaleDateString('sv-SE',{timeZone:'Europe/Stockholm',year:'numeric',month:'2-digit',day:'2-digit'});
     $('trainingDate').value=/^\d{4}-\d{2}-\d{2}$/.test(requestedDate||'')?requestedDate:today;
     const changeTraining=async()=>{try{await saveQueue;if(saveBlocked)throw Error('Sparningen misslyckades. Ladda om sidan innan du byter träning.');if(!await restore())return;renderRoster();renderCoaches();renderEquipment();renderGoalieSelectors();renderGroups();$('trainingStatus').textContent='Träningen för '+loadedDate+' är inläst.';}catch(error){if(loadedDate){$('trainingDate').value=loadedDate;$('trainingCalendar').value=loadedDate;}$('trainingStatus').textContent=error.message;}};
+    document.addEventListener('nsk:page-show',()=>{if(loadedDate&&!saveBlocked)void changeTraining();});
     $('trainingDate').addEventListener('change',changeTraining);
     $('trainingCalendar').addEventListener('change',()=>{$('trainingDate').value=$('trainingCalendar').value;changeTraining();});
     $('trainingGoalieCount').addEventListener('change',()=>{
