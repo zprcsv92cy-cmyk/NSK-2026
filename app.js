@@ -347,6 +347,14 @@ window.NSK2App = (() => {
           return;
         }
 
+        const flowLink=t.closest('.pool-flow-actions a');
+        if(flowLink&&byId('lineupMatch')){
+          e.preventDefault();
+          await Promise.all([lineupSaveChain,coachSaveChain]);
+          if(byId('appError')?.textContent?.trim())return;
+          window.location.href=flowLink.href;return;
+        }
+        if(flowLink&&matchvySaving){e.preventDefault();return;}
         const teamChoice = t.closest("[data-pool-team-choice]");
         if (teamChoice) {
           const panel = teamChoice.closest(".nsk-pool-content");
@@ -398,8 +406,8 @@ window.NSK2App = (() => {
         if (t.dataset.activeLag && t.dataset.activePool) {
           sessionStorage.setItem("nsk2_pool_id", t.dataset.activePool || "");
           sessionStorage.setItem("nsk2_lag_nr", t.dataset.activeLag || "1");
-          sessionStorage.setItem("nsk2_match_no", "1");
-          window.location.href = "../matchvy/";
+          sessionStorage.setItem("nsk2_match_no", sessionStorage.getItem(`nsk2_team_match_${t.dataset.activePool}_${t.dataset.activeLag}`)||"1");
+          window.location.href = "../bytesschema/";
           return;
         }
 
@@ -1997,6 +2005,8 @@ window.NSK2App = (() => {
       btn.dataset.shiftLag = String(i);
       btn.addEventListener("click", async () => {
         sessionStorage.setItem("nsk2_lag_nr", String(i));
+        const saved=sessionStorage.getItem(`nsk2_team_match_${sessionStorage.getItem('nsk2_pool_id')}_${i}`)||'1';
+        const selector=byId('shiftMatch');if(selector&&Array.from(selector.options).some(o=>o.value===saved))selector.value=saved;
         setActiveShiftTeamButton(String(i));
         await renderShiftSchema();
       });
@@ -2154,6 +2164,7 @@ window.NSK2App = (() => {
     const lagNo = sessionStorage.getItem("nsk2_lag_nr") || "1";
     const matchNo = byId("shiftMatch")?.value || "1";
     sessionStorage.setItem("nsk2_match_no", matchNo);
+    sessionStorage.setItem(`nsk2_team_match_${poolId}_${lagNo}`,matchNo);
     if (!poolId) return;
 
     const pool = await DB.getPool(poolId);
@@ -2178,22 +2189,15 @@ window.NSK2App = (() => {
     const goalieName = row?.goalie_player_id ? shortName(playerMap[String(row.goalie_player_id)] || "—") : "—";
     setText("shiftGoalieName", goalieName);
 
-    let coachNames = "—";
-    if (row?.id) {
-      const lineup = await DB.getLineup(row.id);
-      const ids = lineup
-        .filter((x) => x.person_type === "coach")
-        .sort((a, b) => (a.sort_order || 0) - (b.sort_order || 0))
-        .map((x) => shortName(coachMap[String(x.person_id)] || "—"))
-        .filter(Boolean);
-      if (ids.length) coachNames = ids.join(", ");
-    }
+    const coachNames = await getCoachNamesForLag(poolId, lagNo, matchNo);
     setText("shiftCoachNames", coachNames);
 
     setActiveShiftTeamButton(lagNo);
     setActiveShiftMatchButton(matchNo);
 
     const rows = await DB.listShiftSchema(poolId, lagNo, matchNo);
+    const openMatch=byId('openMatchView');
+    if(openMatch){openMatch.textContent=rows.some(r=>r.done)?'Återgå till matchvy':'Starta match '+matchNo;openMatch.setAttribute('aria-disabled',String(!rows.length));openMatch.onclick=event=>{if(!rows.length){event.preventDefault();setText('shiftMsg','Spara laguppställning och skapa bytesschema först.');}};}
     const wrap = byId("shiftTableWrap");
     if (!wrap) return;
 
@@ -2305,18 +2309,22 @@ window.NSK2App = (() => {
     });
   }
 
-  async function getCoachNamesForLag(poolId, lagNo) {
+  async function getCoachNamesForLag(poolId, lagNo, matchNo = "1") {
     const rows = await DB.listPoolTeamMatchConfigs(poolId);
     const coaches = await getCoachesCached();
     const coachMap = {};
     coaches.forEach((c) => { coachMap[String(c.id)] = c.full_name; });
 
     const firstRow =
-      rows.find((r) => String(r.lag_no) === String(lagNo) && String(r.match_no) === "1") ||
+      rows.find((r) => String(r.lag_no) === String(lagNo) && String(r.match_no) === String(matchNo)) ||
       rows.find((r) => String(r.lag_no) === String(lagNo));
 
     if (!firstRow?.id) return "—";
 
+    if(typeof DB.getCoachSelection==='function'){
+      const selection=await DB.getCoachSelection(poolId,lagNo,matchNo);
+      if(selection.saved)return selection.coach_ids.map(id=>coachMap[String(id)]||'').filter(Boolean).join(', ')||'—';
+    }
     const lineup = await DB.getLineup(firstRow.id);
     const names = lineup
       .filter((x) => x.person_type === "coach")
@@ -2372,6 +2380,8 @@ window.NSK2App = (() => {
   function paintCoachMatchView() {
     const data = matchvyCache;
     if (!data || !data.rows.length) {
+      byId('nextShiftMeta').hidden=true;byId('nextShiftPanel').hidden=true;
+      byId('nextShiftBtn').hidden=true;byId('matchFinishedPanel').hidden=true;
       setText("shiftLabel", "Inget schema");
       setText("currentPlayers", "—");
       setText("nextPlayers", "—");
@@ -2386,11 +2396,25 @@ window.NSK2App = (() => {
     const current = rows[matchCurrentShiftIndex];
     const next = rows[matchCurrentShiftIndex + 1] || null;
     const totalShifts = rows.length;
+    const finished=rows.every(shift=>shift.done);
+    const last=!next;
+    byId('nextShiftMeta').hidden=last||finished;
+    byId('nextShiftPanel').hidden=last||finished;
+    byId('nextShiftBtn').hidden=finished;
+    byId('nextShiftBtn').textContent=last?'Avsluta match':'Nästa byte';
+    byId('matchFinishedPanel').hidden=!finished;
+    setText('matchFinishedTitle',`Match ${matchNo} avslutad · Lag ${lagNo}`);
+    const nextMatch=data.configs.filter(c=>Number(c.lag_no)===Number(lagNo)&&Number(c.match_no)>Number(matchNo)).sort((a,b)=>a.match_no-b.match_no)[0];
+    byId('prepareNextMatch').hidden=!nextMatch;
+    setText('matchFinishedNext',nextMatch?`Nästa: Match ${nextMatch.match_no} · ${nextMatch.opponent||'Motståndare ej angiven'} · ${nextMatch.start_time||'Tid ej angiven'}`:'Ingen senare match finns planerad för valt lag. Kontrollera samtliga matcher och övriga egna lag innan hela poolspelet avslutas.');
+    if(nextMatch)byId('prepareNextMatch').onclick=()=>{sessionStorage.setItem('nsk2_match_no',String(nextMatch.match_no));sessionStorage.setItem(`nsk2_team_match_${data.poolId}_${lagNo}`,String(nextMatch.match_no));location.href='../bytesschema/';};
+
 
     setText("shiftLabel", `Lag ${lagNo} • Match ${matchNo}`);
-    setText("currentShiftMeta", `Pågående byte: ${matchCurrentShiftIndex + 1} av ${totalShifts} • Klockslag ${current?.time_left || "—"}`);
+    setText("currentShiftMeta", `${finished?'Match avslutad':last?'Sista bytet':'Pågående byte'}: ${matchCurrentShiftIndex + 1} av ${totalShifts} • Klockslag ${current?.time_left || "—"}`);
     setText("nextShiftMeta", `Nästa byte: ${next ? (matchCurrentShiftIndex + 2) : "—"} av ${totalShifts} • Klockslag ${next?.time_left || "—"}`);
     setHtml("matchInfo", `
+      <div class="matchvy-info-row">Tränare: <strong>${esc(data.coachNames||"—")}</strong></div>
       <div class="matchvy-info-row">Motståndare: <strong>${esc(row?.opponent || "—")}</strong></div>
       <div class="matchvy-info-row">Plan: <strong>${esc(row?.plan || "Plan 1")}</strong></div>
       <div class="matchvy-info-row">Start: <strong>${esc(row?.start_time || "—")}</strong></div>
@@ -2403,15 +2427,16 @@ window.NSK2App = (() => {
   }
 
   async function renderCoachMatchView(poolId, lagNo, matchNo) {
-    const [rows, players, rowCurrent] = await Promise.all([
+    const [rows, players, rowCurrent, configs, coachNames] = await Promise.all([
       DB.listShiftSchema(poolId, lagNo, matchNo),
       getPlayersCached(),
-      DB.getPoolTeamMatchConfig(poolId, lagNo, matchNo)
+      DB.getPoolTeamMatchConfig(poolId, lagNo, matchNo),
+      DB.listPoolTeamMatchConfigs(poolId),getCoachNamesForLag(poolId,lagNo,matchNo)
     ]);
-    const row = rowCurrent || await DB.getPoolTeamMatchConfig(poolId, lagNo, 1);
+    const row = rowCurrent;
     const playerMap = {};
     players.forEach((p) => { playerMap[String(p.id)] = p.full_name; });
-    matchvyCache = { rows, playerMap, row, poolId, lagNo, matchNo };
+    matchvyCache = { rows, playerMap, row, poolId, lagNo, matchNo, configs, coachNames };
     paintCoachMatchView();
   }
 
@@ -2428,6 +2453,7 @@ window.NSK2App = (() => {
       return;
     }
 
+    sessionStorage.setItem(`nsk2_team_match_${poolId}_${lagNo}`,matchNo);
     matchCurrentShiftIndex = Math.max(0, safeInt(sessionStorage.getItem(matchShiftKey(poolId, lagNo, matchNo)), 0));
     await renderCoachMatchView(poolId, lagNo, matchNo);
     // Vid start: välj första ej genomförda bytet från databasen.
@@ -2460,6 +2486,18 @@ window.NSK2App = (() => {
       window.addEventListener("focus", refreshMatch);
       document.addEventListener("visibilitychange", refreshMatch);
     }
+    byId('finishWholePool').onclick=async()=>{
+      const button=byId('finishWholePool');button.disabled=true;
+      try{
+        const configs=await DB.listPoolTeamMatchConfigs(poolId);
+        const states=await Promise.all(configs.map(async c=>({config:c,rows:await DB.listShiftSchema(poolId,c.lag_no,c.match_no)})));
+        const unfinished=states.filter(s=>!s.rows.length||s.rows.some(row=>!row.done));
+        const warning=unfinished.length?'Kvar att avsluta: '+unfinished.map(s=>`Lag ${s.config.lag_no}, match ${s.config.match_no}`).join('; ')+'. ':'';
+        if(!confirm(warning+'Avsluta hela poolspelet för alla egna lag? Uppställningar och byten sparas.'))return;
+        await DB.updatePoolActive(poolId,false);location.href='../startsida/';
+      }catch(error){setText('appError',error.message||'Poolspelet kunde inte avslutas.');}
+      finally{button.disabled=false;}
+    };
     const prevBtn = byId("prevShiftBtn");
     const nextBtn = byId("nextShiftBtn");
 
@@ -2494,7 +2532,14 @@ window.NSK2App = (() => {
       nextBtn.dataset.boundMatchvy = "1";
       nextBtn.addEventListener("click", async () => {
         if (matchvySaving || !matchvyCache?.rows.length) return;
-        if (matchCurrentShiftIndex >= matchvyCache.rows.length - 1) return;
+        if (matchCurrentShiftIndex >= matchvyCache.rows.length - 1) {
+          if(!confirm(`Avsluta match ${matchNo} för Lag ${lagNo}?`))return;
+          matchvySaving=true;nextBtn.disabled=true;
+          try{await DB.setShiftDone(poolId,lagNo,matchNo,matchvyCache.rows.at(-1).shift_no,true);matchvyCache.rows.at(-1).done=true;paintCoachMatchView();}
+          catch(error){setText('appError',error.message||'Matchen kunde inte avslutas.');}
+          finally{matchvySaving=false;nextBtn.disabled=false;}
+          return;
+        }
 
         const previousIndex = matchCurrentShiftIndex;
         const currentShiftNo = previousIndex + 1;
