@@ -67,7 +67,24 @@ window.DB = (() => {
   async function listCoaches(){const t=await teamId();return (await rows('tranare',t)).filter(r=>linked(r.Lag).includes(t)).map(r=>({id:r.id,full_name:r.Namn,team_id:t})).sort((a,b)=>a.full_name.localeCompare(b.full_name,'sv'))}
   // New protected staff writes use Swedish role names, while existing UI selectors use stable English keys.
   const staffRoles = Object.freeze({ leader: 'Lagledare', fitness: 'Fysansvarig', equipment: 'Materialförvaltare' });
-  async function listStaff(role){const t=await teamId();const scoped=rosterReadOptions(t);const response=await fetch(`${API}/api/lagpersonal?team_id=${t}`,{cache:'no-store',headers:scoped.headers});const data=await response.json();if(!response.ok||!data.ok)throw new Error(data.error||'Kunde inte hämta lagpersonal');return (data.results||[]).filter(r=>r.role===role||r.role===staffRoles[role]).map(r=>({id:r.id,full_name:r.name,team_id:t})).sort((a,b)=>a.full_name.localeCompare(b.full_name,'sv'))}
+  async function loadStaff(team) {
+    const scoped=rosterReadOptions(team);
+    const response=await fetch(`${API}/api/lagpersonal?team_id=${team}`,{cache:'no-store',headers:scoped.headers});
+    const data=await response.json();
+    if(!response.ok||!data.ok)throw new Error(data.error||'Kunde inte hämta lagpersonal');
+    return data.results||[];
+  }
+  async function listStaff(role){
+    const t=await teamId();
+    const key=JSON.stringify(['lagpersonal',t,window.Auth?.getToken?.()||null]);
+    if(!pendingReads.has(key)){
+      const pending=loadStaff(t);pendingReads.set(key,pending);
+      const clear=()=>{if(pendingReads.get(key)===pending)pendingReads.delete(key);};
+      pending.then(clear,clear);
+    }
+    const staff=await pendingReads.get(key);
+    return staff.filter(r=>r.role===role||r.role===staffRoles[role]).map(r=>({id:r.id,full_name:r.name,team_id:t})).sort((a,b)=>a.full_name.localeCompare(b.full_name,'sv'));
+  }
   async function writeStaff(method,role,rowId,name){const personal=window.APP_CONFIG?.REQUIRE_PERSONAL_ROSTER_WRITES===true;const selected=personal?window.Auth?.activeTeam?.():null;const t=await teamId();if(personal&&(!selected||window.Auth?.activeTeam?.()!==selected))throw new Error('Lagvalet ändrades. Välj lag och försök igen.');if(!staffRoles[role])throw new Error('Ogiltig funktion för lagpersonal');const writeRole=window.APP_CONFIG?.REQUIRE_PERSONAL_ROSTER_WRITES===true?staffRoles[role]:role;const data=await adminRequest(`/api/lagpersonal?team_id=${t}`,method,{id:rowId||undefined,role:writeRole,name:String(name||'').trim()});return data.row}
   async function listPools(){const t=await teamId();return (await rows('poolspel',t)).filter(r=>linked(r.Lag).includes(t)).map(r=>({id:r.id,team_id:t,title:r.Namn,place:r.Plats,hall:r.Ishall||"",pool_date:r.Datum,active:(typeof r.Status === 'object' ? r.Status?.value : r.Status) !== 'Avslutat',status:(typeof r.Status === 'object' ? r.Status?.value : r.Status) || 'Planerat',teams:num(r['Antal lag']),matches:num(r['Antal matcher']),players_on_field:num(r['Spelare på plan']),periods:num(r.Perioder),period_time:num(r.Periodtid),sub_time:num(r.Bytestid)})).sort((a,b)=>String(b.pool_date||'').localeCompare(String(a.pool_date||'')))}
   async function getPool(poolId){return (await listPools()).find(r=>String(r.id)===String(poolId))||null}

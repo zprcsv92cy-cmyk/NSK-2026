@@ -25,3 +25,11 @@ test('concurrent authentication checks share a request without caching future pe
  await Promise.all([sandbox.window.Auth.init(),sandbox.window.Auth.init(),sandbox.window.Auth.init()]);assert.equal(calls,1);
  await sandbox.window.Auth.init();assert.equal(calls,2);
 });
+test('all staff roles share one authorized read and a later reload is fresh',async()=>{
+ const requests=[];const sandbox={window:{APP_CONFIG:{API_URL:'https://api.invalid',REQUIRE_SCOPED_ROSTER_READS:true},Auth:{getToken:()=> 'a'.repeat(43)}},URL,console,fetch:async url=>{requests.push(url);return {ok:true,json:async()=>({ok:true,results:url.includes('/lag?')?[{id:18,Namn:'NSK Team 18','Säsong':'2026'}]:[{id:'e',name:'Material',role:'equipment'},{id:'l',name:'Ledare',role:'leader'}],next:null})};}};
+ vm.runInNewContext(readFileSync(new URL('../db.js',import.meta.url),'utf8'),sandbox);
+ const result=await Promise.all(['leader','fitness','equipment'].map(role=>sandbox.window.DB.listStaff(role)));
+ assert.equal(requests.filter(u=>u.includes('/lagpersonal?')).length,1);
+ assert.equal(result[0][0].full_name,'Ledare');assert.equal(result[1].length,0);assert.equal(result[2][0].full_name,'Material');
+ await sandbox.window.DB.listStaff('equipment');assert.equal(requests.filter(u=>u.includes('/lagpersonal?')).length,2);
+});
