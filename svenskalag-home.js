@@ -28,12 +28,21 @@
   const seen=new Set();
   return candidates.map(m=>({...m,startTime:calendarMatchTime(m),opponent:calendarMatchOpponent(m)}))
    .filter(m=>m.opponent)
-   .filter(m=>{const key=[m.startTime,m.opponent,m.place||''].join('|');if(seen.has(key))return false;seen.add(key);return true;})
+   .filter(m=>{const key=[m.startTime,m.opponent,m.place||'',m.ownTeam||''].join('|');if(seen.has(key))return false;seen.add(key);return true;})
    .sort((a,b)=>(a.startTime||'99:99').localeCompare(b.startTime||'99:99')).slice(0,16);
  };
+ let latestCompletionItems=null;
+ function renderCompletionButtons(items,existingPools){
+   for(const pool of existingPools.filter(p=>p.active!==false)){
+    const candidates=items.filter(item=>item.type==='pool'&&samePool(pool,item)&&Array.isArray(item.matches)&&item.matches.length);
+    const card=document.querySelector('[data-pool-status-id="'+Number(pool.id)+'"]')?.closest('.nsk-pool-content');if(!card||candidates.length!==1||card.querySelector('[data-complete-calendar]'))continue;
+    const button=document.createElement('button');button.type='button';button.dataset.completeCalendar=String(pool.id);button.textContent='Komplettera matcher från spelschemat';button.className='row-btn nsk-action';button.onclick=async()=>{if(!confirm('Komplettera saknade matcher och starttider? Befintliga uppställningar och ifyllda tider behålls.'))return;button.disabled=true;try{const {completeCalendarPool}=await import(new URL('calendar-match-plan.mjs',nskVersionRoot()).href);const result=await completeCalendarPool(DB,pool.id,matchesForPool(candidates[0],[]));button.textContent=result.added+' matcher tillagda, '+(result.updated||0)+' tider kompletterade.';}catch(error){button.disabled=false;alert(error.message);}};card.querySelector('.nsk-pool-secondary-actions')?.append(button);
+   }
+ }
  let latestCalendarPools=null;
  window.addEventListener('nsk:saved-pools-rendered',()=>{
   if(latestCalendarPools)renderUpcomingCalendarPools(...latestCalendarPools);
+  if(latestCompletionItems)renderCompletionButtons(...latestCompletionItems);
  });
  function renderUpcomingCalendarPools(items,calendarMatches=[]){
   latestCalendarPools=[items,calendarMatches];
@@ -73,7 +82,8 @@
    const note=document.createElement('p');
    note.textContent='Importerat från SvenskaLag. Matchschema och laguppställning är ännu inte skapade i NSK.';
    note.className='small';
-   note.textContent='Källa: SvenskaLag.';
+   note.textContent='Källa: '+(item.source||'SvenskaLag')+'.';if(item.sourceUrl){const link=document.createElement('a');link.href=item.sourceUrl;link.target='_blank';link.rel='noopener';link.textContent=' Visa spelschemat';note.append(link);}
+   if(item.notice){const warning=document.createElement('p');warning.textContent=item.notice;warning.className='small';warning.setAttribute('role','alert');content.append(warning);}
    const matches=matchesForPool(item,calendarMatches);
    const gathering=nskPoolGathering(matches.map(match=>match.startTime));
    if(gathering)origin.textContent+=' • '+gathering;
@@ -112,6 +122,7 @@
    create.className='start-pool-btn nsk-action nsk-action--primary nsk-action--wide';
    create.textContent='Påbörja poolspel';
    async function openCalendarPool(action,button){
+    if(item.notice&&action!=='edit'&&!confirm(item.notice+' Fortsätta?'))return;
     if(action==='finish'&&!confirm('Avsluta poolspelet? Matcher, laguppställningar och bytesscheman sparas.'))return;
     button.disabled=true;
     try{
@@ -187,6 +198,7 @@
     const gathering=nskPoolGathering(matchesForPool(event,items.filter(item=>item.type==='match')).map(match=>match.startTime));
     if(gathering){hall.dataset.gathering=gathering;hall.textContent=[pool.hall,gathering].filter(Boolean).join(' • ');}
    }
+   latestCompletionItems=[items,existingPools];renderCompletionButtons(items,existingPools);
    const calendarPools=items.filter(item=>item.type==='pool'&&!existingPools.some(p=>samePool(p,item)));
    const calendarOthers=items.filter(item=>item.type!=='pool');
    const calendarTrainings=calendarOthers.filter(item=>item.type==='training');
@@ -247,7 +259,7 @@
     }).catch(()=>{});
    const button=document.getElementById('svenskalagRefreshButton');
    if(button){
-   button.disabled=false;button.textContent='Importera Poolspel/Träning';
+   button.disabled=false;button.textContent='Hämta poolspel och träningar';
    button.style.marginTop='12px';
    button.onclick=async()=>{
     button.disabled=true;button.textContent='Hämtar kalender…';
@@ -257,9 +269,10 @@
      if(!refresh.ok)throw Error('Hämtningen misslyckades. Försök igen senare.');
      const result=await refresh.json();
      await show();
+     if(result.swehockey?.ok===false){const notice=document.createElement('p');notice.textContent=result.swehockey.error;notice.setAttribute('role','alert');button.after(notice);}
      if(result.changingRooms?.ok===false){const notice=document.createElement('p');notice.textContent=result.changingRooms.error;notice.setAttribute('role','alert');button.after(notice);}
     }catch(error){
-     button.disabled=false;button.textContent='Importera Poolspel/Träning';
+     button.disabled=false;button.textContent='Hämta poolspel och träningar';
      const notice=document.createElement('p');notice.textContent=error.message||'Hämtningen misslyckades';
      notice.setAttribute('role','alert');button.after(notice);
     }

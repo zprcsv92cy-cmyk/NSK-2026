@@ -29,7 +29,7 @@ export function planCalendarCompletion(pool, existing, matches) {
   const plan=planCalendarMatches(matches);
   if(!plan.schedule.length||pool.active===false||Number(pool.teams)!==plan.teams)
     throw Error('Kalendern stämmer inte med poolspelets lag. Kontrollera manuellt.');
-  const remaining=[...plan.schedule],used=new Set();
+  const remaining=[...plan.schedule],used=new Set(),updates=[];
   const name=s=>String(s||'').normalize('NFKC').trim().toLocaleLowerCase('sv-SE');
   for(const row of existing){
     const slot=Number(row.lag_no)+':'+Number(row.match_no);
@@ -41,11 +41,12 @@ export function planCalendarCompletion(pool, existing, matches) {
     const oldTime=String(row.start_time||'').slice(0,5);
     if(match.start_time&&oldTime&&oldTime!=='00:00'&&oldTime!==match.start_time)
       throw Error('En sparad starttid skiljer sig från kalendern. Kontrollera manuellt.');
+    if(match.start_time&&(!oldTime||oldTime==='00:00'))updates.push({...row,start_time:match.start_time});
     remaining.splice(remaining.indexOf(match),1);
   }
   const capacity=Math.max(Number(pool.matches)||0,plan.matchesPerTeam,...existing.map(r=>Number(r.match_no)));
   if(capacity>8)throw Error('Högst åtta matcher per lag stöds.');
-  return {matches:capacity,missing:remaining.map(m=>{
+  return {matches:capacity,updates,missing:remaining.map(m=>{
     let number=1;while(used.has(m.lag_no+':'+number))number++;
     if(number>capacity)throw Error('Matchfördelningen behöver kontrolleras manuellt.');
     used.add(m.lag_no+':'+number);return {...m,match_no:number};
@@ -61,5 +62,6 @@ export async function completeCalendarPool(db,poolId,matches){
     await db.updatePool(poolId,{...payload,matches:plan.matches,status:'Aktiv'});
   }
   for(const match of plan.missing)await db.saveCalendarMatchSchedule({pool_id:Number(poolId),...match});
-  return {added:plan.missing.length};
+  for(const row of plan.updates){if(typeof db.saveMatchInfo!=='function')throw Error('Uppdatera appen för att komplettera starttider.');await db.saveMatchInfo({pool_id:Number(poolId),lag_no:row.lag_no,match_no:row.match_no,start_time:row.start_time,opponent:row.opponent,plan:row.plan||'Plan 1'});}
+  return {added:plan.missing.length,updated:plan.updates.length};
 }
