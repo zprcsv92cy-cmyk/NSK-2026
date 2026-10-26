@@ -1110,3 +1110,29 @@ body.nsk-arena{--bg:#090f16;--card:#101923;--line:#2c3947;--text:#f3f5f8;--muted
 body.nsk-arena #activityList .nsk-pool-row{background:#111b26;border-color:#2e3b4b;border-radius:11px}body.nsk-arena #activityList .nsk-pool-summary{background:#111b26}body.nsk-arena #activityList .nsk-pool-content{background:#0f1822}body.nsk-arena #activityList .nsk-pool-name{font-size:16px}body.nsk-arena #activityList .nsk-pool-hall{font-size:13px}body.nsk-arena #activityList .nsk-pool-function,.nsk-arena .nsk-training-function{background:#172330;border-color:#344354;border-radius:9px;min-height:76px;font-size:14px}body.nsk-arena #activityList .nsk-pool-function-icon,.nsk-arena .nsk-training-function>span{font-size:25px}.nsk-arena .training-roster label{background:#111c28;border-color:#344354;border-radius:9px}.nsk-arena .training-roster label:has(input:checked){background:#341923;border-color:#d22b49}.arena-bottom{display:none}
 @media(max-width:760px){body.nsk-arena{padding:0 14px calc(90px + env(safe-area-inset-bottom))}.nsk-arena .arena-brand{margin:0 -14px 18px;min-height:106px;padding:20px;border-radius:0}.arena-brand img{width:58px;height:58px}.arena-brand strong{font-size:22px}.arena-brand span{font-size:9px;letter-spacing:1.5px}.nsk-arena .mainmenu{display:none!important}.nsk-arena .home-hero{margin:0 0 18px}.nsk-arena .home-hero h1{font-size:27px}.nsk-arena .arena-bottom{position:fixed;z-index:1000;bottom:0;left:0;right:0;display:grid;grid-template-columns:repeat(4,minmax(0,1fr));padding:7px 10px calc(7px + env(safe-area-inset-bottom));background:#0d151f;border-top:1px solid #314051}.arena-bottom>a,.arena-more>summary{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:5px;min-height:48px;font-size:11px;color:#a8b2c0;text-decoration:none;cursor:pointer;list-style:none;border-radius:7px}.arena-bottom>a>span,.arena-more>summary>span{font-size:24px;line-height:1}.arena-more>summary::-webkit-details-marker{display:none}.arena-bottom .active{color:#ff395b}.arena-more-menu{position:absolute;bottom:calc(100% + 6px);right:12px;width:min(290px,calc(100vw - 24px));max-height:65dvh;overflow:auto;background:#131f2c;border:1px solid #3c4a5c;border-radius:12px;padding:8px;box-shadow:0 12px 35px #0009}.arena-more-menu a{display:block;padding:12px;color:#e8edf4;font-size:14px;text-decoration:none;border-radius:7px}.arena-more-menu a.active{background:#351b28;color:#ff8198}}
 @media print{.nsk-arena .arena-brand,.arena-bottom{display:none!important}body.nsk-arena{padding:0;background:#fff;color:#000}.nsk-arena .card{background:#fff;color:#000}}
+
+/* Arena controls: quiet outlines, compact rows and clear selected states. */
+body.nsk-arena button,body.nsk-arena .nsk-action{background:#111d28;border:1px solid #344454;color:#e8edf4;border-radius:8px;box-shadow:none;font-weight:600;min-height:42px}
+body.nsk-arena button:disabled{opacity:.45;cursor:default}
+body.nsk-arena .nsk-action--primary,body.nsk-arena #trainingGroupButton,body.nsk-arena #savePool,body.nsk-arena .home-create-button{background:linear-gradient(110deg,#db1737,#b5102d);border-color:#e72b49;color:#fff}
+body.nsk-arena input:not([type=checkbox]):not([type=radio]),body.nsk-arena select,body.nsk-arena textarea{background:#0d1822;border:1px solid #344454;border-radius:8px;color:#edf1f6}
+body.nsk-arena select{padding:11px 32px 11px 12px}
+body.nsk-arena.training-page .training-controls{gap:12px}
+body.nsk-arena.training-page .training-controls label{font-size:12px;color:#a7b1be}
+body.nsk-arena.training-page .training-roster{gap:7px;grid-template-columns:repeat(2,minmax(0,1fr))}
+body.nsk-arena.training-page .training-roster label{display:flex;align-items:center;justify-content:space-between;gap:8px;min-height:44px;padding:10px 11px;border:1px solid #344454;border-radius:7px;background:#0e1923;font-size:13px;line-height:1.3;color:#e5eaf1}
+body.nsk-arena.training-page .training-roster label:has(input:checked){background:linear-gradient(110deg,#371923,#2a141d);border-color:#d72c49;color:#fff}
+body.nsk-arena.training-page .training-roster input[type=checkbox]{appearance:none;-webkit-appearance:none;order:1;flex:0 0 20px;position:relative;width:20px;height:20px;min-width:20px;min-height:20px;margin:0 0 0 auto;padding:0;border:1.5px solid #8192a3;border-radius:50%;background:transparent;cursor:pointer}
+body.nsk-arena.training-page .training-roster input[type=checkbox]:checked{background:#ef3657;border-color:#ef3657}
+body.nsk-arena.training-page .training-roster input[type=checkbox]:checked::after{content:'✓';position:absolute;inset:0;display:grid;place-items:center;color:#fff;font-size:13px;font-weight:800;line-height:1}
+body.nsk-arena.training-page .training-roster input:focus-visible{outline:2px solid #fff;outline-offset:3px}
+body.nsk-arena.training-page .training-import{background:#0e1923;border-color:#344454;border-radius:9px}
+body.nsk-arena.training-page .training-import summary{font-size:14px;font-weight:600;padding:14px}
+body.nsk-arena.training-page #trainingGroupButton{min-height:48px;font-size:15px}
+body.nsk-arena.training-page .training-actions{gap:10px}
+body.nsk-arena.training-page h2{font-size:17px}
+body.nsk-arena.training-page .training-count{font-size:12px;color:#a7b1be}
+body.nsk-arena #activityList .nsk-pool-secondary-actions .row-btn{background:#111d28;border-color:#344454;border-radius:8px}
+body.nsk-arena #activityList .nsk-pool-actions .start-pool-btn{background:linear-gradient(110deg,#db1737,#b5102d);border-color:#e72b49;border-radius:8px}
+@media(min-width:900px){body.nsk-arena.training-page .training-roster{grid-template-columns:repeat(3,minmax(0,1fr))}}
+@media print{body.nsk-arena.training-page .training-roster label{background:#fff;color:#000;border-color:#aaa}}
