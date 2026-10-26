@@ -28,7 +28,17 @@ window.DB = (() => {
     return { suffix: '&team_id=' + encodeURIComponent(team),
       headers: { Authorization: 'Bearer ' + token } };
   }
-  async function rows(table, team = null, personalTeamRead = false) {
+  const pendingReads = new Map();
+  function rows(table, team = null, personalTeamRead = false) {
+    const key=JSON.stringify([table,team,personalTeamRead,window.Auth?.getToken?.()||null]);
+    if(pendingReads.has(key))return pendingReads.get(key);
+    const pending=loadRows(table,team,personalTeamRead);
+    pendingReads.set(key,pending);
+    const clear=()=>{if(pendingReads.get(key)===pending)pendingReads.delete(key);};
+    pending.then(clear,clear);
+    return pending;
+  }
+  async function loadRows(table, team = null, personalTeamRead = false) {
     let all=[],page=1;
     const scoped = personalTeamRead && (
       scopedRosterEnabled() || scopedCollectionsEnabled() ||

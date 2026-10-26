@@ -7,7 +7,17 @@
   let identity = null;
   const token = () => sessionStorage.getItem(key);
   const clear = () => { identity = null; sessionStorage.removeItem(key); sessionStorage.removeItem(teamKey); };
-  async function init() {
+  let pendingIdentity=null;
+  function init() {
+    const current=token();
+    if(pendingIdentity?.token===current)return pendingIdentity.promise;
+    const promise=loadIdentity();
+    const entry={token:current,promise};pendingIdentity=entry;
+    const clearPending=()=>{if(pendingIdentity===entry)pendingIdentity=null;};
+    promise.then(clearPending,clearPending);
+    return promise;
+  }
+  async function loadIdentity() {
     if (!base || !token()) { clear(); return null; }
     try {
       const response = await fetch(base + '/api/auth/me', {

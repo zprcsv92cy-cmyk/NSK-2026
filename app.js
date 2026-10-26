@@ -2711,8 +2711,7 @@ window.NSK2App = (() => {
       });
     }
 
-    await renderPlayers();
-    await renderCoaches();
+    await Promise.all([renderPlayers(), renderCoaches()]);
 
     if (!truppenRealtime && typeof DB?.subscribeTruppen === "function") {
       truppenRealtime = await DB.subscribeTruppen(async (type) => {

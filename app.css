@@ -1144,3 +1144,9 @@ body.nsk-arena #activityList .nsk-pool-actions .start-pool-btn{background:linear
 .nsk-arena button>.arena-icon{margin-right:8px}
 .nsk-arena .nsk-training-function .arena-icon{width:28px;height:28px}
 .arena-bottom .arena-icon{display:block;width:24px;height:24px;margin:0}
+
+/* Raise mobile navigation above the screen edge, including standalone iOS. */
+@media(max-width:760px){
+  body.nsk-arena{padding-bottom:calc(102px + env(safe-area-inset-bottom))}
+  .nsk-arena .arena-bottom{bottom:12px;border-bottom:1px solid #314051;border-radius:12px 12px 0 0}
+}
