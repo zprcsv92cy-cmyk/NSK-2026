@@ -61,7 +61,17 @@
     const summary=document.createElement('summary');summary.innerHTML='<span aria-hidden="true">•••</span>Mer';more.append(summary);
     const menu=document.createElement('div');menu.className='arena-more-menu';
     for(const [slug,label] of visibleEntries.filter(([slug])=>!Object.hasOwn(icons,slug))){const link=document.createElement('a');link.href='../'+slug+'/';link.textContent=label;if(slug===active){link.className='active';summary.classList.add('active');}menu.append(link);}
-    more.append(menu);bottom.append(more);document.body.append(bottom);decorateIcons();
+    more.append(menu);bottom.append(more);
+    // Keep the mobile bar outside the scrolling content; avoid iOS fixed-footer drift.
+    let scroll=document.querySelector('body > .arena-scroll');
+    if(!scroll){
+      scroll=document.createElement('div');scroll.className='arena-scroll';
+      for(const child of [...document.body.children]){
+        if(!['SCRIPT','STYLE','LINK','DIALOG'].includes(child.tagName)&&!child.classList.contains('arena-bottom'))scroll.append(child);
+      }
+      document.body.prepend(scroll);
+    }
+    document.body.append(bottom);decorateIcons();
 
   }
   if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', render);
