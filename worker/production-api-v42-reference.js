@@ -1,3 +1,4 @@
+import {withSweHockey,syncSweHockey} from './swehockey-schedule.js';
 import {withPoolFlow} from './pool-flow-api.js';
 import {createSharpeningHandler,readSharpeningPerson} from './sharpening-links-api.js';
 import {createPrivateSkillsHandler,readSkillsRoster} from './private-skills-api.js';
@@ -1256,11 +1257,12 @@ var worker_default = { async fetch(req, env) {
   return reply({ ok: false, error: "Behörighetskontrollerad läsning krävs" }, 403);
 } };
 worker_default.fetch=withPoolFlow(worker_default.fetch,{resolveTables:resolveBaserowTables,listTeams:listTrustedRosterTeams,verifyIdentity:(env,token)=>createPersonalRosterIdentityVerifier(env)(token),authorize:authorizeTeamFeature,fetcher:fetch});
+worker_default.fetch=withSweHockey(worker_default.fetch);
 // Preserve the existing fetch handler; scheduled sync is separately gated.
 worker_default.scheduled = async (_event,env,ctx) => {
  const job=(async()=>{
   // Preserve the calendar's existing six-hour schedule.
-  if(!_event?.cron||_event.cron==='15 */6 * * *')await runSvenskalagScheduledSync(env);
+  if(!_event?.cron||_event.cron==='15 */6 * * *'){const results=await Promise.allSettled([runSvenskalagScheduledSync(env),syncSweHockey(env)]);if(results.some(r=>r.status==='rejected'))console.warn('A calendar source could not be refreshed');}
   await runChangingRoomCheck(env);
  })();
  if(ctx?.waitUntil)ctx.waitUntil(job);

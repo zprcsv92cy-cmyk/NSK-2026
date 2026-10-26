@@ -23,3 +23,4 @@ test('partial completion retries keep the original lineup and successful previou
  await completeCalendarPool(db,5,incoming);
  assert.deepEqual(rows.map(r=>r.match_no),[1,2,3,4]);assert.deepEqual(rows[0].players_on_field,[1,2,3]);
 });
+test('completion fills only missing start times through metadata path and preserves player choices',async()=>{const rows=[{...first,start_time:null}],updates=[];const db={getPool:async()=>({...pool,matches:4}),listPoolTeamMatchConfigs:async()=>rows,saveCalendarMatchSchedule:async()=>{},saveMatchInfo:async data=>updates.push(data)};const result=await completeCalendarPool(db,5,incoming.map((m,i)=>({...m,startTime:i===0?'09:00':''})));assert.equal(result.updated,1);assert.equal(updates[0].start_time,'09:00');assert.equal(rows[0].goalie_player_id,22);assert.equal(rows[0].start_time,null);assert.throws(()=>planCalendarCompletion(pool,[{...first,start_time:'10:00'}],[{opponent:'Eskilstuna',startTime:'09:00'}]),/starttid/);});

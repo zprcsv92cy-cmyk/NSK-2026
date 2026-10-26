@@ -9,6 +9,7 @@ workers_dev = true
 crons = ["15 */6 * * *", "*/15 * * * *"]
 
 [vars]
+NSK_ENABLE_SWEHOCKEY_SYNC = "true"
 NSK_POOL_FLOW_ENABLED = "true"
 NSK_ENABLE_SVENSKALAG_AUTO_SYNC = "true"
 NSK_SVENSKALAG_TEAM_ID = "NSK Team 18"
