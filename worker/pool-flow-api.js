@@ -75,16 +75,28 @@ export function withPoolFlow(original,{resolveTables,listTeams,verifyIdentity,au
    }
    if(special?.[2]==='material'){
     if(!['GET','PUT'].includes(req.method))return reply(405,'Metoden stöds inte');
-    const current=await env.AUTH_DB.prepare('SELECT coach_id,revision FROM pool_flow_equipment WHERE pool_id=?').bind(poolId).first();
+    const legacy=await env.AUTH_DB.prepare('SELECT coach_id,revision FROM pool_flow_equipment WHERE pool_id=?').bind(poolId).first();
+    const current=await env.AUTH_DB.prepare('SELECT staff_ids_json,revision FROM pool_flow_material_staff WHERE pool_id=?').bind(poolId).first();
+    const roster=await env.NSK_TRAINERS.get('lagpersonal:team:'+teamIds[0],'json')||[];
+    if(!Array.isArray(roster))return reply(503,'Materialförvaltarna kunde inte läsas');
+    const options=roster.filter(p=>['Materialförvaltare','equipment'].includes(p.role)&&typeof p.id==='string'&&typeof p.name==='string').map(p=>({id:p.id,name:p.name,coach_id:p.coach_id}));
+    let selected=current?JSON.parse(current.staff_ids_json):options.filter(p=>p.coach_id===legacy?.coach_id&&legacy?.coach_id).map(p=>p.id);
+    const revision=current?.revision||legacy?.revision||0;
     if(req.method==='PUT'){
      if(closed(pool))return reply(409,'Återöppna poolspelet före ändring.');
-     if(!Number.isSafeInteger(body.revision)||body.revision<0||(body.coach_id!==null&&!positive(body.coach_id)))return reply(400,'Ogiltigt materialval');
-     if(body.coach_id!==null){const coach=await row('tranare',body.coach_id);if(!coach||!links(coach.Lag).includes(teamIds[0]))return reply(403,'Tränaren tillhör inte laget');}
-     const saved=body.revision===0?await env.AUTH_DB.prepare('INSERT INTO pool_flow_equipment(pool_id,coach_id,revision) VALUES(?,?,1) ON CONFLICT(pool_id) DO NOTHING RETURNING revision').bind(poolId,body.coach_id).first():await env.AUTH_DB.prepare('UPDATE pool_flow_equipment SET coach_id=?,revision=revision+1 WHERE pool_id=? AND revision=? RETURNING revision').bind(body.coach_id,poolId,body.revision).first();
+     let ids=body.staff_ids;
+     if(ids===undefined&&Object.hasOwn(body,'coach_id')){if(body.coach_id===null)ids=[];else{ids=options.filter(p=>p.coach_id===body.coach_id).map(p=>p.id);if(!ids.length)return reply(403,'Välj en registrerad materialförvaltare i den uppdaterade appen.');}}
+     if(!Number.isSafeInteger(body.revision)||body.revision<0||!Array.isArray(ids)||ids.length>20||ids.some(id=>typeof id!=='string')||new Set(ids).size!==ids.length)return reply(400,'Ogiltigt materialval');
+     if(ids.some(id=>!options.some(p=>p.id===id)))return reply(403,'Personen är inte materialförvaltare i laget');
+     if(body.revision!==revision)return reply(409,'Materialvalet ändrades på annan enhet. Ladda om.');
+     const saved=current?await env.AUTH_DB.prepare('UPDATE pool_flow_material_staff SET staff_ids_json=?,revision=revision+1 WHERE pool_id=? AND revision=? RETURNING revision').bind(JSON.stringify(ids),poolId,revision).first():await env.AUTH_DB.prepare('INSERT INTO pool_flow_material_staff(pool_id,staff_ids_json,revision) VALUES(?,?,?) ON CONFLICT(pool_id) DO NOTHING RETURNING revision').bind(poolId,JSON.stringify(ids),revision+1).first();
      if(!saved)return reply(409,'Materialvalet ändrades på annan enhet. Ladda om.');
-     return reply(200,null,{revision:saved.revision,coach_id:body.coach_id});
+     return reply(200,null,{revision:saved.revision,staff_ids:ids,name:options.filter(p=>ids.includes(p.id)).map(p=>p.name).join(', ')});
     }
-    const coach=current?.coach_id?await row('tranare',current.coach_id):null;return reply(200,null,{revision:current?.revision||0,coach_id:current?.coach_id||null,name:coach&&links(coach.Lag).includes(teamIds[0])?coach.Namn:''});
+    selected=selected.filter(id=>options.some(p=>p.id===id));
+    const coach=!current&&!selected.length&&legacy?.coach_id?await row('tranare',legacy.coach_id):null;
+    const legacyName=coach&&links(coach.Lag).includes(teamIds[0])?coach.Namn:'';
+    return reply(200,null,{revision,staff_ids:selected,options:options.map(p=>({id:p.id,name:p.name})),legacy_name:legacyName,coach_id:null,name:options.filter(p=>selected.includes(p.id)).map(p=>p.name).join(', ')||legacyName});
    }
    if(closed(pool)&&!path.endsWith('/aktiv'))return reply(409,'Poolspelet är avslutat. Återöppna det före ändring.');
    if(special){

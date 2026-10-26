@@ -1576,6 +1576,15 @@ window.NSK2App = (() => {
     setText("lineupMsg", `Målvakt slumpad: ${chosen.full_name}`);
   }
 
+  function renderPoolMaterial(data,poolId){
+    const root=byId('poolEquipment');if(!root)return;root.replaceChildren();
+    const chosen=new Set(data.staff_ids||[]),options=data.options||[];
+    const names=options.filter(p=>chosen.has(p.id)).map(p=>p.name);
+    setText('poolEquipmentNames',names.length?'Valda materialförvaltare: '+names.join(', '):data.legacy_name?'Tidigare val: '+data.legacy_name+'. Välj bland registrerade materialförvaltare.':'Inga materialförvaltare valda');
+    if(!options.length){root.textContent='Inga materialförvaltare registrerade i Truppen.';return;}
+    for(const person of options){const button=document.createElement('button');button.type='button';button.className='coach-choice'+(chosen.has(person.id)?' selected':'');button.textContent=person.name;button.dataset.materialStaff=person.id;button.setAttribute('aria-pressed',String(chosen.has(person.id)));button.disabled=window.__nskLineupClosed===true;
+      button.onclick=()=>{const next=new Set(chosen);if(next.has(person.id))next.delete(person.id);else next.add(person.id);for(const item of root.querySelectorAll('button'))item.disabled=true;setText('poolEquipmentMsg','Sparar materialval…');coachSaveChain=coachSaveChain.catch(()=>{}).then(async()=>{try{const saved=await DB.savePoolMaterial(poolId,[...next],data.revision);coachSaveFailed=false;renderPoolMaterial({...data,...saved,legacy_name:''},poolId);byId('poolEquipmentReload').hidden=true;setText('poolEquipmentMsg','Materialval sparat för hela poolspelet.');}catch(error){coachSaveFailed=true;renderPoolMaterial(data,poolId);byId('poolEquipmentReload').hidden=false;setText('poolEquipmentMsg',error.message);}});};root.append(button);}
+  }
   async function fillLaguppstallningFormFromSelection() {
     const loadGeneration=(window.__nskLineupLoadGeneration||0)+1;window.__nskLineupLoadGeneration=loadGeneration;
     const selectedNow=()=>loadGeneration===window.__nskLineupLoadGeneration;
@@ -1743,7 +1752,7 @@ window.NSK2App = (() => {
       catch(err) { setText('appError','Kunde inte hämta tränarval: '+(err?.message || String(err))); }
       updateCoachEnabledState();
 
-      if(byId('poolEquipment')&&DB.getPoolMaterial){const selected=await DB.getPoolMaterial(poolId);if(!selectedNow())return;const options=await getCoachesCached();if(!selectedNow())return;const control=byId('poolEquipment');control.replaceChildren(new Option('Ingen vald',''),...options.map(c=>new Option(c.full_name,String(c.id))));control.value=selected.coach_id?String(selected.coach_id):'';control.dataset.revision=String(selected.revision);}
+      if(byId('poolEquipment')&&DB.getPoolMaterial){const selected=await DB.getPoolMaterial(poolId);if(!selectedNow())return;renderPoolMaterial(selected,poolId);}
       loading(false);
       // Do not auto-save when merely opening another match. Save on user changes.
 
@@ -2028,7 +2037,7 @@ window.NSK2App = (() => {
 
     if (!teamButtonsBox || !matchSelect || !lineupBox || !coachSelect) return;
 
-    byId('poolEquipment')?.addEventListener('change',()=>{const control=byId('poolEquipment'),poolId=sessionStorage.getItem('nsk2_pool_id'),coachId=control.value?Number(control.value):null,revision=Number(control.dataset.revision||0);control.disabled=true;coachSaveChain=coachSaveChain.catch(()=>{}).then(async()=>{try{const saved=await DB.savePoolMaterial(poolId,coachId,revision);control.dataset.revision=String(saved.revision);coachSaveFailed=false;setText('poolEquipmentMsg','Materialförvaltare sparad för hela poolspelet.');}catch(error){coachSaveFailed=true;setText('poolEquipmentMsg',error.message);}finally{control.disabled=false;}});});
+    byId('poolEquipmentReload')?.addEventListener('click',async()=>{try{const poolId=sessionStorage.getItem('nsk2_pool_id'),data=await DB.getPoolMaterial(poolId);renderPoolMaterial(data,poolId);coachSaveFailed=false;byId('poolEquipmentReload').hidden=true;setText('poolEquipmentMsg','Materialval hämtat.');}catch(error){setText('poolEquipmentMsg',error.message);}});
     byId("lineupSaveButton")?.addEventListener("click",async()=>{lineupPendingSnapshot=captureLineupSnapshot();await flushLineupChanges();});
     try {
       const poolId = sessionStorage.getItem("nsk2_pool_id");
