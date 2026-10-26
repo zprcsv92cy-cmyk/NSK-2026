@@ -77,7 +77,8 @@
     const response=await fetch(base()+'/api/lagpersonal?team_id='+encodeURIComponent(id),{headers:{Authorization:'Bearer '+Auth.getToken()},cache:'no-store'});
     const data=await response.json();
     if(!response.ok||!data.ok)throw Error('Materialförvaltare kunde inte hämtas');
-    return (data.results||[]).filter(person=>['equipment','Materialförvaltare'].includes(person.role)).map(person=>({id:String(person.id),full_name:person.name})).sort((a,b)=>a.full_name.localeCompare(b.full_name,'sv'));
+    const coaches=(data.results||[]).some(p=>p.coach_id)?await roster('tranare'):[];
+    return (data.results||[]).filter(person=>['equipment','Materialförvaltare'].includes(person.role)).map(person=>({id:String(person.id),coach_id:person.coach_id,full_name:coaches.find(c=>Number(c.id)===person.coach_id)?.full_name||person.name})).sort((a,b)=>a.full_name.localeCompare(b.full_name,'sv'));
   }
   async function calendarTrainings(){
     if(Auth.activeTeam()!=='NSK Team 18')return [];

@@ -1188,3 +1188,9 @@ body.nsk-arena #activityList .nsk-pool-actions .start-pool-btn{background:linear
 @media print{html:has(>body.nsk-arena){height:auto;overflow:visible}body.nsk-arena{position:static;inset:auto;height:auto;max-height:none;width:auto}}
 
 .person-card-profile-field{grid-column:1/-1}.person-card-profile-field small{font-size:.8rem;line-height:1.5;color:#bdc5d0}.person-card-profile-field select{max-width:100%}
+
+/* Poolspel: touch targets and consistent flow actions. */
+button.shift-check{width:48px;height:48px;min-width:48px;min-height:48px;padding:0;margin:0;border-radius:12px;font-size:25px;line-height:1;color:#fff;touch-action:manipulation}
+button.shift-check.done{background:#167747;border-color:#39bb7c}button.shift-check[aria-busy=true]{opacity:.55}
+.check-cell{width:58px}.pool-flow-actions{position:relative}.pool-flow-actions a{flex:1 1 120px}.lag-overview-btn *{pointer-events:none}
+.lineup-print-row{gap:8px;flex-wrap:wrap}#lineupMsg,#shiftMsg{scroll-margin-bottom:100px}

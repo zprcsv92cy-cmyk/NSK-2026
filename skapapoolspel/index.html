@@ -95,8 +95,8 @@
         <div class="pool-setting">
           <label for="teams">Antal lag</label>
           <select id="teams">
-                  <option value="1">1</option>
-                  <option value="2" selected>2</option>
+                  <option value="1" selected>1</option>
+                  <option value="2">2</option>
                 </select>
         </div>
         <div class="pool-setting">
@@ -203,7 +203,7 @@
   try{const r=await fetch('https://nsk-api.peter-hasselberg.workers.dev/api/admin/status',{headers:{Authorization:'Bearer '+token},cache:'no-store'});const data=await r.json();btn.hidden=!data.admin;btn.disabled=!data.admin;}catch{btn.hidden=true;btn.disabled=true;}
  }
  window.addEventListener('storage',refresh);
- document.addEventListener('click',()=>setTimeout(refresh,250));
+ window.addEventListener('focus',refresh);
  refresh();
 })();
 </script>

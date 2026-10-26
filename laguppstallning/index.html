@@ -118,13 +118,13 @@
     </section>
 <nav class="pool-flow-actions" aria-label="Poolspelsflöde"><a class="nsk-action" href="../lag/">Välj eget lag</a><a class="nsk-action nsk-action--primary" href="../bytesschema/">Nästa: Bytesschema</a></nav>
 
-    <div class="lineup-print-row"><button id="lineupPrintButton" type="button">Skriv ut laguppställning / PDF</button></div>
+    <div class="lineup-print-row"><button id="lineupSaveButton" type="button" class="nsk-action nsk-action--save">Spara uppställning</button><button id="lineupPrintButton" type="button">Skriv ut laguppställning / PDF</button></div>
     <div class="lineup-main">
       <section class="card">
         <h2>Laguppställning</h2>
         <div class="field"><label>Lag</label><div id="laguppstallningTeamButtons" class="team-buttons"></div></div>
         <div class="field"><label for="lineupCoach">Tränare</label><select id="lineupCoach" multiple size="4"></select><div id="lineupCoachChoices" class="coach-picker" role="group" aria-label="Välj tränare"></div><div id="lineupCoachNames" class="small" aria-live="polite" style="margin-top:7px"></div></div>
-        <div class="field"><label>Matcher</label><div id="matchButtons" class="team-buttons"></div></div>
+        <div class="field"><label for="poolEquipment">Materialförvaltare för poolspelet</label><select id="poolEquipment"><option value="">Ingen vald</option></select><div id="poolEquipmentMsg" class="small" role="status"></div></div><div class="field"><label>Matcher</label><div id="matchButtons" class="team-buttons"></div></div>
         <div class="field" style="display:none"><label for="lineupMatch">Match</label><select id="lineupMatch"></select></div>
       </section>
       <section class="card">

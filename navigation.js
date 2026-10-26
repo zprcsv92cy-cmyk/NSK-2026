@@ -64,7 +64,7 @@
     try { if(window.Auth){await window.Auth.init();if(window.Auth.getSession()?.permissions?.includes('users:manage'))visibleEntries.push(['anvandare','Användare']);} }catch{}
     for (const [slug,label] of visibleEntries) {
       const a = document.createElement('a');
-      a.href = '../' + slug + '/';
+      a.href = '../' + slug + '/' + (slug==='skapapoolspel'?'?new=1':'');
       a.textContent = label;
       if (slug === active) { a.classList.add('active'); a.setAttribute('aria-current','page'); }
       nav.append(a);
