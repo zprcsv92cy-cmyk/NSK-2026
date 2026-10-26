@@ -115,7 +115,11 @@ jobs:
           const sw = fs.readFileSync('sw.js', 'utf8');
           assert.ok(script.includes('window.NSK_VERSION = "' + version + '";'), 'version.js mismatch');
           assert.equal(deploy.version, version);
-          assert.equal(manifest.version, version);
+          const appVersion = script.match(/NSK_APP_VERSION\s*=\s*"([0-9]+\.[0-9]+(?:\.[0-9]+)?)"/)?.[1];
+          assert.ok(appVersion, 'Visible app version missing');
+          assert.equal(deploy.appVersion, appVersion);
+          assert.equal(manifest.version, appVersion);
+          assert.equal(manifest.build, version);
           assert.ok(sw.includes('nsk-team18-v' + version));
           for (const file of ['startsida/index.html', 'ovningsarkiv/index.html', 'truppen/index.html']) {
             assert.ok(fs.readFileSync(file, 'utf8').includes('version.js?v=' + version), file + ' must reference stamped version');

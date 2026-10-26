@@ -25,16 +25,18 @@ function nskVersionRoot() {
   return new URL("./", src || new URL("../", location.href));
 }
 
+function nskDisplayVersion() { return String(window.NSK_APP_VERSION || "1.0"); }
+
 function showNskVersion() {
   if (!document.body.classList.contains("home-page") || document.getElementById("nsk-current-version")) return;
   const label = document.createElement("div");
   label.id = "nsk-current-version";
   label.className = "nsk-current-version";
-  label.textContent = "NSK-2026 · kontrollerar publicerad version…";
+  label.textContent = "NSK-2026 · version " + nskDisplayVersion();
   document.querySelector(".home-hero")?.appendChild(label);
 }
 
-function showNskUpdate(version) {
+function showNskUpdate(version, appVersion) {
   if (nskPendingVersion === version && document.getElementById("nsk-update-notice")) return;
   if (nskDismissedVersion === version) return;
   nskPendingVersion = version;
@@ -74,7 +76,7 @@ function showNskUpdate(version) {
       notice.hidden = true;
     });
   }
-  notice.querySelector("#nsk-update-message").textContent = "Ny version " + version + " finns tillgänglig.";
+  notice.querySelector("#nsk-update-message").textContent = appVersion && appVersion !== nskDisplayVersion() ? "Ny version " + appVersion + " finns tillgänglig." : "En uppdatering finns tillgänglig.";
   notice.hidden = false;
 }
 
@@ -86,12 +88,11 @@ async function checkAppVersion() {
     const data = await res.json();
     const published = String(data?.version || "");
     const loaded = String(window.NSK_VERSION || "");
-    // The deployed manifest is authoritative. An installed iPhone PWA may
-    // still execute an older cached version.js after a successful release.
+    // Compare internal build numbers for cache updates; display only the manually selected release.
     if (!/^[1-9]\d*$/.test(published)) throw new Error("Ogiltig publicerad version");
     if (/^[1-9]\d*$/.test(published)) {
       const label = document.getElementById("nsk-current-version");
-      if (label) label.textContent = "NSK-2026 · version " + published;
+      if (label) label.textContent = "NSK-2026 · version " + nskDisplayVersion();
     }
     if (!published || !loaded || published === loaded) {
       if (published === loaded) {
@@ -101,10 +102,11 @@ async function checkAppVersion() {
       }
       return;
     }
-    showNskUpdate(published);
+    const appVersion = /^\d+\.\d+(?:\.\d+)?$/.test(String(data.appVersion || "")) ? String(data.appVersion) : nskDisplayVersion();
+    showNskUpdate(published, appVersion);
   } catch (err) {
     const label = document.getElementById("nsk-current-version");
-    if (label) label.textContent = "NSK-2026 · version ej verifierad (offline eller nätverksfel)";
+    if (label) label.textContent = "NSK-2026 · version " + nskDisplayVersion();
     console.warn("Versionskontroll misslyckades", err);
   }
 }

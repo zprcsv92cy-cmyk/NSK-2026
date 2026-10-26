@@ -32,6 +32,7 @@ document.write('<script src="../auth.js?v=' + window.NSK_VERSION + '"><\/script>
 <h2>Mina behörigheter</h2>
 <ul id="accountPermissions"></ul>
 <p class="small">Behörigheterna kontrolleras mot servern för valt lag. ”Nej” kan också visas om servern inte går att nå.</p>
+<p id="accountAppVersion" class="small"></p>
 <button type="button" id="accountLogout">Logga ut</button>
 </div>
 <p><a href="../login/" id="accountLogin" hidden>Logga in</a></p>
@@ -49,6 +50,7 @@ document.write('<script src="../auth.js?v=' + window.NSK_VERSION + '"><\/script>
    return;
   }
   status.textContent='Inloggad';
+  document.getElementById('accountAppVersion').textContent='Appversion '+(window.NSK_APP_VERSION||'1.0');
   if(identity.is_primary_admin===true){
    const special=document.createElement('a');
    special.id='accountSpecialFeatures';

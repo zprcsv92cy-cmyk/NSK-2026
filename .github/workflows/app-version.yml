@@ -1,4 +1,4 @@
-name: Automatisk appversion
+name: Kontrollera appversion och byggnummer
 on:
   push:
     branches: [main]
@@ -6,8 +6,7 @@ on:
   pull_request:
     branches: [main]
 permissions:
-  contents: write
-  pull-requests: write
+  contents: read
 concurrency:
   group: nsk-version-main
   cancel-in-progress: false
@@ -34,7 +33,11 @@ jobs:
           assert.ok(version, 'version.js saknar versionsnummer');
           assert.equal(String(JSON.parse(fs.readFileSync('deploy.json','utf8')).version), version);
           const manifest = JSON.parse(fs.readFileSync('manifest.webmanifest','utf8'));
-          assert.equal(String(manifest.version), version);
+          const appVersion = fs.readFileSync('version.js','utf8').match(/NSK_APP_VERSION\s*=\s*"([0-9]+\.[0-9]+(?:\.[0-9]+)?)"/)?.[1];
+          assert.ok(appVersion, 'Synlig appversion saknas');
+          assert.equal(JSON.parse(fs.readFileSync('deploy.json','utf8')).appVersion, appVersion);
+          assert.equal(String(manifest.version), appVersion);
+          assert.equal(String(manifest.build), version);
           assert.ok(manifest.start_url.includes('v=' + version));
           const sw = fs.readFileSync('sw.js','utf8');
           const cacheVersion = sw.match(/nsk-team18-v(\d+)/)?.[1];
@@ -49,29 +52,17 @@ jobs:
           node scripts/bump-version.cjs
           node -e "const fs=require('fs'); const v=require('./deploy.json').version; if(!fs.readFileSync('version.js','utf8').includes(v)) process.exit(1); console.log('Versionstest OK:',v)"
   version:
-    if: "github.event_name == 'pull_request' || !contains(github.event.head_commit.message, '[skip ci]')"
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
         with:
-          persist-credentials: true
+          persist-credentials: false
       - uses: actions/setup-node@v4
         with:
           node-version: '22'
-      - name: Uppdatera versionsnummer
+      - name: Kontrollera intern byggstämpling
         run: node scripts/bump-version.cjs
-      - name: Skapa versions-PR
-        if: github.event_name != 'pull_request'
-        uses: peter-evans/create-pull-request@v7
-        with:
-          branch: chore/auto-version-bump
-          delete-branch: true
-          title: "chore: bump app version"
-          commit-message: "chore: bump app version [skip ci]"
-          body: "Automatisk versionshöjning skapad via pull request för att följa branch protection på main."
-          add-paths: |
-            version.js
-            manifest.webmanifest
-            deploy.json
-            sw.js
-            *.html
+      - name: Bekräfta att synlig version är oförändrad
+        run: |
+          node --test scripts/app-release-version.test.mjs
+          echo "Endast byggnummer stämplas automatiskt. Synlig appversion ändras manuellt vid större uppdateringar."
