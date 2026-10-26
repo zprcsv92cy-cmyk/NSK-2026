@@ -1,7 +1,21 @@
 // Runs inside the existing per-match ShiftLock queue, shared with save and done.
 export function installShiftRetime(ShiftLock,{resolveTables,resolveOwner,fetcher}){
  const save=ShiftLock.prototype.save,done=ShiftLock.prototype.done;
- ShiftLock.prototype.done=async function(body){if(await this.storage?.get('retimePlan'))return Response.json({ok:false,error:'Bytestiden uppdateras. Försök igen när schemat är klart.'},{status:409});return done.call(this,body);};
+ ShiftLock.prototype.done=async function(body){
+  const pending=await this.storage?.get('retimePlan');
+  if(pending){
+   if(!body||body.pool_id!==pending.poolId||body.lag_no!==pending.lagNo||body.match_no!==pending.matchNo||!Number.isSafeInteger(body.id)||typeof body.done!=='boolean')return Response.json({ok:false,error:'Fel matchlås'},{status:409});
+   // Resume an interrupted authorized plan inside the same queue, before marking.
+   for(let batch=0;batch<3;batch++){
+    const resumed=await this.save({retime:true,pool_id:pending.poolId,lag_no:pending.lagNo,match_no:pending.matchNo});
+    if(!resumed.ok)return resumed;
+    const state=await resumed.json();
+    if(!state.pending)return done.call(this,body);
+   }
+   return Response.json({ok:false,pending_retime:true,error:'Schemat uppdateras. Tryck på bytet igen.'},{status:409});
+  }
+  return done.call(this,body);
+ };
  ShiftLock.prototype.save=async function(body){
   if(body?.retime!==true){if(await this.storage?.get('retimePlan'))return Response.json({ok:false,error:'Slutför uppdateringen av bytestiden först.'},{status:409});return save.call(this,body);}
   const reply=(status,error,extra={})=>Response.json({ok:status<400,...(error?{error}:{}),...extra},{status});
