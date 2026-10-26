@@ -247,7 +247,7 @@
     }).catch(()=>{});
    const button=document.getElementById('svenskalagRefreshButton');
    if(button){
-   button.textContent='Importera Poolspel/Träning';
+   button.disabled=false;button.textContent='Importera Poolspel/Träning';
    button.style.marginTop='12px';
    button.onclick=async()=>{
     button.disabled=true;button.textContent='Hämtar kalender…';
@@ -255,7 +255,9 @@
      const refresh=await fetch(base+'/api/training?team_id='+encodeURIComponent(matched[0].id)+'&action=svenskalag-refresh',{method:'POST',headers,cache:'no-store'});
      if(refresh.status===403)throw Error('Du saknar behörighet att hämta kalendern');
      if(!refresh.ok)throw Error('Hämtningen misslyckades. Försök igen senare.');
+     const result=await refresh.json();
      await show();
+     if(result.changingRooms?.ok===false){const notice=document.createElement('p');notice.textContent=result.changingRooms.error;notice.setAttribute('role','alert');button.after(notice);}
     }catch(error){
      button.disabled=false;button.textContent='Importera Poolspel/Träning';
      const notice=document.createElement('p');notice.textContent=error.message||'Hämtningen misslyckades';

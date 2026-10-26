@@ -69,3 +69,11 @@ export async function runChangingRoomCheck(env,now=new Date(),fetcher=fetch){
  await env.NSK_TRAINERS.put(snapshotKey,JSON.stringify(data),{expirationTtl:93600});
  return {checked:true,count:data.bookings.length};
 }
+
+export async function refreshChangingRooms(env,now=new Date(),fetcher=fetch){
+ if(env.NSK_ISOLATED_MODE==='true')return {ok:true,bookings:[]};
+ if(!env.NSK_TRAINERS)throw Error('Room cache unavailable');
+ const data=await fetchChangingRooms(fetcher,null,now);
+ await env.NSK_TRAINERS.put(snapshotKey,JSON.stringify(data),{expirationTtl:93600});
+ return data;
+}
