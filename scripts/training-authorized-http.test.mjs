@@ -65,7 +65,7 @@ test('two synthetic authorized leaders can create, read, update and list one tea
  r=await f.handler(req('GET',18,date));assert.equal(r.status,200);assert.deepEqual((await r.json()).session.selected,['101']);
  r=await f.handler(req('PUT',18,date,{...players(),selected:['102'],allocation:[['102']],revision:1}));
  assert.equal(r.status,200);assert.equal((await r.json()).revision,2);
- r=await f.handler(req('GET',18));assert.equal(r.status,200);assert.deepEqual((await r.json()).sessions,[{date,players:1,coaches:1,hall:''}]);
+ r=await f.handler(req('GET',18));assert.equal(r.status,200);assert.deepEqual((await r.json()).sessions,[{date,players:1,coaches:1,equipment:0,hall:''}]);
  r=await f.handler(req('PUT',18,date,{...players(),revision:1}));assert.equal(r.status,409);
 });
 test('team outsider cannot read or write another team training',async()=>{

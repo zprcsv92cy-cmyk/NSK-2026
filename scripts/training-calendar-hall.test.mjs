@@ -26,3 +26,12 @@ test('upcoming training choices are ordered, exclude past dates and pools, and p
  assert.match(choices[0].label,/13:45 Lilla Hallen.*18:00 Stora Hallen/);
  assert.equal(c.upcomingDates([],'2026-10-26').length,0);
 });
+test('equipment roster comes from authenticated team staff and filters other roles',async()=>{
+ const requests=[];
+ const context={window:{},Auth:{activeTeam:()=> 'NSK Team 18',getToken:()=> 'synthetic-token'},fetch:async(url,options)=>{requests.push({url,options});return {ok:true,json:async()=>url.includes('/api/lagpersonal')?{ok:true,results:[{id:'12345678-1234-1234-1234-123456789abc',name:'Anna Testsson',role:'Materialförvaltare'},{id:'other',name:'Other',role:'Lagledare'}]}:{results:[{id:18,Namn:'NSK Team 18','Säsong':'2026'}]}};}};
+ vm.runInNewContext(source,context);
+ const people=await context.window.SharedTraining.listEquipment();
+ assert.equal(people.length,1);assert.equal(people[0].full_name,'Anna Testsson');
+ assert.match(requests[1].url,/\/api\/lagpersonal\?team_id=18$/);
+ assert.equal(requests[1].options.headers.Authorization,'Bearer synthetic-token');
+});
