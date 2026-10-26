@@ -3,7 +3,7 @@
   const entries = [
     ['startsida','Kalender'],['truppen','Truppen'],['traningsgrupper','Träningsplanering'],
     ['ovningsarkiv','Övningsarkiv'],['ritverktyg','Ritverktyg'],
-    ['skapapoolspel','Skapa poolspel'],['malvaktsstatistik','Målvaktsstatistik'],
+    ['skapapoolspel','Skapa poolspel'],['malvaktsstatistik','Statistik'],
     ['materialforvaltare','Materialförvaltare'],['mittkonto','Mitt konto']
   ];
 

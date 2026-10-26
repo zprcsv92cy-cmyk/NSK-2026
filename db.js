@@ -131,6 +131,23 @@ window.DB = (() => {
     }
     return [...matches.values()];
   }
+  async function listPlayerMatchStats(){
+    const team=await teamId();
+    const [pools,players,configs,shifts]=await Promise.all([listPools(),listPlayers(),rows('matchkonfiguration',team),rows('bytesschema',team)]);
+    const owned=new Map(pools.filter(p=>!p.deleting).map(p=>[Number(p.id),p]));
+    const result=new Map(players.map(p=>[Number(p.id),{id:Number(p.id),name:p.full_name,goalie_matches:0,player_matches:0}]));
+    const key=r=>`${first(r.Poolspel)}:${num(r.Lagnummer,1)}:${num(r.Matchnummer,1)}`;
+    const played=new Map();
+    for(const r of shifts){if(!r.Genomfört||!owned.has(first(r.Poolspel)))continue;const k=key(r);if(!played.has(k))played.set(k,new Set());for(const id of linked(r['Spelare på plan']))played.get(k).add(Number(id));}
+    const counted=new Set();
+    for(const r of [...configs].sort((a,b)=>a.id-b.id)){
+      const pool=owned.get(first(r.Poolspel)),k=key(r);if(!pool||counted.has(k)||(pool.active&&!played.has(k)))continue;counted.add(k);
+      const goalie=Number(first(r.Målvakt));if(result.has(goalie))result.get(goalie).goalie_matches++;
+      const ids=pool.active?played.get(k):new Set(linked(r['Spelare på plan']).map(Number));
+      for(const id of ids||[])if(id!==goalie&&result.has(id))result.get(id).player_matches++;
+    }
+    return [...result.values()].sort((a,b)=>a.name.localeCompare(b.name,'sv'));
+  }
   async function listPlayerCoachMap(){const [map,players,coaches]=await Promise.all([rows('spelaretranare',await teamId()),listPlayers(),listCoaches()]);return map.map(r=>({id:r.id,player_name:players.find(p=>p.id===first(r.Spelare))?.full_name||'',coach_name:coaches.find(c=>c.id===first(r.Tränare))?.full_name||''})).filter(r=>r.player_name)}
   async function adminRequest(path,method,payload){
     const personalPoolWrite = window.APP_CONFIG?.REQUIRE_PERSONAL_POOL_WRITES === true &&
@@ -300,7 +317,10 @@ window.DB = (() => {
     localStorage.setItem(key,loginData.token);
     return send(loginData.token);
   }
-  async function setShiftDone(poolId,lagNo,matchNo,shiftNo,done){
+  async function setShiftDone(poolId,lagNo,matchNo,shiftNo,done,knownRowId){
+    if(Number.isSafeInteger(Number(knownRowId))&&Number(knownRowId)>0){
+      return matchRequest(`/api/bytesschema/${Number(knownRowId)}/done`,{done:!!done});
+    }
     return serialWrite(async()=>{
       const shifts=await listShiftSchema(poolId,lagNo,matchNo);
       const shift=shifts.find(s=>s.shift_no===Number(shiftNo));
@@ -308,7 +328,7 @@ window.DB = (() => {
       return matchRequest(`/api/bytesschema/${shift.id}/done`,{done:!!done});
     });
   }
-  return {listPlayers,listCoaches,listStaff,listPools,getPool,listPoolTeamMatchConfigs,getPoolTeamMatchConfig,getPlayersOnField,getLineup,listUsedPlayersInPool,listShiftSchema,listGoalieStats,listPlayerCoachMap,
+  return {listPlayers,listCoaches,listStaff,listPools,getPool,listPoolTeamMatchConfigs,getPoolTeamMatchConfig,getPlayersOnField,getLineup,listUsedPlayersInPool,listShiftSchema,listGoalieStats,listPlayerMatchStats,listPlayerCoachMap,
     addPlayer,updatePlayer,deletePlayer:rowId=>serialWrite(()=>adminRequest(`/api/spelare/${encodeURIComponent(rowId)}`,'DELETE',{})),addCoach,updateCoach,deleteCoach:rowId=>serialWrite(()=>adminRequest(`/api/tranare/${encodeURIComponent(rowId)}`,'DELETE',{})),addEquipmentCoach,addStaff:(role,name)=>writeStaff('POST',role,null,name),updateStaff:(role,rowId,name)=>writeStaff('PATCH',role,rowId,name),deleteStaff:(role,rowId)=>writeStaff('DELETE',role,rowId,''),updatePoolTeams,addPool,updatePool,updatePoolActive,deletePool:async rowId=>{for(let i=0;i<100;i++){const result=await adminRequest('/api/poolspel/'+encodeURIComponent(rowId),'DELETE',{});if(result.deleted)return result;}throw Error('Raderingen behöver fortsätta. Tryck Ta bort igen.');},
     getPoolMaterial,savePoolMaterial,assertMatchReady,listPoolMatchPlan,saveMatchInfo,saveFullLineup:window.APP_CONFIG?.POOL_FLOW_ENABLED===true?saveFullLineup:undefined,listPoolMatchSummaries,saveCalendarMatchSchedule,savePoolTeamMatchConfig,saveLineup,getCoachSelection,saveCoachSelection,saveShiftSchema,deleteShiftSchema,setShiftDone,savePlayerCoachMap:failWrite,subscribeTruppen:async()=>({unsubscribe(){}})};
 })();
