@@ -65,19 +65,25 @@ export function createEquipmentHandler(env,listTeams,{verifyIdentity=createPerso
    const profiles=saved.profiles||{};
    const key=isCard?kinds[0]+':'+ids[0]:null;
    const card=isCard?{...emptyPersonCard(),...profiles[key]}:null;
-   if(request.method==='GET')return reply(200,isCard?{ok:true,name:person.name,card,revision,canEditProfile,canEditSkates,canRequest:canWrite}:{ok:true,canWrite,requests:saved.requests,checklists:saved.checklists,revision});
+   const effectiveRequests=saved.requests.map(item=>!item.done&&Object.hasOwn(profiles,item.kind+':'+item.personId)?{...item,skates:skatesFrom(profiles[item.kind+':'+item.personId])}:item);
+   if(request.method==='GET')return reply(200,isCard?{ok:true,name:person.name,card,revision,canEditProfile,canEditSkates,canRequest:canWrite}:{ok:true,canWrite,requests:effectiveRequests,checklists:saved.checklists,revision});
    if(data.revision!==revision)return reply(409,{ok:false,error:'Någon annan har ändrat. Ladda om innan du försöker igen.'});
    let next;
    if(isCard){
     if(!canEditProfile&&['number','position','hand'].some(k=>data.card[k]!==card[k]))return reply(403,{ok:false,error:'Du får endast ändra skridskouppgifterna'});
     if(!Object.hasOwn(profiles,key)&&Object.keys(profiles).length>=500)return reply(400,{ok:false,error:'För många personkort'});
     const nextCard={...data.card,radius:data.card.radius??card.radius};
-    next={...saved,profiles:{...profiles,[key]:nextCard}};
+    next={...saved,profiles:{...profiles,[key]:nextCard},requests:saved.requests.map(item=>!item.done&&item.kind===kinds[0]&&item.personId===ids[0]?{...item,name:person.name,skates:skatesFrom(nextCard)}:item)};
    }else{
     const requests=[];
     for(const item of data.requests){
      const old=saved.requests.find(r=>r.id===item.id&&r.kind===item.kind&&r.personId===item.personId);
-     if(old){requests.push({...item,name:old.name,...(old.skates?{skates:old.skates}:{skates:skatesFrom(profiles[item.kind+':'+item.personId])})});continue;}
+     if(old){
+      const profileKey=item.kind+':'+item.personId;
+      const skates=(!old.done||!item.done)&&Object.hasOwn(profiles,profileKey)
+        ?skatesFrom(profiles[profileKey]):old.skates||skatesFrom(profiles[profileKey]);
+      requests.push({...item,name:old.name,skates});continue;
+     }
      // A new slip order uses the team's trusted roster identity and saved skate settings.
      if(typeof readPerson!=='function')return reply(503,{ok:false,error:'Truppkopplingen saknas'});
      const target=await readPerson(teams[0],item.kind,item.personId);

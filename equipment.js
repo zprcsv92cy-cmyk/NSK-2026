@@ -1,7 +1,7 @@
 (() => {
  const $=id=>document.getElementById(id);
  const base=()=>String(window.APP_CONFIG?.API_URL||'https://nsk-api.peter-hasselberg.workers.dev').replace(/\/$/,'');
- let board,team,teamName,canWrite=false,busy=false,people=[],creatingChecklist=false;
+ let board,team,teamName,canWrite=false,busy=false,people=[],creatingChecklist=false,refreshing=false,changeVersion=0;
  const status=message=>{$('equipmentStatus').textContent=message;};
  function lock(){for(const control of document.querySelectorAll('form input,form select,form textarea,form button,.equipment-row input,.equipment-row button,.equipment-actions button,#checklistCreateButton'))control.disabled=busy||!canWrite;$('equipmentReload').disabled=busy;}
  async function request(payload){
@@ -14,7 +14,7 @@
  function element(tag,text){const node=document.createElement(tag);if(text!==undefined)node.textContent=text;return node;}
  function button(text,run){const b=element('button',text);b.type='button';b.onclick=run;return b;}
  async function change(update){
-  if(busy||!canWrite)return;busy=true;lock();status('Sparar…');
+  if(busy||!canWrite)return;changeVersion++;busy=true;lock();status('Sparar…');
   try{const next=structuredClone(board);update(next);const result=await request(next);next.revision=result.revision;next.requests=result.requests;next.checklists=result.checklists;board=next;status('Sparat för laget.');render();return true;}
   catch(error){status(error.message+' Ändringen har inte bekräftats som sparad.');render();return false;}
   finally{busy=false;lock();}
@@ -56,6 +56,8 @@
    const summary=element('summary'),name=element('span',item.name);name.className='equipment-slip-name';name.append(element('small',item.kind==='player'?'Spelare':'Tränare'));
    summary.append(name,lamp(item.done));section.append(summary);
    const body=element('div');body.className='equipment-slip-body';body.append(skateFacts(item.skates));
+   const description=PersonCards.profileDescription?.(item.skates?.profile);
+   if(description){const p=element('p',description);p.className='equipment-slip-notes';body.append(p);}
    if(!item.skates?.hollow&&!item.done){const missing=element('p','Skålradie saknas – kontrollera före slipning.');missing.className='equipment-slip-notes';body.append(missing);}
    for(const note of [item.note,item.skates?.notes])if(note){const p=element('p',note);p.className='equipment-slip-notes';body.append(p);}
    if(canWrite){const actions=element('div');actions.className='equipment-actions';
@@ -78,7 +80,7 @@
   lock();
  }
  async function load(){
-  if(busy)return;busy=true;canWrite=false;lock();status('Hämtar materialuppgifter…');
+  if(busy)return;changeVersion++;busy=true;canWrite=false;lock();status('Hämtar materialuppgifter…');
   try{
    await Auth.init();teamName=Auth.activeTeam();if(!teamName)throw Error('Välj ett lag i Mitt konto.');
    $('equipmentTeam').textContent=teamName;
@@ -109,6 +111,20 @@
  };
  $('checklistCreateButton').onclick=()=>{if(busy||!canWrite)return;setCreation(!creatingChecklist);if(creatingChecklist)$('checklistTitle').focus();};
  $('checklistCancel').onclick=()=>{if(busy)return;setCreation(false);$('checklistCreateButton').focus();};
+ async function refresh(){
+  if(busy||refreshing||!board||document.hidden)return;
+  const generation=changeVersion,expectedTeam=team,expectedToken=Auth.getToken();refreshing=true;
+  try{
+   const data=await request();
+   if(busy||generation!==changeVersion||team!==expectedTeam||Auth.getToken()!==expectedToken)return;
+   const changed=data.revision!==board.revision||data.canWrite!==canWrite||JSON.stringify(data.requests)!==JSON.stringify(board.requests);
+   if(changed){board={revision:data.revision,requests:data.requests,checklists:data.checklists};canWrite=data.canWrite;render();status('Uppdaterat från lagets personkort och checklistor.');}
+  }catch(error){if(!busy&&generation===changeVersion)status('Automatisk uppdatering misslyckades. '+error.message);}
+  finally{refreshing=false;}
+ }
+ window.addEventListener('focus',()=>void refresh());
+ document.addEventListener('visibilitychange',()=>{if(!document.hidden)void refresh();});
+ setInterval(()=>void refresh(),15000);
  $('equipmentReload').onclick=()=>void load();
  $('sharpeningForm').onsubmit=async event=>{
   event.preventDefault();const person=people.find(p=>p.kind+':'+p.id===$('equipmentPerson').value);if(!person)return;
