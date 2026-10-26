@@ -4,7 +4,7 @@ Synlig appversion är fortsatt 1.0.
 
 Manuella poolspel och kalenderimporter använder samma laguppställning, bytesschema och matchvy. Kalenderimportens faktiska matchposter utgör dess plan; manuella planer omfattar alla valda lag och matchnummer. Kalenderimport skapar aldrig en extra match för att fylla ut ett ojämnt antal.
 
-En fullständig Match 1 fyller kommande tomma matcher för samma lag. Befintliga spelarval och genomförda byten skrivs inte över. Starttid, motståndare och plan behålls per match. Matchinfo kan sparas separat från en ofullständig uppställning. En materialförvaltare väljs bland lagets tränare för hela poolspelet, utan att appbehörigheter ändras.
+En fullständig Match 1 fyller kommande tomma matcher för samma lag. Befintliga spelarval och genomförda byten skrivs inte över. Starttid, motståndare och plan behålls per match. Matchinfo kan sparas separat från en ofullständig uppställning. En eller flera materialförvaltare väljs med namnknappar bland registrerade materialförvaltare i Truppen. Valet gäller hela poolspelet och ändrar inga appbehörigheter. Äldre tränarval bevaras separat tills de ersätts med ett registrerat materialval.
 
 Uppställningens Spara-knapp och väntande autosparningar använder en fångad kopia av poolspel, lag, match och formulärvärden. Intern navigering väntar på sparandet. Ett serverjournalfört, ofärdigt sparande blockerar bytehantering tills användaren sparar uppställningen igen. Baserow har ingen gemensam transaktion för dessa tabeller: delsteg kan finnas efter ett nätfel, men visas inte som bekräftat sparade. Spara igen återanvänder matchposten. Matchen kontrolleras mot aktuell uppställning före start.
 
