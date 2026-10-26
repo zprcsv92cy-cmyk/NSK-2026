@@ -1,7 +1,7 @@
 (() => {
  const $=id=>document.getElementById(id);
  const base=()=>String(window.APP_CONFIG?.API_URL||'https://nsk-api.peter-hasselberg.workers.dev').replace(/\/$/,'');
- let board,team,teamName,canWrite=false,busy=false,people=[],creatingChecklist=false,refreshing=false,changeVersion=0,editingChecklistId=null,editingChecklistBase=null;
+ let board,team,teamName,canWrite=false,busy=false,people=[],creatingChecklist=false,refreshing=false,changeVersion=0,editingChecklistId=null,editingChecklistBase=null,linkCleanup=null,linksReady=false;
  const status=message=>{$('equipmentStatus').textContent=message;};
  function lock(){for(const control of document.querySelectorAll('form input,form select,form textarea,form button,.equipment-row input,.equipment-row button,.equipment-actions button,#checklistCreateButton'))control.disabled=busy||!canWrite;$('equipmentReload').disabled=busy;}
  async function request(payload){
@@ -11,7 +11,7 @@
   if(!response.ok||!data.ok){if(response.status===409)canWrite=false;throw Object.assign(Error(data.error||'Materialuppgifterna kunde inte hämtas eller sparas.'),{status:response.status});}
   return data;
  }
- function denyBoard(){window.NSKViewCache?.clear();board=null;people=[];canWrite=false;$('sharpeningList').replaceChildren();$('equipmentChecklists').replaceChildren();for(const id of ['sharpeningCreate','sharpeningForm','checklistCreateButton','checklistForm'])$(id).hidden=true;lock();}
+ function denyBoard(){linkCleanup?.();linkCleanup=null;linksReady=false;$('sharpeningLinksBox').hidden=true;window.NSKViewCache?.clear();board=null;people=[];canWrite=false;$('sharpeningList').replaceChildren();$('equipmentChecklists').replaceChildren();for(const id of ['sharpeningCreate','sharpeningForm','checklistCreateButton','checklistForm'])$(id).hidden=true;lock();}
  async function rememberBoard(){if(!window.NSKViewCache||!board)return;const data={team,board};const view=await NSKViewCache.open('equipment');view.save(data);}
  function element(tag,text){const node=document.createElement(tag);if(text!==undefined)node.textContent=text;return node;}
  function button(text,run){const b=element('button',text);b.type='button';b.onclick=run;return b;}
@@ -47,6 +47,7 @@
   $('checklistSaveButton').textContent=editingChecklistId?'Spara ändringar':'Spara checklista';
  }
  function render(){
+  $('sharpeningLinksBox').hidden=!linksReady;
   const scroller=document.querySelector('.arena-scroll')||document.scrollingElement,top=scroller?.scrollTop;
   $('sharpeningCreate').hidden=!canWrite;$('sharpeningForm').hidden=!canWrite;
   $('checklistCreateButton').hidden=!canWrite;setCreation(creatingChecklist);
@@ -86,7 +87,7 @@
   lock();if(scroller&&Number.isFinite(top))scroller.scrollTop=top;
  }
  async function load(){
-  if(busy)return;changeVersion++;busy=true;canWrite=false;lock();status('Hämtar materialuppgifter…');
+  if(busy)return;linkCleanup?.();linkCleanup=null;linksReady=false;changeVersion++;busy=true;canWrite=false;lock();status('Hämtar materialuppgifter…');
   try{
    await Auth.init();teamName=Auth.activeTeam();if(!teamName)throw Error('Välj ett lag i Mitt konto.');
    const expectedToken=Auth.getToken(),expectedTeam=teamName;
@@ -105,10 +106,12 @@
     for(const [kind,title] of [['player','Spelare'],['coach','Tränare']]){const group=element('optgroup');group.label=title;people.filter(p=>p.kind===kind).forEach(p=>group.append(new Option(p.full_name,kind+':'+p.id)));select.append(group);}
    }
    if(Auth.getToken()!==expectedToken||Auth.activeTeam()!==expectedTeam)return;
+   linksReady=!!saved.canWrite&&!!window.SharpeningLinks?.allowed();const linkSelect=$('sharpeningLinkPerson');linkSelect.replaceChildren(new Option('Välj spelare',''));if(linksReady)for(const p of people.filter(p=>p.kind==='player'))linkSelect.append(new Option(p.full_name,String(p.id)));
    canWrite=saved.canWrite;void rememberBoard();render();status(canWrite?'Alla ändringar sparas för laget.':'Läsbehörighet. Ledare och materialförvaltare kan ändra.');
   }catch(error){canWrite=false;if(window.NSKViewCache?.denied(error)){denyBoard();}status(error.message);if(board)render();}
   finally{busy=false;lock();}
  }
+ $('sharpeningLinkPerson').onchange=()=>{linkCleanup?.();linkCleanup=null;const id=$('sharpeningLinkPerson').value;if(linksReady&&people.some(p=>p.kind==='player'&&String(p.id)===id))linkCleanup=SharpeningLinks.mount($('equipmentLinkManager'),{team,personId:id});};
  let selectionVersion=0;
  $('equipmentPerson').onchange=async()=>{
   const generation=++selectionVersion,value=$('equipmentPerson').value;
