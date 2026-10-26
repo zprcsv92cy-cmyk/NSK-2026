@@ -1178,3 +1178,11 @@ body.nsk-arena #activityList .nsk-pool-actions .start-pool-btn{background:linear
  body.nsk-arena.rink-fullscreen .arena-brand,body.nsk-arena.rink-fullscreen>.arena-bottom{display:none!important}
 }
 @media print{body.nsk-arena{display:block;height:auto;min-height:0;overflow:visible}.nsk-arena>.arena-scroll{display:contents}}
+
+/* Pin the app shell itself and recover Safari's viewport after keyboard dismissal. */
+@media(max-width:760px){
+ html:has(>body.nsk-arena){height:100%;overflow:hidden;overscroll-behavior:none}
+ body.nsk-arena{position:fixed;inset:0;width:100%;height:var(--nsk-app-height,100dvh);max-height:var(--nsk-app-height,100dvh);overflow-anchor:none}
+ .nsk-arena>.arena-bottom{top:auto;bottom:auto;transform:none;align-self:stretch}
+}
+@media print{html:has(>body.nsk-arena){height:auto;overflow:visible}body.nsk-arena{position:static;inset:auto;height:auto;max-height:none;width:auto}}
