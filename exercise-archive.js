@@ -151,6 +151,12 @@
   ];
   // Only exact, individually checked original addresses; never invent a slug from a title.
   const verifiedOriginals = {
+    "Skott med teknikbana": "skott-med-teknikbana",
+    "Passningsbana": "passningsbana",
+    "Smålagsspel - konspel": "smalagsspel-konspel",
+    "Skott - tekniska grunder": "skott-tekniska-grunder",
+    "Teknikbana med skott (Video)": "teknikbana-med-skott",
+    "Färdiga ispass TKH - 8 stationer": "stationstraning-8-stationer",
     "Powerplay - 5 mot 2": "powerplay-5-mot-2",
     "2 mot 1": "2-mot-1-3",
     "1 mot 1 med nedlägg": "1-mot-1-8",
