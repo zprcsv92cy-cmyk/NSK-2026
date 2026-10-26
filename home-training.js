@@ -2,32 +2,51 @@
 (() => {
   const escapeHtml=s=>String(s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
   let currentContext=null;
-  async function render(){
-    const root=document.getElementById('savedTrainingsList');
-    if(!root)return;
-    const eventRoot=document.getElementById('activityList')||root;
-    try{
-      await Auth.init();
-      const team=Auth.activeTeam();
-      if(!team){root.textContent='Välj lag under Mitt konto för att se träningar.';return;}
-      const token=Auth.getToken();
-      if(!token)throw Error('Logga in först');
-      const base=String(window.APP_CONFIG?.API_URL||'https://nsk-api.peter-hasselberg.workers.dev').replace(/\/$/,'');
+  async function loadSessions(base,token,team){
       const teamResponse=await fetch(base+'/api/lag',{headers:{Authorization:'Bearer '+token},cache:'no-store'});
-      if(!teamResponse.ok)throw Error('Kunde inte läsa lag');
+      if(!teamResponse.ok)throw Object.assign(Error('Kunde inte läsa lag'),{status:teamResponse.status});
       const teamData=await teamResponse.json();
       const teams=Array.isArray(teamData.results)?teamData.results:Array.isArray(teamData)?teamData:[];
       const matches=teams.filter(t=>t.Namn===team&&String(t['Säsong'])==='2026');
       if(matches.length!==1)throw Error('Lagkopplingen saknas');
       const response=await fetch(base+'/api/training?team_id='+encodeURIComponent(matches[0].id),{headers:{Authorization:'Bearer '+token},cache:'no-store'});
-      if(!response.ok)throw Error('Gemensamma träningar är ännu inte aktiverade');
+      if(!response.ok)throw Object.assign(Error('Gemensamma träningar är ännu inte aktiverade'),{status:response.status});
       const data=await response.json();
       const calendar=await SharedTraining.calendarTrainings().catch(()=>[]);
       const sessions=(Array.isArray(data.sessions)?data.sessions:[]).map(session=>window.NSKTrainingCards.enrich(session,calendar));
+    return {teamId:String(matches[0].id),sessions};
+  }
+  async function render(viewData = null){
+    const root=document.getElementById('savedTrainingsList');
+    if(!root)return;
+    const eventRoot=document.getElementById('activityList')||root;
+    try{
+      if(!viewData)await Auth.init();
+      const team=Auth.activeTeam();
+      if(!team){root.textContent='Välj lag under Mitt konto för att se träningar.';return;}
+      const token=Auth.getToken();
+      if(!token)throw Error('Logga in först');
+      const base=String(window.APP_CONFIG?.API_URL||'https://nsk-api.peter-hasselberg.workers.dev').replace(/\/$/,'');
+      if(!viewData && window.NSKViewCache){
+        const view=await NSKViewCache.open('calendar-trainings');
+        if(view.data)await render(view.data);
+        try{
+          const snapshot=await loadSessions(base,token,team);
+          if(!view.current())return;
+          view.save(snapshot);if(JSON.stringify(view.data)!==JSON.stringify(snapshot))await render(snapshot);
+        }catch(error){
+          if(!view.current())return;
+          if(NSKViewCache.denied(error)){NSKViewCache.clear();eventRoot.querySelectorAll(':scope > details[data-date]:not([data-svenskalag-training])').forEach(n=>n.remove());root.replaceChildren();}
+          const status=document.getElementById('appError');if(status)status.textContent=view.data&&!NSKViewCache.denied(error)?'Visar senast hämtade träningar. Kunde inte uppdatera.':error.message;
+        }
+        return;
+      }
+      const snapshot=viewData||await loadSessions(base,token,team),matches=[{id:snapshot.teamId}],sessions=snapshot.sessions;
       currentContext={base,token,teamId:String(matches[0].id),dates:new Set(sessions.map(s=>s.date))};
       sessions.sort((a,b)=>a.date.localeCompare(b.date));
-      eventRoot.querySelectorAll(':scope > details[data-date]:not([data-svenskalag-training])').forEach(row=>row.remove());
-      if(!sessions.length){root.innerHTML='<h3 class="training-section-title" id="upcomingTrainingsTitle">Kommande träningar (0)</h3><h3 class="training-section-title" id="pastTrainingsTitle">Avslutade träningar (0)</h3>';window.dispatchEvent(new Event('nsk:saved-trainings-rendered'));return;}
+      const oldRows=[...eventRoot.querySelectorAll(':scope > details[data-date]:not([data-svenskalag-training])')];
+      const scroller=document.querySelector('.arena-scroll')||document.scrollingElement,scrollTop=scroller?.scrollTop;
+      if(!sessions.length){oldRows.forEach(row=>row.remove());root.innerHTML='<h3 class="training-section-title" id="upcomingTrainingsTitle">Kommande träningar (0)</h3><h3 class="training-section-title" id="pastTrainingsTitle">Avslutade träningar (0)</h3>';window.dispatchEvent(new Event('nsk:saved-trainings-rendered'));return;}
       const today=new Date().toLocaleDateString('sv-SE',{year:'numeric',month:'2-digit',day:'2-digit'}).split('-').join('-');
       const savedRow=s=>{
         const day=new Date(s.date+'T12:00:00');
@@ -36,11 +55,13 @@
         const hall=['Lilla Hallen','Stora hallen'].includes(s.hall)?s.hall:'Hall ej vald';
         const start=s.startTime||s.start_time||s.start||'';const end=s.endTime||s.end_time||s.end||'';
         const time=[start,end].filter(Boolean).join('–');
-        return '<details class="nsk-pool-row" data-date="'+encodeURIComponent(s.date)+'"><summary class="nsk-pool-summary"><span class="nsk-pool-name">'+escapeHtml(title+' • '+s.date)+'</span><span class="nsk-pool-hall">'+escapeHtml(hall)+'</span><span class="nsk-training-time">'+escapeHtml(time)+'</span><span class="nsk-pool-chevron" aria-hidden="true">⌄</span></summary><div class="nsk-pool-content"><p data-training-info></p>'+window.NSKTrainingCards.actions(s.date,s.hall)+'<div class="nsk-training-delete-row"><button type="button" class="nsk-training-delete" data-delete-training>Ta bort</button></div></div></details>';};
+        return '<details class="nsk-pool-row" data-view-key="training:'+escapeHtml(s.date)+'" data-view-revision="'+escapeHtml(JSON.stringify([s.revision,s.hall,start,end]))+'" data-date="'+encodeURIComponent(s.date)+'"><summary class="nsk-pool-summary"><span class="nsk-pool-name">'+escapeHtml(title+' • '+s.date)+'</span><span class="nsk-pool-hall">'+escapeHtml(hall)+'</span><span class="nsk-training-time">'+escapeHtml(time)+'</span><span class="nsk-pool-chevron" aria-hidden="true">⌄</span></summary><div class="nsk-pool-content"><p data-training-info></p>'+window.NSKTrainingCards.actions(s.date,s.hall)+'<div class="nsk-training-delete-row"><button type="button" class="nsk-training-delete" data-delete-training>Ta bort</button></div></div></details>';};
       const upcoming=sessions.filter(s=>s.date>=today),past=sessions.filter(s=>s.date<today).reverse();
-      root.innerHTML='<h3 class="training-section-title" id="upcomingTrainingsTitle">Kommande träningar ('+upcoming.length+')</h3>'+upcoming.map(savedRow).join('')+'<h3 class="training-section-title" id="pastTrainingsTitle">Avslutade träningar ('+past.length+')</h3>'+past.map(savedRow).join('');
+      const html='<h3 class="training-section-title" id="upcomingTrainingsTitle">Kommande träningar ('+upcoming.length+')</h3>'+upcoming.map(savedRow).join('')+'<h3 class="training-section-title" id="pastTrainingsTitle">Avslutade träningar ('+past.length+')</h3>'+past.map(savedRow).join('');
+      if(window.NSKViewCache)NSKViewCache.patch(root,html,oldRows);else{oldRows.forEach(row=>row.remove());root.innerHTML=html;}
       window.NSKTrainingCards.reorder(root);
       window.dispatchEvent(new Event('nsk:saved-trainings-rendered'));
+      if(scroller&&Number.isFinite(scrollTop))scroller.scrollTop=scrollTop;
       eventRoot.onclick=async event=>{
         const button=event.target.closest?.('[data-delete-training]');
         if(!button)return;
@@ -64,7 +85,7 @@
             const data=await deleted.json().catch(()=>({}));
             throw Error(deleted.status===409?'Träningen har ändrats av en annan ledare. Uppdatera sidan.':data.error||'Kunde inte ta bort träningen.');
           }
-          await render();
+          window.NSKViewCache?.clear();await render();
         }catch(error){
           info.textContent='Kunde inte ta bort: '+(error.message||String(error));
         }finally{button.disabled=false;}
@@ -787,7 +808,7 @@
         }catch(error){status.textContent='Importerade '+created+' aktiviteter. Ingen borttagning genomförd: '+error.message;await render();return;}
       }
       status.textContent='Importerade '+created+' aktiviteter. Hoppade över '+skipped+'. Tog bort '+removed+' framtida kalenderträningar. Bilder och bildtext sparades inte.';
-      await render();
+      window.NSKViewCache?.clear();await render();
     });
   }
   document.addEventListener('DOMContentLoaded',()=>{setupCalendarImport();render();});

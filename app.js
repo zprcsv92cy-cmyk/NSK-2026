@@ -494,12 +494,31 @@ window.NSK2App = (() => {
     }, true);
   }
 
-  async function initStartsidaPage() {
+  async function initStartsidaPage(viewData = null) {
     const box = byId("savedPoolsList");
     if (!box) return;
-
+    if(!viewData && window.NSKViewCache){
+      const view=await NSKViewCache.open('calendar-pools');
+      if(view.data)await initStartsidaPage(view.data);
+      try{
+        const pools=await DB.listPools();
+        let summaries;
+        try{summaries=typeof DB.listPoolMatchSummaries==='function'
+          ? await DB.listPoolMatchSummaries(pools.map(p=>p.id))
+          : new Map(await Promise.all(pools.map(async p=>[String(p.id),await DB.listPoolTeamMatchConfigs(p.id)])));}
+        catch(error){if(NSKViewCache.denied(error))throw error;summaries=new Map(pools.map(p=>[String(p.id),null]));}
+        if(!view.current())return;
+        const data={pools,summaries:[...summaries]};view.save(data);
+        if(JSON.stringify(view.data)!==JSON.stringify(data))await initStartsidaPage(data);
+      }catch(error){
+        if(!view.current())return;
+        if(NSKViewCache.denied(error)){NSKViewCache.clear();document.querySelectorAll('#activityList > details[data-pool-date]:not([data-svenskalag-pool])').forEach(n=>n.remove());box.replaceChildren();}
+        setText('appError',view.data&&!NSKViewCache.denied(error)?'Visar senast hämtade uppgifter. Kunde inte uppdatera kalendern.':error.message);
+      }
+      return;
+    }
     try {
-      const pools = await DB.listPools();
+      const pools = viewData?.pools || await DB.listPools();
 
       const today = new Date();
       const localToday = `${today.getFullYear()}-${String(today.getMonth()+1).padStart(2,'0')}-${String(today.getDate()).padStart(2,'0')}`;
@@ -517,7 +536,8 @@ window.NSK2App = (() => {
       const upcoming = pools.filter(p => !isArchived(p)).sort(byDate);
       const archived = pools.filter(isArchived).sort((a,b) => -byDate(a,b));
       let matchSummaries;
-      if(typeof DB.listPoolMatchSummaries==='function'){
+      if(viewData){matchSummaries=new Map(viewData.summaries);}
+      else if(typeof DB.listPoolMatchSummaries==='function'){
         try { matchSummaries=await DB.listPoolMatchSummaries(pools.map(p=>p.id)); }
         catch { matchSummaries=new Map(pools.map(p=>[String(p.id),null])); }
       }else{
@@ -540,7 +560,7 @@ window.NSK2App = (() => {
           </div>` : "";
 
         return `
-          <details class="nsk-pool-row" data-pool-date="${esc(poolDay(p))}" data-pool-finished="${isArchived(p)}">
+          <details class="nsk-pool-row" data-view-key="pool:${poolId}" data-view-revision="${esc(JSON.stringify([p,matchSummaries.get(String(p.id))]))}" data-pool-date="${esc(poolDay(p))}" data-pool-finished="${isArchived(p)}">
             <summary class="nsk-pool-summary">
               <span class="nsk-pool-name">${esc([nskPoolWeekday(poolDay(p)),p.place || "Ort",p.pool_date || "Datum"].filter(Boolean).join(" • "))}</span>
               <span class="nsk-pool-hall" data-pool-hall-id="${poolId}" data-gathering="${esc(gathering)}">${esc([p.hall,gathering].filter(Boolean).join(" • "))}</span>
@@ -579,8 +599,9 @@ window.NSK2App = (() => {
           </details>
         `;
       }).join("");
-      document.querySelectorAll('#activityList > details[data-pool-date]:not([data-svenskalag-pool])').forEach(row=>row.remove());
-      box.innerHTML = `
+      const oldRows=[...document.querySelectorAll('#activityList > details[data-pool-date]:not([data-svenskalag-pool])')];
+      const scroller=document.querySelector('.arena-scroll')||document.scrollingElement,scrollTop=scroller?.scrollTop;
+      const html = `
         <section class="pool-overview-section">
           <h2>Kommande poolspel (${upcoming.length})</h2>
           ${upcoming.length ? renderPools(upcoming) : '<div class="listrow">Inga kommande poolspel.</div>'}
@@ -589,7 +610,10 @@ window.NSK2App = (() => {
           <h2>Avslutade poolspel (${archived.length})</h2>
           ${archived.length ? renderPools(archived) : '<div class="listrow">Inga avslutade poolspel ännu.</div>'}
         </section>`;
+      if(window.NSKViewCache)NSKViewCache.patch(box,html,oldRows);else{oldRows.forEach(row=>row.remove());box.innerHTML=html;}
+      box.querySelectorAll('[data-selected-lag]').forEach(content=>{if(!content.querySelector('[data-pool-team-choice="'+content.dataset.selectedLag+'"]'))content.dataset.selectedLag='1';});
       window.dispatchEvent(new Event('nsk:saved-pools-rendered'));
+      if(scroller&&Number.isFinite(scrollTop))scroller.scrollTop=scrollTop;
     } catch (err) {
       setText("appError", err?.message || String(err));
     }
@@ -2650,25 +2674,23 @@ window.NSK2App = (() => {
     document.querySelectorAll('[data-roster-name]').forEach(label=>{if(label.dataset.rosterName===type+':'+id)label.textContent=name;});
   }
   function rowHtml(item, type) {
-    return `<details class="person-row roster-player-details"><summary><button type="button" class="person-card-open" data-roster-name="${type}:${item.id}" data-roster-team="${item.team_id}" aria-haspopup="dialog">${esc(item.full_name)}</button><span class="roster-player-chevron" aria-hidden="true">⌄</span></summary><div class="person-main"><input class="inline-name-input" aria-label="Redigera namn: ${esc(item.full_name)}" value="${esc(item.full_name)}" data-inline-${type}="${item.id}"></div><div class="row-actions"><button class="row-btn nsk-action" type="button" data-edit-${type}="${item.id}">Redigera</button><button class="row-btn danger nsk-action nsk-action--delete" type="button" data-delete-${type}="${item.id}">Ta bort</button></div></details>`;
+    return `<details class="person-row roster-player-details" data-view-key="${type}:${item.id}"><summary><button type="button" class="person-card-open" data-roster-name="${type}:${item.id}" data-roster-team="${item.team_id}" aria-haspopup="dialog">${esc(item.full_name)}</button><span class="roster-player-chevron" aria-hidden="true">⌄</span></summary><div class="person-main"><input class="inline-name-input" aria-label="Redigera namn: ${esc(item.full_name)}" value="${esc(item.full_name)}" data-inline-${type}="${item.id}"></div><div class="row-actions"><button class="row-btn nsk-action" type="button" data-edit-${type}="${item.id}">Redigera</button><button class="row-btn danger nsk-action nsk-action--delete" type="button" data-delete-${type}="${item.id}">Ta bort</button></div></details>`;
   }
 
   async function renderPlayers() {
     const list = byId("playersList");
     if (!list) return;
     const players = await getPlayersCached();
-    list.innerHTML = players.length
-      ? players.map((p) => rowHtml(p, "player")).join("")
-      : '<div class="muted-note">Inga spelare ännu.</div>';
+    const html=players.length?players.map(p=>rowHtml(p,'player')).join(''):'<div class="muted-note">Inga spelare ännu.</div>';
+    if(window.NSKViewCache)NSKViewCache.patch(list,html);else list.innerHTML=html;
   }
 
   async function renderCoaches() {
     const list = byId("coachesList");
     if (!list) return;
     const coaches = await getCoachesCached();
-    list.innerHTML = coaches.length
-      ? coaches.map((c) => rowHtml(c, "coach")).join("")
-      : '<div class="muted-note">Inga tränare ännu.</div>';
+    const html=coaches.length?coaches.map(c=>rowHtml(c,'coach')).join(''):'<div class="muted-note">Inga tränare ännu.</div>';
+    if(window.NSKViewCache)NSKViewCache.patch(list,html);else list.innerHTML=html;
   }
 
   function queueInlinePlayerSave(id, value) {
@@ -2756,7 +2778,18 @@ window.NSK2App = (() => {
       });
     }
 
-    await Promise.all([renderPlayers(), renderCoaches()]);
+    if(window.NSKViewCache){
+      const view=await NSKViewCache.open('roster');
+      const paint=async data=>{rosterCache.players=data.players;rosterCache.coaches=data.coaches;await Promise.all([renderPlayers(),renderCoaches()]);};
+      if(view.data)await paint(view.data);
+      try{
+        const [players,coaches]=await Promise.all([DB.listPlayers(),DB.listCoaches()]);
+        if(view.current()){const data={players,coaches};view.save(data);if(JSON.stringify(view.data)!==JSON.stringify(data))await paint(data);}
+      }catch(error){if(view.current()){
+        if(NSKViewCache.denied(error)){NSKViewCache.clear();clearRosterCache();byId('playersList')?.replaceChildren();byId('coachesList')?.replaceChildren();}
+        setText('truppenMsg',view.data&&!NSKViewCache.denied(error)?'Visar senast hämtade trupp. Kunde inte uppdatera.':error.message);
+      }}
+    }else await Promise.all([renderPlayers(), renderCoaches()]);
 
     if (!truppenRealtime && typeof DB?.subscribeTruppen === "function") {
       truppenRealtime = await DB.subscribeTruppen(async (type) => {

@@ -43,6 +43,7 @@
   const response=await fetch(base()+path+(path.includes('?')?'&':'?')+'team_id='+encodeURIComponent(team),{method:payload?'PUT':'GET',headers:{Authorization:'Bearer '+Auth.getToken(),...(payload?{'Content-Type':'application/json'}:{})},body:payload?JSON.stringify(payload):undefined,cache:'no-store'});
   const data=await response.json().catch(()=>({}));
   if(!response.ok||!data.ok){const error=Error(data.error||'Kortet kunde inte hämtas eller sparas.');error.status=response.status;throw error;}
+  if(payload){window.NSKViewCache?.clear();try{sessionStorage.removeItem('nsk_view_cache_v1');}catch{}}
   return data;
  }
  const path=(kind,id)=>'/api/person-card?kind='+encodeURIComponent(kind)+'&person_id='+encodeURIComponent(id);
