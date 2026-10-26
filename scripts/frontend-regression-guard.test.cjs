@@ -12,9 +12,9 @@ test('hockey exercise archive retains catalog and drawing preview',()=>{
  assert.ok(fs.existsSync('exercise-rink-preview.js'));
  assert.ok(fs.existsSync('rink-drawer.js'));
 });
-test('version display never claims cached source version is current',()=>{
+test('release label stays separate from internal update checks',()=>{
  const js=read('app.js');
- for(const marker of ['kontrollerar publicerad version','version ej verifierad','deploy.json?ts=','cache: "no-store"']) assert.ok(js.includes(marker),marker);
+ for(const marker of ['NSK_APP_VERSION','nskDisplayVersion()','deploy.json?ts=','cache: "no-store"']) assert.ok(js.includes(marker),marker);
 });
 test('release pipeline enforces stamped version consistency',()=>{
  const wf=read('.github/workflows/publish-web-app.yml');

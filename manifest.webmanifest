@@ -6,7 +6,7 @@
   "display": "standalone",
   "background_color": "#111111",
   "theme_color": "#c8102e",
-  "version": "872",
+  "version": "1.0",
   "icons": [
     {
       "src": "./icon-192.png",
@@ -18,5 +18,6 @@
       "sizes": "512x512",
       "type": "image/png"
     }
-  ]
+  ],
+  "build": "872"
 }
