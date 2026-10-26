@@ -18,7 +18,7 @@
    catch(error){$('message').textContent=error.message||'Inloggningen misslyckades';}
    finally{$('password').value='';busy=false;$('submitButton').disabled=false;}
   });
-  $('forgotOpen').addEventListener('click',()=>{const open=$('forgotPanel').hidden;$('forgotPanel').hidden=!open;$('forgotOpen').setAttribute('aria-expanded',String(open));if(open){$('forgotEmail').value=$('email').value;$('forgotEmail').focus();}});
+  $('forgotOpen').addEventListener('click',()=>{const open=$('forgotPanel').hidden;$('forgotPanel').hidden=!open;$('forgotOpen').setAttribute('aria-expanded',String(open));$('forgotOpen').textContent=open?'Tillbaka till inloggning':'Glömt lösenord?';if(open){$('forgotEmail').value=$('email').value;$('forgotEmail').focus();}});
   fetch(base+'/api/auth/account-options',{credentials:'omit',cache:'no-store'}).then(r=>r.ok?r.json():{}).then(options=>{
    $('forgotInfo').textContent=options.email_delivery?'Ange din registrerade e-postadress. Om ett aktivt konto finns får du en engångslänk för att välja nytt lösenord.':'Ange din registrerade e-postadress. Huvudadministratören får din begäran i användarhanteringen och kan ge dig en säker engångslänk. Automatiska e-postutskick är inte aktiverade.';
   }).catch(()=>{});
