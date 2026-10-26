@@ -1,3 +1,4 @@
+import { createEquipmentHandler } from './equipment-api.js';
 import { fetchBaserowRead as fetch } from './baserow-read-fetch.js';
 import { runSvenskalagScheduledSync } from './svenskalag-scheduled-sync.js';
 import { runChangingRoomCheck } from './rbok-changing-rooms.js';
@@ -326,6 +327,14 @@ var worker_default = { async fetch(req, env) {
   const url = new URL(req.url), origin = req.headers.get("Origin");
   const cors = { "Vary": "Origin", ...origin === ORIGIN ? { "Access-Control-Allow-Origin": ORIGIN, "Access-Control-Allow-Headers": "Content-Type,Authorization", "Access-Control-Allow-Methods": "GET,POST,PATCH,DELETE,OPTIONS" } : {} };
   const reply = /* @__PURE__ */ __name((obj, status = 200) => json(obj, status, cors), "reply");
+  if (url.pathname === "/api/equipment") {
+    if (req.method === "OPTIONS") return new Response(null,{status:204,headers:{...cors,"Access-Control-Allow-Methods":"GET,PUT,OPTIONS"}});
+    const response=await createEquipmentHandler(env,()=>listTrustedRosterTeams(env))(req);
+    const headers=new Headers(response.headers);
+    for(const [key,value] of Object.entries(cors))headers.set(key,value);
+    headers.set("Access-Control-Allow-Methods","GET,PUT,OPTIONS");
+    return new Response(response.body,{status:response.status,headers});
+  }
   if (url.pathname === "/api/training") {
     if (req.method === "OPTIONS") return new Response(null,{status:204,headers:{...cors,"Access-Control-Allow-Methods":"GET,PUT,POST,DELETE,OPTIONS","Cache-Control":"no-store"}});
     if (env.NSK_ENABLE_SHARED_TRAINING !== "true") return reply({ok:false,error:"Träning är inte aktiverad"},503);
