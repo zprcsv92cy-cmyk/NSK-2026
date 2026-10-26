@@ -28,6 +28,8 @@
   async function render() {
     const nav = document.querySelector('nav.mainmenu');
     if (!nav) return;
+    const viewport=document.querySelector('meta[name="viewport"]');
+    if(viewport&&!/viewport-fit\s*=/.test(viewport.content))viewport.content+=',viewport-fit=cover';
     const parts=location.pathname.split('/').filter(Boolean);
     if(parts.at(-1)==='index.html')parts.pop();
     const active=parts.at(-1)||'startsida';
