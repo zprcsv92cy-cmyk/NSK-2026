@@ -2650,7 +2650,7 @@ window.NSK2App = (() => {
     document.querySelectorAll('[data-roster-name]').forEach(label=>{if(label.dataset.rosterName===type+':'+id)label.textContent=name;});
   }
   function rowHtml(item, type) {
-    return `<details class="person-row roster-player-details"><summary><span data-roster-name="${type}:${item.id}">${esc(item.full_name)}</span><span class="roster-player-chevron" aria-hidden="true">⌄</span></summary><div class="person-main"><input class="inline-name-input" aria-label="Redigera namn: ${esc(item.full_name)}" value="${esc(item.full_name)}" data-inline-${type}="${item.id}"></div><div class="row-actions"><button class="row-btn nsk-action" type="button" data-edit-${type}="${item.id}">Redigera</button><button class="row-btn danger nsk-action nsk-action--delete" type="button" data-delete-${type}="${item.id}">Ta bort</button></div></details>`;
+    return `<details class="person-row roster-player-details"><summary><button type="button" class="person-card-open" data-roster-name="${type}:${item.id}" data-roster-team="${item.team_id}" aria-haspopup="dialog">${esc(item.full_name)}</button><span class="roster-player-chevron" aria-hidden="true">⌄</span></summary><div class="person-main"><input class="inline-name-input" aria-label="Redigera namn: ${esc(item.full_name)}" value="${esc(item.full_name)}" data-inline-${type}="${item.id}"></div><div class="row-actions"><button class="row-btn nsk-action" type="button" data-edit-${type}="${item.id}">Redigera</button><button class="row-btn danger nsk-action nsk-action--delete" type="button" data-delete-${type}="${item.id}">Ta bort</button></div></details>`;
   }
 
   async function renderPlayers() {

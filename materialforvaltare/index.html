@@ -10,6 +10,7 @@ document.write('<link rel="stylesheet" href="../app.css?v='+window.NSK_VERSION+'
 document.write('<script src="../auth.js?v='+window.NSK_VERSION+'"><\/script>');
 document.write('<script src="../shared-training.js?v='+window.NSK_VERSION+'"><\/script>');
 document.write('<script src="../navigation.js?v='+window.NSK_VERSION+'" defer><\/script>');
+document.write('<script src="../person-cards.js?v='+window.NSK_VERSION+'" defer><\/script>');
 document.write('<script src="../equipment.js?v='+window.NSK_VERSION+'" defer><\/script>');
 </script>
 <style>
@@ -19,7 +20,7 @@ document.write('<script src="../equipment.js?v='+window.NSK_VERSION+'" defer><\/
 <section class="home-hero"><div class="home-hero-logo-box"><img class="home-hero-logo" src="../icon-192.png" alt="NSK"></div><div class="home-hero-text"><h1>Materialförvaltare</h1><div class="home-hero-sub">Slipning och lagets checklistor</div></div></section>
 <p id="equipmentTeam"></p><p id="equipmentStatus" role="status" aria-live="polite">Hämtar materialuppgifter…</p><button type="button" id="equipmentReload">Ladda om</button>
 <section class="card"><h2>Önska skridskoslipning</h2><p>Välj spelare eller tränare. Materialförvaltaren markerar önskemålet som klart efter slipning.</p>
-<form id="sharpeningForm" class="equipment-form" hidden><label>Spelare eller tränare<select id="equipmentPerson" required><option value="">Välj person</option></select></label><label>Önskemål eller kommentar<input id="equipmentNote" maxlength="300" placeholder="Till exempel inför nästa träning"></label><button class="nsk-action nsk-action--save" type="submit">Önska slipning</button></form>
+<form id="sharpeningForm" class="equipment-form" hidden><label>Spelare eller tränare<select id="equipmentPerson" required><option value="">Välj person</option></select></label><p id="equipmentSkates" class="small" role="status"></p><label>Önskemål eller kommentar<input id="equipmentNote" maxlength="300" placeholder="Till exempel inför nästa träning"></label><button class="nsk-action nsk-action--save" type="submit">Önska slipning</button></form>
 <div id="sharpeningList" class="equipment-list"></div></section>
 <section class="card"><h2>Checklistor</h2><p>Skapa en lista för exempelvis bortamatch. Avbockningar delas med laget.</p>
 <form id="checklistForm" class="equipment-form" hidden><label>Namn<input id="checklistTitle" maxlength="100" required placeholder="Material bortamatch"></label><label>Material – en sak per rad<textarea id="checklistItems" rows="6" maxlength="15000" required placeholder="Puckar&#10;Vattenflaskor&#10;Matchtröjor"></textarea></label><div class="equipment-actions"><button type="button" id="equipmentAwayTemplate">Mall: Material bortamatch</button><button class="nsk-action nsk-action--save" type="submit">Skapa checklista</button></div></form>

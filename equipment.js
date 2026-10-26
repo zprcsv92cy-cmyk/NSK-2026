@@ -15,7 +15,7 @@
  function button(text,run){const b=element('button',text);b.type='button';b.onclick=run;return b;}
  async function change(update){
   if(busy||!canWrite)return;busy=true;lock();status('Sparar…');
-  try{const next=structuredClone(board);update(next);const result=await request(next);next.revision=result.revision;board=next;status('Sparat för laget.');render();return true;}
+  try{const next=structuredClone(board);update(next);const result=await request(next);next.revision=result.revision;next.requests=result.requests;next.checklists=result.checklists;board=next;status('Sparat för laget.');render();return true;}
   catch(error){status(error.message+' Ändringen har inte bekräftats som sparad.');render();return false;}
   finally{busy=false;lock();}
  }
@@ -35,6 +35,11 @@
   for(const item of [...board.requests].sort((a,b)=>Number(a.done)-Number(b.done))){
    const label=element('span',item.name+' · '+(item.kind==='player'?'Spelare':'Tränare'));
    label.append(element('small',item.note|| (item.done?'Slipning klar':'Önskar slipning')));
+   const skates=item.skates;
+   label.append(element('small','Skåldjup: '+(skates?.hollow||'Ej angivet – kontrollera före slipning')));
+   label.append(element('small','Profil: '+(skates?.profile||'Ej angiven')));
+   if(skates?.model)label.append(element('small','Skridskor: '+skates.model));
+   if(skates?.notes)label.append(element('small',skates.notes));
    requests.append(row(label,item.done,done=>change(b=>{b.requests.find(r=>r.id===item.id).done=done;}),()=>{if(confirm('Ta bort slipönskemålet för '+item.name+'?'))void change(b=>{b.requests=b.requests.filter(r=>r.id!==item.id);});}));
   }
   const lists=$('equipmentChecklists');lists.replaceChildren();
@@ -67,12 +72,22 @@
   }catch(error){canWrite=false;status(error.message);if(board)render();}
   finally{busy=false;lock();}
  }
+ let selectionVersion=0;
+ $('equipmentPerson').onchange=async()=>{
+  const generation=++selectionVersion,value=$('equipmentPerson').value;
+  if(!value){$('equipmentSkates').textContent='';return;}
+  $('equipmentSkates').textContent='Hämtar skridskouppgifter…';
+  const [kind,id]=value.split(':');
+  try{const result=await PersonCards.get(team,kind,id);if(generation!==selectionVersion)return;
+   $('equipmentSkates').textContent='Skåldjup: '+(result.card.hollow||'Ej angivet')+' · Profil: '+(result.card.profile||'Ej angiven')+'. Hämtas automatiskt från personkortet.';
+  }catch(error){if(generation===selectionVersion)$('equipmentSkates').textContent=error.message;}
+ };
  $('equipmentReload').onclick=()=>void load();
  $('sharpeningForm').onsubmit=async event=>{
   event.preventDefault();const person=people.find(p=>p.kind+':'+p.id===$('equipmentPerson').value);if(!person)return;
   if(board.requests.some(r=>r.kind===person.kind&&r.personId===String(person.id)&&!r.done)){status('Det finns redan ett väntande slipönskemål för '+person.full_name+'.');return;}
   const note=$('equipmentNote').value.trim();
-  if(await change(b=>b.requests.push({id:crypto.randomUUID(),kind:person.kind,personId:String(person.id),name:person.full_name,note,done:false})))$('sharpeningForm').reset();
+  if(await change(b=>b.requests.push({id:crypto.randomUUID(),kind:person.kind,personId:String(person.id),name:person.full_name,note,done:false}))){$('sharpeningForm').reset();selectionVersion++;$('equipmentSkates').textContent='';}
  };
  $('checklistForm').onsubmit=async event=>{
   event.preventDefault();const title=$('checklistTitle').value.trim(),items=$('checklistItems').value.split('\n').map(x=>x.trim()).filter(Boolean);
