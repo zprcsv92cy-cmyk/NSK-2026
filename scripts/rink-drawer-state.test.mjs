@@ -18,7 +18,7 @@ function editor(stored={}){
   createSVGPoint(){return {x:0,y:0,matrixTransform(){return {x:this.x,y:this.y};}};}
  }
  const node=id=>{if(!nodes.has(id))nodes.set(id,new Node());return nodes.get(id);};
- const tools=['move','player','goalie','puck','cone','skate','pass','shot','divider','erase'].map(tool=>{const n=new Node('button');n.dataset.tool=tool;return n;});
+ const tools=['move','player','goalie','puck','cone','skate','pass','shot','divider','erase','curve','pan'].map(tool=>{const n=new Node('button');n.dataset.tool=tool;return n;});
  node('rinkColor').value='#b11226';node('rinkCategory').value='Passningar';node('rinkCategory').options=[{value:'Passningar'},{value:'Skott'}];
  const document={activeElement:null,hidden:false,getElementById:node,createElementNS:(_ns,tag)=>new Node(tag),querySelectorAll:selector=>selector==='[data-tool]'?tools:[],addEventListener:(type,fn)=>{documentEvents[type]=fn;},body:{classList:{toggle:()=>true}}};
  const context={document,window:{addEventListener:(type,fn)=>windowEvents[type]=fn},crypto:{randomUUID:()=>String(++nextId)},localStorage:{getItem:key=>storage.get(key)??null,setItem:(key,value)=>{if(quota)throw Error('Quota exceeded');storage.set(key,value);}},setTimeout:fn=>{const id=++nextId;timers.set(id,fn);return id;},clearTimeout:id=>timers.delete(id),Blob};
@@ -53,4 +53,19 @@ test('line gestures persist endpoints, preserve line length at rink edges and ca
  f.choose('shot');f.pointer('pointerdown',200,400);f.pointer('pointermove',300,500);f.pointer('pointercancel',300,500);f.flush();assert.equal(f.draft().marks.length,1);
  f.pointer('pointerdown',200,400);f.pointer('pointermove',300,500);f.pointer('pointerup',300,500);f.flush();assert.equal(f.draft().marks[1].type,'shot');
  const restored=editor(Object.fromEntries(f.storage));restored.node('rinkTitle').emit('input');restored.flush();assert.equal(restored.draft().marks[1].x2,300);
+});
+
+test('curved paths survive copy, translation, undo and recovery; malformed points are rejected',()=>{
+ const f=editor();f.choose('curve');f.pointer('pointerdown',100,200);f.pointer('pointermove',140,230);f.pointer('pointermove',160,300);f.pointer('pointerup',210,340);f.flush();
+ const original=f.draft().marks[0];assert.equal(original.points.length,4);assert.equal(original.points[3].x,210);
+ f.node('rinkDuplicate').onclick();f.flush();assert.equal(f.draft().marks[0].points[0].x,100);assert.equal(f.draft().marks[1].points[0].x,125);
+ f.choose('move');f.pointer('pointerdown',210,340);f.pointer('pointermove',230,360);f.pointer('pointerup',230,360);f.flush();assert.equal(f.draft().marks[0].points[0].x,120);
+ f.node('rinkUndo').onclick();f.flush();assert.equal(f.draft().marks[0].points[0].x,100);
+ const restored=editor(Object.fromEntries(f.storage));restored.node('rinkTitle').emit('input');restored.flush();assert.deepEqual(restored.draft().marks[0].points,original.points);
+ const bad=editor({[DRAFT]:JSON.stringify({marks:[{...original,points:[{x:'bad',y:1}]}]})});bad.node('rinkTitle').emit('input');bad.flush();assert.equal(bad.draft().marks.length,0);
+});
+test('zoom and pan change only the view, not saved drawing coordinates or undo history',()=>{
+ const f=editor();f.choose('player');f.pointer('pointerdown',100,200);f.pointer('pointerup',100,200);f.flush();const before=f.storage.get(DRAFT);
+ f.node('rinkZoomIn').onclick();assert.equal(f.node('rinkZoomLabel').textContent,'150%');f.choose('pan');f.pointer('pointerdown',200,300);f.pointer('pointermove',160,250);f.pointer('pointerup',160,250);assert.equal(f.node('rinkSvg').attrs.viewBox.split(' ')[0],'120');assert.equal(f.storage.get(DRAFT),before);
+ f.node('rinkZoomReset').onclick();assert.equal(f.node('rinkSvg').attrs.viewBox,'0 0 480 860');f.node('rinkUndo').onclick();f.flush();assert.equal(f.draft().marks.length,0);
 });
