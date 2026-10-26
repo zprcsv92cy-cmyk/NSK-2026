@@ -6,13 +6,13 @@ const reply=(status,data)=>Response.json(data,{status,headers:{'Cache-Control':'
 const text=(v,n)=>typeof v==='string'&&v.trim().length>0&&v.length<=n;
 const id=v=>typeof v==='string'&&/^[a-zA-Z0-9-]{1,64}$/.test(v);
 const personId=v=>typeof v==='string'&&/^[1-9][0-9]*$/.test(v)&&Number.isSafeInteger(Number(v));
-const skateLimits={model:100,hollow:60,profile:100,notes:500};
+const skateLimits={model:100,hollow:60,profile:100,radius:60,notes:500};
 const profileLimits={number:3,position:60,hand:5,...skateLimits};
-export const emptyPersonCard=()=>({number:'',position:'',hand:'',model:'',hollow:'',profile:'',notes:''});
+export const emptyPersonCard=()=>({number:'',position:'',hand:'',model:'',hollow:'',profile:'',radius:'',notes:''});
 export function validatePersonCard(data){
- return !!data&&typeof data==='object'&&!Array.isArray(data)&&Object.keys(data).length===Object.keys(profileLimits).length&&Object.keys(data).every(k=>Object.hasOwn(profileLimits,k)&&typeof data[k]==='string'&&data[k].length<=profileLimits[k])&&/^\d{0,3}$/.test(data.number)&&['','Right','Left'].includes(data.hand);
+ return !!data&&typeof data==='object'&&!Array.isArray(data)&&Object.keys(profileLimits).filter(k=>k!=='radius').every(k=>Object.hasOwn(data,k))&&Object.keys(data).every(k=>Object.hasOwn(profileLimits,k)&&typeof data[k]==='string'&&data[k].length<=profileLimits[k])&&/^\d{0,3}$/.test(data.number)&&['','Right','Left'].includes(data.hand);
 }
-const validSkates=s=>s&&typeof s==='object'&&!Array.isArray(s)&&Object.keys(s).length===4&&Object.keys(s).every(k=>Object.hasOwn(skateLimits,k)&&typeof s[k]==='string'&&s[k].length<=skateLimits[k]);
+const validSkates=s=>s&&typeof s==='object'&&!Array.isArray(s)&&['model','hollow','profile','notes'].every(k=>Object.hasOwn(s,k))&&Object.keys(s).every(k=>Object.hasOwn(skateLimits,k)&&typeof s[k]==='string'&&s[k].length<=skateLimits[k]);
 const skatesFrom=card=>Object.fromEntries(Object.keys(skateLimits).map(k=>[k,card?.[k]||'']));
 export function validateEquipmentBoard(data){
  if(!data||Object.keys(data).some(k=>!['revision','requests','checklists'].includes(k))||!Number.isSafeInteger(data.revision)||data.revision<0)return false;
@@ -71,7 +71,8 @@ export function createEquipmentHandler(env,listTeams,{verifyIdentity=createPerso
    if(isCard){
     if(!canEditProfile&&['number','position','hand'].some(k=>data.card[k]!==card[k]))return reply(403,{ok:false,error:'Du får endast ändra skridskouppgifterna'});
     if(!Object.hasOwn(profiles,key)&&Object.keys(profiles).length>=500)return reply(400,{ok:false,error:'För många personkort'});
-    next={...saved,profiles:{...profiles,[key]:data.card}};
+    const nextCard={...data.card,radius:data.card.radius??card.radius};
+    next={...saved,profiles:{...profiles,[key]:nextCard}};
    }else{
     const requests=[];
     for(const item of data.requests){
@@ -91,7 +92,7 @@ export function createEquipmentHandler(env,listTeams,{verifyIdentity=createPerso
     ?await db.prepare('INSERT INTO equipment_boards (team_id,board_json,revision,updated_by) VALUES (?,?,1,?) ON CONFLICT(team_id) DO NOTHING').bind(teams[0],board,String(actor.user.id)).run()
     :await db.prepare('UPDATE equipment_boards SET board_json=?,revision=revision+1,updated_by=?,updated_at=CURRENT_TIMESTAMP WHERE team_id=? AND revision=?').bind(board,String(actor.user.id),teams[0],revision).run();
    if(!result.meta?.changes)return reply(409,{ok:false,error:'Någon annan har ändrat. Ladda om innan du försöker igen.'});
-   return reply(200,isCard?{ok:true,card:data.card,revision:revision+1}:{ok:true,requests:next.requests,checklists:next.checklists,revision:revision+1});
+   return reply(200,isCard?{ok:true,card:next.profiles[key],revision:revision+1}:{ok:true,requests:next.requests,checklists:next.checklists,revision:revision+1});
   }catch(error){return reply(error.status||503,{ok:false,error:error.status?error.error:'Materialuppgifterna kunde inte hämtas eller sparas. Försök igen.'});}
  };
 }
