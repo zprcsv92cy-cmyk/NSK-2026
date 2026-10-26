@@ -303,10 +303,14 @@ window.DB = (() => {
   async function matchRequest(path,payload){
     const key='nsk_match_token';
     async function send(token){
+      for(let attempt=0;attempt<100;attempt++){
       const response=await fetch(`${API}${path}`,{method:'PATCH',headers:{'Content-Type':'application/json',Authorization:'Bearer '+token},body:JSON.stringify(payload)});
       const data=await response.json().catch(()=>({}));
+      if(data.pending_retime===true)continue;
       if(!response.ok||!data.ok)throw Object.assign(new Error(data.error||'Kunde inte spara byte'),{status:response.status});
       return data;
+      }
+      throw Error('Omräkningen behöver fortsätta. Tryck på bytet igen.');
     }
     const personalToken=(window.Auth?.getSession?.() ? window.Auth.getToken() : null);
     if(personalToken)return send(personalToken);

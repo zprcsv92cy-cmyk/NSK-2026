@@ -4,13 +4,14 @@ import { readFileSync } from 'node:fs';
 import vm from 'node:vm';
 
 const source = readFileSync(new URL('../db.js', import.meta.url), 'utf8');
-function client({ session, requests, shiftRows = null }) {
+function client({ session, requests, shiftRows = null, pendingRetime = 0 }) {
   const window = { APP_CONFIG: { API_URL: 'https://api.test' }, Auth: { getToken: () => session, getSession: () => session ? { user: { id: 'test-user' } } : null }, prompt: () => { throw new Error('Legacy match-code prompt must not appear'); } };
   const context = {
     window,
     localStorage: { getItem: key => key === 'nsk_admin_token' ? 'legacy-admin' : null },
     fetch: async (url, init) => {
       requests.push({ url, init });
+      if(init?.method==='PATCH'&&pendingRetime-->0)return {ok:false,status:409,json:async()=>({ok:false,pending_retime:true})};
       return { ok: true, status: 200, json: async () => url.includes('/api/lag?') ? ({ ok: true, results: [{ id: 18, Namn: 'NSK Team 18', 'Säsong': '2026' }], next: null }) : url.includes('/api/bytesschema?') ? ({ ok: true, results: shiftRows ?? [], next: null }) : ({ ok: true, count: 1, verified: true }) };
     },
     console, setTimeout, clearTimeout
@@ -53,3 +54,5 @@ test('known shift id saves directly without fetching collections', async()=>{
  const requests=[];await client({session:'personal-session',requests}).setShiftDone(1,1,1,3,true,42);
  assert.equal(requests.length,1);assert.match(requests[0].url,/\/42\/done$/);assert.equal(requests[0].init.method,'PATCH');
 });
+
+test('shift check continues server recovery batches before reporting success',async()=>{const requests=[];await client({session:'personal-session',requests,pendingRetime:2}).setShiftDone(1,1,1,3,true,42);assert.equal(requests.length,3);assert(requests.every(r=>r.init.headers.Authorization==='Bearer personal-session'&&JSON.parse(r.init.body).done===true));});
