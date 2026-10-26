@@ -2,11 +2,15 @@ import {createPersonalRosterIdentityVerifier} from './personal-roster-identity-a
 import {mapTrustedMembershipsToLegacyTeams} from './production-team-id-map.js';
 import {PRIMARY_ADMIN_ID} from './primary-administrator.js';
 import {skillsPinGate} from './private-skills-pin.js';
+import {SKILL_CRITERIA,SKILLS_GUIDANCE} from './skills-criteria.js';
 import {SKILL_GROUPS,SKILL_KEYS,planSkills} from './skills-planner.js';
 const reply=(status,data)=>Response.json(data,{status,headers:{'Cache-Control':'private, no-store, max-age=0','Pragma':'no-cache','Vary':'Authorization','X-Content-Type-Options':'nosniff'}});
 const positive=v=>typeof v==='string'&&/^[1-9][0-9]*$/.test(v)&&Number.isSafeInteger(Number(v));
 const object=v=>v!==null&&typeof v==='object'&&!Array.isArray(v);
-export function validSkillsCards(cards){return object(cards)&&Object.keys(cards).length<=200&&Object.entries(cards).every(([id,card])=>positive(id)&&object(card)&&Object.keys(card).every(k=>['ratings','notes'].includes(k))&&object(card.ratings)&&Object.keys(card.ratings).length===SKILL_KEYS.length&&SKILL_KEYS.every(k=>Object.hasOwn(card.ratings,k)&&(card.ratings[k]===null||Number.isInteger(card.ratings[k])&&card.ratings[k]>=1&&card.ratings[k]<=10))&&typeof card.notes==='string'&&card.notes.length<=1000);}
+// Older clients may omit only the newly introduced passing skill; never erase its saved value.
+export function validSkillsCards(cards){return object(cards)&&Object.keys(cards).length<=200&&Object.entries(cards).every(([id,card])=>positive(id)&&object(card)&&Object.keys(card).every(k=>['ratings','notes'].includes(k))&&object(card.ratings)&&Object.keys(card.ratings).every(k=>SKILL_KEYS.includes(k))&&SKILL_KEYS.every(k=>k==='passing'&&!Object.hasOwn(card.ratings,k)||Object.hasOwn(card.ratings,k)&&(card.ratings[k]===null||Number.isInteger(card.ratings[k])&&card.ratings[k]>=1&&card.ratings[k]<=10))&&typeof card.notes==='string'&&card.notes.length<=1000);}
+const normalizedRatings=(ratings,previous={})=>Object.fromEntries(SKILL_KEYS.map(key=>[key,Object.hasOwn(ratings,key)?ratings[key]:previous[key]??null]));
+
 async function bodyOf(request,limit){
  const reader=request.body?.getReader();if(!reader)throw {status:400};const chunks=[];let size=0;
  for(;;){const part=await reader.read();if(part.done)break;size+=part.value.byteLength;if(size>limit){await reader.cancel();throw {status:413};}chunks.push(part.value);}
@@ -47,11 +51,11 @@ export function createPrivateSkillsHandler(env,listTeams,{verifyIdentity=createP
    if(suggest&&!enabled)return reply(409,{ok:false,error:'Skills är avstängt för laget'});
    if(data&&!suggest&&data.revision!==revision)return reply(409,{ok:false,error:'Uppgifterna har ändrats. Läs om innan du sparar.'});
    const roster=await readRoster(team),allowed=new Set(roster.map(p=>p.id));
-   const cards=Object.fromEntries(Object.entries(stored).filter(([id])=>allowed.has(id)).map(([id,card])=>[id,{ratings:card.ratings,notes:card.notes}]));
+   const cards=Object.fromEntries(Object.entries(stored).filter(([id])=>allowed.has(id)).map(([id,card])=>[id,{ratings:normalizedRatings(card.ratings),notes:card.notes}]));
    const assessedAt=Object.fromEntries(Object.keys(cards).map(id=>[id,stored[id].assessedAt||null]));
-   if(request.method==='GET')return reply(200,{ok:true,enabled,revision,cards,assessedAt,roster,groups:SKILL_GROUPS,updatedAt:row?.updated_at||null});
+   if(request.method==='GET')return reply(200,{ok:true,enabled,revision,cards,assessedAt,roster,groups:SKILL_GROUPS,criteria:SKILL_CRITERIA,guidance:SKILLS_GUIDANCE,updatedAt:row?.updated_at||null});
    if(suggest){if(data.playerIds.some(id=>!allowed.has(id)))return reply(400,{ok:false,error:'Spelare saknas i valt lag'});const seed=crypto.getRandomValues(new Uint32Array(1))[0];return reply(200,{ok:true,revision,...planSkills(data,cards,seed)});}
-   const nextCards=request.method==='DELETE'?{}:data.cards,nextEnabled=request.method==='DELETE'?false:data.enabled;
+   const nextCards=request.method==='DELETE'?{}:Object.fromEntries(Object.entries(data.cards).map(([id,card])=>[id,{ratings:normalizedRatings(card.ratings,stored[id]?.ratings),notes:card.notes}])),nextEnabled=request.method==='DELETE'?false:data.enabled;
    if(Object.keys(nextCards).some(id=>!allowed.has(id)))return reply(400,{ok:false,error:'Spelare saknas i valt lag'});
    const now=new Date().toISOString(),nextStored=Object.fromEntries(Object.entries(nextCards).map(([id,card])=>[id,{...card,assessedAt:JSON.stringify(cards[id])===JSON.stringify(card)&&stored[id]?.assessedAt?stored[id].assessedAt:now}]));
    const nextDates=Object.fromEntries(Object.entries(nextStored).map(([id,card])=>[id,card.assessedAt]));
