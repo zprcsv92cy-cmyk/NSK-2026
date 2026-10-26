@@ -49,6 +49,16 @@ document.write('<script src="../auth.js?v=' + window.NSK_VERSION + '"><\/script>
    return;
   }
   status.textContent='Inloggad';
+  if(identity.is_primary_admin===true){
+   const special=document.createElement('a');
+   special.id='accountSpecialFeatures';
+   special.className='nsk-action';
+   special.href='../skills/';
+   special.textContent='Specialfunktioner';
+   const actions=document.createElement('p');
+   actions.append(special);
+   document.getElementById('accountDetails').prepend(actions);
+  }
   document.getElementById('accountName').textContent='Namn: '+(identity.user?.name||identity.user?.email||'Användare');
   const list=document.getElementById('accountTeams');
   const select=document.getElementById('accountTeamSelect');

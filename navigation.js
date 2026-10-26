@@ -61,7 +61,7 @@
     }
     nav.innerHTML = '';
     const visibleEntries=[...entries];
-    try { if(window.Auth){await window.Auth.init();if(window.Auth.getSession()?.permissions?.includes('users:manage'))visibleEntries.push(['anvandare','Användare']);if(window.Auth.getSession()?.is_primary_admin===true)visibleEntries.push(['skills','Privata Skills']);} }catch{}
+    try { if(window.Auth){await window.Auth.init();if(window.Auth.getSession()?.permissions?.includes('users:manage'))visibleEntries.push(['anvandare','Användare']);} }catch{}
     for (const [slug,label] of visibleEntries) {
       const a = document.createElement('a');
       a.href = '../' + slug + '/';
