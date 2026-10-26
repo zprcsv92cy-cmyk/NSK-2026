@@ -18,7 +18,13 @@
   </script>
 
 <script>document.write('<script src="../navigation.js?v='+window.NSK_VERSION+'" defer><\/script>');</script>
-<style>.calendar-sources[hidden]{display:none!important}.calendar-create-actions{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px;margin-top:22px}.calendar-create-actions .home-create-button{font-size:15px;text-align:center;padding:14px 8px}#pastActivitiesTitle{margin-top:26px}#activityList>h3{font-size:1.15rem}</style></head>
+<style>.calendar-sources[hidden]{display:none!important}.calendar-create-actions{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px;margin-top:22px}.calendar-create-actions .home-create-button{font-size:15px;text-align:center;padding:14px 8px}#pastActivitiesTitle{margin-top:26px}#activityList>h3{font-size:1.15rem}</style><style>
+body.home-page #activityList>details.nsk-pool-row{margin:4px 0}
+body.home-page #activityList .nsk-pool-summary{padding:12px 14px;gap:3px 10px}
+#activityList .calendar-kind{display:block;font-size:10px;line-height:1.3;font-weight:500;letter-spacing:.6px;color:#9fa4af;margin-bottom:3px}
+body.home-page #activityList details[data-pool-date] .nsk-pool-name{color:#e8c2c8}
+#activityList details[data-pool-date] .calendar-kind{color:#b6929a}
+</style></head>
 <body class="home-page">
   <div class="wrap">
     <nav class="mainmenu">
