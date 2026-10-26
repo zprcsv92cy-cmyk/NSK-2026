@@ -2,8 +2,9 @@
  const $=id=>document.getElementById(id);
  const base=()=>String(window.APP_CONFIG?.API_URL||'https://nsk-api.peter-hasselberg.workers.dev').replace(/\/$/,'');
  let board,team,teamName,canWrite=false,busy=false,people=[],creatingChecklist=false,refreshing=false,changeVersion=0,editingChecklistId=null,editingChecklistBase=null,linkCleanup=null,linksReady=false;
+ let pageLimit=10,selectedRequests=new Set(),activePane='slips';
  const status=message=>{$('equipmentStatus').textContent=message;};
- function lock(){for(const control of document.querySelectorAll('form input,form select,form textarea,form button,.equipment-row input,.equipment-row button,.equipment-actions button,#checklistCreateButton'))control.disabled=busy||!canWrite;$('equipmentReload').disabled=busy;}
+ function lock(){for(const control of document.querySelectorAll('form input,form select,form textarea,form button,.equipment-row input,.equipment-row button,.equipment-actions button,.equipment-select,#equipmentCompleteSelected,#checklistCreateButton'))control.disabled=busy||!canWrite;$('equipmentReload').disabled=busy;}
  async function request(payload){
   if(Auth.activeTeam()!==teamName)throw Error('Laget har ändrats. Ladda om sidan.');
   const response=await fetch(base()+'/api/equipment?team_id='+encodeURIComponent(team),{method:payload?'PUT':'GET',headers:{Authorization:'Bearer '+Auth.getToken(),...(payload?{'Content-Type':'application/json'}:{})},body:payload?JSON.stringify(payload):undefined,cache:'no-store'});
@@ -53,14 +54,16 @@
   $('checklistCreateButton').hidden=!canWrite;setCreation(creatingChecklist);
   const requests=$('sharpeningList');
   const openRequests=new Set([...requests.querySelectorAll('details[open]')].map(d=>d.dataset.requestId));
+  selectedRequests=new Set([...selectedRequests].filter(id=>board.requests.some(r=>r.id===id&&!r.done)));const nameQuery=$('equipmentNameSearch').value.trim().toLocaleLowerCase('sv-SE'),doneFilter=$('equipmentStatusFilter').value==='done',matches=board.requests.filter(r=>r.done===doneFilter&&r.name.toLocaleLowerCase('sv-SE').includes(nameQuery));
+  $('equipmentVisibleCount').textContent=matches.length+' '+(doneFilter?'klara':'väntande')+' · '+Math.min(pageLimit,matches.length)+' visas';$('equipmentShowMore').hidden=matches.length<=pageLimit;$('equipmentCompleteSelected').hidden=!selectedRequests.size;$('equipmentCompleteSelected').disabled=busy||!canWrite;$('equipmentCompleteSelected').textContent='Markera '+selectedRequests.size+' valda klara';
   const requestContent=document.createDocumentFragment();
-  if(!board.requests.length)requestContent.append(element('p','Inga slipönskemål ännu.'));
+  if(!matches.length)requestContent.append(element('p','Inga slipönskemål ännu.'));
   const pending=board.requests.filter(r=>!r.done).length;
   $('sharpeningCount').textContent=pending+' önskar slipning · '+(board.requests.length-pending)+' klara';
-  for(const item of [...board.requests].sort((a,b)=>Number(a.done)-Number(b.done))){
+  for(const item of matches.slice(0,pageLimit)){
    const section=element('details');section.className='equipment-slip';section.dataset.requestId=item.id;section.dataset.viewKey='slip:'+item.id;section.open=openRequests.has(item.id);
-   const summary=element('summary'),name=element('span',item.name);name.className='equipment-slip-name';name.append(element('small',item.kind==='player'?'Spelare':'Tränare'));
-   summary.append(name,lamp(item.done));section.append(summary);
+   const summary=element('summary'),name=element('span',item.name);name.className='equipment-slip-name';name.append(element('small',(item.pair==='goalie'?'Målvaktsskridskor':'Ordinarie skridskor')+(item.note?' · 💬':'')));const select=element('input');select.type='checkbox';select.className='equipment-select';select.setAttribute('aria-label','Välj '+item.name+' '+(item.pair==='goalie'?'målvaktsskridskor':'ordinarie skridskor'));select.checked=selectedRequests.has(item.id);select.disabled=busy||!canWrite||item.done;select.onclick=e=>e.stopPropagation();select.onchange=event=>{if(event.currentTarget.checked)selectedRequests.add(item.id);else selectedRequests.delete(item.id);render();};if(canWrite&&!item.done)summary.append(select);
+   const light=lamp(item.done);light.setAttribute('aria-label',item.done?'Klar':'Önskar slipning');summary.append(name,element('span',item.skates?.hollow||'Ej angivet'),light);section.append(summary);
    const body=element('div');body.className='equipment-slip-body';body.append(skateFacts(item.skates));
    const description=PersonCards.profileDescription?.(item.skates?.profile);
    if(description){const p=element('p',description);p.className='equipment-slip-notes';body.append(p);}
@@ -107,11 +110,14 @@
    }
    if(Auth.getToken()!==expectedToken||Auth.activeTeam()!==expectedTeam)return;
    linksReady=!!saved.canWrite&&!!window.SharpeningLinks?.allowed();const linkSelect=$('sharpeningLinkPerson');linkSelect.replaceChildren(new Option('Välj spelare',''));if(linksReady)for(const p of people.filter(p=>p.kind==='player'))linkSelect.append(new Option(p.full_name,String(p.id)));
+   $('equipmentTabLinks').hidden=!linksReady;if(linksReady)SharpeningLinks.bulk($('equipmentQrBulk'),{team,people:people.filter(p=>p.kind==='player')});
    canWrite=saved.canWrite;void rememberBoard();render();status(canWrite?'Alla ändringar sparas för laget.':'Läsbehörighet. Ledare och materialförvaltare kan ändra.');
   }catch(error){canWrite=false;if(window.NSKViewCache?.denied(error)){denyBoard();}status(error.message);if(board)render();}
   finally{busy=false;lock();}
  }
  $('sharpeningLinkPerson').onchange=()=>{linkCleanup?.();linkCleanup=null;const id=$('sharpeningLinkPerson').value;if(linksReady&&people.some(p=>p.kind==='player'&&String(p.id)===id))linkCleanup=SharpeningLinks.mount($('equipmentLinkManager'),{team,personId:id});};
+ for(const button of document.querySelectorAll('[data-pane]'))button.onclick=()=>{activePane=button.dataset.pane;for(const [key,id] of [['slips','equipmentPaneSlips'],['lists','equipmentPaneLists'],['links','equipmentPaneLinks']])$(id).hidden=key!==activePane;for(const tab of document.querySelectorAll('[data-pane]'))tab.setAttribute('aria-selected',String(tab===button));};
+ $('equipmentNameSearch').oninput=$('equipmentStatusFilter').onchange=()=>{pageLimit=10;selectedRequests.clear();if(board)render();};$('equipmentShowMore').onclick=()=>{pageLimit+=10;render();};$('equipmentCompleteSelected').onclick=()=>void change(b=>{for(const r of b.requests)if(selectedRequests.has(r.id))r.done=true;selectedRequests.clear();});
  let selectionVersion=0;
  $('equipmentPerson').onchange=async()=>{
   const generation=++selectionVersion,value=$('equipmentPerson').value;
@@ -119,6 +125,7 @@
   $('equipmentSkates').textContent='Hämtar skridskouppgifter…';
   const [kind,id]=value.split(':');
   try{const result=await PersonCards.get(team,kind,id);if(generation!==selectionVersion)return;
+   const pairSelect=$('equipmentPair');pairSelect.replaceChildren(new Option('Ordinarie skridskor','regular'));if(result.card.goalieEnabled){pairSelect.append(new Option('Målvaktsskridskor','goalie'),new Option('Båda paren','both'));}
    $('equipmentSkates').textContent='Skålradie: '+(result.card.hollow||'Ej angivet')+' · Profilering: '+(result.card.profile||'Ej angiven')+'. Hämtas automatiskt från personkortet.';
   }catch(error){if(generation===selectionVersion)$('equipmentSkates').textContent=error.message;}
  };
@@ -161,9 +168,10 @@
  $('equipmentReload').onclick=()=>void load();
  $('sharpeningForm').onsubmit=async event=>{
   event.preventDefault();const person=people.find(p=>p.kind+':'+p.id===$('equipmentPerson').value);if(!person)return;
-  if(board.requests.some(r=>r.kind===person.kind&&r.personId===String(person.id)&&!r.done)){status('Det finns redan ett väntande slipönskemål för '+person.full_name+'.');return;}
+  const keys=$('equipmentPair').value==='both'?['regular','goalie']:[$('equipmentPair').value],needed=keys.filter(key=>!board.requests.some(r=>r.kind===person.kind&&r.personId===String(person.id)&&(r.pair||'regular')===key&&!r.done));
+  if(!needed.length){status('Det finns redan ett väntande slipönskemål för '+person.full_name+'.');return;}
   const note=$('equipmentNote').value.trim();
-  if(await change(b=>b.requests.push({id:crypto.randomUUID(),kind:person.kind,personId:String(person.id),name:person.full_name,note,done:false}))){$('sharpeningForm').reset();selectionVersion++;$('equipmentSkates').textContent='';}
+  if(await change(b=>b.requests.push(...needed.map(pair=>({id:crypto.randomUUID(),kind:person.kind,personId:String(person.id),pair,name:person.full_name,note,done:false}))))){$('sharpeningForm').reset();selectionVersion++;$('equipmentSkates').textContent='';}
  };
  $('checklistForm').onsubmit=async event=>{
   event.preventDefault();const title=$('checklistTitle').value.trim(),items=$('checklistItems').value.split('\n').map(x=>x.trim()).filter(Boolean);

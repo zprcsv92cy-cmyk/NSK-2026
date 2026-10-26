@@ -42,7 +42,7 @@ test('cards and material changes coexist; pending orders follow the card while c
  saved=await (await f.handler(req('/api/equipment'))).json();assert.equal(saved.requests[0].done,true);assert.equal(saved.requests[0].skates.hollow,'20 mm');
  const newOrder={...order,id:'two'};delete newOrder.skates;
  r=await f.handler(req('/api/equipment','PUT',{revision:5,requests:[...saved.requests,newOrder],checklists:[]}));assert.equal(r.status,200);saved=await r.json();assert.equal(saved.requests[1].skates.hollow,'22 mm');assert.equal(saved.requests[1].skates.profile,'Quad XS');
- const coach=await (await f.handler(req('/api/person-card?kind=coach&person_id=101'))).json();assert.equal(coach.card.hollow,'');
+ const coach=await (await f.handler(req('/api/person-card?kind=coach&person_id=101'))).json();assert.equal(coach.card.hollow,'17 mm');
 });
 test('readers cannot save cards or request sharpening; material staff can edit skates but cannot change jersey, position or handedness',async()=>{
  const f=fixture();f.setRole('viewer');assert.equal((await f.handler(req(endpoint,'PUT',{revision:0,card:card()}))).status,403);

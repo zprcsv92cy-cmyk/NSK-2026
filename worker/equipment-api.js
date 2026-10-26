@@ -1,3 +1,4 @@
+import {pairKey,pairEmpty,pairSettings,pairEnabled,pairValid,pairSyncRequests} from './skate-pairs.js';
 import {createPersonalRosterIdentityVerifier} from './personal-roster-identity-adapter.js';
 import {mapTrustedMembershipsToLegacyTeams} from './production-team-id-map.js';
 import {authorizeTeamFeature} from './team-authorization-policy.js';
@@ -8,16 +9,16 @@ const id=v=>typeof v==='string'&&/^[a-zA-Z0-9-]{1,64}$/.test(v);
 const personId=v=>typeof v==='string'&&/^[1-9][0-9]*$/.test(v)&&Number.isSafeInteger(Number(v));
 const skateLimits={model:100,hollow:60,profile:100,radius:60,notes:500};
 const profileLimits={number:3,position:60,hand:5,...skateLimits};
-export const emptyPersonCard=()=>({number:'',position:'',hand:'',model:'',hollow:'',profile:'',radius:'',notes:''});
+export const emptyPersonCard=()=>({number:'',position:'',hand:'',model:'',hollow:'17 mm',profile:'',radius:'',notes:''});
 export function validatePersonCard(data){
- return !!data&&typeof data==='object'&&!Array.isArray(data)&&Object.keys(profileLimits).filter(k=>k!=='radius').every(k=>Object.hasOwn(data,k))&&Object.keys(data).every(k=>Object.hasOwn(profileLimits,k)&&typeof data[k]==='string'&&data[k].length<=profileLimits[k])&&/^\d{0,3}$/.test(data.number)&&['','Right','Left'].includes(data.hand);
+ return !!data&&typeof data==='object'&&!Array.isArray(data)&&Object.keys(profileLimits).filter(k=>k!=='radius').every(k=>Object.hasOwn(data,k))&&Object.keys(data).every(k=>k==='goalieEnabled'?typeof data[k]==='boolean':k==='goalie'?pairValid(data[k]):Object.hasOwn(profileLimits,k)&&typeof data[k]==='string'&&data[k].length<=profileLimits[k])&&/^\d{0,3}$/.test(data.number)&&['','Right','Left'].includes(data.hand);
 }
 const validSkates=s=>s&&typeof s==='object'&&!Array.isArray(s)&&['model','hollow','profile','notes'].every(k=>Object.hasOwn(s,k))&&Object.keys(s).every(k=>Object.hasOwn(skateLimits,k)&&typeof s[k]==='string'&&s[k].length<=skateLimits[k]);
 const skatesFrom=card=>Object.fromEntries(Object.keys(skateLimits).map(k=>[k,card?.[k]||'']));
 export function validateEquipmentBoard(data){
  if(!data||Object.keys(data).some(k=>!['revision','requests','checklists'].includes(k))||!Number.isSafeInteger(data.revision)||data.revision<0)return false;
  const unique=rows=>rows.every(r=>r&&typeof r==='object')&&new Set(rows.map(r=>r.id)).size===rows.length;
- return Array.isArray(data.requests)&&data.requests.length<=300&&unique(data.requests)&&data.requests.every(r=>r&&Object.keys(r).every(k=>['id','kind','personId','name','note','done','skates'].includes(k))&&id(r.id)&&['player','coach'].includes(r.kind)&&personId(r.personId)&&text(r.name,150)&&typeof r.note==='string'&&r.note.length<=300&&typeof r.done==='boolean'&&(r.skates===undefined||validSkates(r.skates)))&&
+ return Array.isArray(data.requests)&&data.requests.length<=300&&unique(data.requests)&&data.requests.every(r=>r&&Object.keys(r).every(k=>['id','kind','personId','name','note','done','skates','pair'].includes(k))&&(r.pair===undefined||['regular','goalie'].includes(r.pair))&&id(r.id)&&['player','coach'].includes(r.kind)&&personId(r.personId)&&text(r.name,150)&&typeof r.note==='string'&&r.note.length<=300&&typeof r.done==='boolean'&&(r.skates===undefined||validSkates(r.skates)))&&
  Array.isArray(data.checklists)&&data.checklists.length<=30&&unique(data.checklists)&&data.checklists.every(c=>c&&Object.keys(c).every(k=>['id','title','items'].includes(k))&&id(c.id)&&text(c.title,100)&&Array.isArray(c.items)&&c.items.length<=100&&unique(c.items)&&c.items.every(i=>i&&Object.keys(i).every(k=>['id','label','done'].includes(k))&&id(i.id)&&text(i.label,150)&&typeof i.done==='boolean'));
 }
 async function readBody(request,limit){
@@ -65,15 +66,15 @@ export function createEquipmentHandler(env,listTeams,{verifyIdentity=createPerso
    const profiles=saved.profiles||{};
    const key=isCard?kinds[0]+':'+ids[0]:null;
    const card=isCard?{...emptyPersonCard(),...profiles[key]}:null;
-   const effectiveRequests=saved.requests.map(item=>!item.done&&Object.hasOwn(profiles,item.kind+':'+item.personId)?{...item,skates:skatesFrom(profiles[item.kind+':'+item.personId])}:item);
+   const effectiveRequests=saved.requests.map(item=>!item.done&&Object.hasOwn(profiles,item.kind+':'+item.personId)?{...item,skates:pairSettings(profiles[item.kind+':'+item.personId],pairKey(item))}:item);
    if(request.method==='GET')return reply(200,isCard?{ok:true,name:person.name,card,revision,canEditProfile,canEditSkates,canRequest:canWrite}:{ok:true,canWrite,requests:effectiveRequests,checklists:saved.checklists,revision});
    if(data.revision!==revision)return reply(409,{ok:false,error:'Någon annan har ändrat. Ladda om innan du försöker igen.'});
    let next;
    if(isCard){
     if(!canEditProfile&&['number','position','hand'].some(k=>data.card[k]!==card[k]))return reply(403,{ok:false,error:'Du får endast ändra skridskouppgifterna'});
     if(!Object.hasOwn(profiles,key)&&Object.keys(profiles).length>=500)return reply(400,{ok:false,error:'För många personkort'});
-    const nextCard={...data.card,radius:data.card.radius??card.radius};
-    next={...saved,profiles:{...profiles,[key]:nextCard},requests:saved.requests.map(item=>!item.done&&item.kind===kinds[0]&&item.personId===ids[0]?{...item,name:person.name,skates:skatesFrom(nextCard)}:item)};
+    const nextCard={...data.card,radius:data.card.radius??card.radius,goalieEnabled:data.card.goalieEnabled??card.goalieEnabled??false,goalie:data.card.goalie??card.goalie??pairEmpty()};
+    next={...saved,profiles:{...profiles,[key]:nextCard},requests:pairSyncRequests(saved.requests,kinds[0],ids[0],nextCard)};
    }else{
     const requests=[];
     for(const item of data.requests){
@@ -81,14 +82,15 @@ export function createEquipmentHandler(env,listTeams,{verifyIdentity=createPerso
      if(old){
       const profileKey=item.kind+':'+item.personId;
       const skates=(!old.done||!item.done)&&Object.hasOwn(profiles,profileKey)
-        ?skatesFrom(profiles[profileKey]):old.skates||skatesFrom(profiles[profileKey]);
-      requests.push({...item,name:old.name,skates});continue;
+        ?pairSettings(profiles[profileKey],pairKey(old)):old.skates||pairSettings(profiles[profileKey],pairKey(old));
+      requests.push({...item,...(old.pair?{pair:old.pair}:{}),name:old.name,skates});if(pairKey(item)!==pairKey(old))return reply(400,{ok:false,error:'Ett befintligt önskemål får inte byta skridskopar'});continue;
      }
      // A new slip order uses the team's trusted roster identity and saved skate settings.
      if(typeof readPerson!=='function')return reply(503,{ok:false,error:'Truppkopplingen saknas'});
      const target=await readPerson(teams[0],item.kind,item.personId);
      if(!target)return reply(400,{ok:false,error:'Personen finns inte i valt lag'});
-     requests.push({...item,name:target.name,skates:skatesFrom(profiles[item.kind+':'+item.personId])});
+     if(!pairEnabled(profiles[item.kind+':'+item.personId],pairKey(item)))return reply(400,{ok:false,error:'Skridskoparet är inte aktiverat'});
+     requests.push({...item,name:target.name,skates:pairSettings(profiles[item.kind+':'+item.personId],pairKey(item))});
     }
     next={requests,checklists:data.checklists,profiles};
    }

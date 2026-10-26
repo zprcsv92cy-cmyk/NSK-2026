@@ -1,3 +1,4 @@
+import {pairKey,pairLabel,pairSettings,pairEnabled,pairValid,pairSyncRequests} from './skate-pairs.js';
 import {createPersonalRosterIdentityVerifier} from './personal-roster-identity-adapter.js';
 import {mapTrustedMembershipsToLegacyTeams} from './production-team-id-map.js';
 const sharpReply=(status,data)=>Response.json(data,{status,headers:{'Cache-Control':'private, no-store, max-age=0','Pragma':'no-cache','Vary':'Authorization','Referrer-Policy':'no-referrer','X-Content-Type-Options':'nosniff'}});
@@ -6,24 +7,28 @@ const sharpDigest=async value=>Array.from(new Uint8Array(await crypto.subtle.dig
 async function sharpBody(request){
  if(!(request.headers.get('Content-Type')||'').startsWith('application/json'))throw {status:415,error:'JSON krävs'};
  const reader=request.body?.getReader();if(!reader)throw {status:400,error:'Ogiltig data'};
- const chunks=[];let length=0;for(;;){const part=await reader.read();if(part.done)break;length+=part.value.byteLength;if(length>2000){await reader.cancel();throw {status:413,error:'För mycket data'};}chunks.push(part.value);}
+ const chunks=[];let length=0;for(;;){const part=await reader.read();if(part.done)break;length+=part.value.byteLength;if(length>6000){await reader.cancel();throw {status:413,error:'För mycket data'};}chunks.push(part.value);}
  const bytes=new Uint8Array(length);let at=0;for(const chunk of chunks){bytes.set(chunk,at);at+=chunk.byteLength;}
  try{const value=JSON.parse(new TextDecoder().decode(bytes));if(!value||typeof value!=='object'||Array.isArray(value))throw Error();return value;}catch{throw {status:400,error:'Ogiltig data'};}
 }
 const sharpBoard=async(db,team)=>{const row=await db.prepare('SELECT board_json,revision FROM equipment_boards WHERE team_id=?').bind(team).first();return {revision:row?.revision||0,board:row?JSON.parse(row.board_json):{requests:[],checklists:[],profiles:{}}};};
-const sharpStatus=(board,personId)=>board.requests.some(r=>r.kind==='player'&&r.personId===personId&&!r.done)?'pending':board.requests.some(r=>r.kind==='player'&&r.personId===personId&&r.done)?'done':'none';
-const sharpHistory=async(db,team,personId)=>{
- const rows=await db.prepare('SELECT completed_at,hollow,profile FROM sharpening_history WHERE team_id=? AND person_id=? ORDER BY completed_at IS NULL,completed_at DESC,id DESC LIMIT 10').bind(team,personId).all();
+const sharpStatus=(board,personId,pair='regular')=>board.requests.some(r=>r.kind==='player'&&r.personId===personId&&pairKey(r)===pair&&!r.done)?'pending':board.requests.some(r=>r.kind==='player'&&r.personId===personId&&pairKey(r)===pair&&r.done)?'done':'none';
+const sharpHistory=async(db,team,personId,pair='regular')=>{
+ const rows=await db.prepare('SELECT completed_at,hollow,profile FROM sharpening_history WHERE team_id=? AND person_id=? AND pair=? ORDER BY completed_at IS NULL,completed_at DESC,id DESC LIMIT 10').bind(team,personId,pair).all();
  const history=rows.results.map(row=>({completedAt:row.completed_at,hollow:row.hollow,profile:row.profile})),latest=history.find(row=>row.completedAt),next=latest?Date.parse(latest.completedAt)+14*86400000:null;
  return {history,noteRequired:next!==null&&Date.now()<next,nextRegularAt:next===null?null:new Date(next).toISOString(),historyHasUndated:history.some(row=>row.completedAt===null)};
 };
-const sharpPublic=(link,person,board,log)=>{const card=board.profiles?.['player:'+link.person_id]||{},status=sharpStatus(board,link.person_id);return {ok:true,firstName:person.name.trim().split(/\s+/)[0].slice(0,80),number:card.number||'',mode:link.mode,hollow:card.hollow||'',profile:card.profile||'',status:status==='none'&&log.history.length?'done':status,...log};};
+const sharpPublic=async(db,link,person,board,revision)=>{
+ const card=board.profiles?.['player:'+link.person_id]||{},pairs=[];
+ for(const key of ['regular','goalie'])if(pairEnabled(card,key)){const log=await sharpHistory(db,link.team_id,link.person_id,key),settings=pairSettings(card,key),status=sharpStatus(board,link.person_id,key);pairs.push({key,label:pairLabel(key),settings:{model:settings.model,hollow:settings.hollow,profile:settings.profile,notes:settings.notes},status:status==='none'&&log.history.length?'done':status,...log});}
+ const first=pairs[0];return {ok:true,revision,firstName:person.name.trim().split(/\s+/)[0].slice(0,80),number:card.number||'',mode:link.mode,hollow:first.settings.hollow,profile:first.settings.profile,status:first.status,history:first.history,noteRequired:first.noteRequired,nextRegularAt:first.nextRegularAt,historyHasUndated:first.historyHasUndated,pairs};
+};
 
 export function createSharpeningHandler(env,listTeams,{verifyIdentity=createPersonalRosterIdentityVerifier(env),readPerson}={}){
  return async request=>{
   const url=new URL(request.url),publicRoute=url.pathname==='/api/sharpening/public';
   if(!publicRoute&&url.pathname!=='/api/sharpening/link')return sharpReply(404,{ok:false,error:'Okänd adress'});
-  if(!(publicRoute?['GET','POST']:['GET','PUT']).includes(request.method))return sharpReply(405,{ok:false,error:'Otillåten metod'});
+  if(!(publicRoute?['GET','POST','PUT']:['GET','PUT']).includes(request.method))return sharpReply(405,{ok:false,error:'Otillåten metod'});
   try{
    const db=env.AUTH_DB;
    if(!publicRoute){
@@ -48,23 +53,34 @@ export function createSharpeningHandler(env,listTeams,{verifyIdentity=createPers
    const hash=await sharpDigest(token),find=()=>db.prepare("SELECT team_id,person_id,mode,revision,next_request_at FROM sharpening_links WHERE token_hash=? AND mode IN ('parent','player')").bind(hash).first();let link=await find();
    if(!link)return sharpReply(404,{ok:false,error:'Länken gäller inte längre. Be om en ny länk.'});
    const person=await readPerson(link.team_id,link.person_id);if(!person)return sharpReply(404,{ok:false,error:'Länken gäller inte längre. Kontakta materialförvaltaren.'});
-   const data=request.method==='POST'?await sharpBody(request):null;
-   if(data&&(Object.keys(data).some(k=>k!=='note')||typeof data.note!=='string'||data.note.length>300))return sharpReply(400,{ok:false,error:'Skriv högst 300 tecken.'});
+   const data=request.method!=='GET'?await sharpBody(request):null;
+   if(request.method==='POST'&&(Object.keys(data).some(k=>!['note','pair'].includes(k))||typeof data.note!=='string'||data.note.length>300||data.pair!==undefined&&!['regular','goalie','both'].includes(data.pair)))return sharpReply(400,{ok:false,error:'Skriv högst 300 tecken.'});
+   if(request.method==='PUT'&&(Object.keys(data).some(k=>!['revision','pair','settings'].includes(k))||!Number.isSafeInteger(data.revision)||data.revision<0||!['regular','goalie'].includes(data.pair)||!pairValid(data.settings)||Object.hasOwn(data.settings,'radius')))return sharpReply(400,{ok:false,error:'Kontrollera skridskouppgifterna'});
    for(let attempt=0;attempt<3;attempt++){
-    const {board,revision}=await sharpBoard(db,link.team_id),log=await sharpHistory(db,link.team_id,link.person_id);
-    if(request.method==='GET'||sharpStatus(board,link.person_id)==='pending'){
+    const {board,revision}=await sharpBoard(db,link.team_id),card=board.profiles?.['player:'+link.person_id]||{};
+    if(request.method==='GET'){
      if(!await find())return sharpReply(404,{ok:false,error:'Länken gäller inte längre.'});
-     return sharpReply(200,sharpPublic(link,person,board,log));
+     return sharpReply(200,await sharpPublic(db,link,person,board,revision));
     }
-    if(log.noteRequired&&!data.note.trim())return sharpReply(400,{ok:false,code:'message_required',error:'Det har gått mindre än 14 dagar sedan senaste slipningen. Skriv ett meddelande om varför slipning behövs igen.',...log});
-    if(board.requests.length>=300)return sharpReply(409,{ok:false,error:'Listan är full. Kontakta materialförvaltaren.'});
-    const id=crypto.randomUUID(),card=board.profiles?.['player:'+link.person_id]||{},skates=Object.fromEntries(['model','hollow','profile','radius','notes'].map(key=>[key,card[key]||'']));
-    const next={...board,requests:[...board.requests,{id,kind:'player',personId:link.person_id,name:person.name,note:data.note.trim(),done:false,skates}]},encoded=JSON.stringify(next);
-    if(new TextEncoder().encode(encoded).byteLength>1000000)return sharpReply(409,{ok:false,error:'Kontakta materialförvaltaren för att lämna önskemålet.'});
+    const keys=data.pair==='both'?['regular','goalie']:[data.pair||'regular'];
+    if(keys.some(key=>!pairEnabled(card,key)))return sharpReply(400,{ok:false,error:'Skridskoparet är inte aktiverat på spelarkortet'});
+    let next;
+    if(request.method==='PUT'){
+     if(data.revision!==revision)return sharpReply(409,{ok:false,error:'Uppgifterna har ändrats. Uppdatera sidan innan du sparar.'});
+     const settings={...pairSettings(card,data.pair),...data.settings},updated=data.pair==='regular'?{...card,...settings}:{...card,goalie:settings};
+     next={...board,profiles:{...board.profiles,['player:'+link.person_id]:updated},requests:pairSyncRequests(board.requests,'player',link.person_id,updated)};
+    }else{
+     const needed=keys.filter(key=>sharpStatus(board,link.person_id,key)!=='pending');
+     if(!needed.length)return sharpReply(200,await sharpPublic(db,link,person,board,revision));
+     for(const key of needed){const log=await sharpHistory(db,link.team_id,link.person_id,key);if(log.noteRequired&&!data.note.trim())return sharpReply(400,{ok:false,code:'message_required',error:pairLabel(key)+': Det har gått mindre än 14 dagar sedan senaste slipningen. Skriv ett meddelande om varför slipning behövs igen.',...log});}
+     if(board.requests.length+needed.length>300)return sharpReply(409,{ok:false,error:'Listan är full. Kontakta materialförvaltaren.'});
+     next={...board,requests:[...board.requests,...needed.map(key=>({id:crypto.randomUUID(),kind:'player',personId:link.person_id,pair:key,name:person.name,note:data.note.trim(),done:false,skates:pairSettings(card,key)}))]};
+    }
+    const encoded=JSON.stringify(next);if(new TextEncoder().encode(encoded).byteLength>1000000)return sharpReply(409,{ok:false,error:'För mycket data. Kontakta materialförvaltaren.'});
     const guard="EXISTS (SELECT 1 FROM sharpening_links WHERE team_id=? AND person_id=? AND token_hash=? AND revision=? AND mode IN ('parent','player'))",proof=[link.team_id,link.person_id,hash,link.revision];
     const write=revision===0?db.prepare('INSERT INTO equipment_boards (team_id,board_json,revision,updated_by) SELECT ?,?,1,? WHERE '+guard+' ON CONFLICT(team_id) DO NOTHING').bind(link.team_id,encoded,'sharpening-link:'+link.mode,...proof):db.prepare('UPDATE equipment_boards SET board_json=?,revision=revision+1,updated_by=?,updated_at=CURRENT_TIMESTAMP WHERE team_id=? AND revision=? AND '+guard).bind(encoded,'sharpening-link:'+link.mode,link.team_id,revision,...proof);
     const results=await db.batch([write]);
-    if(results[0].meta?.changes)return sharpReply(200,sharpPublic(link,person,next,log));
+    if(results[0].meta?.changes)return sharpReply(200,await sharpPublic(db,link,person,next,revision+1));
     link=await find();if(!link)return sharpReply(404,{ok:false,error:'Länken gäller inte längre. Be om en ny länk.'});
    }
    return sharpReply(409,{ok:false,error:'Uppgifterna ändrades samtidigt. Försök igen.'});

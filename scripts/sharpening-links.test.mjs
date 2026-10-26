@@ -5,7 +5,7 @@ import {fixture} from './helpers/auth-d1-fixture.mjs';
 import {createSharpeningHandler} from '../worker/sharpening-links-api.js';
 import {createEquipmentHandler} from '../worker/equipment-api.js';
 async function setup(t){
- const f=await fixture(t);for(const file of ['20261026_equipment_boards.sql','20261026_sharpening_links.sql','20261026_sharpening_history.sql'])for(const statement of readFileSync(new URL('../migrations/'+file,import.meta.url),'utf8').split(/;\s*(?=CREATE|INSERT)/).filter(s=>s.trim()))await f.db.prepare(statement).run();
+ const f=await fixture(t);for(const file of ['20261026_equipment_boards.sql','20261026_sharpening_links.sql','20261026_sharpening_history.sql','20261026_skate_pairs.sql'])for(const statement of readFileSync(new URL('../migrations/'+file,import.meta.url),'utf8').split(/;\s*(?=CREATE|INSERT|ALTER|DROP)/).filter(s=>s.trim()))await f.db.prepare(statement).run();
  let actor={user:{id:'manager'},is_primary_admin:true,permissions:['read'],memberships:[{team_id:'NSK Team 18',role:'owner'}]},present=true,teamReads=0;
  const teams=async()=>{teamReads++;return [{id:18,Namn:'NSK Team 18','Säsong':'2026'},{id:19,Namn:'Other','Säsong':'2026'}];},readPerson=async(team,id)=>present&&team==='18'&&id==='101'?{name:'Alex SyntheticSurname'}:null,verifyIdentity=async token=>token==='session'?actor:null;
  const handler=createSharpeningHandler(f.env,teams,{verifyIdentity,readPerson});
@@ -16,8 +16,9 @@ async function setup(t){
  const row=()=>f.db.prepare('SELECT board_json,revision FROM equipment_boards WHERE team_id=?').bind('18').first();
  const create=async(mode='parent',revision=0)=>{const r=await manage('PUT',{mode,revision});assert.equal(r.status,200);return r.json();};
  const equipment=createEquipmentHandler(f.env,teams,{verifyIdentity,readPerson:async(team,kind,id)=>kind==='player'?readPerson(team,id):null});
+ const personCard=(method='GET',data)=>equipment(new Request('https://test/api/person-card?team_id=18&kind=player&person_id=101',{method,headers:{Authorization:'Bearer session',...(data?{'Content-Type':'application/json'}:{})},...(data?{body:JSON.stringify(data)}:{})}));
  const material=(method='GET',data)=>equipment(new Request('https://test/api/equipment?team_id=18',{method,headers:{Authorization:'Bearer session',...(data?{'Content-Type':'application/json'}:{})},...(data?{body:JSON.stringify(data)}:{})}));
- return {...f,manage,publicCall,create,row,board,material,setActor:a=>actor=a,setPresent:v=>present=v,teamReads:()=>teamReads};
+ return {...f,manage,publicCall,create,row,board,material,personCard,setActor:a=>actor=a,setPresent:v=>present=v,teamReads:()=>teamReads};
 }
 test('only primary administrator and team equipment role manage scoped player links',async t=>{
  const f=await setup(t);assert.equal((await f.manage('GET',null,'18','101','invalid')).status,401);
@@ -28,7 +29,7 @@ test('public GET returns only own first name, number, settings and status; no ap
  const f=await setup(t),created=await f.create();assert.match(created.token,/^[a-f0-9]{64}$/);
  const stored=await f.db.prepare('SELECT token_hash FROM sharpening_links').first();assert.notEqual(stored.token_hash,created.token);const managed=await(await f.manage()).json();assert.deepEqual(managed,{ok:true,mode:'parent',revision:1});
  const r=await f.publicCall(created.token);assert.equal(r.status,200);assert.match(r.headers.get('Cache-Control'),/no-store/);assert.equal(r.headers.get('Referrer-Policy'),'no-referrer');
- assert.deepEqual(await r.json(),{ok:true,firstName:'Alex',number:'18',mode:'parent',hollow:'20 mm',profile:'Quad XS',status:'none',history:[],noteRequired:false,nextRegularAt:null,historyHasUndated:false});
+ const visible=await r.json();assert.equal(visible.firstName,'Alex');assert.equal(visible.pairs.length,1);assert.deepEqual(Object.keys(visible.pairs[0].settings).sort(),['hollow','model','notes','profile']);assert(!JSON.stringify(visible).includes('OTHER CHILD'));assert(!JSON.stringify(visible).includes('SyntheticSurname'));
  assert.equal((await f.publicCall('invalid')).status,404);assert.equal((await f.publicCall(created.token,'GET',null,'?person_id=102')).status,400);assert.equal((await f.publicCall(created.token,'DELETE')).status,405);
  f.setPresent(false);assert.equal((await f.publicCall(created.token)).status,404);
 });
@@ -83,7 +84,7 @@ test('only the latest ten own-player completions are exposed and history continu
 test('legacy completions get no invented date and additive migration can safely run twice',async t=>{
  const f=await setup(t),link=await f.create();for(const name of ['sharpening_completed_insert','sharpening_completed_update'])await f.db.prepare('DROP TRIGGER '+name).run();
  const board=structuredClone(f.board);board.requests=[{id:'legacy',kind:'player',personId:'101',name:'Alex',note:'Private old note',done:true,skates:{hollow:'19 mm',profile:'10 ft'}}];await f.db.prepare('UPDATE equipment_boards SET board_json=?,revision=revision+1 WHERE team_id=?').bind(JSON.stringify(board),'18').run();
- const sql=readFileSync(new URL('../migrations/20261026_sharpening_history.sql',import.meta.url),'utf8');for(let n=0;n<2;n++)for(const statement of sql.split(/;\s*(?=CREATE|INSERT)/).filter(s=>s.trim()))await f.db.prepare(statement).run();
+ const sql=readFileSync(new URL('../migrations/20261026_sharpening_history.sql',import.meta.url),'utf8');for(let n=0;n<2;n++)for(const statement of sql.split(/;\s*(?=CREATE|INSERT|ALTER|DROP)/).filter(s=>s.trim()))await f.db.prepare(statement).run();
  const data=await(await f.publicCall(link.token)).json();assert.deepEqual(data.history,[{completedAt:null,hollow:'19 mm',profile:'10 ft'}]);assert.equal(data.historyHasUndated,true);assert.equal(data.noteRequired,false);assert(!JSON.stringify(data).includes('Private old note'));
 });
 test('reusing a completed request records a new completion without erasing the previous sharpening',async t=>{
@@ -93,4 +94,20 @@ test('reusing a completed request records a new completion without erasing the p
 test('a concurrent new completion forces a fresh interval check before a public request is saved',async t=>{
  const f=await setup(t),link=await f.create();const original=f.db.batch;let once=true;f.db.batch=async statements=>{if(once){once=false;const board=JSON.parse((await f.row()).board_json);board.requests.push({id:'concurrent-done',kind:'player',personId:'101',name:'Alex',note:'',done:true,skates:{hollow:'20 mm',profile:'Quad XS'}});await f.db.prepare('UPDATE equipment_boards SET board_json=?,revision=revision+1 WHERE team_id=?').bind(JSON.stringify(board),'18').run();}return original(statements);};
  const result=await f.publicCall(link.token,'POST',{note:''});assert.equal(result.status,400);assert.equal((await result.json()).code,'message_required');assert.equal(JSON.parse((await f.row()).board_json).requests.length,1);
+});
+
+
+test('two skate pairs use independent settings, pending orders, history and fortnight rules',async t=>{
+ const f=await setup(t),link=await f.create();assert.equal((await f.publicCall(link.token,'POST',{pair:'goalie',note:''})).status,400);
+ f.setActor({user:{id:'equipment'},memberships:[{team_id:'NSK Team 18',role:'equipment'}],permissions:['read']});let card=await(await f.personCard()).json();const saved=await f.personCard('PUT',{revision:card.revision,card:{...card.card,goalieEnabled:true,goalie:{model:'Goalie model',hollow:'17 mm',profile:'10 ft',notes:'Goalie note'}}});assert.equal(saved.status,200);
+ let visible=await(await f.publicCall(link.token)).json();assert.equal(visible.pairs.length,2);assert.equal(visible.pairs[1].settings.hollow,'17 mm');assert.equal((await f.publicCall(link.token,'POST',{pair:'both',note:''})).status,200);
+ let board=await(await f.material()).json();assert.equal(board.requests.length,2);assert.equal(board.requests.find(r=>r.pair==='regular').skates.hollow,'20 mm');assert.equal(board.requests.find(r=>r.pair==='goalie').skates.hollow,'17 mm');board.requests.find(r=>r.pair==='regular').done=true;await f.material('PUT',{revision:board.revision,requests:board.requests,checklists:board.checklists});
+ visible=await(await f.publicCall(link.token)).json();assert.equal(visible.pairs[0].noteRequired,true);assert.equal(visible.pairs[1].history.length,0);assert.equal(visible.pairs[1].status,'pending');assert.equal((await f.publicCall(link.token,'POST',{pair:'regular',note:''})).status,400);
+ board=await(await f.material()).json();board.requests=board.requests.filter(r=>r.pair!=='goalie');await f.material('PUT',{revision:board.revision,requests:board.requests,checklists:board.checklists});assert.equal((await f.publicCall(link.token,'POST',{pair:'goalie',note:''})).status,200);
+});
+test('personal-link editing is limited to the selected pair, protects revisions and freezes completed history',async t=>{
+ const f=await setup(t),link=await f.create();await f.publicCall(link.token,'POST',{note:''});let state=await(await f.publicCall(link.token)).json();
+ const settings={model:'New skates',hollow:'21 mm',profile:'Quad Small',notes:'Own equipment note'};let response=await f.publicCall(link.token,'PUT',{revision:state.revision,pair:'regular',settings});assert.equal(response.status,200);state=await response.json();assert.equal(state.pairs[0].settings.hollow,'21 mm');let board=JSON.parse((await f.row()).board_json);assert.equal(board.requests[0].skates.hollow,'21 mm');assert.deepEqual(board.profiles['player:102'],f.board.profiles['player:102']);assert.equal(board.profiles['player:101'].number,'18');
+ assert.equal((await f.publicCall(link.token,'PUT',{revision:state.revision-1,pair:'regular',settings})).status,409);for(const bad of [{...settings,number:'99'},{...settings,goalieEnabled:true},{...settings,radius:'x'}])assert.equal((await f.publicCall(link.token,'PUT',{revision:state.revision,pair:'regular',settings:bad})).status,400);
+ const material=await(await f.material()).json();material.requests[0].done=true;await f.material('PUT',{revision:material.revision,requests:material.requests,checklists:material.checklists});state=await(await f.publicCall(link.token)).json();await f.publicCall(link.token,'PUT',{revision:state.revision,pair:'regular',settings:{...settings,hollow:'23 mm'}});state=await(await f.publicCall(link.token)).json();assert.equal(state.pairs[0].settings.hollow,'23 mm');assert.equal(state.pairs[0].history[0].hollow,'21 mm');
 });
