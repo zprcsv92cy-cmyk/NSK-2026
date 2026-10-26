@@ -4,7 +4,7 @@ import {validateTrainingPayload} from './training-session-validation.js';
 import {authorizeTeamFeature} from './team-authorization-policy.js';
 import {parseSvenskalagIcal} from './svenskalag-ical.js';
 import {runSvenskalagScheduledSync} from './svenskalag-scheduled-sync.js';
-import {readChangingRooms} from './rbok-changing-rooms.js';
+import {readChangingRooms,refreshChangingRooms} from './rbok-changing-rooms.js';
 
 const fail=(status,error)=>Response.json({ok:false,error},{status,headers:{'cache-control':'no-store'}});
 export function createTrainingHandler(env,listTeams){
@@ -40,7 +40,10 @@ export function createTrainingHandler(env,listTeams){
     if(request.headers.get('content-length')&&Number(request.headers.get('content-length'))>0)return fail(400,'No body allowed');
     try{
      const result=await runSvenskalagScheduledSync(env);
-     return Response.json({ok:true,...result},{headers:{'cache-control':'no-store'}});
+     let changingRooms;
+     try{const rooms=await refreshChangingRooms(env);changingRooms={ok:true,count:rooms.bookings.length};}
+     catch{changingRooms={ok:false,error:'Kalendern är uppdaterad men omklädningsrummen kunde inte hämtas. Försök igen.'};}
+     return Response.json({ok:true,...result,changingRooms},{headers:{'cache-control':'no-store'}});
     }catch{
      return fail(502,'SvenskaLag-hämtningen misslyckades');
     }

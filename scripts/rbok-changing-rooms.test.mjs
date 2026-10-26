@@ -2,7 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import {readFileSync} from 'node:fs';
 import vm from 'node:vm';
-import {parseChangingRooms,fetchChangingRooms,runChangingRoomCheck} from '../worker/rbok-changing-rooms.js';
+import {parseChangingRooms,fetchChangingRooms,runChangingRoomCheck,refreshChangingRooms} from '../worker/rbok-changing-rooms.js';
 const context={};vm.runInNewContext(readFileSync(new URL('../changing-rooms.js',import.meta.url),'utf8'),context);
 const match=context.NSKChangingRooms.match;
 const row=(team='NSK 18',room='10',day='Sön 25 Okt')=>`<tr><td>${day}</td><td>12:45 - 15:30</td><td>Rosvalla / Lilla ishallen / Omkl. ${room}</td><td>Nyk&#xF6;pings Sportklubb <div>${team}</div></td><td>Ishockey</td></tr>`;
@@ -46,4 +46,14 @@ test('extra check approximately two hours before calendar training; no fetch whe
 test('failed fetch preserves prior snapshot and isolated deployments cannot scrape',async()=>{
  assert.equal((await runChangingRoomCheck({NSK_ISOLATED_MODE:'true'})).skipped,'disabled');
  const fixture=envWith();await assert.rejects(runChangingRoomCheck(fixture.env,new Date('2026-10-25T09:00:00Z'),async()=>{throw Error('offline');}));assert.equal(fixture.get(),null);
+});
+
+test('manual room refresh bypasses saved snapshots and preserves them on failure',async()=>{
+ const writes=[];let calls=0;
+ const env={NSK_TRAINERS:{get:async()=>{throw Error('Must not use old snapshot');},put:async(...args)=>writes.push(args)}};
+ const now=new Date('2026-10-25T08:00:00Z');
+ const data=await refreshChangingRooms(env,now,async()=>{calls++;return new Response('<table>'+row()+'</table>',{headers:{'content-type':'text/html'}});});
+ assert.equal(calls,1);assert.equal(writes.length,1);assert.equal(data.checkedAt,now.toISOString());
+ await assert.rejects(refreshChangingRooms(env,now,async()=>{throw Error('unavailable');}));
+ assert.equal(writes.length,1);
 });
