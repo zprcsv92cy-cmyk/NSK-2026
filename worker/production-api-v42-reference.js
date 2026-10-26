@@ -327,9 +327,18 @@ var worker_default = { async fetch(req, env) {
   const url = new URL(req.url), origin = req.headers.get("Origin");
   const cors = { "Vary": "Origin", ...origin === ORIGIN ? { "Access-Control-Allow-Origin": ORIGIN, "Access-Control-Allow-Headers": "Content-Type,Authorization", "Access-Control-Allow-Methods": "GET,POST,PATCH,DELETE,OPTIONS" } : {} };
   const reply = /* @__PURE__ */ __name((obj, status = 200) => json(obj, status, cors), "reply");
-  if (url.pathname === "/api/equipment") {
+  if (["/api/equipment","/api/person-card"].includes(url.pathname)) {
     if (req.method === "OPTIONS") return new Response(null,{status:204,headers:{...cors,"Access-Control-Allow-Methods":"GET,PUT,OPTIONS"}});
-    const response=await createEquipmentHandler(env,()=>listTrustedRosterTeams(env))(req);
+    const response=await createEquipmentHandler(env,()=>listTrustedRosterTeams(env),{readPerson:async(team,kind,id)=>{
+      const table=kind==='player'?TABLES.spelare:TABLES.tranare;
+      const response=await fetch(`https://api.baserow.io/api/database/rows/table/${table}/${id}/?user_field_names=true`,{headers:{Authorization:'Token '+env.BASEROW_TOKEN},signal:AbortSignal.timeout(12000)});
+      if(response.status===404)return null;
+      if(!response.ok)throw Error('Roster unavailable');
+      const person=await response.json();
+      if(!Array.isArray(person.Lag)||!person.Lag.some(t=>String(typeof t==='object'?t.id:t)===team))return null;
+      if(typeof person.Namn!=='string'||!person.Namn.trim())return null;
+      return {name:person.Namn};
+    }})(req);
     const headers=new Headers(response.headers);
     for(const [key,value] of Object.entries(cors))headers.set(key,value);
     headers.set("Access-Control-Allow-Methods","GET,PUT,OPTIONS");

@@ -11,7 +11,7 @@ function fixture(){
   else{const [json,,team,revision]=args,r=rows.get(team);if(!r||r.revision!==revision)return {meta:{changes:0}};rows.set(team,{board_json:json,revision:revision+1});}
   return {meta:{changes:1}};
  }};return stmt;}};
- return {handler:createEquipmentHandler({AUTH_DB:db},async()=>teams,{verifyIdentity:async t=>t==='valid'?{user:{id:'one'},memberships:[{team_id:member,role}],permissions}:null}),rows,setRole:r=>role=r,setMember:m=>member=m,setPermissions:p=>permissions=p,calls:()=>storageCalls};
+ return {handler:createEquipmentHandler({AUTH_DB:db},async()=>teams,{readPerson:async(team,kind,id)=>({name:'Testspelare'}),verifyIdentity:async t=>t==='valid'?{user:{id:'one'},memberships:[{team_id:member,role}],permissions}:null}),rows,setRole:r=>role=r,setMember:m=>member=m,setPermissions:p=>permissions=p,calls:()=>storageCalls};
 }
 test('equipment denies anonymous, invalid token, wrong team, duplicate team and read-only writes before storage',async()=>{
  const f=fixture();assert.equal((await f.handler(req('GET','18',undefined,''))).status,401);
