@@ -33,7 +33,7 @@
  }
  function skateFacts(skates){
   const facts=element('dl');facts.className='equipment-skate-facts';
-  for(const [label,value] of [['Skåldjup',skates?.hollow],['Radie',skates?.radius],['Profil',skates?.profile],['Skridskor',skates?.model]]){
+  for(const [label,value] of [['Skålradie',skates?.hollow],['Profilering',skates?.profile],['Skridskor',skates?.model]]){
    const item=element('div');item.append(element('dt',label),element('dd',value||'Ej angivet'));facts.append(item);
   }
   return facts;
@@ -56,7 +56,7 @@
    const summary=element('summary'),name=element('span',item.name);name.className='equipment-slip-name';name.append(element('small',item.kind==='player'?'Spelare':'Tränare'));
    summary.append(name,lamp(item.done));section.append(summary);
    const body=element('div');body.className='equipment-slip-body';body.append(skateFacts(item.skates));
-   if(!item.skates?.hollow&&!item.done){const missing=element('p','Skåldjup saknas – kontrollera före slipning.');missing.className='equipment-slip-notes';body.append(missing);}
+   if(!item.skates?.hollow&&!item.done){const missing=element('p','Skålradie saknas – kontrollera före slipning.');missing.className='equipment-slip-notes';body.append(missing);}
    for(const note of [item.note,item.skates?.notes])if(note){const p=element('p',note);p.className='equipment-slip-notes';body.append(p);}
    if(canWrite){const actions=element('div');actions.className='equipment-actions';
     actions.append(button(item.done?'Markera som önskar slipning':'Markera klar',()=>void change(b=>{b.requests.find(r=>r.id===item.id).done=!item.done;})),button('Ta bort',()=>{if(confirm('Ta bort slipönskemålet för '+item.name+'?'))void change(b=>{b.requests=b.requests.filter(r=>r.id!==item.id);});}));body.append(actions);
@@ -104,7 +104,7 @@
   $('equipmentSkates').textContent='Hämtar skridskouppgifter…';
   const [kind,id]=value.split(':');
   try{const result=await PersonCards.get(team,kind,id);if(generation!==selectionVersion)return;
-   $('equipmentSkates').textContent='Skåldjup: '+(result.card.hollow||'Ej angivet')+' · Radie: '+(result.card.radius||'Ej angiven')+' · Profil: '+(result.card.profile||'Ej angiven')+'. Hämtas automatiskt från personkortet.';
+   $('equipmentSkates').textContent='Skålradie: '+(result.card.hollow||'Ej angivet')+' · Profilering: '+(result.card.profile||'Ej angiven')+'. Hämtas automatiskt från personkortet.';
   }catch(error){if(generation===selectionVersion)$('equipmentSkates').textContent=error.message;}
  };
  $('checklistCreateButton').onclick=()=>{if(busy||!canWrite)return;setCreation(!creatingChecklist);if(creatingChecklist)$('checklistTitle').focus();};
