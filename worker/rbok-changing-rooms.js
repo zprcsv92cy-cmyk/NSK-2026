@@ -33,7 +33,7 @@ export async function fetchChangingRooms(fetcher=fetch,cache=globalThis.caches?.
  const today=new Intl.DateTimeFormat('sv-SE',{timeZone:'Europe/Stockholm',year:'numeric',month:'2-digit',day:'2-digit'}).format(now);
  const key=new Request(upstream+'&nsk_cache_date='+today);
  if(cache){const hit=await cache.match(key);if(hit)return hit.json();}
- const response=await fetcher(upstream,{redirect:'error',signal:AbortSignal.timeout(10000),headers:{Accept:'text/html'}});
+ const response=await fetcher(upstream,{redirect:'manual',signal:AbortSignal.timeout(10000),headers:{Accept:'text/html'}});
  if(!response.ok||!response.headers.get('content-type')?.includes('text/html'))throw Error('Board unavailable');
  const reader=response.body.getReader();let size=0,html='';const decoder=new TextDecoder();
  try{while(true){const {done,value}=await reader.read();if(done)break;size+=value.byteLength;if(size>524288){await reader.cancel();throw Error('Board too large');}html+=decoder.decode(value,{stream:true});}html+=decoder.decode();}finally{reader.releaseLock();}
