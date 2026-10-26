@@ -1,7 +1,7 @@
 (() => {
  const $=id=>document.getElementById(id);
  const base=()=>String(window.APP_CONFIG?.API_URL||'https://nsk-api.peter-hasselberg.workers.dev').replace(/\/$/,'');
- let board,team,teamName,canWrite=false,busy=false,people=[],creatingChecklist=false,refreshing=false,changeVersion=0;
+ let board,team,teamName,canWrite=false,busy=false,people=[],creatingChecklist=false,refreshing=false,changeVersion=0,editingChecklistId=null,editingChecklistBase=null;
  const status=message=>{$('equipmentStatus').textContent=message;};
  function lock(){for(const control of document.querySelectorAll('form input,form select,form textarea,form button,.equipment-row input,.equipment-row button,.equipment-actions button,#checklistCreateButton'))control.disabled=busy||!canWrite;$('equipmentReload').disabled=busy;}
  async function request(payload){
@@ -40,7 +40,9 @@
  }
  function setCreation(open){
   creatingChecklist=open&&canWrite;$('checklistForm').hidden=!creatingChecklist;
-  $('checklistCreateButton').setAttribute('aria-expanded',String(creatingChecklist));
+  $('checklistCreateButton').setAttribute('aria-expanded',String(creatingChecklist&&!editingChecklistId));
+  $('checklistEditorTitle').textContent=editingChecklistId?'Redigera checklista':'Skapa checklista';
+  $('checklistSaveButton').textContent=editingChecklistId?'Spara ändringar':'Spara checklista';
  }
  function render(){
   $('sharpeningCreate').hidden=!canWrite;$('sharpeningForm').hidden=!canWrite;
@@ -74,7 +76,7 @@
    name.append(element('small',list.items.filter(i=>i.done).length+' av '+list.items.length+' klara'));summary.append(name);section.append(summary);
    const body=element('div');body.className='equipment-checklist-body';
    for(const item of list.items)body.append(row(element('span',item.label),item.done,done=>change(b=>{b.checklists.find(c=>c.id===list.id).items.find(i=>i.id===item.id).done=done;})));
-   if(canWrite){const actions=element('div');actions.className='equipment-actions';actions.append(button('Återställ bockar',()=>{if(confirm('Återställ alla bockar i '+list.title+'?'))void change(b=>{b.checklists.find(c=>c.id===list.id).items.forEach(i=>{i.done=false;});});}),button('Ta bort lista',()=>{if(confirm('Ta bort checklistan '+list.title+'?'))void change(b=>{b.checklists=b.checklists.filter(c=>c.id!==list.id);});}));body.append(actions);}
+   if(canWrite){const actions=element('div');actions.className='equipment-actions';actions.append(button('Redigera',()=>editChecklist(list.id)),button('Återställ bockar',()=>{if(confirm('Återställ alla bockar i '+list.title+'?'))void change(b=>{b.checklists.find(c=>c.id===list.id).items.forEach(i=>{i.done=false;});});}),button('Ta bort lista',()=>{if(confirm('Ta bort checklistan '+list.title+'?'))void change(b=>{b.checklists=b.checklists.filter(c=>c.id!==list.id);});}));body.append(actions);}
    section.append(body);lists.append(section);
   }
   lock();
@@ -109,8 +111,28 @@
    $('equipmentSkates').textContent='Skålradie: '+(result.card.hollow||'Ej angivet')+' · Profilering: '+(result.card.profile||'Ej angiven')+'. Hämtas automatiskt från personkortet.';
   }catch(error){if(generation===selectionVersion)$('equipmentSkates').textContent=error.message;}
  };
- $('checklistCreateButton').onclick=()=>{if(busy||!canWrite)return;setCreation(!creatingChecklist);if(creatingChecklist)$('checklistTitle').focus();};
- $('checklistCancel').onclick=()=>{if(busy)return;setCreation(false);$('checklistCreateButton').focus();};
+ function confirmReplaceDraft(){
+  if(!creatingChecklist)return true;
+  const title=$('checklistTitle').value.trim(),items=$('checklistItems').value.trim();
+  const original=editingChecklistBase?JSON.parse(editingChecklistBase):null;
+  const changed=original?title!==original.title||items!==original.items.map(i=>i.label).join('\n'):!!(title||items);
+  return !changed||confirm('Lämna utkastet utan att spara?');
+ }
+ function editChecklist(id){
+  if(busy||!canWrite)return;const list=board.checklists.find(c=>c.id===id);if(!list)return;
+  if(editingChecklistId===id&&creatingChecklist){$('checklistTitle').focus();return;}
+  if(!confirmReplaceDraft())return;
+  editingChecklistId=id;editingChecklistBase=JSON.stringify(list);
+  $('checklistTitle').value=list.title;$('checklistItems').value=list.items.map(i=>i.label).join('\n');
+  setCreation(true);$('checklistTitle').focus();
+ }
+ $('checklistCreateButton').onclick=()=>{
+  if(busy||!canWrite)return;
+  if(editingChecklistId){if(!confirmReplaceDraft())return;editingChecklistId=null;editingChecklistBase=null;$('checklistForm').reset();setCreation(true);}
+  else setCreation(!creatingChecklist);
+  if(creatingChecklist)$('checklistTitle').focus();
+ };
+ $('checklistCancel').onclick=()=>{if(busy)return;setCreation(false);editingChecklistId=null;editingChecklistBase=null;$('checklistForm').reset();$('checklistCreateButton').focus();};
  async function refresh(){
   if(busy||refreshing||!board||document.hidden)return;
   const generation=changeVersion,expectedTeam=team,expectedToken=Auth.getToken();refreshing=true;
@@ -135,10 +157,15 @@
  $('checklistForm').onsubmit=async event=>{
   event.preventDefault();const title=$('checklistTitle').value.trim(),items=$('checklistItems').value.split('\n').map(x=>x.trim()).filter(Boolean);
   if(!title||!items.length||items.length>100||items.some(i=>i.length>150)){status('Ange ett namn och 1–100 rader med högst 150 tecken per rad.');return;}
-  const id=crypto.randomUUID();
-  if(await change(b=>b.checklists.push({id,title,items:items.map(label=>({id:crypto.randomUUID(),label,done:false}))}))){
-   $('checklistForm').reset();setCreation(false);
-   const created=[...$('equipmentChecklists').querySelectorAll('details')].find(d=>d.dataset.checklistId===id);if(created){created.open=true;created.querySelector('summary').focus();}
+  const existing=editingChecklistId?board.checklists.find(c=>c.id===editingChecklistId):null;
+  if(editingChecklistId&&(!existing||JSON.stringify(existing)!==editingChecklistBase)){status('Checklistan har ändrats eller tagits bort. Avbryt och öppna Redigera igen innan du sparar.');return;}
+  const id=editingChecklistId||crypto.randomUUID();
+  const available=new Map();
+  for(const item of existing?.items||[]){if(!available.has(item.label))available.set(item.label,[]);available.get(item.label).push(item);}
+  const updated={id,title,items:items.map(label=>{const previous=available.get(label)?.shift();return previous?{...previous}:{id:crypto.randomUUID(),label,done:false};})};
+  if(await change(b=>{if(existing)b.checklists[b.checklists.findIndex(c=>c.id===id)]=updated;else b.checklists.push(updated);} )){
+   $('checklistForm').reset();editingChecklistId=null;editingChecklistBase=null;setCreation(false);
+   const saved=[...$('equipmentChecklists').querySelectorAll('details')].find(d=>d.dataset.checklistId===id);if(saved){saved.open=true;saved.querySelector('summary').focus();}
   }
  };
  $('equipmentAwayTemplate').onclick=()=>{if(($('checklistTitle').value||$('checklistItems').value)&&!confirm('Ersätt utkastet med mallen Material bortamatch?'))return;$('checklistTitle').value='Material bortamatch';$('checklistItems').value='Matchtröjor\nMålvaktsutrustning\nPuckar\nVattenflaskor\nFörbandsväska\nTejp\nVerktyg och reservdelar';};
