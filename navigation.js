@@ -1,7 +1,7 @@
 // A single shared navigation for every app view.
 (() => {
   const entries = [
-    ['startsida','Startsida'],['truppen','Truppen'],['traningsgrupper','Träningsplanering'],
+    ['startsida','Kalender'],['truppen','Truppen'],['traningsgrupper','Träningsplanering'],
     ['ovningsarkiv','Övningsarkiv'],['ritverktyg','Ritverktyg'],
     ['skapapoolspel','Skapa poolspel'],['malvaktsstatistik','Målvaktsstatistik'],
     ['bytesschema','Bytesschema'],['matchvy','Matchvy'],['lag','Lag'],

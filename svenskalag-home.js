@@ -247,7 +247,7 @@
     }).catch(()=>{});
    const button=document.getElementById('svenskalagRefreshButton');
    if(button){
-   button.textContent='Hämta SvenskaLag nu';
+   button.textContent='Importera Poolspel/Träning';
    button.style.marginTop='12px';
    button.onclick=async()=>{
     button.disabled=true;button.textContent='Hämtar kalender…';
@@ -257,7 +257,7 @@
      if(!refresh.ok)throw Error('Hämtningen misslyckades. Försök igen senare.');
      await show();
     }catch(error){
-     button.disabled=false;button.textContent='Hämta SvenskaLag nu';
+     button.disabled=false;button.textContent='Importera Poolspel/Träning';
      const notice=document.createElement('p');notice.textContent=error.message||'Hämtningen misslyckades';
      notice.setAttribute('role','alert');button.after(notice);
     }

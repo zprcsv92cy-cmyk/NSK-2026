@@ -8,7 +8,7 @@
 <script src="../login-gate.js"></script>
 
 <script src="https://cdn.jsdelivr.net/npm/tesseract.js@6.0.1/dist/tesseract.min.js" defer></script>
-  <title>Startsida</title>
+  <title>Kalender – NSK Team 18</title>
   <meta name="theme-color" content="#b11226">
 
   <script src="../version.js?v=872"></script>
@@ -22,7 +22,7 @@
 <body class="home-page">
   <div class="wrap">
     <nav class="mainmenu">
-      <a href="../startsida/" class="active">Startsida</a>
+      <a href="../startsida/" class="active">Kalender</a>
       <a href="../truppen/">Truppen</a>
       <a href="../traningsgrupper/">Träningsplanering</a>
 <a href="../ovningsarkiv/">Övningsarkiv</a>
@@ -42,20 +42,13 @@
         <img src="../icon-192.png" alt="NSK" class="home-hero-logo">
       </div>
       <div class="home-hero-text">
-        <h1>Startsida</h1>
-        <div class="home-hero-sub">Sparade poolspel</div>
+        <h1>Kalender</h1>
+        <div class="home-hero-sub">Poolspel</div>
       </div>
     </section>
 
     <section class="card home-shortcuts home-create-pool">
-      <div class="home-create-intro">
-        <span class="home-create-icon" aria-hidden="true">＋</span>
-        <div>
-          <h2>Nytt poolspel</h2>
-          <p>Skapa ett poolspel och välj lag, matcher och tider.</p>
-        </div>
-      </div>
-      <a class="home-create-button" href="../skapapoolspel/">＋ Skapa poolspel</a><button type="button" id="svenskalagRefreshButton" class="home-create-button" style="margin-top:12px">Hämta SvenskaLag nu</button><button type="button" id="importTrainingsOpen" hidden>Importera kalender</button><div id="trainingCalendarImport" class="training-calendar-import" hidden>
+      <button type="button" id="svenskalagRefreshButton" class="home-create-button" style="margin-top:12px">Importera Poolspel/Träning</button><button type="button" id="importTrainingsOpen" hidden>Importera kalender</button><div id="trainingCalendarImport" class="training-calendar-import" hidden>
         <p class="small">SvenskaLag-kalendern hämtas när du öppnar den här kontrollen. Granska nya aktiviteter innan de sparas. Ingenting skrivs över eller tas bort automatiskt.</p><button type="button" id="trainingCalendarFeedRead">Uppdatera från SvenskaLag</button><label for="trainingCalendarFeedMonth">Kalendermånad <input type="month" id="trainingCalendarFeedMonth" hidden></label><label>Reservmetod: bild från SvenskaLag-kalendern (poolspel och träningar)<input type="file" id="trainingCalendarImage" accept="image/*"></label>
         <button type="button" id="trainingCalendarRead">Läs kalenderbild</button>
         <p id="trainingCalendarStatus" role="status"></p>
@@ -65,8 +58,9 @@
     </section>
 
     <section class="card home-saved">
-      <h2>Sparade poolspel</h2>
+      <h2>Poolspel</h2>
       <div id="savedPoolsList"></div>
+      <a class="home-create-button" href="../skapapoolspel/">＋ Skapa poolspel</a>
     </section>
 
     <section class="card home-saved home-training-section">
