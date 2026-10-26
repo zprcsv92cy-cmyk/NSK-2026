@@ -24,7 +24,7 @@ test('person card is keyed by team, kind and person and denies invalid queries a
  for(const path of ['/api/person-card?kind=player&person_id=999','/api/person-card?kind=coach&person_id=999'])assert.equal((await f.handler(req(path))).status,404);
  for(const path of ['/api/person-card?kind=other&person_id=101','/api/person-card?kind=player&person_id=101&person_id=201','/api/person-card?kind=player&person_id=0'])assert.equal((await f.handler(req(path))).status,400);
 });
-test('cards and material changes coexist; new sharpening orders snapshot saved skates and immutable history survives edits',async()=>{
+test('cards and material changes coexist; pending orders follow the card while completed history survives edits',async()=>{
  const f=fixture();let r=await f.handler(req(endpoint,'PUT',{revision:0,card:card()}));assert.equal(r.status,200);
  const board=await (await f.handler(req('/api/equipment'))).json();assert.deepEqual(board.requests,[]);assert.equal(board.revision,1);
  const order={id:'one',kind:'player',personId:'101',name:'Forged name',note:'Inför match',done:false,skates:{model:'forged',hollow:'forged',profile:'forged',notes:'forged'}};
@@ -33,13 +33,15 @@ test('cards and material changes coexist; new sharpening orders snapshot saved s
  r=await f.handler(req(endpoint,'GET'));let profile=await r.json();assert.equal(profile.card.hand,'Left');assert.equal(profile.revision,2);
  r=await f.handler(req(endpoint,'PUT',{revision:2,card:{...card(),hollow:'20 mm'}}));assert.equal(r.status,200);
  assert.equal((await f.handler(req(endpoint,'PUT',{revision:2,card:card()}))).status,409);
- saved=await (await f.handler(req('/api/equipment'))).json();assert.equal(saved.requests[0].skates.hollow,'16 mm');
+ saved=await (await f.handler(req('/api/equipment'))).json();assert.equal(saved.requests[0].skates.hollow,'20 mm');
  // Older material clients do not send profiles or skate snapshots. They must not erase either.
  const {skates,...legacyOrder}=saved.requests[0];legacyOrder.done=true;
- r=await f.handler(req('/api/equipment','PUT',{revision:3,requests:[legacyOrder],checklists:[]}));assert.equal(r.status,200);saved=await r.json();assert.equal(saved.requests[0].skates.hollow,'16 mm');
+ r=await f.handler(req('/api/equipment','PUT',{revision:3,requests:[legacyOrder],checklists:[]}));assert.equal(r.status,200);saved=await r.json();assert.equal(saved.requests[0].skates.hollow,'20 mm');
  profile=await (await f.handler(req(endpoint))).json();assert.equal(profile.card.hollow,'20 mm');
+ r=await f.handler(req(endpoint,'PUT',{revision:4,card:{...card(),hollow:'22 mm',profile:'Quad XS'}}));assert.equal(r.status,200);
+ saved=await (await f.handler(req('/api/equipment'))).json();assert.equal(saved.requests[0].done,true);assert.equal(saved.requests[0].skates.hollow,'20 mm');
  const newOrder={...order,id:'two'};delete newOrder.skates;
- r=await f.handler(req('/api/equipment','PUT',{revision:4,requests:[...saved.requests,newOrder],checklists:[]}));assert.equal(r.status,200);saved=await r.json();assert.equal(saved.requests[1].skates.hollow,'20 mm');
+ r=await f.handler(req('/api/equipment','PUT',{revision:5,requests:[...saved.requests,newOrder],checklists:[]}));assert.equal(r.status,200);saved=await r.json();assert.equal(saved.requests[1].skates.hollow,'22 mm');assert.equal(saved.requests[1].skates.profile,'Quad XS');
  const coach=await (await f.handler(req('/api/person-card?kind=coach&person_id=101'))).json();assert.equal(coach.card.hollow,'');
 });
 test('readers cannot save cards or request sharpening; material staff can edit skates but cannot change jersey, position or handedness',async()=>{
@@ -66,4 +68,15 @@ test('legacy card saves preserve the separately stored radius and new slip reque
  const order={id:'radius-one',kind:'player',personId:'101',name:'Spelare A',note:'',done:false};
  const response=await f.handler(req('/api/equipment','PUT',{revision:2,requests:[order],checklists:[]}));assert.equal(response.status,200);
  const saved=await response.json();assert.equal(saved.requests[0].skates.radius,'10 ft');assert.equal(saved.requests[0].skates.profile,'Exempelprofil');
+});
+
+test('existing pending slip requests resolve current card settings; completed requests keep their settings',async()=>{
+ const f=fixture();
+ const order={id:'pending',kind:'player',personId:'101',name:'Spelare A',note:'',done:false,skates:{model:'',hollow:'16 mm',profile:'Gammal profil',notes:''}};
+ f.rows.set('18',{revision:8,board_json:JSON.stringify({requests:[order,{...order,id:'done',done:true}],checklists:[],profiles:{'player:101':{...card(),hollow:'21 mm',profile:'Quad XS'}}})});
+ const result=await (await f.handler(req('/api/equipment'))).json();assert.equal(result.revision,8);assert.equal(result.requests[0].skates.hollow,'21 mm');assert.equal(result.requests[0].skates.profile,'Quad XS');assert.equal(result.requests[1].skates.hollow,'16 mm');
+ const persisted=JSON.parse(f.rows.get('18').board_json);assert.equal(persisted.requests[0].skates.hollow,'16 mm');
+ // Completing from an older client must freeze the current card settings, not its stale submitted values.
+ const response=await f.handler(req('/api/equipment','PUT',{revision:8,requests:[{...order,done:true},result.requests[1]],checklists:[]}));assert.equal(response.status,200);
+ const saved=await response.json();assert.equal(saved.requests[0].skates.hollow,'21 mm');assert.equal(saved.requests[1].skates.hollow,'16 mm');
 });
