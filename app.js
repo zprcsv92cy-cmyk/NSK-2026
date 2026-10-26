@@ -2171,12 +2171,14 @@ window.NSK2App = (() => {
 
     const nextDone = !el.classList.contains("done");
     el.classList.toggle("done", nextDone);
+    el.setAttribute("aria-pressed",String(nextDone));el.textContent=nextDone?"✓":"";
 
     try {
-      await DB.setShiftDone(poolId, lagNo, matchNo, shiftNo, nextDone);
+      await DB.setShiftDone(poolId, lagNo, matchNo, shiftNo, nextDone, el.dataset?.shiftId);
       el.setAttribute("aria-pressed",String(nextDone));el.textContent=nextDone?"✓":"";setText("shiftMsg","Byte "+shiftNo+" sparat.");
     } catch (err) {
       el.classList.toggle("done", !nextDone);
+      el.setAttribute("aria-pressed",String(!nextDone));el.textContent=!nextDone?"✓":"";setText("shiftMsg","Bytet kunde inte sparas. Försök igen.");
       setText("appError", err?.message || String(err));
     } finally {
       shiftPending.delete(key);shiftToggleSaving=shiftPending.size>0;el.disabled=false;el.removeAttribute("aria-busy");
@@ -2378,7 +2380,7 @@ window.NSK2App = (() => {
             const done = r.done ? "done" : "";
             return `
               <tr>
-                <td class="check-cell"><button type="button" class="shift-check ${done}" data-shift-toggle="${shiftNo}" aria-label="Byte ${shiftNo} genomfört" aria-pressed="${!!r.done}">${r.done?'✓':''}</button></td>
+                <td class="check-cell"><button type="button" class="shift-check ${done}" data-shift-id="${r.id}" data-shift-toggle="${shiftNo}" aria-label="Byte ${shiftNo} genomfört" aria-pressed="${!!r.done}">${r.done?'✓':''}</button></td>
                 <td>${shiftNo}</td>
                 <td>${esc(r.time_left)}</td>
                 <td class="shift-players">${names || "—"}</td>
@@ -2615,7 +2617,7 @@ window.NSK2App = (() => {
         setText("appError", "");
         try {
           // Föregående byte innebär att detta byte inte längre är genomfört.
-          await DB.setShiftDone(poolId, lagNo, matchNo, matchvyCache.rows[previousIndex].shift_no, false);
+          await DB.setShiftDone(poolId, lagNo, matchNo, matchvyCache.rows[previousIndex].shift_no, false, matchvyCache.rows[previousIndex].id);
           matchvyCache.rows[previousIndex].done = false;
           matchCurrentShiftIndex = previousIndex;
           rememberMatchShift();
@@ -2637,7 +2639,7 @@ window.NSK2App = (() => {
         if (matchCurrentShiftIndex >= matchvyCache.rows.length - 1) {
           if(!confirm(`Avsluta match ${matchNo} för Lag ${lagNo}?`))return;
           matchvySaving=true;nextBtn.disabled=true;
-          try{await DB.setShiftDone(poolId,lagNo,matchNo,matchvyCache.rows.at(-1).shift_no,true);matchvyCache.rows.at(-1).done=true;paintCoachMatchView();}
+          try{await DB.setShiftDone(poolId,lagNo,matchNo,matchvyCache.rows.at(-1).shift_no,true,matchvyCache.rows.at(-1).id);matchvyCache.rows.at(-1).done=true;paintCoachMatchView();}
           catch(error){setText('appError',error.message||'Matchen kunde inte avslutas.');}
           finally{matchvySaving=false;nextBtn.disabled=false;}
           return;
@@ -2653,7 +2655,7 @@ window.NSK2App = (() => {
         paintCoachMatchView(); // Visa nästa byte direkt, före nätverksanropet.
         setText("appError", "");
         try {
-          await DB.setShiftDone(poolId, lagNo, matchNo, currentShiftNo, true);
+          await DB.setShiftDone(poolId, lagNo, matchNo, currentShiftNo, true, matchvyCache.rows.find(r=>Number(r.shift_no)===Number(currentShiftNo))?.id);
           matchvyCache.rows[previousIndex].done = true;
         } catch (err) {
           matchCurrentShiftIndex = previousIndex; // Återställ om sparningen misslyckas.
@@ -2883,26 +2885,8 @@ window.NSK2App = (() => {
     if (!list) return;
 
     try {
-      const stats = typeof DB?.listGoalieStats === "function" ? await DB.listGoalieStats() : [];
-      const grouped = {};
-
-      stats.forEach((row) => {
-        const name = String(row.goalie_name || "").trim();
-        const matchId = String(row.match_id || "").trim();
-        if (!name || !matchId) return;
-        if (!grouped[name]) grouped[name] = new Set();
-        grouped[name].add(matchId);
-      });
-
-      const rows = Object.entries(grouped)
-        .map(([name, set]) => ({ name, count: set.size }))
-        .sort((a, b) => b.count - a.count);
-
-      list.innerHTML = rows.length ? rows.map((r) => `
-        <div class="listrow">
-          <strong>${esc(r.name)}</strong> — ${r.count} matcher
-        </div>
-      `).join("") : '<div class="listrow">Inga matcher med vald målvakt ännu.</div>';
+      const stats = await DB.listPlayerMatchStats();
+      list.innerHTML = stats.length ? `<table class="player-match-stats"><thead><tr><th scope="col">Namn</th><th scope="col">Målvakt</th><th scope="col">Spelare</th></tr></thead><tbody>${stats.map(r=>`<tr><th scope="row">${esc(r.name)}</th><td>${r.goalie_matches}</td><td>${r.player_matches}</td></tr>`).join('')}</tbody></table>` : '<p>Inga spelare registrerade.</p>';
     } catch (err) {
       setText("appError", err?.message || String(err));
     }

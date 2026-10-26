@@ -7,7 +7,7 @@
 <script>document.documentElement.style.visibility='hidden';</script>
 <script src="../config.js"></script>
 <script src="../login-gate.js"></script>
-  <title>Målvaktsstatistik</title>
+  <title>Statistik</title>
   <meta name="theme-color" content="#b11226">
 
   <script src="../version.js?v=872"></script>
@@ -30,6 +30,10 @@
     }
   </style>
   <style>
+    .player-match-stats { width:100%; border-collapse:collapse; table-layout:fixed; }
+    .player-match-stats th,.player-match-stats td { padding:12px 4px; border-bottom:1px solid #334250; text-align:center; }
+    .player-match-stats th:first-child { width:54%; text-align:left; overflow-wrap:anywhere; }
+    .player-match-stats tbody th { font-weight:500; }
     .goalie-print-row { display:flex; justify-content:flex-end; margin:0 0 12px; }
     .goalie-print-row button { width:auto; min-height:36px; margin:0; padding:7px 12px; font-size:12px; font-weight:600; border-radius:9px; }
     @media print {
@@ -51,7 +55,7 @@
       <a href="../startsida/">Kalender</a>
       <a href="../truppen/">Truppen</a>
       <a href="../skapapoolspel/">Skapa poolspel</a>
-      <a href="../malvaktsstatistik/" class="active">Målvaktsstatistik</a>
+      <a href="../malvaktsstatistik/" class="active">Statistik</a>
     </nav>
 
     <section class="home-hero">
@@ -59,15 +63,16 @@
         <img src="../icon-192.png" alt="NSK" class="home-hero-logo">
       </div>
       <div class="home-hero-text">
-        <h1>Målvaktsstatistik</h1>
-        <div class="home-hero-sub">Visar bara antal matcher som målvakt.</div>
+        <h1>Statistik</h1>
+        <div class="home-hero-sub">Antal matcher som målvakt och utespelare.</div>
       </div>
     </section>
 
     <div class="goalie-print-row"><button id="goaliePrintButton" type="button">Skriv ut statistik / PDF</button></div>
 
     <section class="card">
-      <h2>Översikt</h2>
+      <h2>Spelade matcher</h2>
+      <p class="small">Avslutade poolspel räknas från sparade uppställningar. I pågående matcher räknas genomförda byten. Planerade matcher räknas inte.</p>
       <div id="goalieStatsList"></div>
     </section>
 

@@ -48,3 +48,8 @@ test('stale token without verified session does not override legacy flow', async
   await db.saveShiftSchema(1, 1, 1, [{period_no:1,time_left:'10:00',players:[1]}]);
   assert.equal(requests[0].init.headers.Authorization, 'Bearer legacy-admin');
 });
+
+test('known shift id saves directly without fetching collections', async()=>{
+ const requests=[];await client({session:'personal-session',requests}).setShiftDone(1,1,1,3,true,42);
+ assert.equal(requests.length,1);assert.match(requests[0].url,/\/42\/done$/);assert.equal(requests[0].init.method,'PATCH');
+});
