@@ -328,8 +328,8 @@ var worker_default = { async fetch(req, env) {
   const url = new URL(req.url), origin = req.headers.get("Origin");
   const cors = { "Vary": "Origin", ...origin === ORIGIN ? { "Access-Control-Allow-Origin": ORIGIN, "Access-Control-Allow-Headers": "Content-Type,Authorization", "Access-Control-Allow-Methods": "GET,POST,PATCH,DELETE,OPTIONS" } : {} };
   const reply = /* @__PURE__ */ __name((obj, status = 200) => json(obj, status, cors), "reply");
-  if (["/api/skills","/api/skills/suggest"].includes(url.pathname)) {
-    const headers={...cors,"Vary":"Origin, Authorization","Cache-Control":"private, no-store"};
+  if (["/api/skills","/api/skills/suggest","/api/skills/pin"].includes(url.pathname)) {
+    const headers={...cors,"Vary":"Origin, Authorization, X-NSK-Skills-Unlock","Cache-Control":"private, no-store","Access-Control-Allow-Headers":"Content-Type,Authorization,X-NSK-Skills-Unlock"};
     if(origin&&origin!==ORIGIN)return json({ok:false,error:"Åtkomst nekad"},403,headers);
     if(req.method==="OPTIONS")return new Response(null,{status:204,headers:{...headers,"Access-Control-Allow-Methods":"GET,PUT,POST,DELETE,OPTIONS"}});
     const response=await createPrivateSkillsHandler(env,()=>listTrustedRosterTeams(env),{readRoster:team=>readSkillsRoster(env,TABLES.spelare,team,fetch)})(req);
