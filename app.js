@@ -266,7 +266,7 @@ window.NSK2App = (() => {
   }
 
   async function init() {
-    await checkAppVersion();
+    // The shared DOMContentLoaded handler checks the version in the background.
 
     if (window.Auth?.init) {
       try {

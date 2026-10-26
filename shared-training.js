@@ -3,7 +3,15 @@
   const base=()=>String(window.APP_CONFIG?.API_URL||'https://nsk-api.peter-hasselberg.workers.dev').replace(/\/$/,'');
   let teamId;
   let cachedTeamName;
-  async function resolveTeam(){
+  let pendingTeam=null;
+  function resolveTeam(){
+    const key=JSON.stringify([Auth.activeTeam(),Auth.getToken()]);
+    if(pendingTeam?.key===key)return pendingTeam.promise;
+    const promise=loadTeam();const entry={key,promise};pendingTeam=entry;
+    const clear=()=>{if(pendingTeam===entry)pendingTeam=null;};promise.then(clear,clear);
+    return promise;
+  }
+  async function loadTeam(){
     const activeTeam=Auth.activeTeam();
     if(teamId&&cachedTeamName===activeTeam)return teamId;
     teamId=undefined;

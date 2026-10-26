@@ -440,9 +440,12 @@
       if(!Auth.activeTeam() && session.memberships?.length)Auth.selectTeam(session.memberships[0].team_id);
       team=Auth.activeTeam();
       if(!team)throw Error('Välj ett aktivt lag under Mitt konto.');
-      [players,coaches,equipment]=await Promise.all([SharedTraining.listPlayers(),SharedTraining.listCoaches(),SharedTraining.listEquipment()]);
       let calendarError='';
-      const events=await SharedTraining.calendarTrainings().catch(()=>{calendarError='Kalendern kunde inte hämtas. Försök ladda om sidan.';return [];});
+      let events;
+      [players,coaches,equipment,events]=await Promise.all([
+        SharedTraining.listPlayers(),SharedTraining.listCoaches(),SharedTraining.listEquipment(),
+        SharedTraining.calendarTrainings().catch(()=>{calendarError='Kalendern kunde inte hämtas. Försök ladda om sidan.';return [];})
+      ]);
       const choices=SharedTraining.upcomingDates(events,today);
       const picker=$('trainingCalendar');picker.replaceChildren();
       for(const choice of choices){const option=document.createElement('option');option.value=choice.date;option.textContent=choice.label;picker.append(option);}
