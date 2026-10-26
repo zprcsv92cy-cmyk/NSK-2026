@@ -13,7 +13,8 @@ export function parseChangingRooms(html,today){
   if(cells.length!==5)continue;
   const [date,time,resource,bookedBy]=cells;
   // A generic NSK booking or J18 is insufficient evidence for Team 18.
-  if(!/^Nyköpings Sportklubb NSK\s*18$/iu.test(bookedBy))continue;
+  const club=bookedBy.match(/^Nyköpings Sportklubb\s+(.+)$/iu);
+  if(!club||!club[1].split(/\s*,\s*/).some(squad=>/^NSK\s*18$/iu.test(squad)))continue;
   const day=date.match(/^(?:mån|tis|ons|tor|fre|lör|sön)\s+(\d{1,2})\s+([a-zåäö]+)$/iu);
   const span=time.match(/^(\d{2}:\d{2})\s*[-–]\s*(\d{2}:\d{2})$/);
   const location=resource.match(/^Rosvalla\s*\/\s*(Lilla|Stora) ishallen\s*\/\s*Omkl\.\s*(\d{1,2}(?:\s*[A-B])?)$/iu);
