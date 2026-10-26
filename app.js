@@ -523,7 +523,7 @@ window.NSK2App = (() => {
           </div>` : "";
 
         return `
-          <details class="nsk-pool-row" data-pool-date="${esc(poolDay(p))}">
+          <details class="nsk-pool-row" data-pool-date="${esc(poolDay(p))}" data-pool-finished="${isArchived(p)}">
             <summary class="nsk-pool-summary">
               <span class="nsk-pool-name">${esc(p.place || "Ort")} • ${esc(p.pool_date || "Datum")}</span>
               <span class="nsk-pool-hall" data-pool-hall-id="${poolId}" data-gathering="${esc(gathering)}">${esc([p.hall,gathering].filter(Boolean).join(" • "))}</span>
@@ -562,6 +562,7 @@ window.NSK2App = (() => {
           </details>
         `;
       }).join("");
+      document.querySelectorAll('#activityList > details[data-pool-date]:not([data-svenskalag-pool])').forEach(row=>row.remove());
       box.innerHTML = `
         <section class="pool-overview-section">
           <h2>Kommande poolspel (${upcoming.length})</h2>

@@ -5,6 +5,7 @@
   async function render(){
     const root=document.getElementById('savedTrainingsList');
     if(!root)return;
+    const eventRoot=document.getElementById('activityList')||root;
     try{
       await Auth.init();
       const team=Auth.activeTeam();
@@ -25,6 +26,7 @@
       const sessions=(Array.isArray(data.sessions)?data.sessions:[]).map(session=>window.NSKTrainingCards.enrich(session,calendar));
       currentContext={base,token,teamId:String(matches[0].id),dates:new Set(sessions.map(s=>s.date))};
       sessions.sort((a,b)=>a.date.localeCompare(b.date));
+      eventRoot.querySelectorAll(':scope > details[data-date]:not([data-svenskalag-training])').forEach(row=>row.remove());
       if(!sessions.length){root.innerHTML='<h3 class="training-section-title" id="upcomingTrainingsTitle">Kommande träningar (0)</h3><h3 class="training-section-title" id="pastTrainingsTitle">Avslutade träningar (0)</h3>';window.dispatchEvent(new Event('nsk:saved-trainings-rendered'));return;}
       const today=new Date().toLocaleDateString('sv-SE',{year:'numeric',month:'2-digit',day:'2-digit'}).split('-').join('-');
       const savedRow=s=>{
@@ -39,7 +41,7 @@
       root.innerHTML='<h3 class="training-section-title" id="upcomingTrainingsTitle">Kommande träningar ('+upcoming.length+')</h3>'+upcoming.map(savedRow).join('')+'<h3 class="training-section-title" id="pastTrainingsTitle">Avslutade träningar ('+past.length+')</h3>'+past.map(savedRow).join('');
       window.NSKTrainingCards.reorder(root);
       window.dispatchEvent(new Event('nsk:saved-trainings-rendered'));
-      root.onclick=async event=>{
+      eventRoot.onclick=async event=>{
         const button=event.target.closest?.('[data-delete-training]');
         if(!button)return;
         const row=button.closest('details[data-date]');
@@ -67,9 +69,9 @@
           info.textContent='Kunde inte ta bort: '+(error.message||String(error));
         }finally{button.disabled=false;}
       };
-      root._trainingToggleAbort?.abort();
-      root._trainingToggleAbort=new AbortController();
-      root.addEventListener('toggle',async event=>{
+      eventRoot._trainingToggleAbort?.abort();
+      eventRoot._trainingToggleAbort=new AbortController();
+      eventRoot.addEventListener('toggle',async event=>{
         const details=event.target;
         if(!(details instanceof HTMLDetailsElement)||!details.open||details.dataset.loaded==='pending')return;
         const date=details.dataset.date;
@@ -87,7 +89,7 @@
           info.textContent=(session.selected||[]).length+' spelare • '+(session.selectedCoaches||[]).length+' tränare • '+(Number(session.goalieCount)||0)+' målvakter • '+groups+' grupper';
           delete details.dataset.loaded;
         }catch(error){delete details.dataset.loaded;info.textContent=error.message||'Kunde inte hämta träningsuppgifter';}
-      },{capture:true,signal:root._trainingToggleAbort.signal});
+      },{capture:true,signal:eventRoot._trainingToggleAbort.signal});
     }catch(error){root.textContent='Kunde inte läsa sparade träningar: '+(error.message||String(error));}
   }
   const monthNames=['januari','februari','mars','april','maj','juni','juli','augusti','september','oktober','november','december'];

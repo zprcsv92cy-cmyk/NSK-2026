@@ -39,8 +39,10 @@
   const candidates=[1,2].map(offset=>utc-offset*3600000).filter(t=>format(new Date(t))===target);
   return candidates.length>0&&now.valueOf()>=Math.max(...candidates)+3600000;
  }
- function reorder(root=document.getElementById('savedTrainingsList'),now=new Date()){
-  if(!root)return;const title=root.querySelector('#pastTrainingsTitle'),up=root.querySelector('#upcomingTrainingsTitle');if(!title||!up)return;
+ function reorder(root=document.getElementById('activityList')||document.getElementById('savedTrainingsList'),now=new Date()){
+  if(!root)return;
+  if(root.id==='activityList'){window.NSKCalendarList?.render(now);return;}
+  const title=root.querySelector('#pastTrainingsTitle'),up=root.querySelector('#upcomingTrainingsTitle');if(!title||!up)return;
   const rows=[...root.querySelectorAll('details[data-date]')],past=[],upcoming=[];
   for(const row of rows)(finished(decodeURIComponent(row.dataset.date),row.querySelector('.nsk-training-time')?.textContent.trim(),now)?past:upcoming).push(row);
   const key=row=>decodeURIComponent(row.dataset.date)+(row.querySelector('.nsk-training-time')?.textContent||'');
