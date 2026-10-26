@@ -15,8 +15,8 @@
     document.write('<link rel="stylesheet" href="../app.css?v=' + window.NSK_VERSION + '">');
   </script>
   <style>
-    .lineup-print-row { display:flex; justify-content:flex-end; margin:0 0 12px; }
-    .lineup-print-row button { width:auto; margin:0; }
+    .lineup-print-row { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:8px; margin:0 0 12px; }
+    .lineup-print-row button { width:100%; min-width:0; min-height:44px; white-space:normal; margin:0; padding:10px; }
     @media print {
       @page { margin: 10mm; }
       body { background:#fff !important; color:#111 !important; padding:0 !important; }
@@ -118,7 +118,7 @@
     </section>
 <nav class="pool-flow-actions" aria-label="Poolspelsflöde"><a class="nsk-action" href="../lag/">Välj eget lag</a><a class="nsk-action nsk-action--primary" href="../bytesschema/">Nästa: Bytesschema</a></nav>
 
-    <div class="lineup-print-row"><button id="lineupSaveButton" type="button" class="nsk-action nsk-action--save">Spara uppställning</button><button id="lineupPrintButton" type="button">Skriv ut laguppställning / PDF</button></div>
+    <div class="lineup-print-row"><button id="lineupSaveButton" type="button" class="nsk-action nsk-action--save">Spara uppställning</button><button id="lineupPrintButton" type="button">Skriv ut / PDF</button></div>
     <div class="lineup-main">
       <section class="card">
         <h2>Laguppställning</h2>
