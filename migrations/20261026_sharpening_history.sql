@@ -1,0 +1,27 @@
+CREATE TABLE IF NOT EXISTS sharpening_history (
+ id INTEGER PRIMARY KEY AUTOINCREMENT,
+ team_id TEXT NOT NULL,
+ request_id TEXT NOT NULL,
+ person_id TEXT NOT NULL,
+ completion_revision INTEGER NOT NULL,
+ completed_at TEXT,
+ hollow TEXT NOT NULL DEFAULT '',
+ profile TEXT NOT NULL DEFAULT '',
+ UNIQUE(team_id,request_id,completion_revision)
+);
+CREATE INDEX IF NOT EXISTS sharpening_history_player ON sharpening_history(team_id,person_id,completed_at DESC,id DESC);
+INSERT OR IGNORE INTO sharpening_history(team_id,request_id,person_id,completion_revision,completed_at,hollow,profile)
+ SELECT b.team_id,json_extract(r.value,'$.id'),json_extract(r.value,'$.personId'),0,NULL,COALESCE(json_extract(r.value,'$.skates.hollow'),''),COALESCE(json_extract(r.value,'$.skates.profile'),'')
+ FROM equipment_boards b,json_each(b.board_json,'$.requests') r WHERE json_extract(r.value,'$.kind')='player' AND json_extract(r.value,'$.done')=1 AND NOT EXISTS (SELECT 1 FROM sharpening_history h WHERE h.team_id=b.team_id AND h.request_id=json_extract(r.value,'$.id'));
+CREATE TRIGGER IF NOT EXISTS sharpening_completed_insert AFTER INSERT ON equipment_boards BEGIN
+ INSERT INTO sharpening_history(team_id,request_id,person_id,completion_revision,completed_at,hollow,profile)
+ SELECT NEW.team_id,json_extract(r.value,'$.id'),json_extract(r.value,'$.personId'),NEW.revision,strftime('%Y-%m-%dT%H:%M:%fZ','now'),COALESCE(json_extract(r.value,'$.skates.hollow'),''),COALESCE(json_extract(r.value,'$.skates.profile'),'') FROM json_each(NEW.board_json,'$.requests') r
+ WHERE json_extract(r.value,'$.kind')='player' AND json_extract(r.value,'$.done')=1
+ ON CONFLICT(team_id,request_id,completion_revision) DO NOTHING;
+END;
+CREATE TRIGGER IF NOT EXISTS sharpening_completed_update AFTER UPDATE OF board_json ON equipment_boards BEGIN
+ INSERT INTO sharpening_history(team_id,request_id,person_id,completion_revision,completed_at,hollow,profile)
+ SELECT NEW.team_id,json_extract(r.value,'$.id'),json_extract(r.value,'$.personId'),NEW.revision,strftime('%Y-%m-%dT%H:%M:%fZ','now'),COALESCE(json_extract(r.value,'$.skates.hollow'),''),COALESCE(json_extract(r.value,'$.skates.profile'),'') FROM json_each(NEW.board_json,'$.requests') r
+ WHERE json_extract(r.value,'$.kind')='player' AND json_extract(r.value,'$.done')=1 AND NOT EXISTS (SELECT 1 FROM json_each(OLD.board_json,'$.requests') old WHERE json_extract(old.value,'$.id')=json_extract(r.value,'$.id') AND json_extract(old.value,'$.personId')=json_extract(r.value,'$.personId') AND json_extract(old.value,'$.kind')='player' AND json_extract(old.value,'$.done')=1)
+ ON CONFLICT(team_id,request_id,completion_revision) DO NOTHING;
+END;
