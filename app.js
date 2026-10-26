@@ -785,7 +785,7 @@ window.NSK2App = (() => {
 
   // Vid ändring av spelregler måste lagrade bytesscheman ersättas.
   // Varje ersättning använder db.js batchrensning (flera Worker-anrop).
-  async function updateAffectedShiftSchemas(poolId, pool) {
+  async function updateAffectedShiftSchemas(poolId, pool, preserveDone = false) {
     const configs = await DB.listPoolTeamMatchConfigs(poolId);
     const targets = new Map();
     for (const c of configs) {
@@ -798,6 +798,7 @@ window.NSK2App = (() => {
     const errors = [];
     for (const [lagNo, matchNo] of targets.values()) {
       try {
+        if(preserveDone){await DB.retimeShiftSchema(poolId,lagNo,matchNo);continue;}
         const config = await DB.getPoolTeamMatchConfig(poolId, lagNo, matchNo);
         const source = config || (Number(matchNo) !== 1 ? await DB.getPoolTeamMatchConfig(poolId, lagNo, 1) : null);
         const lineup = source?.id ? await DB.getLineup(source.id) : [];
@@ -830,18 +831,19 @@ window.NSK2App = (() => {
       const editId = sessionStorage.getItem("nsk2_edit_pool_id");
       if(editId && sessionStorage.getItem('nsk2_calendar_match_import_errors'))
         throw new Error('Slutför den avbrutna kalenderimporten innan ett poolspel redigeras.');
-      let changedRules = false;
+      let changedRules = false, lockedRulesChanged = false;
       if (editId) {
         const previous = await DB.getPool(editId);
         if (!previous) throw new Error("Poolspelet kunde inte hittas. Ladda om sidan.");
         // Redigering av plats, datum eller spelregler får inte återaktivera ett avslutat poolspel.
-        payload.status = previous.status || "Aktiv";
+        payload.status = "Aktiv"; // PATCH preserves stored status; closing/reopening has a separate endpoint.
         const rules = ["players_on_field", "periods", "period_time", "sub_time"];
         changedRules = rules.some(k => Number(previous[k]) !== Number(payload[k]));
+        lockedRulesChanged = rules.filter(k=>k!=="sub_time").some(k=>Number(previous[k])!==Number(payload[k]));
         // Kontrollera samtliga tidigare matcher innan några pooluppgifter sparas.
         // Även minskat antal lag/matcher får inte dölja redan genomförda byten.
         const changedStructure = ["teams", "matches"].some(k => Number(previous[k]) !== Number(payload[k]));
-        if (changedRules || changedStructure) {
+        if (lockedRulesChanged || changedStructure) {
           if (typeof DB?.listShiftSchema !== "function") {
             throw new Error("Kan inte kontrollera genomförda byten. Inga ändringar sparades.");
           }
@@ -858,24 +860,21 @@ window.NSK2App = (() => {
             }
           }
         }
-        if (changedRules && !window.confirm(
-          "Du har ändrat spelregler som påverkar bytesscheman. " +
-          "Befintliga bytesscheman behöver uppdateras. " +
-          "Scheman med genomförda byten får inte ändras. Fortsätta?"
-        )) return;
       }
       if (saveButton) saveButton.disabled = true;
       try {
         if (editId) {
+          if(changedRules)sessionStorage.setItem("nsk2_retime_pool_id",editId);
           await DB.updatePool(editId, payload);
           sessionStorage.setItem("nsk2_pool_id", editId);
-          if (changedRules) {
+          if (changedRules || sessionStorage.getItem("nsk2_retime_pool_id")===editId) {
             setText("poolMsg", "Poolspel sparat. Uppdaterar bytesscheman – vänta...");
-            const errors = await updateAffectedShiftSchemas(editId, payload);
+            const errors = await updateAffectedShiftSchemas(editId, payload, !lockedRulesChanged);
             if (errors.length) {
               throw new Error("Poolspel sparat, men vissa bytesscheman kunde inte uppdateras: " + errors.join("; ") + ". Försök inte ändra spelregler igen innan detta är åtgärdat.");
             }
           }
+          sessionStorage.removeItem("nsk2_retime_pool_id");
           sessionStorage.removeItem("nsk2_edit_pool_id");
         } else {
           const pending=sessionStorage.getItem('nsk2_calendar_match_pending');
@@ -2354,9 +2353,9 @@ window.NSK2App = (() => {
         const actualStart = String(rows[0]?.time_left || "").trim();
         const outdated = rows.length !== expected || actualStart !== expectedStart;
         if (outdated) {
-          repairHtml = `<div class="small" style="margin-bottom:12px">Match ${esc(matchNo)} har ett bytesschema som inte stämmer med poolspelsinställningarna. Sparat: ${rows.length} byten, start ${esc(actualStart || "—")}. Aktuellt: ${expected} byten, start ${expectedStart}. Ingen ändring görs utan bekräftelse.</div>`;
-          if (rows.some(r => r.done)) repairHtml += `<div class="small" style="margin-bottom:8px">Matchen har genomförda byten. Schemat är låst och får inte återskapas.</div>`;
-          if(!rows.some(r=>r.done))repairHtml += `<button type="button" class="row-btn nsk-action nsk-action--neutral" id="repairOutdatedShifts" style="margin-bottom:12px">Återskapa Match ${esc(matchNo)} enligt aktuella inställningar</button>`;
+          repairHtml = `<div class="small" style="margin-bottom:12px">Match ${esc(matchNo)} har ett bytesschema som inte stämmer med poolspelsinställningarna. Sparat: ${rows.length} byten, start ${esc(actualStart || "—")}. Aktuellt: ${expected} byten, start ${expectedStart}. Bockarna behålls vid omräkning.</div>`;
+          if (rows.some(r => r.done)) repairHtml += `<div class="small" style="margin-bottom:8px">Hela schemat räknas om. Bockarna behålls på samma bytesnummer.</div>`;
+          repairHtml += `<button type="button" class="row-btn nsk-action nsk-action--neutral" id="repairOutdatedShifts" style="margin-bottom:12px">Räkna om Match ${esc(matchNo)} enligt aktuella inställningar</button>`;
         }
       }
     }
@@ -2394,7 +2393,9 @@ window.NSK2App = (() => {
     if(pool?.active===false){for(const control of wrap.querySelectorAll("button"))control.disabled=true;setText("shiftMsg","Poolspelet är avslutat. Återöppna det i kalendern för att ändra.");}
     const repairButton = byId("repairOutdatedShifts");
     if (repairButton) repairButton.addEventListener("click", async () => {
-      if(rows.some(r=>r.done)){setText("appError","Matchen har genomförda byten. Schemat är låst.");return;}
+      if(rows.some(r=>r.done)){
+        repairButton.disabled=true;try{await DB.retimeShiftSchema(poolId,Number(lagNo),Number(matchNo));await renderShiftSchema();}catch(err){setText("appError",err.message);repairButton.disabled=false;}return;
+      }
       if (!window.confirm(`Återskapa endast Match ${matchNo}, Lag ${lagNo}? Andra matcher påverkas inte.`)) return;
       repairButton.disabled = true;
       try {
