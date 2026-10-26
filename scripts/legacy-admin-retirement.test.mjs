@@ -7,12 +7,12 @@ test('production blocks shared admin and match-code login before accessing crede
   assert.equal(result.status,410,path);assert.match((await result.json()).error,/personliga NSK/);
  }
 });
-test('production pages do not load the old admin widget or offer unsupported pool deletion',()=>{
+test('production pages do not load the old admin widget',()=>{
  for(const folder of readdirSync(new URL('../',import.meta.url),{withFileTypes:true}).filter(d=>d.isDirectory())){
   let html;try{html=readFileSync(new URL('../'+folder.name+'/index.html',import.meta.url),'utf8');}catch{continue;}
   assert.doesNotMatch(html,/src="[^\"]*admin-mode\.js/,folder.name);
  }
- assert.doesNotMatch(readFileSync(new URL('../app.js',import.meta.url),'utf8'),/data-delete-pool="\$\{poolId\}"/);
+ assert.match(readFileSync(new URL('../app.js',import.meta.url),'utf8'),/data-delete-pool="\$\{poolId\}"/);
 });
 test('team count updates preserve pool rules and use personal authorization',async()=>{
  const requests=[];const raw={id:9,Lag:[1],Namn:'Poolspel',Plats:'Eskilstuna',Ishall:'Smehallen',Datum:'2026-11-08','Antal lag':1,'Antal matcher':4,'Spelare på plan':3,Perioder:1,Periodtid:15,Bytestid:90};

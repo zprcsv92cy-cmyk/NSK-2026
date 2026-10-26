@@ -1,4 +1,5 @@
 window.APP_CONFIG = {
+  POOL_FLOW_ENABLED: true,
   API_URL: "https://nsk-api.peter-hasselberg.workers.dev",
   // Isolated auth service: personal sessions never go to the legacy API.
   AUTH_URL: "https://nsk-auth.peter-hasselberg.workers.dev",

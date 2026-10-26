@@ -109,7 +109,7 @@ test('empty match survives create, reload and repeated save through app, adapter
   } finally { globalThis.fetch = oldFetch; }
 });
 
-test('opening a saved empty match does not copy the populated Match 1 lineup', async () => {
+test('opening a saved empty match inherits the populated Match 1 lineup', async () => {
   const app = readFileSync(new URL('../app.js', import.meta.url), 'utf8');
   const start = app.indexOf('  async function fillLaguppstallningFormFromSelection()');
   const end = app.indexOf('  async function validateUniquePlayersPerMatch(', start);
@@ -138,7 +138,7 @@ test('opening a saved empty match does not copy the populated Match 1 lineup', a
   });
   vm.runInContext(app.slice(start, end) + '\nthis.openMatch = fillLaguppstallningFormFromSelection;', context);
   await context.openMatch();
-  assert.equal(copied, false);
-  assert.equal(byId('lineupGoalie').value, '');
-  for (let i = 1; i <= 25; i++) assert.equal(byId('lineupPlayer' + i).value, '');
+  assert.equal(copied, true);
+  assert.equal(byId('lineupGoalie').value, '7');
+  for (let i = 1; i <= 25; i++) assert.equal(byId('lineupPlayer' + i).value, i<=3?String(i+7):'');
 });

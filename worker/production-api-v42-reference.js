@@ -1,3 +1,4 @@
+import {withPoolFlow} from './pool-flow-api.js';
 import {createSharpeningHandler,readSharpeningPerson} from './sharpening-links-api.js';
 import {createPrivateSkillsHandler,readSkillsRoster} from './private-skills-api.js';
 import { createEquipmentHandler } from './equipment-api.js';
@@ -1254,6 +1255,7 @@ var worker_default = { async fetch(req, env) {
   // All supported collections must pass an explicit authorization boundary.
   return reply({ ok: false, error: "Behörighetskontrollerad läsning krävs" }, 403);
 } };
+worker_default.fetch=withPoolFlow(worker_default.fetch,{resolveTables:resolveBaserowTables,listTeams:listTrustedRosterTeams,verifyIdentity:(env,token)=>createPersonalRosterIdentityVerifier(env)(token),authorize:authorizeTeamFeature,fetcher:fetch});
 // Preserve the existing fetch handler; scheduled sync is separately gated.
 worker_default.scheduled = async (_event,env,ctx) => {
  const job=(async()=>{
