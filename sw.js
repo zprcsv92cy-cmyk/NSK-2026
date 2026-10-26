@@ -27,6 +27,8 @@ self.addEventListener("fetch", (event) => {
   const req = event.request;
   if (req.method !== "GET" || new URL(req.url).origin !== self.location.origin) return;
   const url = new URL(req.url);
+  // Public capability pages must never fall back to the signed-in app.
+  if(url.pathname.includes("/slipning/")||url.pathname.endsWith("/sharpening-public.js"))return;
   // deploy.json får aldrig hämtas ur cache: den styr versionskontrollen.
   if (url.pathname.endsWith("/deploy.json") || url.pathname.endsWith("/home-training.js") || url.pathname.endsWith("/svenskalag-home.js")) return;
   // Cachelagra endast filer som hör till denna GitHub Pages-app.

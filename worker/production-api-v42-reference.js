@@ -1,3 +1,4 @@
+import {createSharpeningHandler,readSharpeningPerson} from './sharpening-links-api.js';
 import {createPrivateSkillsHandler,readSkillsRoster} from './private-skills-api.js';
 import { createEquipmentHandler } from './equipment-api.js';
 import { fetchBaserowRead as fetch } from './baserow-read-fetch.js';
@@ -333,6 +334,14 @@ var worker_default = { async fetch(req, env) {
     if(origin&&origin!==ORIGIN)return json({ok:false,error:"Åtkomst nekad"},403,headers);
     if(req.method==="OPTIONS")return new Response(null,{status:204,headers:{...headers,"Access-Control-Allow-Methods":"GET,PUT,POST,DELETE,OPTIONS"}});
     const response=await createPrivateSkillsHandler(env,()=>listTrustedRosterTeams(env),{readRoster:team=>readSkillsRoster(env,TABLES.spelare,team,fetch)})(req);
+    const finalHeaders=new Headers(response.headers);for(const [key,value] of Object.entries(headers))finalHeaders.set(key,value);
+    return new Response(response.body,{status:response.status,headers:finalHeaders});
+  }
+  if (["/api/sharpening/link","/api/sharpening/public"].includes(url.pathname)) {
+    const headers={...cors,"Vary":"Origin, Authorization","Cache-Control":"private, no-store","Access-Control-Allow-Methods":"GET,PUT,POST,OPTIONS"};
+    if(origin&&origin!==ORIGIN)return json({ok:false,error:"Åtkomst nekad"},403,headers);
+    if(req.method==="OPTIONS")return new Response(null,{status:204,headers});
+    const response=await createSharpeningHandler(env,()=>listTrustedRosterTeams(env),{readPerson:(team,id)=>readSharpeningPerson(env,TABLES.spelare,team,id,fetch)})(req);
     const finalHeaders=new Headers(response.headers);for(const [key,value] of Object.entries(headers))finalHeaders.set(key,value);
     return new Response(response.body,{status:response.status,headers:finalHeaders});
   }

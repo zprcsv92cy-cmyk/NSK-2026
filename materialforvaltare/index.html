@@ -12,7 +12,9 @@ document.write('<script src="../view-cache.js?v='+window.NSK_VERSION+'"><\/scrip
 document.write('<script src="../auth.js?v='+window.NSK_VERSION+'"><\/script>');
 document.write('<script src="../shared-training.js?v='+window.NSK_VERSION+'"><\/script>');
 document.write('<script src="../navigation.js?v='+window.NSK_VERSION+'" defer><\/script>');
-document.write('<script src="../person-cards.js?v='+window.NSK_VERSION+'" defer><\/script>');
+document.write('<script src="../qr-code.js?v='+window.NSK_VERSION+'" defer><\/script>');
+    document.write('<script src="../sharpening-link-manager.js?v='+window.NSK_VERSION+'" defer><\/script>');
+    document.write('<script src="../person-cards.js?v='+window.NSK_VERSION+'" defer><\/script>');
 document.write('<script src="../equipment.js?v='+window.NSK_VERSION+'" defer><\/script>');
 </script>
 <style>
@@ -30,4 +32,5 @@ document.write('<script src="../equipment.js?v='+window.NSK_VERSION+'" defer><\/
 <button type="button" id="checklistCreateButton" aria-expanded="false" aria-controls="checklistForm" hidden>Skapa checklistor</button>
 <form id="checklistForm" class="equipment-form" hidden><h3 id="checklistEditorTitle">Skapa checklista</h3><label>Namn<input id="checklistTitle" maxlength="100" required placeholder="Material bortamatch"></label><label>Material – en sak per rad<textarea id="checklistItems" rows="6" maxlength="15000" required placeholder="Puckar&#10;Vattenflaskor&#10;Matchtröjor"></textarea></label><div class="equipment-actions"><button type="button" id="equipmentAwayTemplate">Mall: Material bortamatch</button><button id="checklistSaveButton" class="nsk-action nsk-action--save" type="submit">Spara checklista</button><button type="button" id="checklistCancel">Avbryt</button></div></form>
 </div></section>
+<details id="sharpeningLinksBox" class="card equipment-box sharpening-link-manager" hidden><summary><div class="equipment-box-heading"><h2>Personliga slipningslänkar</h2><small>Förälder eller spelare – utan appkonto</small></div></summary><div class="equipment-box-body"><label class="sharpening-link-label">Välj spelare<select id="sharpeningLinkPerson"><option value="">Välj spelare</option></select></label><div id="equipmentLinkManager"></div></div></details>
 </div></body></html>
