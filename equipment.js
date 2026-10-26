@@ -1,9 +1,9 @@
 (() => {
  const $=id=>document.getElementById(id);
  const base=()=>String(window.APP_CONFIG?.API_URL||'https://nsk-api.peter-hasselberg.workers.dev').replace(/\/$/,'');
- let board,team,teamName,canWrite=false,busy=false,people=[];
+ let board,team,teamName,canWrite=false,busy=false,people=[],creatingChecklist=false;
  const status=message=>{$('equipmentStatus').textContent=message;};
- function lock(){for(const control of document.querySelectorAll('form input,form select,form textarea,form button,.equipment-row input,.equipment-row button,.equipment-actions button'))control.disabled=busy||!canWrite;$('equipmentReload').disabled=busy;}
+ function lock(){for(const control of document.querySelectorAll('form input,form select,form textarea,form button,.equipment-row input,.equipment-row button,.equipment-actions button,#checklistCreateButton'))control.disabled=busy||!canWrite;$('equipmentReload').disabled=busy;}
  async function request(payload){
   if(Auth.activeTeam()!==teamName)throw Error('Laget har ändrats. Ladda om sidan.');
   const response=await fetch(base()+'/api/equipment?team_id='+encodeURIComponent(team),{method:payload?'PUT':'GET',headers:{Authorization:'Bearer '+Auth.getToken(),...(payload?{'Content-Type':'application/json'}:{})},body:payload?JSON.stringify(payload):undefined,cache:'no-store'});
@@ -26,29 +26,54 @@
   l.append(check,label);r.append(l);
   if(canWrite&&remove)r.append(button('Ta bort',remove));return r;
  }
+ function lamp(done){
+  const label=element('span');label.className='equipment-lamp'+(done?' equipment-lamp--done':'');
+  const dot=element('span');dot.className='equipment-lamp-dot';dot.setAttribute('aria-hidden','true');
+  label.append(dot,element('span',done?'Klar':'Önskar slipning'));return label;
+ }
+ function skateFacts(skates){
+  const facts=element('dl');facts.className='equipment-skate-facts';
+  for(const [label,value] of [['Skåldjup',skates?.hollow],['Radie',skates?.radius],['Profil',skates?.profile],['Skridskor',skates?.model]]){
+   const item=element('div');item.append(element('dt',label),element('dd',value||'Ej angivet'));facts.append(item);
+  }
+  return facts;
+ }
+ function setCreation(open){
+  creatingChecklist=open&&canWrite;$('checklistForm').hidden=!creatingChecklist;
+  $('checklistCreateButton').setAttribute('aria-expanded',String(creatingChecklist));
+ }
  function render(){
-  $('sharpeningForm').hidden=!canWrite;$('checklistForm').hidden=!canWrite;
-  const requests=$('sharpeningList');requests.replaceChildren();
+  $('sharpeningCreate').hidden=!canWrite;$('sharpeningForm').hidden=!canWrite;
+  $('checklistCreateButton').hidden=!canWrite;setCreation(creatingChecklist);
+  const requests=$('sharpeningList');
+  const openRequests=new Set([...requests.querySelectorAll('details[open]')].map(d=>d.dataset.requestId));
+  requests.replaceChildren();
   if(!board.requests.length)requests.append(element('p','Inga slipönskemål ännu.'));
   const pending=board.requests.filter(r=>!r.done).length;
-  if(board.requests.length)requests.append(element('p',pending+' väntar på slipning'));
+  $('sharpeningCount').textContent=pending+' önskar slipning · '+(board.requests.length-pending)+' klara';
   for(const item of [...board.requests].sort((a,b)=>Number(a.done)-Number(b.done))){
-   const label=element('span',item.name+' · '+(item.kind==='player'?'Spelare':'Tränare'));
-   label.append(element('small',item.note|| (item.done?'Slipning klar':'Önskar slipning')));
-   const skates=item.skates;
-   label.append(element('small','Skåldjup: '+(skates?.hollow||'Ej angivet – kontrollera före slipning')));
-   label.append(element('small','Profil: '+(skates?.profile||'Ej angiven')));
-   if(skates?.model)label.append(element('small','Skridskor: '+skates.model));
-   if(skates?.notes)label.append(element('small',skates.notes));
-   requests.append(row(label,item.done,done=>change(b=>{b.requests.find(r=>r.id===item.id).done=done;}),()=>{if(confirm('Ta bort slipönskemålet för '+item.name+'?'))void change(b=>{b.requests=b.requests.filter(r=>r.id!==item.id);});}));
+   const section=element('details');section.className='equipment-slip';section.dataset.requestId=item.id;section.open=openRequests.has(item.id);
+   const summary=element('summary'),name=element('span',item.name);name.className='equipment-slip-name';name.append(element('small',item.kind==='player'?'Spelare':'Tränare'));
+   summary.append(name,lamp(item.done));section.append(summary);
+   const body=element('div');body.className='equipment-slip-body';body.append(skateFacts(item.skates));
+   if(!item.skates?.hollow&&!item.done){const missing=element('p','Skåldjup saknas – kontrollera före slipning.');missing.className='equipment-slip-notes';body.append(missing);}
+   for(const note of [item.note,item.skates?.notes])if(note){const p=element('p',note);p.className='equipment-slip-notes';body.append(p);}
+   if(canWrite){const actions=element('div');actions.className='equipment-actions';
+    actions.append(button(item.done?'Markera som önskar slipning':'Markera klar',()=>void change(b=>{b.requests.find(r=>r.id===item.id).done=!item.done;})),button('Ta bort',()=>{if(confirm('Ta bort slipönskemålet för '+item.name+'?'))void change(b=>{b.requests=b.requests.filter(r=>r.id!==item.id);});}));body.append(actions);
+   }
+   section.append(body);requests.append(section);
   }
-  const lists=$('equipmentChecklists');lists.replaceChildren();
+  const lists=$('equipmentChecklists');
+  const openLists=new Set([...lists.querySelectorAll('details[open]')].map(d=>d.dataset.checklistId));lists.replaceChildren();
   if(!board.checklists.length)lists.append(element('p','Inga checklistor ännu.'));
   for(const list of board.checklists){
-   const section=element('section');section.append(element('h3',list.title),element('p',list.items.filter(i=>i.done).length+' av '+list.items.length+' klara'));
-   for(const item of list.items)section.append(row(element('span',item.label),item.done,done=>change(b=>{b.checklists.find(c=>c.id===list.id).items.find(i=>i.id===item.id).done=done;})));
-   if(canWrite){const actions=element('div');actions.className='equipment-actions';actions.append(button('Återställ bockar',()=>{if(confirm('Återställ alla bockar i '+list.title+'?'))void change(b=>{b.checklists.find(c=>c.id===list.id).items.forEach(i=>{i.done=false;});});}),button('Ta bort lista',()=>{if(confirm('Ta bort checklistan '+list.title+'?'))void change(b=>{b.checklists=b.checklists.filter(c=>c.id!==list.id);});}));section.append(actions);}
-   lists.append(section);
+   const section=element('details');section.className='equipment-checklist';section.dataset.checklistId=list.id;section.open=openLists.has(list.id);
+   const summary=element('summary'),name=element('span',list.title);name.className='equipment-checklist-name';
+   name.append(element('small',list.items.filter(i=>i.done).length+' av '+list.items.length+' klara'));summary.append(name);section.append(summary);
+   const body=element('div');body.className='equipment-checklist-body';
+   for(const item of list.items)body.append(row(element('span',item.label),item.done,done=>change(b=>{b.checklists.find(c=>c.id===list.id).items.find(i=>i.id===item.id).done=done;})));
+   if(canWrite){const actions=element('div');actions.className='equipment-actions';actions.append(button('Återställ bockar',()=>{if(confirm('Återställ alla bockar i '+list.title+'?'))void change(b=>{b.checklists.find(c=>c.id===list.id).items.forEach(i=>{i.done=false;});});}),button('Ta bort lista',()=>{if(confirm('Ta bort checklistan '+list.title+'?'))void change(b=>{b.checklists=b.checklists.filter(c=>c.id!==list.id);});}));body.append(actions);}
+   section.append(body);lists.append(section);
   }
   lock();
  }
@@ -79,9 +104,11 @@
   $('equipmentSkates').textContent='Hämtar skridskouppgifter…';
   const [kind,id]=value.split(':');
   try{const result=await PersonCards.get(team,kind,id);if(generation!==selectionVersion)return;
-   $('equipmentSkates').textContent='Skåldjup: '+(result.card.hollow||'Ej angivet')+' · Profil: '+(result.card.profile||'Ej angiven')+'. Hämtas automatiskt från personkortet.';
+   $('equipmentSkates').textContent='Skåldjup: '+(result.card.hollow||'Ej angivet')+' · Radie: '+(result.card.radius||'Ej angiven')+' · Profil: '+(result.card.profile||'Ej angiven')+'. Hämtas automatiskt från personkortet.';
   }catch(error){if(generation===selectionVersion)$('equipmentSkates').textContent=error.message;}
  };
+ $('checklistCreateButton').onclick=()=>{if(busy||!canWrite)return;setCreation(!creatingChecklist);if(creatingChecklist)$('checklistTitle').focus();};
+ $('checklistCancel').onclick=()=>{if(busy)return;setCreation(false);$('checklistCreateButton').focus();};
  $('equipmentReload').onclick=()=>void load();
  $('sharpeningForm').onsubmit=async event=>{
   event.preventDefault();const person=people.find(p=>p.kind+':'+p.id===$('equipmentPerson').value);if(!person)return;
@@ -92,7 +119,11 @@
  $('checklistForm').onsubmit=async event=>{
   event.preventDefault();const title=$('checklistTitle').value.trim(),items=$('checklistItems').value.split('\n').map(x=>x.trim()).filter(Boolean);
   if(!title||!items.length||items.length>100||items.some(i=>i.length>150)){status('Ange ett namn och 1–100 rader med högst 150 tecken per rad.');return;}
-  if(await change(b=>b.checklists.push({id:crypto.randomUUID(),title,items:items.map(label=>({id:crypto.randomUUID(),label,done:false}))})))$('checklistForm').reset();
+  const id=crypto.randomUUID();
+  if(await change(b=>b.checklists.push({id,title,items:items.map(label=>({id:crypto.randomUUID(),label,done:false}))}))){
+   $('checklistForm').reset();setCreation(false);
+   const created=[...$('equipmentChecklists').querySelectorAll('details')].find(d=>d.dataset.checklistId===id);if(created){created.open=true;created.querySelector('summary').focus();}
+  }
  };
  $('equipmentAwayTemplate').onclick=()=>{if(($('checklistTitle').value||$('checklistItems').value)&&!confirm('Ersätt utkastet med mallen Material bortamatch?'))return;$('checklistTitle').value='Material bortamatch';$('checklistItems').value='Matchtröjor\nMålvaktsutrustning\nPuckar\nVattenflaskor\nFörbandsväska\nTejp\nVerktyg och reservdelar';};
  void load();

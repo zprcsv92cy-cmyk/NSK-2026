@@ -2,7 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import {createEquipmentHandler,emptyPersonCard,validatePersonCard} from '../worker/equipment-api.js';
 const teams=[{id:18,Namn:'A','Säsong':'2026'},{id:19,Namn:'B','Säsong':'2026'}];
-const card=()=>({...emptyPersonCard(),number:'18',position:'Back',hand:'Left',model:'Exempelmodell',hollow:'16 mm',profile:'Exempelprofil',notes:'Kontrollera skenan'});
+const card=()=>({...emptyPersonCard(),number:'18',position:'Back',hand:'Left',model:'Exempelmodell',hollow:'16 mm',profile:'Exempelprofil',radius:'10 ft',notes:'Kontrollera skenan'});
 const req=(route,method='GET',data,team='18')=>new Request('https://example.test'+route+(route.includes('?')?'&':'?')+'team_id='+team,{method,headers:{Authorization:'Bearer valid'},...(data===undefined?{}:{body:JSON.stringify(data)})});
 const endpoint='/api/person-card?kind=player&person_id=101';
 function fixture(){
@@ -16,7 +16,7 @@ function fixture(){
 }
 test('person card fields validate optional values, Right/Left and reject unknown keys',()=>{
  assert.equal(validatePersonCard(emptyPersonCard()),true);assert.equal(validatePersonCard(card()),true);
- for(const bad of [null,{...card(),hand:'Vänster'},{...card(),number:'ABC'},{...card(),hollow:'x'.repeat(61)},{...card(),injected:true}])assert.equal(validatePersonCard(bad),false);
+ for(const bad of [null,{...card(),hand:'Vänster'},{...card(),number:'ABC'},{...card(),hollow:'x'.repeat(61)},{...card(),injected:true},{...card(),radius:'x'.repeat(61)}])assert.equal(validatePersonCard(bad),false);
 });
 test('person card is keyed by team, kind and person and denies invalid queries and outside-team references',async()=>{
  const f=fixture();let r=await f.handler(req(endpoint));assert.equal(r.status,200);assert.equal((await r.json()).name,'Spelare A');
@@ -29,7 +29,7 @@ test('cards and material changes coexist; new sharpening orders snapshot saved s
  const board=await (await f.handler(req('/api/equipment'))).json();assert.deepEqual(board.requests,[]);assert.equal(board.revision,1);
  const order={id:'one',kind:'player',personId:'101',name:'Forged name',note:'Inför match',done:false,skates:{model:'forged',hollow:'forged',profile:'forged',notes:'forged'}};
  r=await f.handler(req('/api/equipment','PUT',{revision:1,requests:[order],checklists:[]}));assert.equal(r.status,200);
- let saved=await r.json();assert.equal(saved.requests[0].name,'Spelare A');assert.equal(saved.requests[0].skates.hollow,'16 mm');assert.equal(saved.requests[0].skates.profile,'Exempelprofil');
+ let saved=await r.json();assert.equal(saved.requests[0].name,'Spelare A');assert.equal(saved.requests[0].skates.hollow,'16 mm');assert.equal(saved.requests[0].skates.profile,'Exempelprofil');assert.equal(saved.requests[0].skates.radius,'10 ft');
  r=await f.handler(req(endpoint,'GET'));let profile=await r.json();assert.equal(profile.card.hand,'Left');assert.equal(profile.revision,2);
  r=await f.handler(req(endpoint,'PUT',{revision:2,card:{...card(),hollow:'20 mm'}}));assert.equal(r.status,200);
  assert.equal((await f.handler(req(endpoint,'PUT',{revision:2,card:card()}))).status,409);
@@ -56,4 +56,14 @@ test('person card rejects oversized requests and invalid bodies; new slip reques
  const f=fixture();assert.equal((await f.handler(req(endpoint,'PUT',{revision:0,card:{...card(),notes:'x'.repeat(9000)}}))).status,413);
  assert.equal((await f.handler(req(endpoint,'PUT',{revision:0,card:{...card(),hand:'Other'}}))).status,400);
  const request={id:'one',kind:'coach',personId:'999',name:'Another team',note:'',done:false};assert.equal((await f.handler(req('/api/equipment','PUT',{revision:0,requests:[request],checklists:[]}))).status,400);
+});
+
+test('legacy card saves preserve the separately stored radius and new slip requests include it',async()=>{
+ const f=fixture();assert.equal((await f.handler(req(endpoint,'PUT',{revision:0,card:card()}))).status,200);
+ const {radius,...legacy}=card();legacy.hollow='18 mm';
+ assert.equal((await f.handler(req(endpoint,'PUT',{revision:1,card:legacy}))).status,200);
+ const read=await (await f.handler(req(endpoint))).json();assert.equal(read.card.radius,'10 ft');assert.equal(read.card.profile,'Exempelprofil');assert.equal(read.card.hollow,'18 mm');
+ const order={id:'radius-one',kind:'player',personId:'101',name:'Spelare A',note:'',done:false};
+ const response=await f.handler(req('/api/equipment','PUT',{revision:2,requests:[order],checklists:[]}));assert.equal(response.status,200);
+ const saved=await response.json();assert.equal(saved.requests[0].skates.radius,'10 ft');assert.equal(saved.requests[0].skates.profile,'Exempelprofil');
 });
