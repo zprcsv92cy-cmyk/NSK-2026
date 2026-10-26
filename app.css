@@ -676,7 +676,7 @@ img[src*="logga" i] {
 }
 
 /* NSK-2026: gemensam kompakt poolspelslista – dator och mobil */
-#savedPoolsList .nsk-pool-row {
+:is(#savedPoolsList,#activityList) .nsk-pool-row {
   background: var(--card);
   color: var(--text);
   border: 1px solid var(--line);
@@ -684,7 +684,7 @@ img[src*="logga" i] {
   margin: 8px 0;
   overflow: hidden;
 }
-#savedPoolsList .nsk-pool-summary {
+:is(#savedPoolsList,#activityList) .nsk-pool-summary {
   display: flex;
   align-items: center;
   gap: 10px;
@@ -695,30 +695,30 @@ img[src*="logga" i] {
   background: #202127;
   color: var(--text);
 }
-#savedPoolsList .nsk-pool-summary::-webkit-details-marker { display: none; }
-#savedPoolsList .nsk-pool-summary:hover { background: #292a30; }
-#savedPoolsList .nsk-pool-name { font-weight: 800; min-width: 0; }
-#savedPoolsList .nsk-pool-hall {
+:is(#savedPoolsList,#activityList) .nsk-pool-summary::-webkit-details-marker { display: none; }
+:is(#savedPoolsList,#activityList) .nsk-pool-summary:hover { background: #292a30; }
+:is(#savedPoolsList,#activityList) .nsk-pool-name { font-weight: 800; min-width: 0; }
+:is(#savedPoolsList,#activityList) .nsk-pool-hall {
   margin-left: auto;
   text-align: right;
   font-size: .9em;
   color: var(--muted);
 }
-#savedPoolsList .nsk-pool-chevron {
+:is(#savedPoolsList,#activityList) .nsk-pool-chevron {
   color: var(--text);
   font-size: 1.3em;
   transition: transform .15s ease;
 }
-#savedPoolsList .nsk-pool-row[open] .nsk-pool-chevron { transform: rotate(180deg); }
-#savedPoolsList .nsk-pool-row[open] .nsk-pool-summary {
+:is(#savedPoolsList,#activityList) .nsk-pool-row[open] .nsk-pool-chevron { transform: rotate(180deg); }
+:is(#savedPoolsList,#activityList) .nsk-pool-row[open] .nsk-pool-summary {
   border-bottom: 1px solid var(--line);
 }
-#savedPoolsList .nsk-pool-content { padding: 12px 14px 14px; background: var(--card); }
-#savedPoolsList .nsk-pool-group + .nsk-pool-group { margin-top: 12px; }
-#savedPoolsList .nsk-pool-group .pool-lineup-title { margin-bottom: 7px; font-weight: 800; }
-#savedPoolsList .nsk-pool-group .team-buttons { display: flex; flex-wrap: wrap; gap: 8px; }
-#savedPoolsList .nsk-pool-actions { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 14px; align-items: center; }
-#savedPoolsList .nsk-pool-actions .start-pool-btn {
+:is(#savedPoolsList,#activityList) .nsk-pool-content { padding: 12px 14px 14px; background: var(--card); }
+:is(#savedPoolsList,#activityList) .nsk-pool-group + .nsk-pool-group { margin-top: 12px; }
+:is(#savedPoolsList,#activityList) .nsk-pool-group .pool-lineup-title { margin-bottom: 7px; font-weight: 800; }
+:is(#savedPoolsList,#activityList) .nsk-pool-group .team-buttons { display: flex; flex-wrap: wrap; gap: 8px; }
+:is(#savedPoolsList,#activityList) .nsk-pool-actions { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 14px; align-items: center; }
+:is(#savedPoolsList,#activityList) .nsk-pool-actions .start-pool-btn {
   width: auto;
   max-width: 100%;
   min-height: 46px;
@@ -727,13 +727,13 @@ img[src*="logga" i] {
   font-size: 16px;
   border-radius: 13px;
 }
-#savedPoolsList .pool-overview-section + .pool-overview-section { margin-top: 20px; }
+:is(#savedPoolsList,#activityList) .pool-overview-section + .pool-overview-section { margin-top: 20px; }
 @media (max-width: 700px) {
-  #savedPoolsList .nsk-pool-summary { flex-wrap: wrap; gap: 4px 8px; }
-  #savedPoolsList .nsk-pool-name { flex: 1 1 auto; }
-  #savedPoolsList .nsk-pool-hall { font-size: .82em; }
-  #savedPoolsList .nsk-pool-group .team-buttons { display: grid; grid-template-columns: repeat(2,minmax(0,1fr)); }
-  #savedPoolsList .nsk-pool-actions .start-pool-btn { flex: 1 1 auto; }
+  :is(#savedPoolsList,#activityList) .nsk-pool-summary { flex-wrap: wrap; gap: 4px 8px; }
+  :is(#savedPoolsList,#activityList) .nsk-pool-name { flex: 1 1 auto; }
+  :is(#savedPoolsList,#activityList) .nsk-pool-hall { font-size: .82em; }
+  :is(#savedPoolsList,#activityList) .nsk-pool-group .team-buttons { display: grid; grid-template-columns: repeat(2,minmax(0,1fr)); }
+  :is(#savedPoolsList,#activityList) .nsk-pool-actions .start-pool-btn { flex: 1 1 auto; }
 }
 
 /* Startsida – samma stylesheet för alla enheter */
@@ -746,67 +746,67 @@ img[src*="logga" i] {
     .home-page .home-shortcuts .row-btn { width: auto; min-height: 43px; padding: 9px 15px; flex: 0 0 auto; }
     .home-page .home-saved { padding: 18px 20px; }
     .home-page .home-saved > h2 { margin: 0 0 16px; }
-    .home-page #savedPoolsList { display: grid; gap: 16px; }
-    .home-page #savedPoolsList .pool-item {
+    .home-page :is(#savedPoolsList,#activityList) { display: grid; gap: 16px; }
+    .home-page :is(#savedPoolsList,#activityList) .pool-item {
       display: grid; grid-template-columns: repeat(2, minmax(0, 1fr));
       gap: 13px 18px; padding: 18px; border: 1px solid #35353d;
       border-radius: 16px; background: #1a1b20; min-width: 0;
     }
-    .home-page #savedPoolsList .pool-top {
+    .home-page :is(#savedPoolsList,#activityList) .pool-top {
       grid-column: 1 / -1; display: flex; justify-content: space-between;
       align-items: flex-start; flex-wrap: wrap; gap: 10px;
       padding-bottom: 12px; border-bottom: 1px solid #36363e;
     }
-    .home-page #savedPoolsList .pool-title { font-size: 1.15rem; font-weight: 750; line-height: 1.35; }
-    .home-page #savedPoolsList .pool-meta { margin-top: 4px; color: #b6b7c0; }
-    .home-page #savedPoolsList .status-badge { display: inline-flex; padding: 5px 10px; border: 1px solid #484852; border-radius: 99px; font-size: .88rem; }
-    .home-page #savedPoolsList .pool-actions {
+    .home-page :is(#savedPoolsList,#activityList) .pool-title { font-size: 1.15rem; font-weight: 750; line-height: 1.35; }
+    .home-page :is(#savedPoolsList,#activityList) .pool-meta { margin-top: 4px; color: #b6b7c0; }
+    .home-page :is(#savedPoolsList,#activityList) .status-badge { display: inline-flex; padding: 5px 10px; border: 1px solid #484852; border-radius: 99px; font-size: .88rem; }
+    .home-page :is(#savedPoolsList,#activityList) .pool-actions {
       grid-column: 1 / -1; display: flex; flex-wrap: wrap; gap: 9px;
       margin: 0; justify-content: flex-start;
     }
-    .home-page #savedPoolsList .pool-actions .row-btn {
+    .home-page :is(#savedPoolsList,#activityList) .pool-actions .row-btn {
       width: auto; flex: 0 0 auto; min-height: 39px; padding: 7px 13px;
       background: #26272e; border: 1px solid #454650; border-radius: 10px;
     }
-    .home-page #savedPoolsList .pool-actions .row-btn.danger { background: #531a25; border-color: #80303f; }
-    .home-page #savedPoolsList .pool-lineup-block {
+    .home-page :is(#savedPoolsList,#activityList) .pool-actions .row-btn.danger { background: #531a25; border-color: #80303f; }
+    .home-page :is(#savedPoolsList,#activityList) .pool-lineup-block {
       min-width: 0; margin: 0; padding: 14px;
       background: #202127; border: 1px solid #353640; border-radius: 12px;
     }
-    .home-page #savedPoolsList .pool-lineup-title { font-size: 1rem; font-weight: 700; margin-bottom: 10px; }
-    .home-page #savedPoolsList .team-buttons { display: flex; flex-wrap: wrap; gap: 8px; }
-    .home-page #savedPoolsList .team-btn {
+    .home-page :is(#savedPoolsList,#activityList) .pool-lineup-title { font-size: 1rem; font-weight: 700; margin-bottom: 10px; }
+    .home-page :is(#savedPoolsList,#activityList) .team-buttons { display: flex; flex-wrap: wrap; gap: 8px; }
+    .home-page :is(#savedPoolsList,#activityList) .team-btn {
       width: auto; min-width: 84px; flex: 0 0 auto; min-height: 40px;
       padding: 8px 14px; border-radius: 10px;
     }
-    .home-page #savedPoolsList .pool-lineup-block:last-child {
+    .home-page :is(#savedPoolsList,#activityList) .pool-lineup-block:last-child {
       grid-column: 1 / -1; padding: 0; border: 0; background: transparent;
     }
-    .home-page #savedPoolsList .pool-lineup-block:last-child .pool-lineup-title { margin-bottom: 9px; }
-    .home-page #savedPoolsList .start-pool-btn {
+    .home-page :is(#savedPoolsList,#activityList) .pool-lineup-block:last-child .pool-lineup-title { margin-bottom: 9px; }
+    .home-page :is(#savedPoolsList,#activityList) .start-pool-btn {
       display: block; width: 100%; min-height: 58px; padding: 12px 16px;
       border-radius: 13px; font-weight: 750; white-space: normal; line-height: 1.35;
     }
     @media (max-width: 700px) {
       .home-page .home-shortcuts, .home-page .home-saved { padding: 14px; }
-      .home-page #savedPoolsList .pool-item { grid-template-columns: minmax(0, 1fr); padding: 13px; gap: 11px; }
-      .home-page #savedPoolsList .pool-top,
-      .home-page #savedPoolsList .pool-actions,
-      .home-page #savedPoolsList .pool-lineup-block:last-child { grid-column: 1; }
+      .home-page :is(#savedPoolsList,#activityList) .pool-item { grid-template-columns: minmax(0, 1fr); padding: 13px; gap: 11px; }
+      .home-page :is(#savedPoolsList,#activityList) .pool-top,
+      .home-page :is(#savedPoolsList,#activityList) .pool-actions,
+      .home-page :is(#savedPoolsList,#activityList) .pool-lineup-block:last-child { grid-column: 1; }
       .home-page .home-shortcuts .row-btn { font-size: .95rem; }
-      .home-page #savedPoolsList .pool-lineup-block { padding: 12px; }
+      .home-page :is(#savedPoolsList,#activityList) .pool-lineup-block { padding: 12px; }
     }
 
 /* v671 – kompakt layout A för expanderade poolspel. Endast presentation. */
-.home-page #savedPoolsList .nsk-pool-content {
+.home-page :is(#savedPoolsList,#activityList) .nsk-pool-content {
   padding: 16px;
 }
-.home-page #savedPoolsList .nsk-pool-grid {
+.home-page :is(#savedPoolsList,#activityList) .nsk-pool-grid {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: 12px;
 }
-.home-page #savedPoolsList .nsk-pool-grid .nsk-pool-group {
+.home-page :is(#savedPoolsList,#activityList) .nsk-pool-grid .nsk-pool-group {
   min-width: 0;
   margin: 0;
   padding: 14px;
@@ -814,12 +814,12 @@ img[src*="logga" i] {
   border: 1px solid #353640;
   border-radius: 12px;
 }
-.home-page #savedPoolsList .nsk-pool-grid .team-buttons {
+.home-page :is(#savedPoolsList,#activityList) .nsk-pool-grid .team-buttons {
   display: flex;
   flex-wrap: wrap;
   gap: 8px;
 }
-.home-page #savedPoolsList .nsk-pool-grid .team-btn {
+.home-page :is(#savedPoolsList,#activityList) .nsk-pool-grid .team-btn {
   min-width: 84px;
   width: auto;
   min-height: 40px;
@@ -827,14 +827,14 @@ img[src*="logga" i] {
   border: 1px solid #454650;
   border-radius: 10px;
 }
-.home-page #savedPoolsList .nsk-pool-actions {
+.home-page :is(#savedPoolsList,#activityList) .nsk-pool-actions {
   display: flex;
   flex-direction: column;
   align-items: stretch;
   gap: 10px;
   margin-top: 12px;
 }
-.home-page #savedPoolsList .nsk-pool-actions .start-pool-btn {
+.home-page :is(#savedPoolsList,#activityList) .nsk-pool-actions .start-pool-btn {
   display: block;
   width: 100%;
   min-height: 48px;
@@ -844,13 +844,13 @@ img[src*="logga" i] {
   color: #fff;
   border-radius: 11px;
 }
-.home-page #savedPoolsList .nsk-pool-secondary-actions {
+.home-page :is(#savedPoolsList,#activityList) .nsk-pool-secondary-actions {
   display: flex;
   justify-content: flex-end;
   gap: 8px;
   flex-wrap: wrap;
 }
-.home-page #savedPoolsList .nsk-pool-secondary-actions .row-btn {
+.home-page :is(#savedPoolsList,#activityList) .nsk-pool-secondary-actions .row-btn {
   width: auto;
   min-height: 36px;
   padding: 7px 12px;
@@ -859,19 +859,19 @@ img[src*="logga" i] {
   border-radius: 9px;
   font-size: .9rem;
 }
-.home-page #savedPoolsList .nsk-pool-secondary-actions .row-btn.danger {
+.home-page :is(#savedPoolsList,#activityList) .nsk-pool-secondary-actions .row-btn.danger {
   background: #352128;
   border-color: #69333e;
 }
 @media (max-width: 700px) {
-  .home-page #savedPoolsList .nsk-pool-content { padding: 12px; }
-  .home-page #savedPoolsList .nsk-pool-grid { gap: 8px; }
-  .home-page #savedPoolsList .nsk-pool-grid .nsk-pool-group { padding: 10px; }
-  .home-page #savedPoolsList .nsk-pool-grid .team-buttons {
+  .home-page :is(#savedPoolsList,#activityList) .nsk-pool-content { padding: 12px; }
+  .home-page :is(#savedPoolsList,#activityList) .nsk-pool-grid { gap: 8px; }
+  .home-page :is(#savedPoolsList,#activityList) .nsk-pool-grid .nsk-pool-group { padding: 10px; }
+  .home-page :is(#savedPoolsList,#activityList) .nsk-pool-grid .team-buttons {
     display: flex;
     flex-wrap: wrap;
   }
-  .home-page #savedPoolsList .nsk-pool-grid .team-btn {
+  .home-page :is(#savedPoolsList,#activityList) .nsk-pool-grid .team-btn {
     min-width: 0;
     width: 100%;
   }
@@ -940,47 +940,47 @@ button.ghost, .row-btn:not(.danger), .team-btn:not(.active-team-btn),
 .matchview-wrap .coach-nav-btn { min-height:58px; }
 .matchview-wrap .coach-panel { border-radius:15px; }
 /* Startsidans öppna poolspel – exakt samma struktur som layout A. */
-.home-page #savedPoolsList .nsk-pool-row {
+.home-page :is(#savedPoolsList,#activityList) .nsk-pool-row {
   border-radius:16px;
   background:#17191f;
   border-color:#343640;
 }
-.home-page #savedPoolsList .nsk-pool-row[open] .nsk-pool-summary {
+.home-page :is(#savedPoolsList,#activityList) .nsk-pool-row[open] .nsk-pool-summary {
   background:#17191f;
 }
-.home-page #savedPoolsList .nsk-pool-content { padding:16px; }
-.home-page #savedPoolsList .nsk-pool-grid { gap:12px; }
-.home-page #savedPoolsList .nsk-pool-grid .nsk-pool-group {
+.home-page :is(#savedPoolsList,#activityList) .nsk-pool-content { padding:16px; }
+.home-page :is(#savedPoolsList,#activityList) .nsk-pool-grid { gap:12px; }
+.home-page :is(#savedPoolsList,#activityList) .nsk-pool-grid .nsk-pool-group {
   background:#292c35;
   border:0;
   border-radius:12px;
   text-align:center;
   padding:14px 10px;
 }
-.home-page #savedPoolsList .nsk-pool-grid .team-buttons {
+.home-page :is(#savedPoolsList,#activityList) .nsk-pool-grid .team-buttons {
   display:flex;
   justify-content:center;
   flex-wrap:wrap;
   gap:8px;
 }
-.home-page #savedPoolsList .nsk-pool-grid .team-btn {
+.home-page :is(#savedPoolsList,#activityList) .nsk-pool-grid .team-btn {
   background:#343741;
   border-color:#454852;
   min-height:42px;
 }
-.home-page #savedPoolsList .nsk-pool-actions .start-pool-btn {
+.home-page :is(#savedPoolsList,#activityList) .nsk-pool-actions .start-pool-btn {
   background:#b11226;
   border:1px solid #b11226;
   border-radius:12px;
   min-height:56px;
   font-size:19px;
 }
-.home-page #savedPoolsList .nsk-pool-secondary-actions .row-btn {
+.home-page :is(#savedPoolsList,#activityList) .nsk-pool-secondary-actions .row-btn {
   background:transparent;
   border:1px solid transparent;
   color:#c5c6ce;
 }
-.home-page #savedPoolsList .nsk-pool-secondary-actions .row-btn.danger {
+.home-page :is(#savedPoolsList,#activityList) .nsk-pool-secondary-actions .row-btn.danger {
   background:transparent;
   border-color:transparent;
   color:#d4b8bd;
@@ -990,39 +990,39 @@ button.ghost, .row-btn:not(.danger), .team-btn:not(.active-team-btn),
   .card { padding:13px; }
   .mainmenu { gap:7px; }
   .mainmenu a { padding:9px 11px; }
-  .home-page #savedPoolsList .nsk-pool-content { padding:12px; }
-  .home-page #savedPoolsList .nsk-pool-grid { gap:8px; }
-  .home-page #savedPoolsList .nsk-pool-grid .nsk-pool-group { padding:12px 7px; }
-  .home-page #savedPoolsList .nsk-pool-grid .pool-lineup-title { font-size:.91rem; }
-  .home-page #savedPoolsList .nsk-pool-actions .start-pool-btn { min-height:52px; font-size:17px; }
+  .home-page :is(#savedPoolsList,#activityList) .nsk-pool-content { padding:12px; }
+  .home-page :is(#savedPoolsList,#activityList) .nsk-pool-grid { gap:8px; }
+  .home-page :is(#savedPoolsList,#activityList) .nsk-pool-grid .nsk-pool-group { padding:12px 7px; }
+  .home-page :is(#savedPoolsList,#activityList) .nsk-pool-grid .pool-lineup-title { font-size:.91rem; }
+  .home-page :is(#savedPoolsList,#activityList) .nsk-pool-actions .start-pool-btn { min-height:52px; font-size:17px; }
 }
 /* Fullskärms-coachläge påverkas inte av de gemensamma kortstilarna. */
 
 /* v673: Lagval ovanför de två stora funktionsknapparna på startsidan. */
-.home-page #savedPoolsList .nsk-pool-team-selector { margin-bottom:14px; }
-.home-page #savedPoolsList .nsk-pool-team-label { color:#bfc0c8; font-size:.91rem; margin-bottom:8px; }
-.home-page #savedPoolsList .nsk-pool-team-options { display:flex; flex-wrap:wrap; gap:8px; }
-.home-page #savedPoolsList .nsk-pool-team-choice {
+.home-page :is(#savedPoolsList,#activityList) .nsk-pool-team-selector { margin-bottom:14px; }
+.home-page :is(#savedPoolsList,#activityList) .nsk-pool-team-label { color:#bfc0c8; font-size:.91rem; margin-bottom:8px; }
+.home-page :is(#savedPoolsList,#activityList) .nsk-pool-team-options { display:flex; flex-wrap:wrap; gap:8px; }
+.home-page :is(#savedPoolsList,#activityList) .nsk-pool-team-choice {
   flex:1 1 78px; min-height:44px; padding:10px 12px;
   background:#292c35; color:#fff; border:1px solid #454852; border-radius:11px;
 }
-.home-page #savedPoolsList .nsk-pool-team-choice.is-selected,
-.home-page #savedPoolsList .nsk-pool-team-choice[aria-pressed="true"] {
+.home-page :is(#savedPoolsList,#activityList) .nsk-pool-team-choice.is-selected,
+.home-page :is(#savedPoolsList,#activityList) .nsk-pool-team-choice[aria-pressed="true"] {
   background:#b11226; border-color:#b11226; color:#fff;
 }
-.home-page #savedPoolsList .nsk-pool-grid { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:12px; }
-.home-page #savedPoolsList .nsk-pool-grid .nsk-pool-function {
+.home-page :is(#savedPoolsList,#activityList) .nsk-pool-grid { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:12px; }
+.home-page :is(#savedPoolsList,#activityList) .nsk-pool-grid .nsk-pool-function {
   min-width:0; min-height:106px; padding:15px 7px; display:flex; flex-direction:column;
   justify-content:center; align-items:center; gap:10px;
   background:#292c35; color:#fff; border:1px solid #343741;
   border-radius:12px; font-size:1rem; font-weight:600; text-align:center;
 }
-.home-page #savedPoolsList .nsk-pool-function-icon {
+.home-page :is(#savedPoolsList,#activityList) .nsk-pool-function-icon {
   display:block; font-size:28px; line-height:1; font-weight:400;
 }
 @media(max-width:700px) {
-  .home-page #savedPoolsList .nsk-pool-grid { gap:8px; }
-  .home-page #savedPoolsList .nsk-pool-grid .nsk-pool-function { min-height:98px; font-size:.9rem; }
+  .home-page :is(#savedPoolsList,#activityList) .nsk-pool-grid { gap:8px; }
+  .home-page :is(#savedPoolsList,#activityList) .nsk-pool-grid .nsk-pool-function { min-height:98px; font-size:.9rem; }
 }
 
 /* Versionsinformation och uppdateringsfråga – isolerat från övrig layout. */
@@ -1035,26 +1035,26 @@ button.ghost, .row-btn:not(.danger), .team-btn:not(.active-team-btn),
 
 
 /* Nya poolspelskort: lika layout på dator och mobil */
-.home-page #savedPoolsList .nsk-pool-row{background:#1b1c22;border:1px solid #383a43;border-radius:16px;overflow:hidden;margin:10px 0}
-.home-page #savedPoolsList .nsk-pool-summary{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:4px 12px;padding:16px;background:#202127}
-.home-page #savedPoolsList .nsk-pool-name{grid-column:1;font-size:clamp(16px,2.5vw,19px);font-weight:800;line-height:1.35}
-.home-page #savedPoolsList .nsk-pool-hall{grid-column:1;margin:0;text-align:left;color:#b4b5c0;font-size:14px}
-.home-page #savedPoolsList .nsk-pool-chevron{grid-column:2;grid-row:1/span 2;align-self:center}
-.home-page #savedPoolsList .nsk-pool-content{padding:16px;background:#1b1c22}
-.home-page #savedPoolsList .nsk-pool-team-selector{margin-bottom:15px}
-.home-page #savedPoolsList .nsk-pool-team-label{margin-bottom:8px;font-weight:750;color:#d7d8df}
-.home-page #savedPoolsList .nsk-pool-team-options{display:grid;grid-template-columns:repeat(auto-fit,minmax(78px,1fr));gap:8px}
-.home-page #savedPoolsList .nsk-pool-team-choice{width:100%;min-width:0;min-height:46px;margin:0;background:#292b33;color:#fff;border:1px solid #454650;border-radius:11px}
-.home-page #savedPoolsList .nsk-pool-team-choice.is-selected,.home-page #savedPoolsList .nsk-pool-team-choice[aria-pressed="true"]{background:linear-gradient(180deg,#c51b32,#8f1020);border-color:#e34a60}
-.home-page #savedPoolsList .nsk-pool-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px}
-.home-page #savedPoolsList .nsk-pool-grid .nsk-pool-function{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:8px;width:100%;min-width:0;min-height:104px;margin:0;padding:14px 7px;border-radius:13px;background:#292b33;border:1px solid #444650;color:#fff;font-size:clamp(13px,2.6vw,16px);font-weight:750;text-align:center;line-height:1.25}
-.home-page #savedPoolsList .nsk-pool-function-icon{font-size:27px;line-height:1}
-.home-page #savedPoolsList .nsk-pool-actions{display:flex;flex-direction:column;gap:12px;margin-top:14px}
-.home-page #savedPoolsList .nsk-pool-actions .start-pool-btn{width:100%;min-height:54px;margin:0;padding:12px;background:linear-gradient(180deg,#c91c34,#951023);border:1px solid #d43b50;border-radius:12px;color:#fff;font-size:16px;font-weight:800}
-.home-page #savedPoolsList .nsk-pool-secondary-actions{display:flex;justify-content:center;gap:12px;flex-wrap:wrap}
-.home-page #savedPoolsList .nsk-pool-secondary-actions .row-btn{width:auto;min-height:40px;margin:0;padding:8px 14px;background:#292b33;border:1px solid #42444e;border-radius:10px;color:#e5e6ec;font-size:14px}
-.home-page #savedPoolsList .nsk-pool-secondary-actions .row-btn.danger{background:#34242a;border-color:#65404a;color:#f0b4c0}
-@media(max-width:400px){.home-page #savedPoolsList .nsk-pool-content{padding:12px}.home-page #savedPoolsList .nsk-pool-summary{padding:14px}}
+.home-page :is(#savedPoolsList,#activityList) .nsk-pool-row{background:#1b1c22;border:1px solid #383a43;border-radius:16px;overflow:hidden;margin:10px 0}
+.home-page :is(#savedPoolsList,#activityList) .nsk-pool-summary{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:4px 12px;padding:16px;background:#202127}
+.home-page :is(#savedPoolsList,#activityList) .nsk-pool-name{grid-column:1;font-size:clamp(16px,2.5vw,19px);font-weight:800;line-height:1.35}
+.home-page :is(#savedPoolsList,#activityList) .nsk-pool-hall{grid-column:1;margin:0;text-align:left;color:#b4b5c0;font-size:14px}
+.home-page :is(#savedPoolsList,#activityList) .nsk-pool-chevron{grid-column:2;grid-row:1/span 2;align-self:center}
+.home-page :is(#savedPoolsList,#activityList) .nsk-pool-content{padding:16px;background:#1b1c22}
+.home-page :is(#savedPoolsList,#activityList) .nsk-pool-team-selector{margin-bottom:15px}
+.home-page :is(#savedPoolsList,#activityList) .nsk-pool-team-label{margin-bottom:8px;font-weight:750;color:#d7d8df}
+.home-page :is(#savedPoolsList,#activityList) .nsk-pool-team-options{display:grid;grid-template-columns:repeat(auto-fit,minmax(78px,1fr));gap:8px}
+.home-page :is(#savedPoolsList,#activityList) .nsk-pool-team-choice{width:100%;min-width:0;min-height:46px;margin:0;background:#292b33;color:#fff;border:1px solid #454650;border-radius:11px}
+.home-page :is(#savedPoolsList,#activityList) .nsk-pool-team-choice.is-selected,.home-page :is(#savedPoolsList,#activityList) .nsk-pool-team-choice[aria-pressed="true"]{background:linear-gradient(180deg,#c51b32,#8f1020);border-color:#e34a60}
+.home-page :is(#savedPoolsList,#activityList) .nsk-pool-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px}
+.home-page :is(#savedPoolsList,#activityList) .nsk-pool-grid .nsk-pool-function{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:8px;width:100%;min-width:0;min-height:104px;margin:0;padding:14px 7px;border-radius:13px;background:#292b33;border:1px solid #444650;color:#fff;font-size:clamp(13px,2.6vw,16px);font-weight:750;text-align:center;line-height:1.25}
+.home-page :is(#savedPoolsList,#activityList) .nsk-pool-function-icon{font-size:27px;line-height:1}
+.home-page :is(#savedPoolsList,#activityList) .nsk-pool-actions{display:flex;flex-direction:column;gap:12px;margin-top:14px}
+.home-page :is(#savedPoolsList,#activityList) .nsk-pool-actions .start-pool-btn{width:100%;min-height:54px;margin:0;padding:12px;background:linear-gradient(180deg,#c91c34,#951023);border:1px solid #d43b50;border-radius:12px;color:#fff;font-size:16px;font-weight:800}
+.home-page :is(#savedPoolsList,#activityList) .nsk-pool-secondary-actions{display:flex;justify-content:center;gap:12px;flex-wrap:wrap}
+.home-page :is(#savedPoolsList,#activityList) .nsk-pool-secondary-actions .row-btn{width:auto;min-height:40px;margin:0;padding:8px 14px;background:#292b33;border:1px solid #42444e;border-radius:10px;color:#e5e6ec;font-size:14px}
+.home-page :is(#savedPoolsList,#activityList) .nsk-pool-secondary-actions .row-btn.danger{background:#34242a;border-color:#65404a;color:#f0b4c0}
+@media(max-width:400px){.home-page :is(#savedPoolsList,#activityList) .nsk-pool-content{padding:12px}.home-page :is(#savedPoolsList,#activityList) .nsk-pool-summary{padding:14px}}
 
 
 /* Startsida: en tydlig åtgärd för nytt poolspel */
@@ -1098,3 +1098,5 @@ button.ghost, .row-btn:not(.danger), .team-btn:not(.active-team-btn),
 .nsk-pool-match-time{font-variant-numeric:tabular-nums}
 .nsk-pool-match-opponent{min-width:0;overflow-wrap:anywhere}
 @media(max-width:480px){.nsk-pool-match-line{grid-template-columns:5rem minmax(0,1fr);gap:4px 8px}.nsk-pool-match-opponent{grid-column:1/-1}}
+
+#activityList details[data-date] .nsk-pool-summary{grid-template-columns:minmax(0,1fr) auto 20px}#activityList details[data-date] .nsk-pool-chevron{grid-column:3}#activityList details[data-date] .nsk-training-time{grid-column:2;grid-row:1 / 3}

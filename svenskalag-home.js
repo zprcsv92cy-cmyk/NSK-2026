@@ -41,7 +41,7 @@
   if(!box)return;
   const section=box.querySelector('.pool-overview-section');
   if(!section)return;
-  section.querySelectorAll('[data-svenskalag-pool]').forEach(node=>node.remove());
+  (document.getElementById('activityList')||section).querySelectorAll('[data-svenskalag-pool]').forEach(node=>node.remove());
   const title=section.querySelector('h2');
   if(!title)return;
   const existing=Array.from(section.querySelectorAll(':scope > details.nsk-pool-row')).length;
@@ -59,7 +59,7 @@
    summary.className='nsk-pool-summary';
    const name=document.createElement('span');
    name.className='nsk-pool-name';
-   name.textContent=(poolLocation(item).city||'Poolspel')+' • '+item.date;
+   name.textContent=[nskPoolWeekday(item.date),poolLocation(item).city||'Poolspel',item.date].filter(Boolean).join(' • ');
    const origin=document.createElement('span');
    origin.className='nsk-pool-hall';
    origin.textContent=poolLocation(item).hall||'Ishall ej angiven';
@@ -192,7 +192,7 @@
    const calendarTrainings=calendarOthers.filter(item=>item.type==='training');
    const calendarOtherEvents=calendarOthers.filter(item=>item.type!=='training');
    window.addEventListener('nsk:saved-trainings-rendered',()=>{show();},{once:true});
-   const trainingBox=document.getElementById('savedTrainingsList');
+   const trainingBox=document.getElementById('activityList')||document.getElementById('savedTrainingsList');
    const today=new Date().toLocaleDateString('sv-SE',{year:'numeric',month:'2-digit',day:'2-digit'});
    const upcomingCalendarTrainings=calendarTrainings;
    if(trainingBox){
@@ -220,12 +220,12 @@
      summary.append(name,hall,time,arrow);
      const content=document.createElement('div');content.className='nsk-pool-content';
      content.innerHTML=window.NSKTrainingCards.actions(item.date,item.hall||'');
-     row.append(summary,content);const pastTitle=trainingBox.querySelector('#pastTrainingsTitle');if(pastTitle)trainingBox.insertBefore(row,pastTitle);else trainingBox.append(row);
+     row.append(summary,content);const pastTitle=trainingBox.querySelector('#pastTrainingsTitle');trainingBox.append(row);
     }
     const pastTitle=trainingBox.querySelector('#pastTrainingsTitle');
     const upcomingRows=Array.from(trainingBox.querySelectorAll('details[data-date]')).filter(row=>decodeURIComponent(row.dataset.date)>=today);
     upcomingRows.sort((a,b)=>decodeURIComponent(a.dataset.date).localeCompare(decodeURIComponent(b.dataset.date)));
-    for(const row of upcomingRows){if(pastTitle)trainingBox.insertBefore(row,pastTitle);else trainingBox.append(row);}
+    for(const row of upcomingRows){trainingBox.append(row);}
     const upcomingTitle=trainingBox.querySelector('#upcomingTrainingsTitle');
     if(upcomingTitle)upcomingTitle.textContent='Kommande träningar ('+upcomingRows.length+')';
     window.NSKTrainingCards.reorder(trainingBox);

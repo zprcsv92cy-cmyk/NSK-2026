@@ -11,6 +11,15 @@ function nskPoolGathering(times) {
   return 'Samling kl '+String(Math.floor(gathering/60)).padStart(2,'0')+':'+String(gathering%60).padStart(2,'0');
 }
 
+function nskPoolWeekday(date){
+  const iso=String(date||'').replace(/^(\d{4})(\d{2})(\d{2})$/,'$1-$2-$3');
+  if(!/^\d{4}-\d{2}-\d{2}$/.test(iso))return '';
+  const day=new Date(iso+'T12:00:00Z');
+  if(Number.isNaN(day.getTime())||day.toISOString().slice(0,10)!==iso)return '';
+  const name=day.toLocaleDateString('sv-SE',{weekday:'long',timeZone:'Europe/Stockholm'});
+  return name.charAt(0).toLocaleUpperCase('sv-SE')+name.slice(1);
+}
+
 function nskVersionRoot() {
   const src = document.querySelector('script[src*="app.js"]')?.src;
   return new URL("./", src || new URL("../", location.href));
@@ -523,9 +532,9 @@ window.NSK2App = (() => {
           </div>` : "";
 
         return `
-          <details class="nsk-pool-row" data-pool-date="${esc(poolDay(p))}">
+          <details class="nsk-pool-row" data-pool-date="${esc(poolDay(p))}" data-pool-finished="${isArchived(p)}">
             <summary class="nsk-pool-summary">
-              <span class="nsk-pool-name">${esc(p.place || "Ort")} • ${esc(p.pool_date || "Datum")}</span>
+              <span class="nsk-pool-name">${esc([nskPoolWeekday(poolDay(p)),p.place || "Ort",p.pool_date || "Datum"].filter(Boolean).join(" • "))}</span>
               <span class="nsk-pool-hall" data-pool-hall-id="${poolId}" data-gathering="${esc(gathering)}">${esc([p.hall,gathering].filter(Boolean).join(" • "))}</span>
               <span class="nsk-pool-chevron" aria-hidden="true">⌄</span>
             </summary>
@@ -562,6 +571,7 @@ window.NSK2App = (() => {
           </details>
         `;
       }).join("");
+      document.querySelectorAll('#activityList > details[data-pool-date]:not([data-svenskalag-pool])').forEach(row=>row.remove());
       box.innerHTML = `
         <section class="pool-overview-section">
           <h2>Kommande poolspel (${upcoming.length})</h2>

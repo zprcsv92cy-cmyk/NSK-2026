@@ -18,7 +18,7 @@
   </script>
 
 <script>document.write('<script src="../navigation.js?v='+window.NSK_VERSION+'" defer><\/script>');</script>
-</head>
+<style>.calendar-sources[hidden]{display:none!important}.calendar-create-actions{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px;margin-top:22px}.calendar-create-actions .home-create-button{font-size:15px;text-align:center;padding:14px 8px}#pastActivitiesTitle{margin-top:26px}#activityList>h3{font-size:1.15rem}</style></head>
 <body class="home-page">
   <div class="wrap">
     <nav class="mainmenu">
@@ -43,7 +43,7 @@
       </div>
       <div class="home-hero-text">
         <h1>Kalender</h1>
-        <div class="home-hero-sub">Poolspel</div>
+        <div class="home-hero-sub">Träning och Poolspel</div>
       </div>
     </section>
 
@@ -57,17 +57,13 @@
       </div>
     </section>
 
-    <section class="card home-saved">
-      <h2>Poolspel</h2>
-      <div id="savedPoolsList"></div>
-      <a class="home-create-button" href="../skapapoolspel/">＋ Skapa poolspel</a>
-    </section>
-
-    <section class="card home-saved home-training-section">
-      <h2>Träningar</h2>
-      <p class="small">Gemensamma träningar för valt lag.</p>
-      <div id="savedTrainingsList"></div><div id="svenskalagSavedEvents" aria-live="polite" hidden></div>
-      <a class="home-create-button" href="../traningsgrupper/?new=1">＋ Ny träning</a>
+    <section class="card home-saved home-training-section" id="activityList">
+      <h2>Träning och Poolspel</h2>
+      <h3 id="upcomingActivitiesTitle">Kommande (0)</h3>
+      <h3 id="pastActivitiesTitle">Avslutade (0)</h3>
+      <div class="calendar-sources" hidden><div id="savedPoolsList"></div><div id="savedTrainingsList"></div></div>
+      <div id="svenskalagSavedEvents" aria-live="polite" hidden></div>
+      <div class="calendar-create-actions"><a class="home-create-button" href="../skapapoolspel/">＋ Skapa poolspel</a><a class="home-create-button" href="../traningsgrupper/?new=1">＋ Ny träning</a></div>
     </section>
 
     <div id="appError" class="small"></div>
@@ -78,6 +74,7 @@
       document.write('<script src="../app.js?v=' + window.NSK_VERSION + '"><\/script>');
       document.write('<script src="../shared-training.js?v=' + window.NSK_VERSION + '"><\/script>');
       document.write('<script src="../training-cards.js?v=' + window.NSK_VERSION + '"><\/script>');
+      document.write('<script src="../calendar-list.js?v=' + window.NSK_VERSION + '"><\/script>');
       document.write('<script src="../changing-rooms.js?v=' + window.NSK_VERSION + '"><\/script>');
       document.write('<script src="../svenskalag-home.js?v=' + window.NSK_VERSION + '"><\/script>');
       document.write('<script src="../home-training.js?v=' + window.NSK_VERSION + '"><\/script>');
