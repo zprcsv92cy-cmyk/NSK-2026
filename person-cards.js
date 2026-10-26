@@ -1,5 +1,43 @@
 // Person cards and sharpening orders share the team's material board and revision.
 (() => {
+ const profileGroups=[
+  ['SINGELPROFILER (En radie)',[
+   ['9 ft','Maximal rörlighet och snabba vändningar, mindre glid'],
+   ['10 ft','Standardradie för de flesta Bauer-skridskor direkt från fabrik'],
+   ['11 ft','Standardradie för de flesta CCM-skridskor direkt från fabrik'],
+   ['13 ft','Mycket iskontakt, hög stabilitet och bra glid (bra för bandy/nybörjare)'],
+   ['15 ft','Maximal stabilitet och glid, främst för bandy eller tunga åkare']
+  ]],
+  ['DUBBELPROFILER (Två radier)',[
+   ['Combi (9-10 ft)','Balans mellan kvickt löpsteg och ökad åkyta'],
+   ['Combi (10-13 ft)','Fokus på glid men med bibehållen rörlighet framtill'],
+   ['Detroit 1','Klassisk dubbelprofil med aggressiv, inbyggd framåtlutning'],
+   ['Detroit 2','Samma som Detroit 1 fast med längre radier för tyngre spelare'],
+   ['Win 1','Fokus på kraftfull skridskoåkning och stabilitet i hög fart'],
+   ['Win 2','Anpassad variant av Win för längre skenor och större spelare'],
+   ['Toronto','Optimerad för maximal fart och glid i långa skär']
+  ]],
+  ['TRIPPELPROFILER (Tre radier)',[
+   ['Zuperior 3XS','Trippelprofil för de allra minsta skridskostorlekarna'],
+   ['Zuperior 2XS','Trippelprofil för barnskridskor'],
+   ['Zuperior XS','För mindre juniorstorlekar, ger extremt kvick acceleration'],
+   ['Zuperior Small','För större juniorer eller mindre seniorstorlekar'],
+   ['Zuperior Medium','Standardstorleken för seniorer, mycket populär bland forwards'],
+   ['Zuperior Large','För stora skridskostorlekar och tyngre spelare']
+  ]],
+  ['QUAD-PROFILER (Fyra radier)',[
+   ['Quad 3XS','Fyrdelad profil för de allra minsta skridskorna'],
+   ['Quad 2XS','För mindre barnskridskor'],
+   ['Quad XS','För juniorstorlekar, kombinerar acceleration, rörlighet, fart och hälstabilitet'],
+   ['Quad Small','För stora juniorer eller mindre seniorer'],
+   ['Quad Medium','Den mest populära allroundprofilen för seniorspelare på elitnivå'],
+   ['Quad Large','För stora seniorskridskor'],
+   ['Quad 0','Gammal beteckning (motsvarar ungefär Quad XS/Small)'],
+   ['Quad 1','Gammal beteckning (motsvarar ungefär Quad Medium)'],
+   ['Quad 2','Gammal beteckning (motsvarar ungefär Quad Large)']
+  ]]
+ ];
+ const profileDescription=value=>profileGroups.flatMap(([,items])=>items).find(([name])=>name===value)?.[1]||'';
  const base=()=>String(window.APP_CONFIG?.API_URL||'https://nsk-api.peter-hasselberg.workers.dev').replace(/\/$/,'');
  async function request(path,team,payload){
   const response=await fetch(base()+path+(path.includes('?')?'&':'?')+'team_id='+encodeURIComponent(team),{method:payload?'PUT':'GET',headers:{Authorization:'Bearer '+Auth.getToken(),...(payload?{'Content-Type':'application/json'}:{})},body:payload?JSON.stringify(payload):undefined,cache:'no-store'});
@@ -18,14 +56,28 @@
  window.PersonCards={get,save,sharpening};
  if(!document.getElementById('playersList'))return;
  const dialog=document.createElement('dialog');dialog.className='person-card-dialog';dialog.setAttribute('aria-labelledby','personCardTitle');
- dialog.innerHTML=`<div class="person-card-header"><h2 id="personCardTitle">Spelarkort</h2><button type="button" id="personCardClose" aria-label="Stäng kort">×</button></div><p id="personCardStatus" role="status" aria-live="polite"></p><div id="personCardContent" hidden><div class="person-card-identity"><div id="personCardAvatar"><img src="../icon-192.png" alt="NSK:s klubbmärke" width="92" height="92"></div><h3 id="personCardName"></h3><span id="personCardRole" class="person-card-badge"></span></div><div id="personCardOverview"><section class="person-card-section"><h3 id="personCardDetailsTitle">Spelaruppgifter</h3><dl id="personCardDetails" class="person-card-facts"></dl></section><section class="person-card-section"><h3>Skridskor</h3><dl id="personCardSkates" class="person-card-facts"></dl><p id="personCardNotes" class="person-card-note" hidden></p></section></div><form id="personCardForm" hidden><h3 id="personCardEditTitle">Redigera spelarkort</h3><div class="person-card-fields"><label id="personCardNumberField">Tröjnummer (valfritt)<input name="number" inputmode="numeric" maxlength="3" pattern="[0-9]{0,3}" autocomplete="off"></label><label><span id="personCardPositionLabel">Position (valfritt)</span><input name="position" maxlength="60" placeholder="Ange position"></label><label>Right / Left<select name="hand"><option value="">Ej angivet</option><option value="Right">Right</option><option value="Left">Left</option></select></label></div><h3>Skridskor</h3><div class="person-card-fields"><label>Skridskomodell<input name="model" maxlength="100" placeholder="Märke och modell"></label><label>Skåldjup<input name="hollow" maxlength="60" placeholder="Ange värde och enhet, t.ex. mm"></label><label>Profil<input name="profile" maxlength="100" placeholder="Ange profil"></label><label id="personCardRadiusField">Radie<input name="radius" maxlength="60" placeholder="Ange radie och enhet"></label></div><label class="person-card-notes">Övriga skridskouppgifter<textarea name="notes" rows="3" maxlength="500" placeholder="Exempelvis skenmodell eller särskilda önskemål"></textarea></label><div class="person-card-edit-actions"><button type="submit" id="personCardSave" class="nsk-action nsk-action--save">Spara kort</button><button type="button" id="personCardCancel">Avbryt</button></div></form><p class="person-card-hint">Skåldjup och profil följer med nya slipönskemål.</p><div class="person-card-actions"><button type="button" id="personCardSharpen" class="nsk-action nsk-action--save">Önska slipning</button><button type="button" id="personCardEdit">Redigera kort</button><button type="button" id="personCardDismiss">Stäng</button></div></div>`;
+ dialog.innerHTML=`<div class="person-card-header"><h2 id="personCardTitle">Spelarkort</h2><button type="button" id="personCardClose" aria-label="Stäng kort">×</button></div><p id="personCardStatus" role="status" aria-live="polite"></p><div id="personCardContent" hidden><div class="person-card-identity"><div id="personCardAvatar"><img src="../icon-192.png" alt="NSK:s klubbmärke" width="92" height="92"></div><h3 id="personCardName"></h3><span id="personCardRole" class="person-card-badge"></span></div><div id="personCardOverview"><section class="person-card-section"><h3 id="personCardDetailsTitle">Spelaruppgifter</h3><dl id="personCardDetails" class="person-card-facts"></dl></section><section class="person-card-section"><h3>Skridskor</h3><dl id="personCardSkates" class="person-card-facts"></dl><p id="personCardProfileDescription" class="person-card-note" hidden></p><p id="personCardNotes" class="person-card-note" hidden></p></section></div><form id="personCardForm" hidden><h3 id="personCardEditTitle">Redigera spelarkort</h3><div class="person-card-fields"><label id="personCardNumberField">Tröjnummer (valfritt)<input name="number" inputmode="numeric" maxlength="3" pattern="[0-9]{0,3}" autocomplete="off"></label><label><span id="personCardPositionLabel">Position (valfritt)</span><input name="position" maxlength="60" placeholder="Ange position"></label><label>Right / Left<select name="hand"><option value="">Ej angivet</option><option value="Right">Right</option><option value="Left">Left</option></select></label></div><h3>Skridskor</h3><div class="person-card-fields"><label>Skridskomodell<input name="model" maxlength="100" placeholder="Märke och modell"></label><label>Skålradie<select name="hollow" aria-label="Skålradie"></select></label><label class="person-card-profile-field">Profilering<select name="profile" aria-label="Profilering" aria-describedby="personCardProfileHelp"></select><small id="personCardProfileHelp"></small></label><input type="hidden" name="radius"></div><label class="person-card-notes">Övriga skridskouppgifter<textarea name="notes" rows="3" maxlength="500" placeholder="Exempelvis skenmodell eller särskilda önskemål"></textarea></label><div class="person-card-edit-actions"><button type="submit" id="personCardSave" class="nsk-action nsk-action--save">Spara kort</button><button type="button" id="personCardCancel">Avbryt</button></div></form><p class="person-card-hint">Skålradie och profilering följer med nya slipönskemål.</p><div class="person-card-actions"><button type="button" id="personCardSharpen" class="nsk-action nsk-action--save">Önska slipning</button><button type="button" id="personCardEdit">Redigera kort</button><button type="button" id="personCardDismiss">Stäng</button></div></div>`;
  document.body.append(dialog);
  const $=id=>dialog.querySelector('#'+id),form=$('personCardForm');
  let current=null,pending=false,version=0,conflicted=false,editing=false;
  const status=text=>{$('personCardStatus').textContent=text;};
  const values=()=>Object.fromEntries([...form.elements].filter(e=>e.name&&(e.name!=='radius'||Object.hasOwn(current.card,'radius'))).map(e=>[e.name,e.value.trim()]));
  const dirty=()=>current&&JSON.stringify(values())!==JSON.stringify(current.card);
- function fillForm(){for(const field of [...form.elements].filter(e=>e.name))field.value=current.card[field.name]||'';}
+ function selectionOptions(){
+  const hollow=form.elements.hollow,profile=form.elements.profile;
+  hollow.replaceChildren(new Option('Ej angivet',''));
+  for(let mm=15;mm<=25;mm++)hollow.append(new Option(mm+' mm',mm+' mm'));
+  profile.replaceChildren(new Option('Ej angivet',''));
+  for(const [label,items] of profileGroups){const group=document.createElement('optgroup');group.label=label;for(const [name,description] of items){const option=new Option(name,name);option.title=description;group.append(option);}profile.append(group);}
+  // Retain values saved before these lists existed; never silently replace them.
+  for(const field of [hollow,profile]){const value=current.card[field.name]||'';if(value&&![...field.options].some(o=>o.value===value))field.prepend(new Option('Tidigare värde: '+value,value));}
+ }
+ function showProfileHelp(){
+  const description=profileDescription(form.elements.profile.value);
+  $('personCardProfileHelp').textContent=description;$('personCardProfileHelp').hidden=!description;
+ }
+ function fillForm(){selectionOptions();for(const field of [...form.elements].filter(e=>e.name))field.value=current.card[field.name]||'';showProfileHelp();}
+ form.elements.profile.addEventListener('change',showProfileHelp);
  function facts(target,rows){
   target.replaceChildren();
   for(const [label,value] of rows){const item=document.createElement('div'),term=document.createElement('dt'),detail=document.createElement('dd');term.textContent=label;detail.textContent=value||'Ej angivet';item.append(term,detail);target.append(item);}
@@ -35,10 +87,10 @@
   $('personCardName').textContent=current.name;$('personCardRole').textContent=player?'Spelare':'Tränare';
   $('personCardDetailsTitle').textContent=player?'Spelaruppgifter':'Tränaruppgifter';
   facts($('personCardDetails'),player?[['Tröjnummer',card.number],['Position',card.position],['Fattning',card.hand]]:[['Tränarroll / ansvar',card.position],['Klubbfattning',card.hand]]);
-  facts($('personCardSkates'),[['Skåldjup',card.hollow],['Radie',card.radius],['Profil',card.profile],['Skridskomodell',card.model]]);
+  facts($('personCardSkates'),[['Skålradie',card.hollow],['Profilering',card.profile],['Skridskomodell',card.model]]);
+  const description=profileDescription(card.profile);$('personCardProfileDescription').textContent=description;$('personCardProfileDescription').hidden=!description;
   $('personCardNotes').textContent=card.notes;$('personCardNotes').hidden=!card.notes;
   $('personCardNumberField').hidden=!player;
-  $('personCardRadiusField').hidden=!Object.hasOwn(card,'radius');
   $('personCardPositionLabel').textContent=player?'Position (valfritt)':'Tränarroll / ansvar (valfritt)';
   form.elements.position.placeholder=player?'Ange position':'Exempelvis huvudtränare eller målvaktstränare';
   $('personCardEditTitle').textContent=player?'Redigera spelarkort':'Redigera tränarkort';
@@ -78,7 +130,7 @@
  });};
  $('personCardSharpen').onclick=()=>void perform(async()=>{
   status('Skapar slipönskemål…');
-  if(!current.card.hollow&&!confirm('Skåldjup saknas. Skicka önskemålet ändå med uppmaning till materialförvaltaren att kontrollera skåldjupet?')){status('Ange skåldjup innan du skickar önskemålet.');return;}
+  if(!current.card.hollow&&!confirm('Skålradie saknas. Skicka önskemålet ändå med uppmaning till materialförvaltaren att kontrollera skålradien?')){status('Ange skålradie innan du skickar önskemålet.');return;}
   const result=await sharpening(current.team,current.kind,current.id,current.name);
   current.revision=result.revision;status('Slipönskemålet är sparat hos Materialförvaltare med kortets skridskouppgifter.');
  });

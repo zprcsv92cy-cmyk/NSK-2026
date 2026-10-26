@@ -1186,3 +1186,5 @@ body.nsk-arena #activityList .nsk-pool-actions .start-pool-btn{background:linear
  .nsk-arena>.arena-bottom{top:auto;bottom:auto;transform:none;align-self:stretch}
 }
 @media print{html:has(>body.nsk-arena){height:auto;overflow:visible}body.nsk-arena{position:static;inset:auto;height:auto;max-height:none;width:auto}}
+
+.person-card-profile-field{grid-column:1/-1}.person-card-profile-field small{font-size:.8rem;line-height:1.5;color:#bdc5d0}.person-card-profile-field select{max-width:100%}
