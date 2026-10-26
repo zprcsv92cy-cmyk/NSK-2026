@@ -6,56 +6,30 @@
 <script src="../version.js?v=872"></script>
 <script>document.write('<link rel="stylesheet" href="../app.css?v='+window.NSK_VERSION+'">');document.write('<script src="../rink-text-parser.js?v='+window.NSK_VERSION+'"><\/script>');document.write('<script src="../rink-drawer.js?v='+window.NSK_VERSION+'"><\/script>');</script>
 <style>
-.draw-wrap{max-width:980px;margin:auto}
-.draw-toolbar{display:flex;flex-wrap:wrap;gap:7px;padding:10px 0;align-items:center}
-.draw-toolbar button{min-height:44px;width:auto;padding:9px 11px;background:#282a30;border:1px solid #62646a;color:white;border-radius:9px;font-size:14px}
-.draw-toolbar button[aria-pressed="true"]{background:#a90920;border-color:#fff}
-.draw-toolbar label{display:flex;align-items:center;gap:6px}
-.draw-toolbar select{font:inherit;max-width:135px}
-#rinkSvg{display:block;width:100%;height:auto;max-height:calc(100dvh - 165px);aspect-ratio:480/860;touch-action:none;background:white;margin:auto;border-radius:12px;user-select:none}
-.rink-container{display:flex;justify-content:center;align-items:center;background:#191b20;border-radius:12px;padding:5px}
-.draw-note{font-size:.87rem;color:var(--muted)}
-.draw-title{width:100%;max-width:420px;margin:6px 0}
-body.rink-fullscreen{margin:0;padding:0;overflow:hidden}
-body.rink-fullscreen .mainmenu,body.rink-fullscreen h1,body.rink-fullscreen .draw-note,body.rink-fullscreen .draw-title,body.rink-fullscreen #rinkTextPanel{display:none}
-body.rink-fullscreen .draw-wrap{max-width:none;width:100vw;height:100dvh;display:flex;flex-direction:column}
-body.rink-fullscreen .draw-toolbar{padding:4px;gap:4px;background:#17181b;flex:none}
-body.rink-fullscreen .draw-toolbar button{padding:7px;min-height:38px}
-body.rink-fullscreen .rink-container{flex:1;min-height:0;padding:0}
-body.rink-fullscreen #rinkSvg{height:100%;width:100%;max-height:none;object-fit:contain}
-@media (max-width:580px){.draw-toolbar{gap:5px}.draw-toolbar button{font-size:13px;padding:8px}#rinkSvg{max-height:calc(100dvh - 215px)}}
+.draw-wrap{max-width:980px;margin:auto}.draw-wrap h1{font-size:1.5rem;margin:0 0 10px}.draw-settings{border:1px solid var(--line);border-radius:12px;margin-bottom:10px;background:var(--card)}.draw-settings>summary{padding:12px;cursor:pointer;font-weight:600;min-height:44px}.draw-settings-body{padding:0 12px 12px}.draw-settings label{display:grid;gap:5px}.draw-title{width:100%;margin:0 0 10px}.draw-note{font-size:.82rem;color:var(--muted);line-height:1.5}.draw-text-panel{margin-top:10px;border-top:1px solid var(--line);padding-top:10px}.draw-text-panel>summary{cursor:pointer;min-height:44px;line-height:44px}.draw-text-panel textarea{width:100%;margin:8px 0}.draw-text-actions{display:flex;gap:8px;flex-wrap:wrap}.draw-stage{display:flex;flex-direction:column;height:min(820px,calc(var(--nsk-app-height,100dvh) - 270px));min-height:440px;border:1px solid var(--line);border-radius:12px;background:#111922;position:relative}.rink-container{display:flex;justify-content:center;align-items:center;flex:1;min-height:0;padding:6px;overflow:hidden}#rinkSvg{display:block;width:100%;height:100%;touch-action:none;background:transparent;user-select:none;-webkit-user-select:none}.draw-tools{flex:none;position:relative;background:#101923;border-top:1px solid var(--line);border-radius:0 0 12px 12px;padding:6px}.draw-mode-row{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:5px}.draw-tools button,.draw-tools summary,.draw-selection button{min-height:44px;margin:0;padding:8px 6px;border:1px solid #455263;border-radius:8px;background:#202b39;color:#f4f5f7;font:inherit;font-size:.82rem;text-align:center;cursor:pointer;box-sizing:border-box}.draw-tools button[aria-pressed="true"],.draw-tools details[open]>summary{background:#a90920;border-color:#e95e76}.draw-tool-menu>summary{display:grid;place-items:center;list-style:none;height:100%}.draw-tool-menu>summary::-webkit-details-marker{display:none}.draw-tool-menu>div{position:absolute;left:0;right:0;bottom:calc(100% + 4px);max-height:48dvh;overflow:auto;display:flex;flex-wrap:wrap;gap:8px;padding:12px;background:#172330;border:1px solid #516171;border-radius:12px;box-shadow:0 -8px 26px #0008;z-index:5}.draw-tool-menu>div>button{flex:1 1 110px}.draw-tools label{display:flex;align-items:center;gap:8px;font-size:.85rem;flex:1 1 100%}.draw-tools select{width:auto;min-width:110px;margin:0;min-height:44px;padding:8px}.draw-quick-row{display:grid;grid-template-columns:1fr 1fr 1.2fr;gap:5px;margin-top:5px}.draw-tools :disabled,.draw-selection :disabled{opacity:.4;cursor:default}.draw-selection{position:absolute;bottom:calc(100% + 4px);left:0;right:0;z-index:4;border:1px solid #485867;border-radius:12px;box-shadow:0 -8px 24px #0007;padding:8px 10px;background:#172330;border-top:1px solid #485867;flex:none;max-height:30dvh;overflow:auto}.draw-selection[hidden]{display:none!important}.draw-selection p{margin:0 0 7px;font-size:.85rem;font-weight:650}.draw-selection-actions{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:6px;align-items:center}#rinkSelectedMove{order:0}#rinkDuplicate{order:1}#rinkDelete{order:2}#rinkDeselect{order:3}#rinkSelectedColorField{order:4;grid-column:span 2}#rinkNumberField{order:5;grid-column:span 2}.draw-selection label{display:flex;align-items:center;gap:6px;font-size:.8rem}.draw-selection select,.draw-selection input{width:auto;min-height:44px;margin:0;padding:8px}.draw-selection input{width:64px}.draw-selection [hidden]{display:none!important}.draw-status{display:flex;justify-content:space-between;flex-wrap:wrap;gap:4px 12px;font-size:.75rem;line-height:1.4;padding:5px 8px;color:var(--muted);background:#101923}.draw-status p{margin:0}.draw-tools-help{margin:8px 0 0}.draw-color-label{font-size:.8rem}
+body.rink-fullscreen{padding:0!important;overflow:hidden}body.rink-fullscreen .mainmenu,body.rink-fullscreen .arena-brand,body.rink-fullscreen .draw-wrap>h1,body.rink-fullscreen .draw-settings,body.rink-fullscreen .draw-tools-help{display:none!important}body.rink-fullscreen .draw-wrap{width:100%;max-width:none;height:var(--nsk-app-height,100dvh);display:flex;flex-direction:column}body.rink-fullscreen .draw-stage{height:auto;min-height:0;flex:1;border:0;border-radius:0}body.rink-fullscreen .draw-tools{padding-bottom:max(6px,env(safe-area-inset-bottom,0px));border-radius:0}body.rink-fullscreen .draw-status{padding-top:max(5px,env(safe-area-inset-top,0px));order:-1}body.rink-fullscreen .arena-scroll{padding:0!important;overflow:hidden!important}
+@media(max-width:580px){.draw-wrap h1{font-size:1.3rem}.draw-stage{height:calc(var(--nsk-app-height,100dvh) - 300px);min-height:390px}.draw-tools-help{font-size:.75rem}.draw-settings>summary{font-size:.85rem}.draw-mode-row{gap:4px}.draw-tools button,.draw-tools summary{font-size:.77rem}.draw-selection-actions button{flex:1 1 auto}}
+@media print{.draw-tools,.draw-selection,.draw-settings,.draw-status,.draw-tools-help{display:none!important}.draw-stage{height:90vh;border:0}}
 </style><script>document.write('<script src="../navigation.js?v='+window.NSK_VERSION+'" defer><\/script>');</script>
 </head><body><div class="draw-wrap">
 <nav class="mainmenu"><a href="../startsida/">Kalender</a><a href="../ovningsarkiv/">Övningsarkiv</a><a href="./" class="active">Ritverktyg</a></nav>
 <h1>Rita hockeyövning</h1>
-<p class="draw-note">Välj symbol och tryck på rinken. Med <strong>Flytta</strong> kan du dra symboler med fingret. Välj <strong>Åkväg</strong>, <strong>Passning</strong> eller <strong>Avdelare</strong> och dra en linje.</p>
-<label class="draw-note">Övningens namn <input id="rinkTitle" class="draw-title" maxlength="100" placeholder="Ex. Passning och avslut"></label>
-<label class="draw-note">Kategori <select id="rinkCategory" class="draw-title"><option>Uppvärmning</option><option>Skridskoteknik</option><option>Puckkontroll</option><option selected>Passningar</option><option>Skott</option><option>Smålagsspel</option><option>Målvakter</option><option>Spelsituationer</option></select></label>
-<section class="card" id="rinkTextPanel">
-<h2>Beskriv övningen</h2>
-<label for="rinkDescription">Skriv instruktioner om var spelare och utrustning ska placeras</label>
-<textarea id="rinkDescription" rows="4" style="width:100%;margin:8px 0" placeholder="Tre röda spelare vid nedre vänstra hörnet. Två puckar vid blålinjen. Spelare 1 passar till spelare 2. Spelare 2 åker mot övre målet och avslutar."></textarea>
-<div class="draw-toolbar"><button type="button" id="rinkFromText">Rita från beskrivning</button><button type="button" id="rinkTextExample">Visa exempel</button></div>
-<p class="draw-note">Förstår bland annat antal spelare och puckar, färger, positioner på isen, passningar och åkvägar. Otydliga instruktioner markeras så att du kan justera ritningen.</p>
-</section>
-<div class="draw-toolbar" id="rinkToolbar" role="toolbar" aria-label="Ritverktyg">
-<button type="button" data-tool="move" aria-pressed="true">↔ Flytta</button>
-<button type="button" data-tool="player">● Spelare</button>
-<button type="button" data-tool="goalie">◉ Målvakt</button>
-<button type="button" data-tool="puck">● Puck</button>
-<button type="button" data-tool="cone">▲ Kon</button>
-<button type="button" data-tool="divider">┃ Avdelare</button>
-<button type="button" data-tool="skate">➜ Åkväg</button>
-<button type="button" data-tool="pass">⇢ Passning</button>
-<button type="button" data-tool="erase">⌫ Radera</button>
-<label class="draw-note">Färg <select id="rinkColor"><option value="#b11226">Röd</option><option value="#2563eb">Blå</option><option value="#111827">Svart</option><option value="#16a34a">Grön</option></select></label>
-<button type="button" id="rinkUndo">Ångra</button>
-<button type="button" id="rinkClear">Rensa</button>
-<button type="button" id="rinkSave">Spara i Övningsarkivet</button>
-<button type="button" id="rinkLoad">Öppna</button>
-<button type="button" id="rinkExport">Exportera bild</button>
-<button type="button" id="rinkFullscreen">Helskärm</button>
-</div>
+<details class="draw-settings" id="rinkSettings"><summary id="rinkSettingsSummary">Övningens uppgifter</summary><div class="draw-settings-body">
+<label>Övningens namn<input id="rinkTitle" class="draw-title" maxlength="100" placeholder="Ex. Passning och avslut"></label>
+<label>Kategori<select id="rinkCategory" class="draw-title"><option>Uppvärmning</option><option>Skridskoteknik</option><option>Puckkontroll</option><option selected>Passningar</option><option>Skott</option><option>Smålagsspel</option><option>Målvakter</option><option>Spelsituationer</option></select></label>
+<details class="draw-text-panel" id="rinkTextPanel"><summary>Beskriv övningen</summary>
+<label for="rinkDescription">Skriv instruktioner om spelare, utrustning och rörelser</label><textarea id="rinkDescription" rows="4" maxlength="2000" placeholder="Två röda spelare vid nedre vänstra hörnet. Passning till mittcirkeln."></textarea>
+<div class="draw-text-actions"><button type="button" id="rinkFromText">Rita från beskrivning</button><button type="button" id="rinkTextExample">Visa exempel</button></div><p class="draw-note">Otydliga instruktioner markeras så att du kan justera ritningen.</p></details>
+</div></details>
+<div class="draw-stage">
 <div class="rink-container"><svg id="rinkSvg" viewBox="0 0 480 860" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="Stående hockeyrink för att rita övningar"></svg></div>
-<p id="rinkStatus" class="draw-note" role="status" aria-live="polite">Färdig att rita.</p>
+<div class="draw-tools" id="rinkToolbar" role="toolbar" aria-label="Ritverktyg"><div class="draw-selection" id="rinkSelectionPanel" hidden><p id="rinkSelectedLabel">Markerad symbol</p><div class="draw-selection-actions"><button type="button" id="rinkSelectedMove">Flytta</button><button type="button" id="rinkDuplicate">Kopiera</button><label id="rinkSelectedColorField">Färg<select id="rinkSelectedColor" aria-label="Färg på markerat objekt"><option value="#b11226">Röd</option><option value="#2563eb">Blå</option><option value="#111827">Svart</option><option value="#16a34a">Grön</option></select></label><label id="rinkNumberField">Nummer<input id="rinkNumber" inputmode="numeric" maxlength="2" aria-label="Nummer på markerad spelare"></label><button type="button" id="rinkDelete">Ta bort</button><button type="button" id="rinkDeselect">Avmarkera</button></div></div>
+<div class="draw-mode-row">
+<button type="button" data-tool="move" aria-pressed="true">↔ Välj / flytta</button>
+<details class="draw-tool-menu" data-tool-menu><summary>Symboler</summary><div><button type="button" data-tool="player">● Spelare</button><button type="button" data-tool="goalie">◉ Målvakt</button><button type="button" data-tool="puck">● Puck</button><button type="button" data-tool="cone">▲ Kon</button><label>Ny symbolfärg<select id="rinkColor"><option value="#b11226">Röd</option><option value="#2563eb">Blå</option><option value="#111827">Svart</option><option value="#16a34a">Grön</option></select></label></div></details>
+<details class="draw-tool-menu" data-tool-menu><summary>Linjer</summary><div><button type="button" data-tool="skate">➜ Åkväg</button><button type="button" data-tool="pass">⇢ Passning</button><button type="button" data-tool="shot">⇉ Skott</button><button type="button" data-tool="divider">┃ Avdelare</button></div></details>
+<details class="draw-tool-menu" data-tool-menu><summary>Åtgärder</summary><div><button type="button" id="rinkSave">Spara i Övningsarkivet</button><button type="button" id="rinkLoad">Öppna senaste sparade</button><button type="button" id="rinkExport">Exportera bild</button><button type="button" data-tool="erase">Radera med tryck</button><button type="button" id="rinkClear">Rensa rinken</button></div></details>
+</div><div class="draw-quick-row"><button type="button" id="rinkUndo">Ångra</button><button type="button" id="rinkRedo">Gör om</button><button type="button" id="rinkFullscreen">Helskärm</button></div></div>
+<div class="draw-status"><p id="rinkStatus" role="status" aria-live="polite">Välj symbol och tryck på rinken.</p><p id="rinkDraftStatus" role="status" aria-live="polite">Utkast sparas på denna enhet.</p></div>
+</div><p class="draw-note draw-tools-help">Tryck på en symbol i läget Välj / flytta för att markera den. Dra för att flytta. Utkast sparas automatiskt på denna enhet.</p>
 </div></body></html>
