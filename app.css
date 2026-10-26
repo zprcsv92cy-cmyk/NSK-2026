@@ -1136,3 +1136,11 @@ body.nsk-arena #activityList .nsk-pool-secondary-actions .row-btn{background:#11
 body.nsk-arena #activityList .nsk-pool-actions .start-pool-btn{background:linear-gradient(110deg,#db1737,#b5102d);border-color:#e72b49;border-radius:8px}
 @media(min-width:900px){body.nsk-arena.training-page .training-roster{grid-template-columns:repeat(3,minmax(0,1fr))}}
 @media print{body.nsk-arena.training-page .training-roster label{background:#fff;color:#000;border-color:#aaa}}
+
+/* Consistent lightweight hockey line icons. */
+.arena-icon{display:inline-block;width:23px;height:23px;flex:0 0 23px;vertical-align:middle;pointer-events:none}
+.nsk-arena .training-controls label>.arena-icon{width:20px;height:20px;margin-right:6px;margin-bottom:3px}
+.nsk-arena .training-import summary>.arena-icon,.nsk-arena.training-page h2>.arena-icon{margin-right:10px;color:#c6d0dd}
+.nsk-arena button>.arena-icon{margin-right:8px}
+.nsk-arena .nsk-training-function .arena-icon{width:28px;height:28px}
+.arena-bottom .arena-icon{display:block;width:24px;height:24px;margin:0}
