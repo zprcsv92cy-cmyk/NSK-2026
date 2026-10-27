@@ -32,7 +32,8 @@
   for(const user of users.filter(u=>(u.name+' '+u.email).toLocaleLowerCase('sv-SE').includes(filter))){
    const card=document.createElement('article');card.className='user-card';
    const heading=document.createElement('h3');heading.textContent=user.name+(user.is_primary_admin?' – Huvudadministratör':user.is_global_admin?' – Global administratör':'');
-   const info=document.createElement('p');info.textContent=user.email;
+   const header=document.createElement('div');header.className='user-heading';header.append(heading);
+   const info=document.createElement('p');info.className='user-email';info.textContent=user.email;
    const state=document.createElement('p');state.className='user-state';state.textContent=user.setup_required?'Väntar på aktivering':user.disabled?'Inaktiverat konto':'Aktivt konto';
    if(user.recovery_requested_at)state.textContent+=' · Begäran om lösenordshjälp väntar';
    const locked=user.is_global_admin&&!actor.is_global_admin,self=user.id===actor.user.id;
@@ -51,7 +52,9 @@
    if(!user.setup_required)accountActions.append(button(user.disabled?'Återaktivera konto':'Inaktivera konto',async()=>{if(!confirm((user.disabled?'Återaktivera ':'Inaktivera ')+user.name+'?'))return;await api('/api/auth/users/'+user.id+'/status','PATCH',{disabled:!user.disabled});await refresh();message('Kontostatus uppdaterad.');},locked||self||user.is_primary_admin));
    accountActions.append(button('Ändra namn och e-post',async()=>{const name=prompt('Namn',user.name);if(name===null)return;const email=prompt('E-postadress',user.email);if(email===null)return;await api('/api/auth/users/'+user.id,'PATCH',{name,email});if(self&&email.trim().toLowerCase()!==user.email){await window.Auth.logout();location.replace(new URL('../login/',location.href).href);return;}await refresh();message('Uppgifterna är uppdaterade. Ändrad e-post kräver ny inloggning.');},locked||user.is_primary_admin));
    const remove=button('Ta bort användare',async()=>{if(!confirm('Ta bort inloggningskontot för '+user.name+' ('+user.email+') permanent? Konto, behörigheter och lagkopplingar tas bort. Truppen och matchhistoriken påverkas inte. Detta kan inte ångras.'))return;await api('/api/auth/users/'+user.id,'DELETE');await refresh();message('Användarkontot är borttaget.');},locked||self||user.is_primary_admin);remove.className='nsk-action nsk-action--delete';accountActions.append(remove);
-   card.append(heading,info,state,roleLabel,roleInfo,actions,grantsBox,accountActions,linkStatus);$('members').append(card);
+   const details=document.createElement('details');details.className='user-details';const summary=document.createElement('summary');summary.textContent='Visa behörigheter och inställningar';details.append(summary,roleLabel,roleInfo,actions,grantsBox,accountActions,linkStatus);
+   const share=button('Dela',async()=>{details.open=true;await linkAction(user,linkStatus,false);},locked||(!user.setup_required&&user.disabled));share.className='user-share';share.textContent='↗';share.title='Dela personlig engångslänk';share.setAttribute('aria-label','Dela aktiverings- eller återställningslänk för '+user.name);header.append(share);
+   card.append(header,info,state,details);$('members').append(card);
   }
   if(!$('members').children.length)$('members').textContent='Inga användare hittades.';
  }
