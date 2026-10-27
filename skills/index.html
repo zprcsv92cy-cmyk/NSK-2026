@@ -1,4 +1,4 @@
-<!doctype html><html lang="sv"><head>
+<!doctype html><html data-nsk-theme="arena" lang="sv"><head>
 <link rel="manifest" href="../manifest.webmanifest">
 <link rel="apple-touch-icon" href="../home-icon-black.png">
 <meta name="apple-mobile-web-app-title" content="NSK">
@@ -21,7 +21,8 @@
  #skillsPrintout h1{font-size:20pt;margin:6mm 0 3mm}#skillsPrintout h2{font-size:15pt;margin:6mm 0 3mm;break-after:avoid}#skillsPrintout h3{font-size:11pt;margin:0 0 2mm}#skillsPrintout p{margin:0 0 2mm;color:black;overflow-wrap:anywhere}#skillsPrintout header{border-bottom:1px solid #999;padding-bottom:3mm;margin-bottom:4mm;font-size:9pt}
  .skills-print-item{break-inside:avoid;border-bottom:1px solid #ddd;padding:3mm 0}.skills-print-item dl{display:grid;grid-template-columns:12mm 1fr;gap:1.5mm 3mm}.skills-print-item dt{font-weight:bold}.skills-print-item dd{margin:0}.skills-print-notes{white-space:pre-wrap;overflow-wrap:anywhere}
 }
-</style></head><body><div class="wrap private-skills"><nav class="mainmenu"></nav><h1>Privat tränarvy</h1><p id="skillsStatus" class="skills-status" role="status" aria-live="polite">Kontrollerar åtkomst…</p>
+</style><script>document.write('<link rel="stylesheet" href="../arena-theme.css?v='+window.NSK_VERSION+'">');</script>
+</head><body><div class="wrap private-skills"><nav class="mainmenu"></nav><h1>Privat tränarvy</h1><p id="skillsStatus" class="skills-status" role="status" aria-live="polite">Kontrollerar åtkomst…</p>
 <section id="skillsPinGate" class="card" hidden style="max-width:420px;margin:20px auto"><h2 id="skillsPinTitle">Lås upp Specialfunktioner</h2><p id="skillsPinHelp" class="skills-small"></p><form id="skillsPinForm"><label class="skills-selector">Fyrsiffrig kod<input id="skillsPin" type="password" inputmode="numeric" pattern="[0-9]{4}" minlength="4" maxlength="4" autocomplete="off" required></label><label id="skillsPinConfirmField" class="skills-selector" hidden>Bekräfta koden<input id="skillsPinConfirm" type="password" inputmode="numeric" pattern="[0-9]{4}" minlength="4" maxlength="4" autocomplete="off"></label><button id="skillsPinSubmit" type="submit">Lås upp</button><p id="skillsPinMessage" class="skills-status" role="status" aria-live="polite"></p></form></section>
 <div id="skillsContent" hidden><div class="skills-actions"><button id="skillsPinLock" type="button">Lås Specialfunktioner</button></div><p class="skills-small">Kodskyddet låses automatiskt efter 15 minuter. Spara dina ändringar innan dess.</p><p class="skills-private-tag">Endast huvudadministratören</p><p class="skills-small">Bedömningar och anteckningar delas inte med laget. Använd daterade observationer av spelarnas utveckling.</p><p id="skillsOffNotice" class="skills-off" hidden>Skills är avstängt. Inga nya förslag kan skapas. Tidigare sparade grupper och scheman finns kvar.</p>
 <div class="skills-actions"><button id="skillsPrintCriteria" type="button">Skriv ut bedömningskriterier</button><button id="skillsPrintPlayer" type="button">Skriv ut vald spelare</button></div><details id="skillsGuidance" class="skills-assessment-guide"><summary>Så använder du skalan 1–10</summary><div id="skillsGuidanceBody"></div></details>

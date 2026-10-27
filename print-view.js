@@ -14,7 +14,8 @@
  function snapshot(root){
   const copy=root.cloneNode(true),sourceControls=[...root.querySelectorAll('input,select,textarea')],controls=[...copy.querySelectorAll('input,select,textarea')];
   for(const node of copy.querySelectorAll('#laguppstallningTeamButtons,#matchButtons'))node.closest('.field')?.remove();
-  for(const button of copy.querySelectorAll('.person-card-open,.shift-check')){const text=document.createElement('span');text.textContent=button.textContent;button.replaceWith(text);}
+  for(const panel of copy.querySelectorAll('.roster-tab-panel,.roster-other,[data-roster-search-hidden]'))panel.hidden=false;
+  for(const button of copy.querySelectorAll('.person-card-open,.shift-check')){const text=document.createElement('span');text.textContent=button.querySelector('.roster-name')?.textContent||button.textContent;button.replaceWith(text);}
   controls.forEach((control,index)=>{
    const source=sourceControls[index];
    if(['password','hidden','file','search'].includes(source.type)){control.remove();return;}

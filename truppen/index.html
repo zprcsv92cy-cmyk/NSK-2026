@@ -1,5 +1,5 @@
 <!doctype html>
-<html lang="sv">
+<html data-nsk-theme="arena" lang="sv">
 <head>
 <link rel="apple-touch-icon" href="../home-icon-black.png">
 <meta name="apple-mobile-web-app-title" content="NSK">
@@ -71,6 +71,7 @@
 .roster-page .roster-player-details{display:block!important;padding:0!important;border:1px solid var(--line);border-radius:12px;min-width:0}.roster-page .roster-player-details>.person-main,.roster-page .roster-player-details>.row-actions{margin:0 10px 10px;min-width:0}.roster-page .roster-player-details .inline-name-input{width:100%;box-sizing:border-box;min-width:0}.roster-page .roster-player-details>.row-actions{display:flex;gap:6px;flex-wrap:wrap}.roster-page .roster-player-details>.row-actions button{flex:1;min-height:36px;margin:0;padding:7px;font-size:.8rem}.roster-page .roster-player-details:not([open])>.person-main,.roster-page .roster-player-details:not([open])>.row-actions,body:not(.nsk-roster-admin) .roster-player-details>.person-main,body:not(.nsk-roster-admin) .roster-player-details>.row-actions{display:none!important}@media print{.roster-player-details>.person-main,.roster-player-details>.row-actions{display:none!important}}
 </style>
 <script>document.write('<script src="../navigation.js?v='+window.NSK_VERSION+'" defer><\/script>');</script>
+<script>document.write('<link rel="stylesheet" href="../arena-theme.css?v='+window.NSK_VERSION+'">');</script>
 </head>
 <body class="roster-page">
 
@@ -380,5 +381,6 @@ window.NSKRosterCanEdit = async function () {
  document.addEventListener('DOMContentLoaded',async()=>{const coachSelect=document.getElementById('equipmentCoach'),coachAdd=document.getElementById('equipmentCoachAdd');coachAdd.disabled=true;try{await Auth.init();for(const person of await DB.listCoaches())coachSelect.add(new Option(person.full_name,String(person.id)));coachAdd.disabled=!await window.NSKRosterCanEdit();}catch(error){document.getElementById('truppenMsg').textContent=error.message;}coachAdd.addEventListener('click',async()=>{if(!allowed||!coachSelect.value)return;coachAdd.disabled=true;try{await DB.addEquipmentCoach(coachSelect.value);await render('equipment','equipment');coachSelect.value='';}catch(error){alert(error.message);}finally{coachAdd.disabled=!allowed;}});const initialLoads=[];for(const [role,id] of roles){document.getElementById(id+'Input').addEventListener('keydown',e=>{if(e.key==='Enter'){e.preventDefault();document.getElementById(id+'Add').click()}});document.getElementById(id+'Add').addEventListener('click',async()=>{const inp=document.getElementById(id+'Input');if(!allowed)return;if(!inp.value.trim()){alert('Ange ett namn innan du lägger till en person.');inp.focus();return}const button=document.getElementById(id+'Add');if(pendingAdds.has(id))return;pendingAdds.add(id);button.disabled=true;try{await DB.addStaff(role,inp.value.trim());inp.value='';await render(role,id)}catch(e){alert(e.message)}finally{pendingAdds.delete(id);button.disabled=!allowed}});initialLoads.push(render(role,id))}await Promise.all(initialLoads);await sync();window.addEventListener('focus',sync);window.addEventListener('storage',sync);setInterval(sync,15000)})
 })();
 </script>
+<script>document.write('<script src="../roster-view.js?v='+window.NSK_VERSION+'"><\/script>');</script>
 </body>
 </html>

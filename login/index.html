@@ -1,4 +1,4 @@
-<!doctype html><html lang="sv"><head>
+<!doctype html><html data-nsk-theme="arena" lang="sv"><head>
 <link rel="manifest" href="../manifest.webmanifest">
 <link rel="apple-touch-icon" href="../home-icon-black.png">
 <meta name="apple-mobile-web-app-title" content="NSK">
@@ -22,8 +22,9 @@ body.login-page{background:#08090c}.login-page::before{inset:0;background:linear
 }
 @media(max-width:760px) and (max-height:650px){.login-motto,.login-new{display:none}.login-brand img{width:52px;height:52px}.login-brand{margin-bottom:10px}.login-club{font-size:23px}.login-team{font-size:31px}.login-card{padding:16px 18px}}
 @media(max-width:760px) and (max-height:520px){.login-brand{display:flex;align-items:center;justify-content:center;gap:12px;margin-bottom:8px}.login-brand img{width:40px;height:40px;margin:0}.login-club{font-size:14px;line-height:1.1;margin:0}.login-team{font-size:24px;margin:0}.login-card{padding:12px 16px}.login-card h1{display:none}.login-card form{gap:8px}.login-card label{gap:4px;font-size:12px}.login-card input{min-height:36px;padding:7px 10px}.login-card button{min-height:36px}.login-card #forgotOpen{min-height:28px}.account-links{margin-top:6px}.login-card #forgotInfo{font-size:11px}.login-card #forgotPanel{margin-top:8px;padding-top:8px}}
-</style></head>
-<body class="login-page"><main class="login-shell"><header class="login-brand"><img src="../icon-192.png" alt="NSK:s klubbmärke" width="108" height="108"><p class="login-club"><span>Nyköpings</span><span>sportklubb</span></p><span class="login-team">Team 18</span><p class="login-motto">Hockey <b aria-hidden="true">•</b> Gemenskap <b aria-hidden="true">•</b> Laganda</p></header><section class="card login-card" aria-labelledby="loginTitle"><h1 id="loginTitle">Logga in</h1><p class="login-intro">Välkommen till lagets samlingsplats.</p>
+</style><script>document.write('<link rel="stylesheet" href="../arena-theme.css?v='+window.NSK_VERSION+'">');</script>
+</head>
+<body class="login-page"><main class="login-shell"><header class="login-brand"><img src="../icon-192.png" alt="NSK:s klubbmärke" width="92" height="92"><div><p class="login-club">NSK</p><span class="login-team">TEAM 18</span><p class="login-club-name">Nyköpings sportklubb</p></div></header><section class="card login-card" aria-labelledby="loginTitle"><h1 id="loginTitle">Logga in</h1><p class="login-intro">Välkommen till lagets samlingsplats.</p>
 <form id="loginForm"><label>E-postadress<input id="email" type="email" autocomplete="username" required></label><label>Lösenord<input id="password" type="password" autocomplete="current-password" required></label><button id="submitButton" type="submit" class="nsk-action nsk-action--primary">Logga in</button><p id="message" role="status" aria-live="polite"></p></form>
 <div class="account-links"><button id="forgotOpen" type="button" class="nsk-action nsk-action--neutral" aria-expanded="false">Glömt lösenord?</button><a href="../aktivera/">Aktivera konto</a></div>
 <section id="forgotPanel" hidden><h2>Glömt lösenord</h2><p id="forgotInfo">Ange din registrerade e-postadress för att begära hjälp.</p><form id="forgotForm"><label>E-postadress<input id="forgotEmail" type="email" autocomplete="email" required maxlength="254"></label><button id="forgotSubmit" type="submit" class="nsk-action nsk-action--primary">Begär lösenordshjälp</button><p id="forgotMessage" role="status" aria-live="polite"></p></form></section>
