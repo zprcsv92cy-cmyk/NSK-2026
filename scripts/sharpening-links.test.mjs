@@ -5,7 +5,8 @@ import {fixture} from './helpers/auth-d1-fixture.mjs';
 import {createSharpeningHandler} from '../worker/sharpening-links-api.js';
 import {createEquipmentHandler} from '../worker/equipment-api.js';
 async function setup(t){
- const f=await fixture(t);for(const file of ['20261026_equipment_boards.sql','20261026_sharpening_links.sql','20261026_sharpening_history.sql','20261026_skate_pairs.sql'])for(const statement of readFileSync(new URL('../migrations/'+file,import.meta.url),'utf8').split(/;\s*(?=CREATE|INSERT|ALTER|DROP)/).filter(s=>s.trim()))await f.db.prepare(statement).run();
+ const f=await fixture(t);for(const file of ['20261026_equipment_boards.sql','20261026_sharpening_links.sql','20261027_sharpening_qr_ciphertext.sql','20261026_sharpening_history.sql','20261026_skate_pairs.sql'])for(const statement of readFileSync(new URL('../migrations/'+file,import.meta.url),'utf8').split(/;\s*(?=CREATE|INSERT|ALTER|DROP)/).filter(s=>s.trim()))await f.db.prepare(statement).run();
+ f.env.SHARPENING_QR_ENCRYPTION_KEY='0123456789abcdef'.repeat(4);
  let actor={user:{id:'manager'},is_primary_admin:true,permissions:['read'],memberships:[{team_id:'NSK Team 18',role:'owner'}]},present=true,teamReads=0;
  const teams=async()=>{teamReads++;return [{id:18,Namn:'NSK Team 18','Säsong':'2026'},{id:19,Namn:'Other','Säsong':'2026'}];},readPerson=async(team,id)=>present&&team==='18'&&id==='101'?{name:'Alex SyntheticSurname'}:null,verifyIdentity=async token=>token==='session'?actor:null;
  const handler=createSharpeningHandler(f.env,teams,{verifyIdentity,readPerson});
@@ -27,7 +28,7 @@ test('only primary administrator and team equipment role manage scoped player li
 });
 test('public GET returns only own first name, number, settings and status; no app identity or team access',async t=>{
  const f=await setup(t),created=await f.create();assert.match(created.token,/^[a-f0-9]{64}$/);
- const stored=await f.db.prepare('SELECT token_hash FROM sharpening_links').first();assert.notEqual(stored.token_hash,created.token);const managed=await(await f.manage()).json();assert.deepEqual(managed,{ok:true,mode:'parent',revision:1});
+ const stored=await f.db.prepare('SELECT token_hash FROM sharpening_links').first();assert.notEqual(stored.token_hash,created.token);const managed=await(await f.manage()).json();assert.deepEqual(managed,{ok:true,mode:'parent',revision:1,token:created.token});
  const r=await f.publicCall(created.token);assert.equal(r.status,200);assert.match(r.headers.get('Cache-Control'),/no-store/);assert.equal(r.headers.get('Referrer-Policy'),'no-referrer');
  const visible=await r.json();assert.equal(visible.firstName,'Alex');assert.equal(visible.pairs.length,1);assert.deepEqual(Object.keys(visible.pairs[0].settings).sort(),['hollow','model','notes','profile']);assert(!JSON.stringify(visible).includes('OTHER CHILD'));assert(!JSON.stringify(visible).includes('SyntheticSurname'));
  assert.equal((await f.publicCall('invalid')).status,404);assert.equal((await f.publicCall(created.token,'GET',null,'?person_id=102')).status,400);assert.equal((await f.publicCall(created.token,'DELETE')).status,405);
@@ -110,4 +111,12 @@ test('personal-link editing is limited to the selected pair, protects revisions 
  const settings={model:'New skates',hollow:'21 mm',profile:'Quad Small',notes:'Own equipment note'};let response=await f.publicCall(link.token,'PUT',{revision:state.revision,pair:'regular',settings});assert.equal(response.status,200);state=await response.json();assert.equal(state.pairs[0].settings.hollow,'21 mm');let board=JSON.parse((await f.row()).board_json);assert.equal(board.requests[0].skates.hollow,'21 mm');assert.deepEqual(board.profiles['player:102'],f.board.profiles['player:102']);assert.equal(board.profiles['player:101'].number,'18');
  assert.equal((await f.publicCall(link.token,'PUT',{revision:state.revision-1,pair:'regular',settings})).status,409);for(const bad of [{...settings,number:'99'},{...settings,goalieEnabled:true},{...settings,radius:'x'}])assert.equal((await f.publicCall(link.token,'PUT',{revision:state.revision,pair:'regular',settings:bad})).status,400);
  const material=await(await f.material()).json();material.requests[0].done=true;await f.material('PUT',{revision:material.revision,requests:material.requests,checklists:material.checklists});state=await(await f.publicCall(link.token)).json();await f.publicCall(link.token,'PUT',{revision:state.revision,pair:'regular',settings:{...settings,hollow:'23 mm'}});state=await(await f.publicCall(link.token)).json();assert.equal(state.pairs[0].settings.hollow,'23 mm');assert.equal(state.pairs[0].history[0].hollow,'21 mm');
+});
+
+test('current QR token survives reload and is revoked when renewed or disabled',async t=>{
+ const f=await setup(t),first=await f.create();
+ let data=await(await f.manage()).json();assert.equal(data.token,first.token);
+ const stored=await f.db.prepare('SELECT token_hash,token_ciphertext FROM sharpening_links').first();assert(!stored.token_ciphertext.includes(first.token));
+ const next=await f.create('player',1);data=await(await f.manage()).json();assert.equal(data.token,next.token);assert.notEqual(data.token,first.token);
+ await f.create('off',2);data=await(await f.manage()).json();assert.equal(data.token,undefined);
 });
