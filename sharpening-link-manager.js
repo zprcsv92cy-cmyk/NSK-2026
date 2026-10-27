@@ -26,7 +26,7 @@
    result.append(hint,field,buttons);
    if(window.qrcode){const qr=qrcode(0,'M');qr.addData(url.href);qr.make();const image=el('img');image.alt='QR-kod till den personliga slipningssidan';image.src=qr.createDataURL(5,4);image.width=224;image.height=224;image.className='sharpening-link-qr';result.append(image);}
   }
-  async function load(){busy=true;result.replaceChildren();controls();try{const data=await request();if(disposed)return;state=data;select.value=data.mode;status.textContent=data.mode==='off'?'Ingen aktiv länk. Välj Förälder eller Spelare för att skapa en.':'Aktivt ansvar: '+(data.mode==='parent'?'Förälder':'Spelare')+'. Befintlig länk visas inte igen. Skapa en ny om den saknas.';}catch(error){if(!disposed){state=null;status.textContent=error.message;}}finally{if(!disposed){busy=false;controls();}}}
+  async function load(){busy=true;result.replaceChildren();controls();try{const data=await request();if(disposed)return;state=data;select.value=data.mode;if(data.token)showLink(data.token);status.textContent=data.mode==='off'?'Ingen aktiv länk. Välj Förälder eller Spelare för att skapa en.':'Aktivt ansvar: '+(data.mode==='parent'?'Förälder':'Spelare')+'. Aktuell länk kan visas igen om säker QR-lagring är aktiverad.';}catch(error){if(!disposed){state=null;status.textContent=error.message;}}finally{if(!disposed){busy=false;controls();}}}
   select.onchange=controls;reload.onclick=()=>void load();save.onclick=async()=>{
    if(busy||!state)return;const mode=select.value;if(state.mode!=='off'&&!confirm(mode==='off'?'Stäng av den personliga slipningslänken?':'Ersätt länken? Den gamla länken slutar fungera, men pågående slipönskemål ligger kvar.'))return;
    busy=true;controls();result.replaceChildren();status.textContent='Sparar…';
@@ -105,7 +105,28 @@
    for(const p of people.filter(p=>chosen.has(String(p.id)))){if(!valid())break;status('Förnyar QR: '+p.full_name+'…');try{const rec=await renewOne(p,modes.get(String(p.id))||$('qrMode').value);records=records.filter(r=>String(r.personId)!==String(p.id));records.push(rec);}catch(error){failures.push(p.full_name+': '+error.message);}}
    busy=false;render();status(records.length+' QR-koder finns i listan.'+(failures.length?' Fel: '+failures.join('; '):''));
   };
-  render();bulkDispose=()=>{disposed=true;records=[];renewSelected.remove();};
+  render();
+  (async()=>{
+   const found=[];let failures=0;
+   for(const p of people){
+    if(!valid())return;
+    try{
+     const response=await fetch(base()+'/api/sharpening/link?team_id='+encodeURIComponent(team)+'&person_id='+encodeURIComponent(p.id),{headers:{Authorization:'Bearer '+token},cache:'no-store'});
+     const data=await response.json().catch(()=>({}));
+     if(!response.ok||!data.ok){failures++;continue;}
+     if(data.token&&/^[a-f0-9]{64}$/.test(data.token)){
+      const link=new URL('../slipning/',location.href);link.hash='nyckel='+data.token;
+      found.push({name:p.full_name,personId:String(p.id),url:link.href});
+     }
+    }catch{failures++;}
+   }
+   if(!valid())return;
+   const newIds=new Set(records.map(r=>String(r.personId)));
+   records.push(...found.filter(r=>!newIds.has(r.personId)));
+   render();
+   status(found.length+' aktuella QR-koder hämtade.'+(failures?' '+failures+' spelare kunde inte läsas.':''));
+  })();
+  bulkDispose=()=>{disposed=true;records=[];renewSelected.remove();};
  }
  window.addEventListener('afterprint',()=>{document.body.classList.remove('qr-printing');document.querySelector('.qr-print-sheet')?.remove();});
  const style=el('style');style.textContent='.sharpening-link-label{display:grid;gap:7px}.sharpening-link-label select,.sharpening-link-result input{box-sizing:border-box;width:100%;min-width:0}.sharpening-link-actions{display:flex;flex-wrap:wrap;gap:10px;align-items:center;margin:12px 0}.sharpening-link-actions button,.sharpening-link-actions a{min-height:44px}.sharpening-link-actions a{display:inline-flex;align-items:center}.sharpening-link-qr{display:block;max-width:100%;width:224px;height:auto;background:white;padding:8px;margin:14px auto;image-rendering:pixelated}.sharpening-link-result .small{line-height:1.5}@media print{.sharpening-link-manager{display:none!important}}';document.head.append(style);
