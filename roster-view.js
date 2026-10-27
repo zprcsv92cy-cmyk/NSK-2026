@@ -6,10 +6,10 @@
   const staff=['leaderList','fitnessList','equipmentList'].map(id=>document.getElementById(id)).filter(Boolean);
   const playerPanel=players.closest('section'),coachPanel=coaches.closest('section');
   const other=document.createElement('div');other.className='roster-other';other.id='roster-other';
-  playerPanel.before(other);for(const list of staff)other.append(list.closest('section'));
+  coachPanel.after(other);for(const list of staff)other.append(list.closest('section'));
   const toolbar=document.createElement('div');toolbar.className='roster-toolbar no-print';
   toolbar.innerHTML='<div class="roster-tabs" role="tablist" aria-label="Roll i truppen"></div><label for="rosterNameSearch">Sök namn<input type="search" id="rosterNameSearch" placeholder="Sök namn" autocomplete="off"></label><p id="rosterSearchStatus" class="small" role="status" aria-live="polite" hidden></p>';
-  other.before(toolbar);
+  playerPanel.before(toolbar);
   const tabs=toolbar.querySelector('[role=tablist]'),search=toolbar.querySelector('input'),message=toolbar.querySelector('[role=status]');
   const groups=[{label:'Spelare',panel:playerPanel,lists:[players]},{label:'Tränare',panel:coachPanel,lists:[coaches]},{label:'Övriga',panel:other,lists:staff}];
   let selected=0;
