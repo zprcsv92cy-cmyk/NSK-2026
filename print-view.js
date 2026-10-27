@@ -13,6 +13,7 @@
  }
  function snapshot(root){
   const copy=root.cloneNode(true),sourceControls=[...root.querySelectorAll('input,select,textarea')],controls=[...copy.querySelectorAll('input,select,textarea')];
+  for(const node of copy.querySelectorAll('#laguppstallningTeamButtons,#matchButtons'))node.closest('.field')?.remove();
   for(const button of copy.querySelectorAll('.person-card-open,.shift-check')){const text=document.createElement('span');text.textContent=button.textContent;button.replaceWith(text);}
   controls.forEach((control,index)=>{
    const source=sourceControls[index];
@@ -21,7 +22,7 @@
    text.textContent=source.tagName==='SELECT'?[...source.selectedOptions].map(o=>o.textContent).join(', '):['checkbox','radio'].includes(source.type)?(source.checked?'✓':'□'):source.value;
    control.replaceWith(text);
   });
-  copy.querySelectorAll('script,iframe,object,embed,dialog,nav,button,.no-print,.roster-add-row,.lineup-print-row,.shift-top-grid,.coach-picker,#laguppstallningTeamButtons,#matchButtons,#shiftTeamButtons,#shiftMatchList,.training-attendance,.training-controls,.training-roster,.training-actions,.archive-toolbar,.archive-file-form,.archive-actions,.archive-preview-actions,.person-card-open svg,.data-freshness,#matchReadiness,#shiftMsg,#appError,.lineup-messages,#shiftHeaderMain,[hidden]').forEach(n=>n.remove());
+  copy.querySelectorAll('script,iframe,object,embed,dialog,nav,button,.no-print,.roster-add-row,.lineup-print-row,.shift-top-grid,#lineupCoach,.shift-match-select,.coach-picker,#laguppstallningTeamButtons,#matchButtons,#shiftTeamButtons,#shiftMatchList,.training-attendance,.training-controls,.training-roster,.training-actions,.archive-toolbar,.archive-file-form,.archive-actions,.archive-preview-actions,.person-card-open svg,.data-freshness,#matchReadiness,#shiftMsg,#appError,.lineup-messages,#shiftHeaderMain,[hidden]').forEach(n=>n.remove());
   for(const node of copy.querySelectorAll('*'))for(const attribute of [...node.attributes])if(/^on/i.test(attribute.name))node.removeAttribute(attribute.name);
   for(const image of copy.querySelectorAll('img'))image.src=new URL(image.getAttribute('src'),location.href).href;
   return copy;
