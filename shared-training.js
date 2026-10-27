@@ -88,12 +88,14 @@
     const data=await response.json();
     return (Array.isArray(data.items)?data.items:[]).filter(item=>item.type==='training');
   }
-  function upcomingDates(items,today){
+  function upcomingDates(items,now=new Date()){
     const dates=new Map();
     for(const item of items){
-      if(item.type!=='training'||!/^\d{4}-\d{2}-\d{2}$/.test(item.date)||item.date<today)continue;
+      if(item.type!=='training'||!/^\d{4}-\d{2}-\d{2}$/.test(item.date))continue;
+      const start=item.startTime||item.start_time||item.start||'',end=item.endTime||item.end_time||item.end||'';
+      if(window.NSKTrainingCards.finished(item.date,[start,end].filter(Boolean).join('–'),now))continue;
       const labels=dates.get(item.date)||[];
-      const detail=[item.startTime,item.hall||item.place].filter(Boolean).join(' ');
+      const detail=[start,item.hall||item.place].filter(Boolean).join(' ');
       if(detail&&!labels.includes(detail))labels.push(detail);
       dates.set(item.date,labels);
     }
