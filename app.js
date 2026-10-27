@@ -2312,6 +2312,7 @@ window.NSK2App = (() => {
     sessionStorage.setItem(`nsk2_team_match_${poolId}_${lagNo}`,matchNo);
     if (!poolId) return;
 
+    const matchLink=byId('openMatchView');if(matchLink){matchLink.setAttribute('aria-disabled','true');matchLink.onclick=event=>{event.preventDefault();setText('shiftMsg','Vänta tills matchens byten har laddats.');};}
     const wrap = byId('shiftTableWrap');
     wrap?.setAttribute('aria-busy','true');
     if(wrap)wrap.innerHTML='<p role="status">Hämtar byten…</p>';
