@@ -51,18 +51,6 @@
   const valid=()=>!disposed&&allowed()&&Auth.getToken()===token&&Auth.activeTeam()===activeTeam;
   const status=message=>{$('qrBulkStatus').textContent=message;};
   const old=$('qrPlayers');old.replaceChildren();$('qrPrintAgain').hidden=true;
-  root.querySelector('.qr-file-actions')?.remove();
-  const files=el('div');files.className='qr-file-actions';
-  const saveFile=el('button','Spara aktuell QR-lista som fil');saveFile.type='button';saveFile.hidden=true;
-  const restoreLabel=el('label','Öppna tidigare sparad QR-lista'),restoreFile=el('input');
-  restoreFile.type='file';restoreFile.accept='.json,application/json';restoreLabel.append(restoreFile);
-  files.append(saveFile,restoreLabel,el('p','QR-länkar lagras inte i klartext på servern. Spara filen säkert för att visa samma QR-koder vid nästa besök.'));root.append(files);
-  async function checkLink(record){
-   const u=new URL(record.url),key=u.hash.slice('#nyckel='.length);
-   if(!/^[a-f0-9]{64}$/.test(key))return false;
-   try{const response=await fetch(base()+'/api/sharpening/public',{headers:{Authorization:'Sharpening '+key},cache:'no-store'});return response.ok;}
-   catch{return false;}
-  }
   const getRecord=id=>records.find(r=>String(r.personId)===String(id));
   function qrImage(url,size=112){if(!window.qrcode)return el('span','QR-bibliotek saknas');const qr=qrcode(0,'M');qr.addData(url);qr.make();const img=el('img');img.src=qr.createDataURL(5,4);img.alt='Aktuell QR-kod';img.width=size;img.height=size;img.style.cssText='background:white;padding:6px;border-radius:8px;max-width:100%;height:auto';return img;}
   function render(){
@@ -76,20 +64,20 @@
     const heading=el('span');heading.append(name,state);summary.append(check,heading);card.append(summary);
     const body=el('div');body.className='equipment-qr-player-body';
     if(record){body.append(qrImage(record.url));const actions=el('div');actions.className='equipment-qr-actions';
-     const share=el('button','Dela');share.type='button';share.onclick=async()=>{try{if(navigator.share)await navigator.share({title:'Slipningslänk – '+p.full_name,url:record.url});else if(navigator.clipboard){await navigator.clipboard.writeText(record.url);status('Länken kopierad för '+p.full_name+'.');}else status('Öppna den sparade QR-listfilen för att dela länken.');}catch(error){if(error.name!=='AbortError')status('Delning misslyckades: '+error.message);}};
+     const share=el('button','Dela');share.type='button';share.onclick=async()=>{try{if(navigator.share)await navigator.share({title:'Slipningslänk – '+p.full_name,url:record.url});else if(navigator.clipboard){await navigator.clipboard.writeText(record.url);status('Länken kopierad för '+p.full_name+'.');}else status('Kunde inte dela länken på den här enheten.');}catch(error){if(error.name!=='AbortError')status('Delning misslyckades: '+error.message);}};
      actions.append(share);body.append(actions);
-    }else body.append(el('p','En tidigare skapad QR-kod kan inte läsas tillbaka från servern. Öppna en sparad QR-listfil eller förnya länken.'));
+    }else body.append(el('p','QR-koden är inte tillgänglig i denna session. Förnya länken för att skapa en ny QR-kod.'));
     const mode=el('select');for(const [v,label] of [['parent','Förälder'],['player','Spelare']])mode.append(new Option(label,v));mode.value=modes.get(id)||'parent';mode.onchange=()=>modes.set(id,mode.value);
     const renew=el('button','Förnya QR');renew.type='button';renew.disabled=busy;
     renew.onclick=async()=>{if(!valid()){status('Logga in igen och ladda om sidan.');return;}if(!confirm('Förnya QR för '+p.full_name+'? Den gamla länken slutar fungera.'))return;
      busy=true;status('Förnyar QR för '+p.full_name+'…');render();
-     try{const rec=await renewOne(p,mode.value);records=records.filter(r=>String(r.personId)!==id);records.push(rec);status('Ny QR skapad för '+p.full_name+'. Spara QR-listfilen så att koden finns kvar.');}
+     try{const rec=await renewOne(p,mode.value);records=records.filter(r=>String(r.personId)!==id);records.push(rec);status('Ny QR skapad för '+p.full_name+'.');}
      catch(error){status('Kunde inte förnya QR för '+p.full_name+': '+error.message);}
      finally{busy=false;render();}
     };
     const controls=el('div');controls.className='equipment-qr-actions';controls.append(mode,renew);body.append(controls);card.append(body);old.append(card);
    }
-   saveFile.hidden=!records.length;$('qrPrintAgain').hidden=!records.length;
+   $('qrPrintAgain').hidden=!records.length;
    $('qrCreateList').disabled=busy;
   }
   async function renewOne(p,mode){
@@ -108,14 +96,6 @@
    for(const r of selected){const card=el('section');card.className='qr-print-card';card.append(el('h2',r.name),qrImage(r.url,190),el('p','NSK · Personlig slipningssida'));sheet.append(card);}
    try{openPrintPreview(sheet);status('Utskriftsvyn öppnades med '+selected.length+' befintliga QR-koder. Inga länkar har ersatts.');}catch(error){status(error.message);}
   };
-  saveFile.onclick=()=>{if(!valid()||!records.length)return;const blob=new Blob([JSON.stringify({format:'nsk-qr-list',version:1,team:String(team),records})],{type:'application/json'}),url=URL.createObjectURL(blob),link=el('a');link.href=url;link.download='nsk-qr-lista.json';link.click();setTimeout(()=>URL.revokeObjectURL(url),60000);};
-  restoreFile.onchange=async()=>{try{const file=restoreFile.files?.[0];if(!file)return;if(!valid())throw Error('Logga in igen.');if(file.size>2*1024*1024)throw Error('Filen är för stor.');
-   const data=JSON.parse(await file.text());if(!valid())throw Error('Inloggningen har ändrats.');
-   if(data.format!=='nsk-qr-list'||data.version!==1||String(data.team)!==String(team)||!Array.isArray(data.records)||!data.records.length||data.records.length>500)throw Error('Fel QR-lista eller lag.');
-   for(const r of data.records){const u=new URL(r.url);if(typeof r.name!=='string'||r.name.length>150||!people.some(p=>String(p.id)===String(r.personId))||!['https://nsk18.pages.dev/slipning/','https://zprcsv92cy-cmyk.github.io/NSK-2026/slipning/'].includes(u.origin+u.pathname)||u.search||u.username||u.password||!/^#nyckel=[a-f0-9]{64}$/.test(u.hash))throw Error('QR-filen innehåller ogiltiga uppgifter.');}
-   const verified=[];for(const r of data.records){if(!valid())throw Error('Inloggningen har ändrats.');if(await checkLink(r))verified.push({name:r.name,url:r.url,personId:String(r.personId)});}
-   records=verified;status(verified.length+' giltiga QR-koder hämtades från filen.'+(verified.length!==data.records.length?' '+(data.records.length-verified.length)+' gamla eller otillgängliga länkar utelämnades.':'')+' Kontrollera att rätt person får varje länk.');render();
-  }catch(error){status(error.message);}finally{restoreFile.value='';}};
   $('qrNameSearch').oninput=render;$('qrPrintAgain').onclick=print;
   $('qrCreateList').textContent='Skriv ut aktuell QR-lista';$('qrCreateList').onclick=print;
   const renewSelected=el('button','Förnya QR för valda');renewSelected.type='button';$('qrCreateList').before(renewSelected);
@@ -123,7 +103,7 @@
    if(!confirm('Förnya QR för '+chosen.size+' valda spelare? Tidigare länkar slutar fungera.'))return;
    busy=true;render();const failures=[];
    for(const p of people.filter(p=>chosen.has(String(p.id)))){if(!valid())break;status('Förnyar QR: '+p.full_name+'…');try{const rec=await renewOne(p,modes.get(String(p.id))||$('qrMode').value);records=records.filter(r=>String(r.personId)!==String(p.id));records.push(rec);}catch(error){failures.push(p.full_name+': '+error.message);}}
-   busy=false;render();status(records.length+' QR-koder finns i listan.'+(failures.length?' Fel: '+failures.join('; '):' Spara filen innan du lämnar sidan.'));
+   busy=false;render();status(records.length+' QR-koder finns i listan.'+(failures.length?' Fel: '+failures.join('; '):''));
   };
   render();bulkDispose=()=>{disposed=true;records=[];renewSelected.remove();};
  }
