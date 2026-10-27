@@ -4,6 +4,27 @@ import {mapTrustedMembershipsToLegacyTeams} from './production-team-id-map.js';
 const sharpReply=(status,data)=>Response.json(data,{status,headers:{'Cache-Control':'private, no-store, max-age=0','Pragma':'no-cache','Vary':'Authorization','Referrer-Policy':'no-referrer','X-Content-Type-Options':'nosniff'}});
 const sharpId=v=>typeof v==='string'&&/^[1-9][0-9]*$/.test(v)&&Number.isSafeInteger(Number(v));
 const sharpDigest=async value=>Array.from(new Uint8Array(await crypto.subtle.digest('SHA-256',new TextEncoder().encode(value))),b=>b.toString(16).padStart(2,'0')).join('');
+// Encrypt recoverable QR tokens with a separate deployment secret; never store plaintext.
+async function sharpKey(env){
+ const secret=env.SHARPENING_QR_ENCRYPTION_KEY;
+ if(typeof secret!=='string'||!/^([a-f0-9]{64})$/.test(secret))throw {status:503,error:'QR-lagring är inte konfigurerad. Kontakta administratören.'};
+ const bytes=Uint8Array.from(secret.match(/../g),x=>parseInt(x,16));
+ return crypto.subtle.importKey('raw',bytes,{name:'AES-GCM'},false,['encrypt','decrypt']);
+}
+async function sharpSeal(env,token,team,person){
+ const iv=crypto.getRandomValues(new Uint8Array(12)),key=await sharpKey(env);
+ const encrypted=await crypto.subtle.encrypt({name:'AES-GCM',iv,additionalData:new TextEncoder().encode(team+':'+person)},key,new TextEncoder().encode(token));
+ return Array.from(iv,b=>b.toString(16).padStart(2,'0')).join('')+':'+Array.from(new Uint8Array(encrypted),b=>b.toString(16).padStart(2,'0')).join('');
+}
+async function sharpUnseal(env,value,team,person){
+ if(typeof value!=='string'||!/^([a-f0-9]{24}):([a-f0-9]+)$/.test(value))return null;
+ try{
+  const [iv,cipher]=value.split(':'),key=await sharpKey(env);
+  const bytes=Uint8Array.from(cipher.match(/../g),x=>parseInt(x,16));
+  const plain=await crypto.subtle.decrypt({name:'AES-GCM',iv:Uint8Array.from(iv.match(/../g),x=>parseInt(x,16)),additionalData:new TextEncoder().encode(team+':'+person)},key,bytes);
+  const token=new TextDecoder().decode(plain);return /^[a-f0-9]{64}$/.test(token)?token:null;
+ }catch{return null;}
+}
 async function sharpBody(request){
  if(!(request.headers.get('Content-Type')||'').startsWith('application/json'))throw {status:415,error:'JSON krävs'};
  const reader=request.body?.getReader();if(!reader)throw {status:400,error:'Ogiltig data'};
@@ -38,12 +59,16 @@ export function createSharpeningHandler(env,listTeams,{verifyIdentity=createPers
     const access=mapTrustedMembershipsToLegacyTeams(actor,await listTeams()),member=access.memberships.find(m=>m.team_id===team[0]);
     if(!member||!access.permissions.includes('read')||!(actor.is_primary_admin===true||member.role==='equipment'))return sharpReply(403,{ok:false,error:'Endast huvudadministratör eller lagets materialförvaltare får hantera länkar.'});
     if(!await readPerson(team[0],person[0]))return sharpReply(404,{ok:false,error:'Spelaren finns inte i valt lag'});
-    const current=await db.prepare('SELECT mode,revision FROM sharpening_links WHERE team_id=? AND person_id=?').bind(team[0],person[0]).first(),revision=current?.revision||0;
-    if(request.method==='GET')return sharpReply(200,{ok:true,mode:current?.mode||'off',revision});
+    const current=await db.prepare('SELECT mode,revision,token_hash,token_ciphertext FROM sharpening_links WHERE team_id=? AND person_id=?').bind(team[0],person[0]).first(),revision=current?.revision||0;
+    if(request.method==='GET'){
+     const token=current?.mode!=='off'&&current?.token_ciphertext?await sharpUnseal(env,current.token_ciphertext,team[0],person[0]):null;
+     return sharpReply(200,{ok:true,mode:current?.mode||'off',revision,...(token&&await sharpDigest(token)===current.token_hash?{token}:{})});
+    }
     const data=await sharpBody(request);if(Object.keys(data).some(k=>!['mode','revision'].includes(k))||!['parent','player','off'].includes(data.mode)||!Number.isSafeInteger(data.revision)||data.revision<0)return sharpReply(400,{ok:false,error:'Kontrollera uppgifterna'});
     if(data.revision!==revision)return sharpReply(409,{ok:false,error:'Länken har ändrats. Läs om innan du försöker igen.'});
     const token=data.mode==='off'?null:Array.from(crypto.getRandomValues(new Uint8Array(32)),b=>b.toString(16).padStart(2,'0')).join(''),hash=token?await sharpDigest(token):null;
-    const saved=revision===0?await db.prepare('INSERT INTO sharpening_links (team_id,person_id,mode,token_hash,revision,updated_by) VALUES (?,?,?,?,1,?) ON CONFLICT(team_id,person_id) DO NOTHING').bind(team[0],person[0],data.mode,hash,actor.user.id).run():await db.prepare('UPDATE sharpening_links SET mode=?,token_hash=?,revision=revision+1,updated_by=?,updated_at=CURRENT_TIMESTAMP WHERE team_id=? AND person_id=? AND revision=?').bind(data.mode,hash,actor.user.id,team[0],person[0],revision).run();
+    const ciphertext=token?await sharpSeal(env,token,team[0],person[0]):null;
+    const saved=revision===0?await db.prepare('INSERT INTO sharpening_links (team_id,person_id,mode,token_hash,token_ciphertext,revision,updated_by) VALUES (?,?,?,?,?,1,?) ON CONFLICT(team_id,person_id) DO NOTHING').bind(team[0],person[0],data.mode,hash,ciphertext,actor.user.id).run():await db.prepare('UPDATE sharpening_links SET mode=?,token_hash=?,token_ciphertext=?,revision=revision+1,updated_by=?,updated_at=CURRENT_TIMESTAMP WHERE team_id=? AND person_id=? AND revision=?').bind(data.mode,hash,ciphertext,actor.user.id,team[0],person[0],revision).run();
     if(!saved.meta?.changes)return sharpReply(409,{ok:false,error:'Länken har ändrats. Läs om innan du försöker igen.'});
     return sharpReply(200,{ok:true,mode:data.mode,revision:revision+1,...(token?{token}:{})});
    }
