@@ -69,6 +69,7 @@
   writing(source,delta){const e=find(source);if(e){e.writes=Math.max(0,e.writes+delta);if(!e.writes)prune();}},
   changed(source){for(const e of entries.values())if(e.frame.contentWindow!==source)e.stale=true;},
   dirty(source){const e=find(source);if(e)e.dirty=true;},
+  clean(source){const e=find(source);if(e){e.dirty=false;prune();}},
   interacting(source){const e=find(source);if(e){e.restorePending=false;clearTimeout(e.restoreTimer);e.scrollRestored=true;for(const d of e.frame.contentDocument.querySelectorAll('details'))e.restored.add(d);for(const panel of e.frame.contentDocument.querySelectorAll('[data-selected-lag]'))e.choicesRestored.add(panel);}},
   fullscreen(source,on){if(active?.frame.contentWindow===source)document.body.classList.toggle('shell-fullscreen',on);},
   contextChanged(source){const e=find(source);if(e!==active||pending||!flow.has(e.route.slug))return;const next=context(),key=keyFor(e.route,next);if(key!==e.key){const duplicate=entries.get(key);if(duplicate&&duplicate!==e){if(!duplicate.dirty&&!duplicate.writes)remove(duplicate);else{entries.delete(duplicate.key);duplicate.key+=':held:'+duplicate.id;entries.set(duplicate.key,duplicate);}}entries.delete(e.key);e.context=next;e.key=key;entries.set(key,e);history.replaceState({nskShell:true,entryId:e.id,context:next},'',location.href);}}

@@ -16,16 +16,17 @@
  async function rememberBoard(){if(!window.NSKViewCache||!board)return;const data={team,board};const view=await NSKViewCache.open('equipment');view.save(data);}
  function element(tag,text){const node=document.createElement(tag);if(text!==undefined)node.textContent=text;return node;}
  function button(text,run){const b=element('button',text);b.type='button';b.onclick=run;return b;}
- async function change(update){
+ async function change(update,{optimistic=false}={}){
   if(busy||!canWrite)return;const expectedToken=Auth.getToken(),expectedTeam=teamName;changeVersion++;busy=true;lock();status('Sparar…');
-  try{const next=structuredClone(board);update(next);const result=await request(next);if(Auth.getToken()!==expectedToken||Auth.activeTeam()!==expectedTeam){canWrite=false;return false;}next.revision=result.revision;next.requests=result.requests;next.checklists=result.checklists;board=next;window.NSKViewCache?.clear();void rememberBoard();status('Sparat för laget.');render();return true;}
-  catch(error){status(error.message+' Ändringen har inte bekräftats som sparad.');render();return false;}
+  const before=board;
+  try{const next=structuredClone(board);update(next);if(optimistic){board=next;render();}const result=await request(next);if(Auth.getToken()!==expectedToken||Auth.activeTeam()!==expectedTeam){canWrite=false;denyBoard();return false;}next.revision=result.revision;next.requests=result.requests;next.checklists=result.checklists;board=next;window.NSKViewCache?.clear();void rememberBoard();status('Sparat · '+new Date().toLocaleTimeString('sv-SE',{hour:'2-digit',minute:'2-digit'}));render();return true;}
+  catch(error){board=before;status(error.message+' Ändringen har inte bekräftats som sparad.');render();return false;}
   finally{busy=false;lock();}
  }
  function row(label,done,toggle,remove){
   const r=element('div');r.className='equipment-row'+(done?' equipment-done':'');
   const l=element('label'),check=element('input');check.type='checkbox';check.checked=done;check.disabled=!canWrite;
-  check.onchange=event=>{const control=event.currentTarget,selected=control.checked;control.checked=done;void toggle(selected);};
+  check.onchange=event=>{void toggle(event.currentTarget.checked);};
   l.append(check,label);r.append(l);
   if(canWrite&&remove)r.append(button('Ta bort',remove));return r;
  }
@@ -82,7 +83,7 @@
    const summary=element('summary'),name=element('span',list.title);name.className='equipment-checklist-name';
    name.append(element('small',list.items.filter(i=>i.done).length+' av '+list.items.length+' klara'));summary.append(name);section.append(summary);
    const body=element('div');body.className='equipment-checklist-body';
-   for(const item of list.items){const itemRow=row(element('span',item.label),item.done,done=>change(b=>{b.checklists.find(c=>c.id===list.id).items.find(i=>i.id===item.id).done=done;}));itemRow.dataset.viewKey='item:'+list.id+':'+item.id;body.append(itemRow);}
+   for(const item of list.items){const itemRow=row(element('span',item.label),item.done,async done=>{const saved=await change(b=>{b.checklists.find(c=>c.id===list.id).items.find(i=>i.id===item.id).done=done;},{optimistic:true});if(saved){lastCheck={listId:list.id,itemId:item.id,before:item.done,after:done};undoButton.hidden=false;} });itemRow.dataset.viewKey='item:'+list.id+':'+item.id;body.append(itemRow);}
    if(canWrite){const actions=element('div');actions.className='equipment-actions';actions.append(button('Redigera',()=>editChecklist(list.id)),button('Återställ bockar',()=>{if(confirm('Återställ alla bockar i '+list.title+'?'))void change(b=>{b.checklists.find(c=>c.id===list.id).items.forEach(i=>{i.done=false;});});}),button('Ta bort lista',()=>{if(confirm('Ta bort checklistan '+list.title+'?'))void change(b=>{b.checklists=b.checklists.filter(c=>c.id!==list.id);});}));body.append(actions);}
    section.append(body);checklistContent.append(section);
   }
@@ -111,7 +112,7 @@
    if(Auth.getToken()!==expectedToken||Auth.activeTeam()!==expectedTeam)return;
    linksReady=!!saved.canWrite&&!!window.SharpeningLinks?.allowed();const linkSelect=$('sharpeningLinkPerson');linkSelect.replaceChildren(new Option('Välj spelare',''));if(linksReady)for(const p of people.filter(p=>p.kind==='player'))linkSelect.append(new Option(p.full_name,String(p.id)));
    $('equipmentTabLinks').hidden=!linksReady;if(linksReady)SharpeningLinks.bulk($('equipmentQrBulk'),{team,people:people.filter(p=>p.kind==='player')});
-   canWrite=saved.canWrite;void rememberBoard();render();status(canWrite?'Alla ändringar sparas för laget.':'Läsbehörighet. Ledare och materialförvaltare kan ändra.');
+   canWrite=saved.canWrite;void rememberBoard();render();status('Uppdaterat '+new Date().toLocaleTimeString('sv-SE',{hour:'2-digit',minute:'2-digit'})+(canWrite?'':' · Läsbehörighet'));
   }catch(error){canWrite=false;if(window.NSKViewCache?.denied(error)){denyBoard();}status(error.message);if(board)render();}
   finally{busy=false;lock();}
  }
@@ -150,7 +151,7 @@
   else setCreation(!creatingChecklist);
   if(creatingChecklist)$('checklistTitle').focus();
  };
- $('checklistCancel').onclick=()=>{if(busy)return;setCreation(false);editingChecklistId=null;editingChecklistBase=null;$('checklistForm').reset();$('checklistCreateButton').focus();};
+ $('checklistCancel').onclick=()=>{if(busy)return;setCreation(false);editingChecklistId=null;editingChecklistBase=null;$('checklistForm').reset();window.NSKShellHost?.clean?.(window);$('checklistCreateButton').focus();};
  async function refresh(){
   if(busy||refreshing||!board||document.hidden||window.NSKShellActive===false)return;
   const generation=changeVersion,expectedTeam=team,expectedToken=Auth.getToken();refreshing=true;
@@ -188,5 +189,10 @@
   }
  };
  $('equipmentAwayTemplate').onclick=()=>{if(($('checklistTitle').value||$('checklistItems').value)&&!confirm('Ersätt utkastet med mallen Material bortamatch?'))return;$('checklistTitle').value='Material bortamatch';$('checklistItems').value='Matchtröjor\nMålvaktsutrustning\nPuckar\nVattenflaskor\nFörbandsväska\nTejp\nVerktyg och reservdelar';};
+ let lastCheck=null;const undoButton=button('Ångra senaste bockning',async()=>{
+  if(busy||!lastCheck)return;const previous=lastCheck,item=board.checklists.find(l=>l.id===previous.listId)?.items.find(i=>i.id===previous.itemId);
+  if(!item||item.done!==previous.after){status('Checklistan har ändrats. Läs om innan du ändrar.');lastCheck=null;undoButton.hidden=true;return;}
+  if(await change(b=>{b.checklists.find(l=>l.id===previous.listId).items.find(i=>i.id===previous.itemId).done=previous.before;},{optimistic:true})){lastCheck=null;undoButton.hidden=true;}
+ });undoButton.hidden=true;$('equipmentStatus').after(undoButton);
  void load();
 })();

@@ -431,6 +431,7 @@ window.NSK2App = (() => {
           if(!await flushLineupChanges())return;
           sessionStorage.setItem("nsk2_lag_nr", String(t.dataset.lagTeam));
           setActiveLagButton(String(t.dataset.lagTeam));
+          if(!syncFlowMatchChoices('lineup',sessionStorage.getItem('nsk2_lineup_match_'+sessionStorage.getItem('nsk2_pool_id')+'_'+t.dataset.lagTeam)||'1'))return;
           await fillLaguppstallningFormFromSelection();
           return;
         }
@@ -1002,11 +1003,22 @@ window.NSK2App = (() => {
     }
   }
 
+  let flowMatchPlan=null,flowDefaultMatchCount=4;
+  const matchNumbers=matches=>Array.isArray(matches)?[...new Set(matches.map(Number))].filter(n=>Number.isSafeInteger(n)&&n>0).sort((a,b)=>a-b):Array.from({length:Number(matches)||0},(_,i)=>i+1);
+  function syncFlowMatchChoices(mode,preferred){
+    const lag=sessionStorage.getItem('nsk2_lag_nr')||'1';
+    const matches=flowMatchPlan?matchNumbers(flowMatchPlan.filter(r=>String(r.lag_no)===lag).map(r=>r.match_no)):matchNumbers(flowDefaultMatchCount);
+    const selector=byId(mode==='lineup'?'lineupMatch':'shiftMatch');
+    if(mode==='lineup'){renderLaguppstallningMatchOptions(matches);renderMatchButtons(matches);}else{renderShiftMatchOptions(matches);renderShiftMatchList(matches);}
+    selector.value=matches.includes(Number(preferred))?String(preferred):String(matches[0]||'');
+    return matches.length>0;
+  }
+
   function renderLaguppstallningMatchOptions(matches) {
     const sel = byId("lineupMatch");
     if (!sel) return;
     sel.innerHTML = "";
-    for (let i = 1; i <= matches; i++) {
+    for (const i of matchNumbers(matches)) {
       const opt = document.createElement("option");
       opt.value = String(i);
       opt.textContent = `Match ${i}`;
@@ -1020,7 +1032,7 @@ window.NSK2App = (() => {
     if (!box || !hiddenSelect) return;
 
     box.innerHTML = "";
-    for (let i = 1; i <= matches; i++) {
+    for (const i of matchNumbers(matches)) {
       const btn = document.createElement("button");
       btn.type = "button";
       btn.className = "team-btn match-btn";
@@ -1258,7 +1270,9 @@ window.NSK2App = (() => {
     clearTimeout(window.__nskLineupSaveTimer);
     if(lineupPendingSnapshot){const snapshot=lineupPendingSnapshot;lineupPendingSnapshot=null;try{await saveLaguppstallningMatchConfig(false,snapshot);}catch(error){lineupSaveFailed=true;setText('appError',error.message);}}
     await Promise.all([lineupSaveChain,coachSaveChain]);
-    return !lineupSaveFailed&&!lineupIncomplete&&!coachSaveFailed;
+    const saved=!lineupSaveFailed&&!lineupIncomplete&&!coachSaveFailed&&!lineupPendingSnapshot;
+    if(saved)window.NSKShellHost?.clean?.(window);
+    return saved;
   }
   // Spara varje tränarändring omedelbart, oberoende av laguppställningens status.
   let coachSaveChain = Promise.resolve(),coachSaveFailed=false;
@@ -1539,7 +1553,7 @@ window.NSK2App = (() => {
   }
 
   async function randomizeGoalie() {
-    if (typeof DB?.listPlayers !== "function" || typeof DB?.listGoalieStats !== "function") return;
+    if (window.__nskLineupClosed===true || typeof DB?.listPlayers !== "function" || typeof DB?.listGoalieStats !== "function") return;
 
     const selectedPlayerIds = getSelectedLineupPlayerIds();
     const players = await getPlayersCached();
@@ -1585,9 +1599,12 @@ window.NSK2App = (() => {
       button.onclick=()=>{const next=new Set(chosen);if(next.has(person.id))next.delete(person.id);else next.add(person.id);for(const item of root.querySelectorAll('button'))item.disabled=true;setText('poolEquipmentMsg','Sparar materialval…');coachSaveChain=coachSaveChain.catch(()=>{}).then(async()=>{try{const saved=await DB.savePoolMaterial(poolId,[...next],data.revision);coachSaveFailed=false;renderPoolMaterial({...data,...saved,legacy_name:''},poolId);byId('poolEquipmentReload').hidden=true;setText('poolEquipmentMsg','Materialval sparat för hela poolspelet.');}catch(error){coachSaveFailed=true;renderPoolMaterial(data,poolId);byId('poolEquipmentReload').hidden=false;setText('poolEquipmentMsg',error.message);}});};root.append(button);}
   }
   async function fillLaguppstallningFormFromSelection() {
+    return DB.withReadSnapshot?DB.withReadSnapshot(fillLineupData):fillLineupData();
+  }
+  async function fillLineupData() {
     const loadGeneration=(window.__nskLineupLoadGeneration||0)+1;window.__nskLineupLoadGeneration=loadGeneration;
     const selectedNow=()=>loadGeneration===window.__nskLineupLoadGeneration;
-    const loading=disabled=>{for(const field of (typeof document==='undefined'?null:document.querySelectorAll?.("#lineupSelectors select,#lineupCoach,#lineupStartTime,#lineupOpponent,#lineupPlan,#lineupPlayerCount,#lineupSaveButton,#poolEquipment,.coach-choice"))||[])field.disabled=disabled||window.__nskLineupClosed===true;};
+    const loading=disabled=>{byId('lineupSelectors')?.setAttribute?.('aria-busy',String(disabled));for(const field of (typeof document==='undefined'?null:document.querySelectorAll?.("#lineupSelectors select,#lineupCoach,#lineupStartTime,#lineupOpponent,#lineupPlan,#lineupPlayerCount,#lineupSaveButton,#poolEquipment,.coach-choice,[data-random-goalie]"))||[])field.disabled=disabled||window.__nskLineupClosed===true;};
     loading(true);
     clearTimeout(window.__nskLineupSaveTimer);
     const lagNo = sessionStorage.getItem("nsk2_lag_nr") || "1";
@@ -1751,7 +1768,7 @@ window.NSK2App = (() => {
       catch(err) { setText('appError','Kunde inte hämta tränarval: '+(err?.message || String(err))); }
       updateCoachEnabledState();
 
-      if(byId('poolEquipment')&&DB.getPoolMaterial){const selected=await DB.getPoolMaterial(poolId);if(!selectedNow())return;renderPoolMaterial(selected,poolId);}
+      if(byId('poolEquipment')&&DB.getPoolMaterial){try{const selected=await DB.getPoolMaterial(poolId);if(!selectedNow())return;renderPoolMaterial(selected,poolId);}catch(error){if(selectedNow()){setText('poolEquipmentMsg','Materialvalet kunde inte hämtas.');byId('poolEquipmentReload').hidden=false;}}}
       loading(false);
       // Do not auto-save when merely opening another match. Save on user changes.
 
@@ -2029,6 +2046,9 @@ window.NSK2App = (() => {
   }
 
   async function initLaguppstallningPage() {
+    return DB.withReadSnapshot?DB.withReadSnapshot(()=>initLineupPageData()):initLineupPageData();
+  }
+  async function initLineupPageData() {
     const teamButtonsBox = byId("laguppstallningTeamButtons");
     const matchSelect = byId("lineupMatch");
     const lineupBox = byId("lineupSelectors");
@@ -2048,6 +2068,8 @@ window.NSK2App = (() => {
         const pool = await DB.getPool(poolId);
         teams = safeInt(pool?.teams || "2", 2);
         matches = safeInt(pool?.matches || "4", 4);
+        flowMatchPlan=DB.listPoolMatchPlan?await DB.listPoolMatchPlan(poolId):null;flowDefaultMatchCount=matches;
+        setText("poolFlowContext",`${pool?.place||pool?.title||"Poolspel"} · ${pool?.pool_date||""}`);
         playersOnField = safeInt(pool?.players_on_field || "3", 3);
         window.__nskLineupClosed=pool?.active===false;
       }
@@ -2062,7 +2084,7 @@ window.NSK2App = (() => {
       renderLaguppstallningMatchOptions(matches);
       const rememberedMatch=sessionStorage.getItem('nsk2_lineup_match_'+poolId+'_'+(sessionStorage.getItem('nsk2_lag_nr')||'1'))||sessionStorage.getItem('nsk2_match_no')||'1';
       if(Number(rememberedMatch)>=1&&Number(rememberedMatch)<=matches)matchSelect.value=rememberedMatch;
-      renderMatchButtons(matches);
+      if(!syncFlowMatchChoices('lineup',rememberedMatch)){setText('lineupMsg','Inga matcher planerade för valt lag.');return;}
       renderPlayerCountOptions(playersOnField);
 
       const savedLag = sessionStorage.getItem("nsk2_lag_nr") || "1";
@@ -2103,7 +2125,7 @@ window.NSK2App = (() => {
       btn.addEventListener("click", async () => {
         sessionStorage.setItem("nsk2_lag_nr", String(i));
         const saved=sessionStorage.getItem(`nsk2_team_match_${sessionStorage.getItem('nsk2_pool_id')}_${i}`)||'1';
-        const selector=byId('shiftMatch');if(selector&&Array.from(selector.options).some(o=>o.value===saved))selector.value=saved;
+        if(!syncFlowMatchChoices('shift',saved))return;
         setActiveShiftTeamButton(String(i));
         await renderShiftSchema();
       });
@@ -2123,7 +2145,7 @@ window.NSK2App = (() => {
     if (!box) return;
     box.innerHTML = "";
 
-    for (let i = 1; i <= matches; i++) {
+    for (const i of matchNumbers(matches)) {
       const btn = document.createElement("button");
       btn.type = "button";
       btn.className = "match-list-item";
@@ -2137,7 +2159,7 @@ window.NSK2App = (() => {
     const sel = byId("shiftMatch");
     if (!sel) return;
     sel.innerHTML = "";
-    for (let i = 1; i <= matches; i++) {
+    for (const i of matchNumbers(matches)) {
       const opt = document.createElement("option");
       opt.value = String(i);
       opt.textContent = `Match ${i}`;
@@ -2154,6 +2176,7 @@ window.NSK2App = (() => {
 
   let shiftToggleSaving = false;
   const shiftPending=new Set();
+  let shiftUndo=null;
   let shiftRefreshBusy = false;
   let shiftViewGeneration = 0;
 
@@ -2174,11 +2197,12 @@ window.NSK2App = (() => {
 
     try {
       await DB.setShiftDone(poolId, lagNo, matchNo, shiftNo, nextDone, el.dataset?.shiftId);
-      el.setAttribute("aria-pressed",String(nextDone));el.textContent=nextDone?"✓":"";setText("shiftMsg","Byte "+shiftNo+" sparat.");
+      shiftUndo={poolId,lagNo,matchNo,shiftNo,after:nextDone};if(byId("shiftUndoButton"))byId("shiftUndoButton").hidden=false;
+      el.setAttribute("aria-pressed",String(nextDone));el.textContent=nextDone?"✓":"";setText("shiftMsg","Byte "+shiftNo+" sparat.");return true;
     } catch (err) {
       el.classList.toggle("done", !nextDone);
       el.setAttribute("aria-pressed",String(!nextDone));el.textContent=!nextDone?"✓":"";setText("shiftMsg","Bytet kunde inte sparas. Försök igen.");
-      setText("appError", err?.message || String(err));
+      setText("appError", err?.message || String(err));return false;
     } finally {
       shiftPending.delete(key);shiftToggleSaving=shiftPending.size>0;el.disabled=false;el.removeAttribute("aria-busy");
     }
@@ -2199,6 +2223,7 @@ window.NSK2App = (() => {
           sessionStorage.getItem("nsk2_pool_id") !== poolId ||
           (sessionStorage.getItem("nsk2_lag_nr") || "1") !== lagNo ||
           (byId("shiftMatch")?.value || "1") !== matchNo) return;
+      setText('dataFreshness','Uppdaterat '+new Date().toLocaleTimeString('sv-SE',{timeZone:'Europe/Stockholm',hour:'2-digit',minute:'2-digit'}));
       const checks = [...document.querySelectorAll("#shiftTableWrap [data-shift-toggle]")];
       if (checks.length !== rows.length) return; // Schemat ändrades; rör inte tabellen.
       for (const check of checks) {
@@ -2207,6 +2232,7 @@ window.NSK2App = (() => {
           {const done=!!rows.find(r=>Number(r.shift_no)===n)?.done;check.classList.toggle("done",done);check.setAttribute("aria-pressed",String(done));check.textContent=done?"✓":"";}
       }
     } catch (err) {
+      setText('dataFreshness','Kan vara inaktuellt · Uppdateringen misslyckades');
       console.warn("Kunde inte synkronisera bytesschema", err);
     } finally {
       shiftRefreshBusy = false;
@@ -2221,6 +2247,9 @@ window.NSK2App = (() => {
   }
 
   async function initBytesschemaPage() {
+    return DB.withReadSnapshot?DB.withReadSnapshot(()=>initShiftPageData()):initShiftPageData();
+  }
+  async function initShiftPageData() {
     const teamBox = byId("shiftTeamButtons");
     const matchSelect = byId("shiftMatch");
     if (!teamBox || !matchSelect) return;
@@ -2236,11 +2265,12 @@ window.NSK2App = (() => {
       const teams = safeInt(pool?.teams || "2", 2);
       const matches = safeInt(pool?.matches || "4", 4);
 
+      flowMatchPlan=DB.listPoolMatchPlan?await DB.listPoolMatchPlan(poolId):null;flowDefaultMatchCount=matches;
       renderShiftTeamButtons(teams);
       renderShiftMatchOptions(matches);
       renderShiftMatchList(matches);
       const savedMatch = sessionStorage.getItem("nsk2_match_no") || "1";
-      if (Number(savedMatch) >= 1 && Number(savedMatch) <= matches) matchSelect.value = savedMatch;
+      if(!syncFlowMatchChoices('shift',savedMatch)){setText('shiftMsg','Inga matcher planerade för valt lag.');return;}
 
       const lagNo = sessionStorage.getItem("nsk2_lag_nr") || "1";
       setActiveShiftTeamButton(lagNo);
@@ -2255,6 +2285,13 @@ window.NSK2App = (() => {
         });
       }
 
+      byId('shiftUndoButton')?.addEventListener('click',async()=>{
+        const last=shiftUndo;if(!last||shiftToggleSaving)return;
+        if(last.poolId!==sessionStorage.getItem('nsk2_pool_id')||last.lagNo!==(sessionStorage.getItem('nsk2_lag_nr')||'1')||last.matchNo!==(byId('shiftMatch')?.value||'1'))return;
+        const button=byId('shiftUndoButton');button.disabled=true;
+        try{const rows=await DB.listShiftSchema(last.poolId,last.lagNo,last.matchNo);const current=rows.find(r=>Number(r.shift_no)===Number(last.shiftNo));if(!current||current.done!==last.after)throw Error('Bytet har ändrats. Läs om schemat innan du ändrar.');if(await toggleShiftDone(last.shiftNo)){shiftUndo=null;button.hidden=true;}}
+        catch(error){setText('shiftMsg',error.message);}finally{button.disabled=false;}
+      });
       await renderShiftSchema();
     } catch (err) {
       setText("appError", err?.message || String(err));
@@ -2262,7 +2299,11 @@ window.NSK2App = (() => {
   }
 
   async function renderShiftSchema() {
+    return DB.withReadSnapshot?DB.withReadSnapshot(renderShiftSchemaData):renderShiftSchemaData();
+  }
+  async function renderShiftSchemaData() {
     const generation=++shiftViewGeneration;
+    shiftUndo=null;if(byId('shiftUndoButton'))byId('shiftUndoButton').hidden=true;
     const isCurrent=()=>generation===shiftViewGeneration;
     const poolId = sessionStorage.getItem("nsk2_pool_id");
     const lagNo = sessionStorage.getItem("nsk2_lag_nr") || "1";
@@ -2271,21 +2312,27 @@ window.NSK2App = (() => {
     sessionStorage.setItem(`nsk2_team_match_${poolId}_${lagNo}`,matchNo);
     if (!poolId) return;
 
-    const pool = await DB.getPool(poolId);
+    const wrap = byId('shiftTableWrap');
+    wrap?.setAttribute('aria-busy','true');
+    if(wrap)wrap.innerHTML='<p role="status">Hämtar byten…</p>';
+    setText('appError','');
+    const materialLoad=DB.getPoolMaterial?DB.getPoolMaterial(poolId).then(data=>({data}),error=>({error})):Promise.resolve({data:{name:'—'}});
+    let loaded;
+    try{loaded=await Promise.all([DB.getPool(poolId),DB.listPoolTeamMatchConfigs(poolId),getPlayersCached(),getCoachesCached(),DB.listShiftSchema(poolId,lagNo,matchNo),getCoachNamesForLag(poolId,lagNo,matchNo)]);}
+    catch(error){if(isCurrent()){wrap?.setAttribute('aria-busy','false');if(wrap)wrap.innerHTML='<p>Bytena kunde inte hämtas.</p><button type="button" id="retryShiftLoad">Försök igen</button>';byId('retryShiftLoad')?.addEventListener('click',()=>void renderShiftSchema());setText('appError',error.message==='Failed to fetch'?'Anslutningen till servern misslyckades. Försök igen.':error.message);}return;}
     if(!isCurrent())return;
-    let row = await DB.getPoolTeamMatchConfig(poolId, lagNo, matchNo);
-    if (!row && String(matchNo) !== "1") {const base=await DB.getPoolTeamMatchConfig(poolId, lagNo, 1);row=base?{...base,start_time:null,opponent:"",plan:"Plan 1"}:null;}
-    if(!isCurrent())return;
-
-    const players = await getPlayersCached();
-    if(!isCurrent())return;
-    const coaches = await getCoachesCached();
-    if(!isCurrent())return;
-    const playerMap = {};
-    const coachMap = {};
-    players.forEach((p) => { playerMap[String(p.id)] = p.full_name; });
-    coaches.forEach((c) => { coachMap[String(c.id)] = c.full_name; });
-
+    const [pool,configs,players,coaches,rows,coachNames]=loaded;
+    const row=configs.find(r=>String(r.lag_no)===String(lagNo)&&String(r.match_no)===String(matchNo))||null;
+    const outfield=(row?.players_on_field||[]).filter(id=>String(id)!==String(row?.goalie_player_id));
+    const expected=new Set(outfield.map(String));
+    const valid=!!row?.goalie_player_id&&expected.size===Number(row.player_count)&&rows.length>0&&rows.every(r=>r.players_json.length===Number(pool?.players_on_field)&&r.players_json.every(id=>expected.has(String(id))))&&!pool?.pending_matches?.some(r=>Number(r.lag_no)===Number(lagNo)&&Number(r.match_no)===Number(matchNo));
+    setText('matchReadiness',pool?.active===false?'Avslutat poolspel · Läs- och utskriftsvy':valid?'Matchen är förberedd · Målvakt, spelare och bytesschema finns.':'Kontrollera uppställningen · Målvakt, spelare eller bytesschema är inte komplett.');
+    const playerMap=Object.fromEntries(players.map(p=>[String(p.id),p.full_name]));
+    const coachMap=Object.fromEntries(coaches.map(p=>[String(p.id),p.full_name]));
+    setText('poolFlowContext',`${pool?.place||pool?.title||'Poolspel'} · ${pool?.pool_date||''} · Lag ${lagNo} · Match ${matchNo}`);
+    materialLoad.then(result=>{if(!isCurrent())return;setText('shiftEquipmentName',result.error?'Kunde inte hämtas':result.data.name||'—');});
+    wrap?.setAttribute('aria-busy','false');
+    setText('dataFreshness','Uppdaterat '+new Date().toLocaleTimeString('sv-SE',{timeZone:'Europe/Stockholm',hour:'2-digit',minute:'2-digit'}));
     const title = `Match ${matchNo} • Lag ${lagNo}`;
     setText("bytesschemaTitle", title);
     setText("shiftHeaderMain", title);
@@ -2297,26 +2344,17 @@ window.NSK2App = (() => {
     const goalieName = row?.goalie_player_id ? shortName(playerMap[String(row.goalie_player_id)] || "—") : "—";
     setText("shiftGoalieName", goalieName);
 
-    const coachNames = await getCoachNamesForLag(poolId, lagNo, matchNo);
-    if(!isCurrent())return;
     setText("shiftCoachNames", coachNames);
-    if(DB.getPoolMaterial){const material=await DB.getPoolMaterial(poolId);if(!isCurrent())return;setText("shiftEquipmentName",material.name||"—");}
-
     setActiveShiftTeamButton(lagNo);
     setActiveShiftMatchButton(matchNo);
-
-    const rows = await DB.listShiftSchema(poolId, lagNo, matchNo);
-    if(!isCurrent())return;
     const openMatch=byId('openMatchView');
-    if(openMatch){openMatch.textContent=rows.some(r=>r.done)?'Återgå till matchvy':'Starta match '+matchNo;openMatch.setAttribute('aria-disabled',String(!rows.length));openMatch.onclick=async event=>{event.preventDefault();try{if(!rows.length)throw Error('Spara laguppställning och skapa bytesschema först.');if(!rows.some(r=>r.done)&&DB.assertMatchReady)await DB.assertMatchReady(poolId,lagNo,matchNo);(window.NSKNavigate||((url)=>{location.href=url;}))('../matchvy/');}catch(error){setText('shiftMsg',error.message);}};}
-    const wrap = byId("shiftTableWrap");
-    if (!wrap) return;
-
+    if(openMatch){openMatch.textContent=pool?.active===false?'Visa matchvy':rows.some(r=>r.done)?'Återgå till matchvy':'Starta match '+matchNo;openMatch.setAttribute('aria-disabled',String(!rows.length));openMatch.onclick=async event=>{event.preventDefault();try{if(!rows.length)throw Error('Spara laguppställning och skapa bytesschema först.');if(pool?.active!==false&&!rows.some(r=>r.done)&&DB.assertMatchReady)await DB.assertMatchReady(poolId,lagNo,matchNo);(window.NSKNavigate||((url)=>{location.href=url;}))('../matchvy/');}catch(error){setText('shiftMsg',error.message);}};}
+    if(!wrap)return;
     if (!rows.length) {
       // Saknat schema: återskapa bara den valda matchen, aldrig andra matcher.
       const source = row;
       const lineup = source?.id ? await DB.getLineup(source.id) : [];
-      const hasPlayers = lineup.some(x => x.person_type === "player");
+      const hasPlayers = pool?.active!==false&&lineup.some(x => x.person_type === "player");
       wrap.innerHTML = hasPlayers
         ? `<div class="small" style="margin-bottom:12px">Bytesschemat saknas för Match ${esc(matchNo)}, Lag ${esc(lagNo)}, men laguppställningen finns kvar.</div><button type="button" class="row-btn nsk-action nsk-action--neutral" id="restoreMissingShift">Återskapa bytesschema för Match ${esc(matchNo)}</button>`
         : '<div class="small">Inget bytesschema ännu. Spara laguppställning först.</div>';
@@ -2343,7 +2381,7 @@ window.NSK2App = (() => {
 
     // Alla matcher: upptäck även scheman med rätt antal rader men fel periodtid.
     let repairHtml = "";
-    if (pool) {
+    if (pool?.active!==false) {
       const seconds = Number(pool.period_time) * 60;
       const interval = Number(pool.sub_time);
       const periods = Number(pool.periods);
@@ -2374,12 +2412,12 @@ window.NSK2App = (() => {
           ${rows.map((r, i) => {
             const shiftNo = Number(r.shift_no)||i+1;
             const names = (Array.isArray(r.players_json) ? r.players_json : [])
-              .map((id) => shortName(playerMap[String(id)] || "—"))
+              .map((id) => esc(shortName(playerMap[String(id)] || "—")))
               .join("<br>");
             const done = r.done ? "done" : "";
             return `
               <tr>
-                <td class="check-cell"><button type="button" class="shift-check ${done}" data-shift-id="${r.id}" data-shift-toggle="${shiftNo}" aria-label="Byte ${shiftNo} genomfört" aria-pressed="${!!r.done}">${r.done?'✓':''}</button></td>
+                <td class="check-cell"><button type="button" class="shift-check ${done}" data-shift-id="${r.id}" data-shift-toggle="${shiftNo}" aria-label="Byte ${shiftNo} genomfört" aria-pressed="${!!r.done}" ${pool?.active===false?'disabled':''}>${r.done?'✓':''}</button></td>
                 <td>${shiftNo}</td>
                 <td>${esc(r.time_left)}</td>
                 <td class="shift-players">${names || "—"}</td>
@@ -2505,6 +2543,9 @@ window.NSK2App = (() => {
     const next = rows[matchCurrentShiftIndex + 1] || null;
     const totalShifts = rows.length;
     const finished=rows.every(shift=>shift.done);
+    if(byId("prevShiftBtn"))byId("prevShiftBtn").disabled=!!data.closed;
+    if(byId("nextShiftBtn"))byId("nextShiftBtn").disabled=!!data.closed;
+    if(byId("finishWholePool"))byId("finishWholePool").hidden=!!data.closed;
     const last=!next;
     byId('nextShiftMeta').hidden=last||finished;
     byId('nextShiftPanel').hidden=last||finished;
@@ -2535,6 +2576,9 @@ window.NSK2App = (() => {
   }
 
   async function renderCoachMatchView(poolId, lagNo, matchNo) {
+    return DB.withReadSnapshot?DB.withReadSnapshot(()=>renderCoachMatchData(poolId, lagNo, matchNo)):renderCoachMatchData(poolId, lagNo, matchNo);
+  }
+  async function renderCoachMatchData(poolId, lagNo, matchNo) {
     const [rows, players, rowCurrent, configs, coachNames] = await Promise.all([
       DB.listShiftSchema(poolId, lagNo, matchNo),
       getPlayersCached(),
@@ -2545,6 +2589,7 @@ window.NSK2App = (() => {
     const playerMap = {};
     players.forEach((p) => { playerMap[String(p.id)] = p.full_name; });
     matchvyCache = { rows, playerMap, row, poolId, lagNo, matchNo, configs, coachNames };
+    if(DB.getPool){const pool=await DB.getPool(poolId);matchvyCache.closed=pool?.active===false;setText("poolFlowContext",`${pool?.place||pool?.title||"Poolspel"} · ${pool?.pool_date||""} · Lag ${lagNo} · Match ${matchNo}`);}
     paintCoachMatchView();
   }
 
@@ -2595,6 +2640,7 @@ window.NSK2App = (() => {
       document.addEventListener("visibilitychange", refreshMatch);
     }
     byId('finishWholePool').onclick=async()=>{
+      if(matchvyCache?.closed)return;
       const button=byId('finishWholePool');button.disabled=true;
       try{
         const configs=await (DB.listPoolMatchPlan?DB.listPoolMatchPlan(poolId):DB.listPoolTeamMatchConfigs(poolId));
@@ -2612,7 +2658,7 @@ window.NSK2App = (() => {
     if (prevBtn && !prevBtn.dataset.boundMatchvy) {
       prevBtn.dataset.boundMatchvy = "1";
       prevBtn.addEventListener("click", async () => {
-        if (matchvySaving || !matchvyCache?.rows.length || matchCurrentShiftIndex === 0) return;
+        if (matchvySaving || matchvyCache?.closed || !matchvyCache?.rows.length || matchCurrentShiftIndex === 0) return;
         const oldIndex = matchCurrentShiftIndex;
         const previousIndex = oldIndex - 1;
         matchvySaving = true;
@@ -2639,7 +2685,7 @@ window.NSK2App = (() => {
     if (nextBtn && !nextBtn.dataset.boundMatchvy) {
       nextBtn.dataset.boundMatchvy = "1";
       nextBtn.addEventListener("click", async () => {
-        if (matchvySaving || !matchvyCache?.rows.length) return;
+        if (matchvySaving || matchvyCache?.closed || !matchvyCache?.rows.length) return;
         if (matchCurrentShiftIndex >= matchvyCache.rows.length - 1) {
           if(!confirm(`Avsluta match ${matchNo} för Lag ${lagNo}?`))return;
           matchvySaving=true;nextBtn.disabled=true;

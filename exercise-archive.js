@@ -212,6 +212,9 @@
   const getFiles=()=>transact('readonly',os=>os.getAll());
   const saveFile=record=>transact('readwrite',os=>os.put(record));
   const deleteFile=id=>transact('readwrite',os=>os.delete(id));
+  async function restoreFiles(records){
+    const db=await openDb();try{await new Promise((resolve,reject)=>{const tx=db.transaction(store,'readwrite'),os=tx.objectStore(store);for(const record of records)os.add(record);tx.oncomplete=resolve;tx.onerror=()=>reject(tx.error);tx.onabort=()=>reject(tx.error);});}finally{db.close();}
+  }
   function text(tag,value,className){
     const node=document.createElement(tag);node.textContent=value;if(className)node.className=className;return node;
   }
@@ -328,6 +331,16 @@
     }catch{container.append(text('p','Filarkivet kunde inte öppnas i den här webbläsaren.'));$('exerciseStatus').textContent='De färdiga övningarna är tillgängliga.';}
   }
   document.addEventListener('DOMContentLoaded',()=>{
+    $('exerciseBackup').onclick=async()=>{
+      const button=$('exerciseBackup');button.disabled=true;
+      try{const files=await getFiles();if(!files.length)throw Error('Det finns inga egna filer att säkerhetskopiera.');const backup=await NSKExerciseBackup.encode(files),url=URL.createObjectURL(new Blob([JSON.stringify(backup)],{type:'application/json'})),link=document.createElement('a');link.href=url;link.download='nsk-ovningar-backup.json';link.click();setTimeout(()=>URL.revokeObjectURL(url),60000);$('exerciseStatus').textContent='Säkerhetskopian är skapad. Spara filen på en säker plats.';}
+      catch(error){$('exerciseStatus').textContent=error.message;}finally{button.disabled=false;}
+    };
+    $('exerciseRestore').onchange=async()=>{
+      const input=$('exerciseRestore'),file=input.files[0];if(!file)return;input.disabled=true;
+      try{if(file.size>72*1024*1024)throw Error('Säkerhetskopian är för stor.');const records=NSKExerciseBackup.decode(JSON.parse(await file.text()));if(!records.length)throw Error('Säkerhetskopian är tom.');if(!confirm('Lägg till '+records.length+' övningsfiler? Befintliga filer behålls.'))return;await restoreFiles(records);await render();$('exerciseStatus').textContent=records.length+' filer återställda. Befintliga filer behölls.';}
+      catch(error){$('exerciseStatus').textContent='Kunde inte återställa: '+error.message;}finally{input.value='';input.disabled=false;}
+    };
     $('exercisePreviewClose').addEventListener('click',closePreview);
     $('exercisePreviewPrint').addEventListener('click',()=>{document.body.classList.add('archive-preview-print');window.print();});
     window.addEventListener('afterprint',()=>document.body.classList.remove('archive-preview-print'));
@@ -353,7 +366,7 @@
         const record={id:crypto.randomUUID(),title:$('exerciseTitle').value.trim(),description:$('exerciseDescription').value.trim(),category:$('exerciseUploadCategory').value,filename:file.name,blob:file,created:Date.now()};
         if(!record.title)throw Error('Namn saknas');
         await saveFile(record);
-        $('exerciseUpload').reset();await render();$('exerciseStatus').textContent='Filen har sparats lokalt i den här webbläsaren.';
+        $('exerciseUpload').reset();window.NSKShellHost?.clean?.(window);await render();$('exerciseStatus').textContent='Filen har sparats lokalt i den här webbläsaren.';
       }catch(error){$('exerciseStatus').textContent='Kunde inte spara filen: '+(error.message||'okänt fel');}finally{button.disabled=false;}
     });
     render();

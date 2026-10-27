@@ -12,6 +12,7 @@
 <title>Träningsplanering – NSK</title>
 <meta name="theme-color" content="#b11226">
 <script src="../version.js?v=872"></script>
+<script>document.write('<script src="../print-view.js?v='+window.NSK_VERSION+'" defer><\/script>');</script>
 <script src="https://cdn.jsdelivr.net/npm/tesseract.js@5.1.1/dist/tesseract.min.js" defer></script>
 <script>
 document.write('<link rel="stylesheet" href="../app.css?v='+window.NSK_VERSION+'">');
@@ -55,7 +56,7 @@ document.write('<script src="../training-groups.js?v='+window.NSK_VERSION+'"><\/
 <div class="home-hero-logo-box"><img class="home-hero-logo" src="../icon-192.png" alt="NSK"></div>
 <div class="home-hero-text"><h1>Träningsplanering</h1><div class="home-hero-sub">Närvaro och tröjfärger</div></div>
 </section>
-<section class="card">
+<details class="card training-attendance" id="trainingAttendance" open><summary>Närvaro och inställningar</summary>
 <div class="training-controls">
 <label>Träningsdatum<select id="trainingCalendar" disabled><option value="">Hämtar träningar…</option></select><input id="trainingDate" type="date" aria-label="Datum för egen träning" hidden></label>
 <label>Hall<select id="trainingHall"><option value="">Välj hall</option><option value="Lilla Hallen">Lilla Hallen</option><option value="Stora hallen">Stora hallen</option></select></label>
@@ -72,8 +73,8 @@ document.write('<script src="../training-groups.js?v='+window.NSK_VERSION+'"><\/
 <h2 style="margin-top:18px">Målvakter</h2>
 <div class="training-controls" id="trainingGoalies"></div>
 
-<div class="training-actions"><button type="button" id="trainingGroupButton">Fördela tröjfärger</button><button type="button" id="trainingPrintButton">Skriv ut</button></div>
-</section>
+
+</details><div class="training-actions"><button type="button" id="trainingGroupButton">Fördela tröjfärger</button><button type="button" id="trainingPrintButton">Skriv ut</button></div>
 <section class="card"><h2>Tränare</h2><div id="trainingCoachSummary">Inga tränare markerade</div><h2 style="margin-top:18px">Materialförvaltare</h2><div id="trainingEquipmentSummary">Inga materialförvaltare markerade</div><h2 style="margin-top:18px">Målvakter</h2><div id="trainingGoalieSummary">Inga målvakter valda</div><h2 style="margin-top:18px">Tröjfärger</h2><div class="training-groups" id="trainingGroups"></div></section>
 </div>
 </body></html>

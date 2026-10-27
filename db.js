@@ -29,16 +29,21 @@ window.DB = (() => {
       headers: { Authorization: 'Bearer ' + token } };
   }
   const pendingReads = new Map();
-  function rows(table, team = null, personalTeamRead = false) {
-    const key=JSON.stringify([table,team,personalTeamRead,window.Auth?.getToken?.()||null]);
+  const snapshotReads=new Map();let snapshotUsers=0,readEpoch=0;
+  async function withReadSnapshot(read){snapshotUsers++;try{return await read();}finally{if(!--snapshotUsers)snapshotReads.clear();}}
+  function invalidateReads(){readEpoch++;snapshotReads.clear();pendingReads.clear();}
+  function rows(table, team = null, personalTeamRead = false,scope={}) {
+    const key=JSON.stringify([table,team,personalTeamRead,window.Auth?.getToken?.()||null,readEpoch,scope]);
+    if(snapshotUsers&&snapshotReads.has(key))return snapshotReads.get(key);
     if(pendingReads.has(key))return pendingReads.get(key);
-    const pending=loadRows(table,team,personalTeamRead);
+    const pending=loadRows(table,team,personalTeamRead,scope);
     pendingReads.set(key,pending);
+    if(snapshotUsers)snapshotReads.set(key,pending);
     const clear=()=>{if(pendingReads.get(key)===pending)pendingReads.delete(key);};
     pending.then(clear,clear);
     return pending;
   }
-  async function loadRows(table, team = null, personalTeamRead = false) {
+  async function loadRows(table, team = null, personalTeamRead = false,scope={}) {
     let all=[],page=1;
     const scoped = personalTeamRead && (
       scopedRosterEnabled() || scopedCollectionsEnabled() ||
@@ -53,7 +58,8 @@ window.DB = (() => {
         ? rosterReadOptions(team)
         : collectionReadOptions(table, team);
     while (true) {
-      const response=await fetch(`${API}/api/${table}?page=${page}&size=200${scoped.suffix}`,{cache:'no-store',headers:scoped.headers});
+      const filter=Object.entries(scope).map(([key,value])=>encodeURIComponent(key)+'='+encodeURIComponent(value)).join('&');
+      const response=await fetch(`${API}/api/${table}?page=${page}&size=200${scoped.suffix}${filter?'&'+filter:''}`,{cache:'no-store',headers:scoped.headers});
       if (!response.ok) throw new Error(`API-fel för ${table}: ${response.status}`);
       const data=await response.json();
       if (!data.ok || !Array.isArray(data.results)) throw new Error(`Ogiltigt API-svar för ${table}`);
@@ -95,7 +101,7 @@ window.DB = (() => {
   async function listPoolMatchPlan(poolId){const [pool,configs]=await Promise.all([getPool(poolId),listPoolTeamMatchConfigs(poolId)]);if(!pool)throw Error('Poolspelet saknas');if(pool.calendar_imported)return configs;return Array.from({length:pool.teams},(_,l)=>Array.from({length:pool.matches},(_,m)=>configs.find(c=>c.lag_no===l+1&&c.match_no===m+1)||{pool_id:Number(poolId),lag_no:l+1,match_no:m+1})).flat();}
   async function saveMatchInfo(payload){return adminRequest('/api/poolspel/'+payload.pool_id+'/match-info','POST',payload);}
   async function saveFullLineup(config,players,coaches){const result=await adminRequest('/api/poolspel/'+config.pool_id+'/lineup','POST',{config,players,coaches});return {id:result.row.id,...config};}
-  async function listPoolTeamMatchConfigs(poolId){return (await rows('matchkonfiguration',await teamId())).filter(r=>first(r.Poolspel)==id(poolId)).map(r=>({id:r.id,pool_id:id(poolId),lag_no:num(r.Lagnummer,1),match_no:num(r.Matchnummer,1),start_time:r.Starttid||null,opponent:r.Motståndare||'',plan:r.Plan||'',player_count:num(r['Antal spelare']),goalie_player_id:first(r.Målvakt),players_on_field:linked(r['Spelare på plan'])})).sort((a,b)=>a.lag_no-b.lag_no||a.match_no-b.match_no)}
+  async function listPoolTeamMatchConfigs(poolId){return (await rows('matchkonfiguration',await teamId(),false,{pool_id:poolId})).filter(r=>first(r.Poolspel)==id(poolId)).map(r=>({id:r.id,pool_id:id(poolId),lag_no:num(r.Lagnummer,1),match_no:num(r.Matchnummer,1),start_time:r.Starttid||null,opponent:r.Motståndare||'',plan:r.Plan||'',player_count:num(r['Antal spelare']),goalie_player_id:first(r.Målvakt),players_on_field:linked(r['Spelare på plan'])})).sort((a,b)=>a.lag_no-b.lag_no||a.match_no-b.match_no)}
   async function listPoolMatchSummaries(poolIds){
     const wanted=new Set(poolIds.map(Number));
     const team=await teamId();
@@ -111,9 +117,9 @@ window.DB = (() => {
 
   async function getPoolTeamMatchConfig(poolId,lagNo,matchNo){return (await listPoolTeamMatchConfigs(poolId)).find(r=>r.lag_no==lagNo&&r.match_no==matchNo)||null}
   async function getPlayersOnField(poolId,lagNo,matchNo){const players=await listPlayers();const row=await getPoolTeamMatchConfig(poolId,lagNo,matchNo)||await getPoolTeamMatchConfig(poolId,lagNo,1);return row?.players_on_field?.length?players.filter(p=>row.players_on_field.includes(p.id)):players}
-  async function getLineup(matchConfigId){return (await rows('laguppstallningar',await teamId())).filter(r=>first(r.Matchkonfiguration)==id(matchConfigId)).map(r=>({id:r.id,pool_id:first(r.Poolspel),match_config_id:id(matchConfigId),person_type:(typeof r.Persontyp==='object'?r.Persontyp?.value:r.Persontyp)==='Spelare'?'player':(typeof r.Persontyp==='object'?r.Persontyp?.value:r.Persontyp)==='Tränare'?'coach':null,person_id:num(r['Person-ID']),sort_order:num(r.Sorteringsordning)})).filter(r=>r.person_id&&r.person_type).sort((a,b)=>a.sort_order-b.sort_order)}
+  async function getLineup(matchConfigId){return (await rows('laguppstallningar',await teamId(),false,{match_config_id:matchConfigId})).filter(r=>first(r.Matchkonfiguration)==id(matchConfigId)).map(r=>({id:r.id,pool_id:first(r.Poolspel),match_config_id:id(matchConfigId),person_type:(typeof r.Persontyp==='object'?r.Persontyp?.value:r.Persontyp)==='Spelare'?'player':(typeof r.Persontyp==='object'?r.Persontyp?.value:r.Persontyp)==='Tränare'?'coach':null,person_id:num(r['Person-ID']),sort_order:num(r.Sorteringsordning)})).filter(r=>r.person_id&&r.person_type).sort((a,b)=>a.sort_order-b.sort_order)}
   async function listUsedPlayersInPool(poolId,currentLagNo){const cfg=(await listPoolTeamMatchConfigs(poolId)).filter(r=>r.lag_no!=currentLagNo);const result=await Promise.all(cfg.map(c=>getLineup(c.id)));return [...new Set(result.flat().filter(r=>r.person_type==='player').map(r=>r.person_id))]}
-  async function listShiftSchema(poolId,lagNo,matchNo){return (await rows('bytesschema',await teamId())).filter(r=>first(r.Poolspel)==id(poolId)&&num(r.Lagnummer)==lagNo&&num(r.Matchnummer)==matchNo).map(r=>({id:r.id,pool_id:id(poolId),lag_no:num(r.Lagnummer),match_no:num(r.Matchnummer),shift_no:num(r.Bytenummer),period_no:num(r.Periodnummer),time_left:r['Tid kvar']||'',players_json:linked(r['Spelare på plan']),done:!!r.Genomfört})).sort((a,b)=>a.shift_no-b.shift_no)}
+  async function listShiftSchema(poolId,lagNo,matchNo){return (await rows('bytesschema',await teamId(),false,{pool_id:poolId,lag_no:lagNo,match_no:matchNo})).filter(r=>first(r.Poolspel)==id(poolId)&&num(r.Lagnummer)==lagNo&&num(r.Matchnummer)==matchNo).map(r=>({id:r.id,pool_id:id(poolId),lag_no:num(r.Lagnummer),match_no:num(r.Matchnummer),shift_no:num(r.Bytenummer),period_no:num(r.Periodnummer),time_left:r['Tid kvar']||'',players_json:linked(r['Spelare på plan']),done:!!r.Genomfört})).sort((a,b)=>a.shift_no-b.shift_no)}
   // Målvaktsstatistik härleds från sparade matchkonfigurationer.
   // Endast matcher med en vald målvakt räknas; tomma statistikposter ignoreras.
   async function listGoalieStats(){
@@ -182,7 +188,7 @@ window.DB = (() => {
     const response=await fetch(`${API}${path}`,{method,headers:{'Content-Type':'application/json',Authorization:'Bearer '+token},body:JSON.stringify(payload)});
     let data;try{data=await response.json()}catch{throw new Error('Ogiltigt svar från servern')}
     if(!response.ok||!data.ok)throw new Error(data.error||'Kunde inte spara');
-    window.NSKViewCache?.clear();try{sessionStorage.removeItem('nsk_view_cache_v1');}catch{}
+    invalidateReads();window.NSKViewCache?.clear();try{sessionStorage.removeItem('nsk_view_cache_v1');}catch{}
     return data;
   }
   async function writeName(table,method,rowId,name){return (await adminRequest(`/api/${table}${rowId?'/'+encodeURIComponent(rowId):''}`,method,{name:String(name||'').trim()})).row}
@@ -339,7 +345,7 @@ window.DB = (() => {
       return matchRequest(`/api/bytesschema/${shift.id}/done`,{done:!!done});
     });
   }
-  return {listPlayers,listCoaches,listStaff,listPools,getPool,listPoolTeamMatchConfigs,getPoolTeamMatchConfig,getPlayersOnField,getLineup,listUsedPlayersInPool,listShiftSchema,listGoalieStats,listPlayerMatchStats,listPlayerCoachMap,
+  return {withReadSnapshot,invalidateReads,listPlayers,listCoaches,listStaff,listPools,getPool,listPoolTeamMatchConfigs,getPoolTeamMatchConfig,getPlayersOnField,getLineup,listUsedPlayersInPool,listShiftSchema,listGoalieStats,listPlayerMatchStats,listPlayerCoachMap,
     addPlayer,updatePlayer,deletePlayer:rowId=>serialWrite(()=>adminRequest(`/api/spelare/${encodeURIComponent(rowId)}`,'DELETE',{})),addCoach,updateCoach,deleteCoach:rowId=>serialWrite(()=>adminRequest(`/api/tranare/${encodeURIComponent(rowId)}`,'DELETE',{})),addEquipmentCoach,addStaff:(role,name)=>writeStaff('POST',role,null,name),updateStaff:(role,rowId,name)=>writeStaff('PATCH',role,rowId,name),deleteStaff:(role,rowId)=>writeStaff('DELETE',role,rowId,''),updatePoolTeams,addPool,updatePool,updatePoolActive,deletePool:async rowId=>{for(let i=0;i<100;i++){const result=await adminRequest('/api/poolspel/'+encodeURIComponent(rowId),'DELETE',{});if(result.deleted)return result;}throw Error('Raderingen behöver fortsätta. Tryck Ta bort igen.');},
     retimeShiftSchema,getPoolMaterial,savePoolMaterial,assertMatchReady,listPoolMatchPlan,saveMatchInfo,saveFullLineup:window.APP_CONFIG?.POOL_FLOW_ENABLED===true?saveFullLineup:undefined,listPoolMatchSummaries,saveCalendarMatchSchedule,savePoolTeamMatchConfig,saveLineup,getCoachSelection,saveCoachSelection,saveShiftSchema,deleteShiftSchema,setShiftDone,savePlayerCoachMap:failWrite,subscribeTruppen:async()=>({unsubscribe(){}})};
 })();

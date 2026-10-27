@@ -1194,3 +1194,11 @@ button.shift-check{width:48px;height:48px;min-width:48px;min-height:48px;padding
 button.shift-check.done{background:#167747;border-color:#39bb7c}button.shift-check[aria-busy=true]{opacity:.55}
 .check-cell{width:58px}.pool-flow-actions{position:relative}.pool-flow-actions a{flex:1 1 120px}.lag-overview-btn *{pointer-events:none}
 .lineup-print-row{gap:8px;flex-wrap:wrap}#lineupMsg,#shiftMsg{scroll-margin-bottom:100px}
+
+/* Compact context and names already represented by selected buttons. */
+.pool-flow-context{font-size:.85rem;color:#b6c1cf;margin:0 0 10px;overflow-wrap:anywhere}.pool-flow-context:empty{display:none}
+#lineupCoachNames{display:none}.draw-help{margin:10px 0}.draw-help>summary{min-height:44px;cursor:pointer}
+@media print{#lineupCoachNames{display:block!important}.draw-help{display:none}}
+
+.training-attendance>summary{font-weight:700;cursor:pointer;min-height:44px}.training-attendance:not([open]){padding-block:10px}.data-freshness{font-size:.75rem;color:#9fabb9;margin:6px 0}.qr-file-actions{margin-top:16px}.qr-file-actions p{font-size:.8rem;color:#b6c1cf}@media print{.training-attendance,.data-freshness,#matchReadiness,#shiftUndoButton{display:none!important}}
+@media(max-width:600px){.training-page .training-player>span{white-space:normal;overflow-wrap:anywhere;font-size:.9rem;line-height:1.35}}

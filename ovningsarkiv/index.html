@@ -10,7 +10,8 @@
 <script src="../config.js"></script><script src="../login-gate.js"></script>
 <title>Övningsarkiv – NSK</title><meta name="theme-color" content="#b11226">
 <script src="../version.js?v=872"></script>
-<script>document.write('<link rel="stylesheet" href="../app.css?v='+window.NSK_VERSION+'">');document.write('<script src="../auth.js?v='+window.NSK_VERSION+'"><\/script>');document.write('<script src="../exercise-rink-preview.js?v='+window.NSK_VERSION+'"><\/script>');document.write('<script src="../hockeyakademin-catalog.js?v='+window.NSK_VERSION+'"><\/script>');document.write('<script src="../exercise-archive.js?v='+window.NSK_VERSION+'"><\/script>');</script>
+<script>document.write('<script src="../print-view.js?v='+window.NSK_VERSION+'" defer><\/script>');</script>
+<script>document.write('<link rel="stylesheet" href="../app.css?v='+window.NSK_VERSION+'">');document.write('<script src="../auth.js?v='+window.NSK_VERSION+'"><\/script>');document.write('<script src="../exercise-rink-preview.js?v='+window.NSK_VERSION+'"><\/script>');document.write('<script src="../hockeyakademin-catalog.js?v='+window.NSK_VERSION+'"><\/script>');document.write('<script src="../exercise-backup.js?v='+window.NSK_VERSION+'"><\/script>');document.write('<script src="../exercise-archive.js?v='+window.NSK_VERSION+'"><\/script>');</script>
 <style>
 .archive-toolbar{display:flex;gap:12px;flex-wrap:wrap;margin:12px 0}
 .archive-toolbar label{flex:1 1 180px}
@@ -71,7 +72,7 @@
 <section class="card"><h2>NSK:s egna hockeyövningar</h2><p class="small">Tryck på <strong>Visa</strong> för att se en schematisk, uppritad övning på stående rink i helskärm. Ritningarna är exempel som du kan använda som tränarstöd.</p>
 <div id="exerciseList" class="archive-list"></div></section>
 <section class="card"><h2>Mina träningsfiler</h2>
-<p class="small">Ritningar som du sparar från NSK:s ritverktyg dyker också upp här med knappen <strong>Visa</strong>. Du kan dessutom ladda upp PDF, Word, bilder eller textfiler. Filerna lagras <strong>endast i den här webbläsaren</strong> på den här enheten, inte gemensamt i NSK och inte hos Svenskalag. Rensa inte webbplatsens lagring om du vill behålla dem.</p>
+<p class="small">Egna filer sparas på denna enhet. Säkerhetskopiera dem innan du rensar webbläsarens lagring.</p><details class="no-print"><summary>Säkerhetskopia</summary><button id="exerciseBackup" type="button">Spara säkerhetskopia</button><label>Återställ från fil<input id="exerciseRestore" type="file" accept=".json,application/json"></label></details>
 <form id="exerciseUpload" class="archive-file-form">
 <label>Namn<input id="exerciseTitle" maxlength="100" required placeholder="Ex. Puckbana med avslut"></label>
 <label>Kategori<select id="exerciseUploadCategory"><option>Uppvärmning</option><option>Skridskoteknik</option><option>Puckkontroll</option><option>Passningar</option><option>Skott</option><option>Smålagsspel</option><option>Målvakter</option><option>Spelsituationer</option></select></label>
