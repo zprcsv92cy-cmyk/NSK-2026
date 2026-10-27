@@ -43,6 +43,7 @@
   let revision=0;
   let saveQueue=Promise.resolve();
   let saveBlocked=false;
+  let saveGeneration=0;
   let loadedDate='';
   function persist(){
     if(saveBlocked){$('trainingStatus').textContent='Sparning stoppad efter konflikt. Ladda om sidan innan du ändrar träningen igen.';return;}
@@ -51,12 +52,14 @@
     if(!date){$('trainingStatus').textContent='Välj en träning först.';return;}
     if(goalies.filter(Boolean).length!==goalieCount){$('trainingStatus').textContent='Välj namn för alla målvakter innan träningen sparas.';return;}
     const snapshot={selected:[...selected],selectedCoaches:[...selectedCoaches,...[...selectedEquipment].map(id=>'equipment:'+id)],allocation:allocation.map(group=>[...group]),goalies:[...goalies],goalieCount,shirtColorCount,hall:trainingHall};
+    const generation=++saveGeneration;
     $('trainingStatus').textContent='Sparar träningen…';
     saveQueue=saveQueue.then(async()=>{
       if(saveBlocked)return;
       const saved=await SharedTraining.save(date,{...snapshot,revision});
       revision=saved.revision;
-      $('trainingStatus').textContent='Sparat';
+      $('trainingStatus').textContent='Sparat '+new Date().toLocaleTimeString('sv-SE',{timeZone:'Europe/Stockholm',hour:'2-digit',minute:'2-digit'});
+      if(generation===saveGeneration)window.NSKShellHost?.clean?.(window);
     }).catch(error=>{saveBlocked=true;$('trainingStatus').textContent='Kunde inte spara: '+error.message+' Ladda om sidan för att hämta den senaste träningen.';});
   }
   function renderRoster() {
@@ -460,6 +463,7 @@
       picker.value=date;picker.hidden=manualMode;picker.disabled=!date;
       $('trainingDate').value=date;$('trainingDate').hidden=!manualMode;
       await restore();saveBlocked=false;renderRoster();renderCoaches();renderEquipment();renderGoalieSelectors();renderGroups();
+      if($('trainingAttendance')&&allocation.some(group=>group.length))$('trainingAttendance').open=false;
       $('trainingStatus').textContent=calendarError;
     }catch(error){$('trainingStatus').textContent=error.message||'Kunde inte läsa truppen.';}
   });

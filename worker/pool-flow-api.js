@@ -9,13 +9,29 @@ export function withPoolFlow(original,{resolveTables,listTeams,verifyIdentity,au
   const special=/^\/api\/poolspel\/(\d+)\/(match-info|lineup|material)$/.exec(path),remove=/^\/api\/poolspel\/(\d+)$/.exec(path)&&req.method==='DELETE';
   const protectedWrite=write&&(/^\/api\/(poolspel|matchkonfiguration|laguppstallningar|bytesschema)(\/|$)/.test(path)||path==='/api/coach-selection');
   const poolRead=req.method==='GET'&&path==='/api/poolspel';
+  const scopedRead=req.method==='GET'&&(['/api/matchkonfiguration','/api/bytesschema'].includes(path)&&url.searchParams.has('pool_id')||path==='/api/laguppstallningar'&&url.searchParams.has('match_config_id'));
   const staff=req.method==='POST'&&path==='/api/lagpersonal/coach';
-  if(!protectedWrite&&!poolRead&&!staff&&!special)return original(req,env,ctx);
+  if(!protectedWrite&&!poolRead&&!scopedRead&&!staff&&!special)return original(req,env,ctx);
   const allowedOrigin=env.NSK_ISOLATED_MODE==='true'?'https://nsk-app-isolated-preview.peter-hasselberg.workers.dev':'https://zprcsv92cy-cmyk.github.io';
   const origin=req.headers.get('Origin'),headers={'Content-Type':'application/json','Cache-Control':'no-store','Vary':'Origin',...(origin===allowedOrigin?{'Access-Control-Allow-Origin':origin}:{})};
   const reply=(status,error,extra={})=>new Response(JSON.stringify({ok:status<400,...(error?{error}:{}),...extra}),{status,headers});
   if(origin&&origin!==allowedOrigin)return reply(403,'Origin not allowed');
+  // Preflight contains no bearer token. Only the actual request may read or write data.
+  if(req.method==='OPTIONS'&&special){
+   const methods=special[2]==='material'?['GET','PUT']:['POST'];
+   const method=req.headers.get('Access-Control-Request-Method');
+   const requested=(req.headers.get('Access-Control-Request-Headers')||'').split(',').map(x=>x.trim().toLowerCase()).filter(Boolean);
+   if(origin!==allowedOrigin||!methods.includes(method)||requested.some(x=>!['authorization','content-type'].includes(x)))return reply(403,'Preflight not allowed');
+   return new Response(null,{status:204,headers:{...headers,'Access-Control-Allow-Methods':methods.join(', ')+', OPTIONS','Access-Control-Allow-Headers':'Authorization, Content-Type'}});
+  }
   try{
+   if(scopedRead){
+    const filters={};for(const key of ['pool_id','lag_no','match_no','match_config_id']){const values=url.searchParams.getAll(key);if(values.length){if(values.length!==1||!/^[1-9]\d*$/.test(values[0])||!positive(Number(values[0])))return reply(400,'Ogiltigt matchfilter');filters[key]=Number(values[0]);}}
+    // First obtain the existing personally authorized, team-scoped response. Filters only narrow it.
+    const response=await original(req,env,ctx);if(!response.ok)return response;const data=await response.clone().json();if(!Array.isArray(data.results))return response;
+    data.results=data.results.filter(row=>(!filters.pool_id||links(row.Poolspel).includes(filters.pool_id))&&(!filters.lag_no||Number(row.Lagnummer)===filters.lag_no)&&(!filters.match_no||Number(row.Matchnummer)===filters.match_no)&&(!filters.match_config_id||links(row.Matchkonfiguration).includes(filters.match_config_id)));data.count=data.results.length;
+    return new Response(JSON.stringify(data),{status:response.status,headers:response.headers});
+   }
    const tables=resolveTables(env),base='https://api.baserow.io/api/database/rows/table/',auth={Authorization:'Token '+env.BASEROW_TOKEN};
    const row=async(table,id)=>{const r=await fetcher(base+tables[table]+'/'+id+'/?user_field_names=true',{headers:auth});if(r.status===404)return null;if(!r.ok)throw Error('Databasen kunde inte läsas');return r.json();};
    const rows=async table=>{const result=[];for(let page=1;page<=100;page++){const r=await fetcher(base+tables[table]+'/?user_field_names=true&size=200&page='+page,{headers:auth});if(!r.ok)throw Error('Databasen kunde inte läsas');const d=await r.json();if(!Array.isArray(d.results)||d.results.length>200)throw Error('Ogiltigt databasunderlag');result.push(...d.results);if(!d.next)return result;}throw Error('För stort underlag');};

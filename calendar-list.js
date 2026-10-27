@@ -24,6 +24,7 @@
    const ordered=sortEntries(entries),up=ordered.filter(item=>!item.finished),past=ordered.filter(item=>item.finished);
    const upTitle=document.getElementById('upcomingActivitiesTitle'),pastTitle=document.getElementById('pastActivitiesTitle');
    upTitle.textContent='Kommande ('+up.length+')';pastTitle.textContent='Avslutade ('+past.length+')';
+   const toggle=document.getElementById('togglePastActivities');if(toggle){toggle.hidden=!past.length;const expanded=toggle.getAttribute('aria-expanded')==='true';toggle.textContent=expanded?'Dölj avslutade':'Visa avslutade';for(const item of past)item.row.hidden=!expanded;}for(const item of up)item.row.hidden=false;
    const actions=root.querySelector('.calendar-create-actions');
    if(actions.nextElementSibling!==pastTitle)root.insertBefore(actions,pastTitle);
    // Compare real DOM order before moving cards, preserving keyboard focus and open state.
@@ -35,6 +36,7 @@
  window.NSKCalendarList={sortEntries,render};
  document.addEventListener('DOMContentLoaded',()=>{
   const root=document.getElementById('activityList');if(!root)return;
+  document.getElementById('togglePastActivities')?.addEventListener('click',event=>{const button=event.currentTarget;button.setAttribute('aria-expanded',String(button.getAttribute('aria-expanded')!=='true'));render();});
   observer=new MutationObserver(()=>render());render();
   window.addEventListener('nsk:saved-pools-rendered',()=>render());
   window.addEventListener('nsk:saved-trainings-rendered',()=>render());

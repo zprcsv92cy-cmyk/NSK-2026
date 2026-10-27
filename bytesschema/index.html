@@ -13,6 +13,7 @@
   <title>Bytesschema</title>
   <meta name="theme-color" content="#b11226">
   <script src="../version.js?v=872"></script>
+<script>document.write('<script src="../print-view.js?v='+window.NSK_VERSION+'" defer><\/script>');</script>
   <script>
     document.write('<link rel="manifest" href="../manifest.webmanifest?v=' + window.NSK_VERSION + '">');
     document.write('<link rel="stylesheet" href="../app.css?v=' + window.NSK_VERSION + '">');
@@ -82,6 +83,7 @@
         <div class="home-hero-sub" id="shiftHeaderMain">Lag 1</div>
       </div>
     </section>
+<p id="poolFlowContext" class="pool-flow-context" aria-live="polite"></p>
 <nav class="pool-flow-actions" aria-label="Poolspelsflöde"><a class="nsk-action" href="../lag/">Välj eget lag</a><a class="nsk-action" href="../laguppstallning/">Laguppställning</a><a class="nsk-action nsk-action--primary" id="openMatchView" href="../matchvy/">Öppna matchvy</a></nav>
 
 
@@ -115,9 +117,9 @@
 
     <section class="card">
       <div class="shift-print-row"><h2>Byten</h2><button id="shiftPrintButton" type="button">Skriv ut / PDF</button></div>
-      <div id="shiftTableWrap"></div>
+      <p id="matchReadiness" class="small" role="status"></p><div id="shiftTableWrap"></div><button id="shiftUndoButton" type="button" hidden>Ångra senaste bockning</button>
       <div id="shiftAllMatchesWrap"></div>
-      <div id="shiftMsg" class="small"></div>
+      <div id="shiftMsg" class="small" role="status" aria-live="polite"></div><p id="dataFreshness" class="data-freshness" role="status"></p>
     </section>
 
     <div id="appError" class="small"></div>

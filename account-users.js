@@ -21,12 +21,14 @@
  async function linkAction(user,root,send,share=false){
   const path='/api/auth/users/'+user.id+(send?'/send-link':user.setup_required?'/setup-token':'/password-token');
   const cached=share&&shareLinks.get(user.id);
-  const result=cached&&cached.until>Date.now()?cached.result:await api(path,'POST');
-  if(!send)shareLinks.set(user.id,{result,until:Date.now()+result.expires_in_minutes*60000});
+  const reused=cached&&cached.until>Date.now()&&cached.setupRequired===user.setup_required;
+  const result=reused?cached.result:await api(path,'POST');
+  if(!send&&!reused)shareLinks.set(user.id,{result,until:Date.now()+result.expires_in_minutes*60000,setupRequired:user.setup_required});
   root.replaceChildren();
   if(send){root.textContent='Länken har skickats till kontots e-postadress.';return;}
   const link=new URL('../aktivera/',location.href);link.hash=new URLSearchParams({token:result.token,purpose:result.purpose||'activate'}).toString();
-  const note=document.createElement('p');note.textContent='Engångslänken gäller i '+result.expires_in_minutes+' minuter. Kontrollera mottagaren och dela länken enbart med den personen.';
+  const minutes=Math.max(1,Math.ceil((shareLinks.get(user.id).until-Date.now())/60000));
+  const note=document.createElement('p');note.textContent='Personlig engångslänk · '+minutes+' minuter kvar. Dela bara med kontots ägare.';
   const copy=button('Kopiera '+(user.setup_required?'inbjudningslänk':'återställningslänk'),async()=>{try{await navigator.clipboard.writeText(link.href);message('Länken är kopierad.');}catch{message('Webbläsaren kunde inte kopiera. Tillåt urklipp och tryck Kopiera igen.');}});
   const shareButton=button('Dela länk',async()=>{if(!navigator.share){message('Använd Kopiera länk och klistra in den i ett meddelande.');return;}try{await navigator.share({title:user.setup_required?'NSK – aktivera konto':'NSK – återställ lösenord',text:'Personlig länk för '+user.name,url:link.href});}catch(error){if(error.name!=='AbortError')message('Tryck Dela länk igen, eller välj Kopiera.');}});
   root.append(note,...(navigator.share?[shareButton]:[]),copy);
