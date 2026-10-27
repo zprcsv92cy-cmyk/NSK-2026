@@ -11,6 +11,21 @@
   let goalieCount = 0;
   let shirtColorCount = 3;
   let trainingHall = '';
+  let calendarEvents=[],manualMode=false,pickerSignature='';
+  function refreshTrainingChoices(now=new Date()){
+    const picker=$('trainingCalendar');if(!picker||manualMode)return;
+    const date=$('trainingDate').value,choices=SharedTraining.upcomingDates(calendarEvents,now);
+    const signature=JSON.stringify([date,choices]);if(signature===pickerSignature)return;pickerSignature=signature;
+    picker.replaceChildren();
+    const selected=choices.some(choice=>choice.date===date);
+    if(!selected){const option=document.createElement('option');option.value='';option.textContent=choices.length?'Välj kommande träning':'Inga kommande träningar';option.disabled=true;picker.append(option);}
+    for(const choice of choices){const option=document.createElement('option');option.value=choice.date;option.textContent=choice.label;picker.append(option);}
+    picker.value=selected?date:'';picker.disabled=!choices.length;
+    // Keep the current editor and queued saves on their original date when it expires.
+    // Historical sessions remain reachable from the calendar, but never enter this list.
+    $('trainingDate').hidden=selected||!date;$('trainingDate').readOnly=true;
+  }
+
   async function restore(){
     const date=$('trainingDate').value;
     if(!date)return false;
@@ -427,8 +442,11 @@
     const requestedDate=new URLSearchParams(location.search).get('date');
     const today=new Date().toLocaleDateString('sv-SE',{timeZone:'Europe/Stockholm',year:'numeric',month:'2-digit',day:'2-digit'});
     $('trainingDate').value=/^\d{4}-\d{2}-\d{2}$/.test(requestedDate||'')?requestedDate:today;
-    const changeTraining=async()=>{try{await saveQueue;if(saveBlocked)throw Error('Sparningen misslyckades. Ladda om sidan innan du byter träning.');if(!await restore())return;renderRoster();renderCoaches();renderEquipment();renderGoalieSelectors();renderGroups();$('trainingStatus').textContent='Träningen för '+loadedDate+' är inläst.';}catch(error){if(loadedDate){$('trainingDate').value=loadedDate;$('trainingCalendar').value=loadedDate;}$('trainingStatus').textContent=error.message;}};
-    document.addEventListener('nsk:page-show',()=>{if(loadedDate&&!saveBlocked)void changeTraining();});
+    const changeTraining=async()=>{try{await saveQueue;if(saveBlocked)throw Error('Sparningen misslyckades. Ladda om sidan innan du byter träning.');if(!await restore())return;renderRoster();renderCoaches();renderEquipment();renderGoalieSelectors();renderGroups();refreshTrainingChoices();$('trainingStatus').textContent='Träningen för '+loadedDate+' är inläst.';}catch(error){if(loadedDate){$('trainingDate').value=loadedDate;refreshTrainingChoices();}$('trainingStatus').textContent=error.message;}};
+    document.addEventListener('nsk:page-show',()=>{refreshTrainingChoices();if(loadedDate&&!saveBlocked)void changeTraining();});
+    window.addEventListener('focus',()=>refreshTrainingChoices());
+    document.addEventListener('visibilitychange',()=>{if(!document.hidden)refreshTrainingChoices();});
+    setInterval(()=>refreshTrainingChoices(),15000);
     $('trainingDate').addEventListener('change',changeTraining);
     $('trainingCalendar').addEventListener('change',()=>{$('trainingDate').value=$('trainingCalendar').value;changeTraining();});
     $('trainingGoalieCount').addEventListener('change',()=>{
@@ -450,18 +468,15 @@
         SharedTraining.listPlayers(),SharedTraining.listCoaches(),SharedTraining.listEquipment(),
         SharedTraining.calendarTrainings().catch(()=>{calendarError='Kalendern kunde inte hämtas. Försök ladda om sidan.';return [];})
       ]);
-      const choices=SharedTraining.upcomingDates(events,today);
-      const picker=$('trainingCalendar');picker.replaceChildren();
-      for(const choice of choices){const option=document.createElement('option');option.value=choice.date;option.textContent=choice.label;picker.append(option);}
+      calendarEvents=events;
+      const choices=SharedTraining.upcomingDates(events);
+      const picker=$('trainingCalendar');
       const explicit=/^\d{4}-\d{2}-\d{2}$/.test(requestedDate||'');
-      const manualMode=new URLSearchParams(location.search).get('new')==='1';
-      if(explicit&&!choices.some(choice=>choice.date===requestedDate)){
-        const option=document.createElement('option');option.value=requestedDate;option.textContent=requestedDate;picker.append(option);
-      }
+      manualMode=new URLSearchParams(location.search).get('new')==='1';
       const date=explicit?requestedDate:(manualMode?today:(choices[0]?.date||''));
-      if(!date){const option=document.createElement('option');option.value='';option.textContent='Inga kommande träningar';picker.append(option);}
-      picker.value=date;picker.hidden=manualMode;picker.disabled=!date;
-      $('trainingDate').value=date;$('trainingDate').hidden=!manualMode;
+      picker.hidden=manualMode;
+      $('trainingDate').value=date;$('trainingDate').hidden=!manualMode;$('trainingDate').readOnly=false;
+      refreshTrainingChoices();
       await restore();saveBlocked=false;renderRoster();renderCoaches();renderEquipment();renderGoalieSelectors();renderGroups();
       if($('trainingAttendance')&&allocation.some(group=>group.length))$('trainingAttendance').open=false;
       $('trainingStatus').textContent=calendarError;
