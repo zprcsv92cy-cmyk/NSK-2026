@@ -1,3 +1,4 @@
+import {publicAppRoot} from './pages-migration.js';
 import {validActivationPassword,validActivationToken} from './account-activation-validation.js';
 const enc=new TextEncoder();
 export const accountJson=(body,status=200)=>Response.json(body,{status,headers:{'cache-control':'no-store','x-content-type-options':'nosniff'}});
@@ -31,7 +32,7 @@ export async function issuePasswordReset(db,userId){
 export function accountEmailEnabled(env){return !!env.ACCOUNT_EMAIL&&typeof env.ACCOUNT_EMAIL.send==='function'&&/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(env.ACCOUNT_EMAIL_FROM||'');}
 export async function sendAccountLink(env,user,result){
  if(!accountEmailEnabled(env))throw Error('E-postutskick är inte konfigurerat. Skapa en länk för säker delning i stället.');
- const link='https://zprcsv92cy-cmyk.github.io/NSK-2026/aktivera/#'+new URLSearchParams({token:result.token,purpose:result.purpose||'activate'});
+ const link=publicAppRoot(env)+'aktivera/#'+new URLSearchParams({token:result.token,purpose:result.purpose||'activate'});
  const title=result.purpose==='reset'?'Återställ ditt NSK-lösenord':'Aktivera ditt NSK-konto';
  // Recipient is read from the account, never supplied in an administrator's delivery request.
  await env.ACCOUNT_EMAIL.send({from:{email:env.ACCOUNT_EMAIL_FROM,name:'NSK'},to:user.email,subject:title,text:title+'\n\nÖppna länken och välj ditt eget lösenord:\n'+link+'\n\nLänken gäller i '+result.expires_in_minutes+' minuter och kan användas en gång. Om du inte väntar på detta meddelande kan du ignorera det.'});

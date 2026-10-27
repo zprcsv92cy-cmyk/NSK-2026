@@ -1,3 +1,4 @@
+import {withPagesOrigin} from './pages-migration.js';
 import {withSweHockey,syncSweHockey} from './swehockey-schedule.js';
 import {installShiftRetime} from './shift-retime.js';
 import {withPoolFlow} from './pool-flow-api.js';
@@ -1260,6 +1261,7 @@ var worker_default = { async fetch(req, env) {
 installShiftRetime(ShiftLock,{resolveTables:resolveBaserowTables,resolveOwner:createPoolOwnerResolver,fetcher:fetch});
 worker_default.fetch=withPoolFlow(worker_default.fetch,{resolveTables:resolveBaserowTables,listTeams:listTrustedRosterTeams,verifyIdentity:(env,token)=>createPersonalRosterIdentityVerifier(env)(token),authorize:authorizeTeamFeature,fetcher:fetch});
 worker_default.fetch=withSweHockey(worker_default.fetch);
+worker_default.fetch=withPagesOrigin(worker_default.fetch);
 // Preserve the existing fetch handler; scheduled sync is separately gated.
 worker_default.scheduled = async (_event,env,ctx) => {
  const job=(async()=>{
