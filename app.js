@@ -2308,7 +2308,7 @@ window.NSK2App = (() => {
     const rows = await DB.listShiftSchema(poolId, lagNo, matchNo);
     if(!isCurrent())return;
     const openMatch=byId('openMatchView');
-    if(openMatch){openMatch.textContent=rows.some(r=>r.done)?'Återgå till matchvy':'Starta match '+matchNo;openMatch.setAttribute('aria-disabled',String(!rows.length));openMatch.onclick=async event=>{event.preventDefault();try{if(!rows.length)throw Error('Spara laguppställning och skapa bytesschema först.');if(DB.assertMatchReady)await DB.assertMatchReady(poolId,lagNo,matchNo);(window.NSKNavigate||((url)=>{location.href=url;}))('../matchvy/');}catch(error){setText('shiftMsg',error.message);}};}
+    if(openMatch){openMatch.textContent=rows.some(r=>r.done)?'Återgå till matchvy':'Starta match '+matchNo;openMatch.setAttribute('aria-disabled',String(!rows.length));openMatch.onclick=async event=>{event.preventDefault();try{if(!rows.length)throw Error('Spara laguppställning och skapa bytesschema först.');if(!rows.some(r=>r.done)&&DB.assertMatchReady)await DB.assertMatchReady(poolId,lagNo,matchNo);(window.NSKNavigate||((url)=>{location.href=url;}))('../matchvy/');}catch(error){setText('shiftMsg',error.message);}};}
     const wrap = byId("shiftTableWrap");
     if (!wrap) return;
 
