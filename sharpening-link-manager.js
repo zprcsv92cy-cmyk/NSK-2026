@@ -42,35 +42,83 @@
   const images=[...doc.images];Promise.all(images.map(img=>img.complete?Promise.resolve():new Promise(resolve=>{img.onload=resolve;img.onerror=resolve;}))).then(()=>{if(preview.closed)return;button.disabled=false;doc.getElementById('printReady').textContent='QR-listan är klar för utskrift.';});
   preview.opener=null;preview.focus();return preview;
  }
+
  let bulkDispose=null;
  function bulk(root,{team,people}){
-  bulkDispose?.();let disposed=false,busy=false,records=[],chosen=new Set();const token=Auth.getToken(),activeTeam=Auth.activeTeam();
-  const $=id=>root.querySelector('#'+id);$('qrPlayers').replaceChildren();$('qrPrintAgain').hidden=true;
-  root.querySelector('.qr-file-actions')?.remove();const files=el('div');files.className='qr-file-actions';
-  const saveFile=el('button','Spara QR-lista som fil');saveFile.type='button';saveFile.hidden=true;
-  saveFile.onclick=()=>{if(!allowed()||Auth.getToken()!==token||Auth.activeTeam()!==activeTeam||!records.length)return;const blob=new Blob([JSON.stringify({format:'nsk-qr-list',version:1,team:String(team),records})],{type:'application/json'}),url=URL.createObjectURL(blob),link=el('a');link.href=url;link.download='nsk-qr-lista.json';link.click();setTimeout(()=>URL.revokeObjectURL(url),60000);};
-  const restoreLabel=el('label','Öppna sparad QR-lista'),restoreFile=el('input');restoreFile.type='file';restoreFile.accept='.json,application/json';restoreLabel.append(restoreFile);
-  restoreFile.onchange=async()=>{try{
-   const file=restoreFile.files[0];if(!file)return;if(busy||!allowed()||Auth.getToken()!==token||Auth.activeTeam()!==activeTeam)throw Error('Läs om sidan innan listan öppnas.');
-   if(file.size>2*1024*1024)throw Error('QR-filen är för stor.');const data=JSON.parse(await file.text());
-   if(disposed||Auth.getToken()!==token||Auth.activeTeam()!==activeTeam)throw Error('Inloggningen har ändrats.');
-   if(data.format!=='nsk-qr-list'||data.version!==1||String(data.team)!==String(team)||!Array.isArray(data.records)||!data.records.length||data.records.length>500)throw Error('Välj en QR-lista för detta lag.');
-   for(const record of data.records){const url=new URL(record.url);if(typeof record.name!=='string'||record.name.length>150||!people.some(p=>String(p.id)===String(record.personId))||!['https://nsk18.pages.dev/slipning/','https://zprcsv92cy-cmyk.github.io/NSK-2026/slipning/'].includes(url.origin+url.pathname)||url.search||url.username||url.password||!/^#nyckel=[a-f0-9]{64}$/.test(url.hash))throw Error('QR-filen innehåller ogiltiga uppgifter.');}
-   records=data.records.map(r=>({name:r.name,url:r.url,personId:r.personId}));$('qrPrintAgain').hidden=false;saveFile.hidden=false;$('qrBulkStatus').textContent='Sparad QR-lista öppnad. Inga länkar har ersatts.';
-  }catch(error){$('qrBulkStatus').textContent=error.message;}finally{restoreFile.value='';}};
-  files.append(saveFile,restoreLabel,el('p','Spara filen för att skriva ut samma QR-koder igen. Den innehåller personliga länkar.'));root.append(files);
-  const render=()=>{const query=$('qrNameSearch').value.trim().toLocaleLowerCase('sv-SE');$('qrPlayers').replaceChildren();for(const p of people.filter(p=>p.full_name.toLocaleLowerCase('sv-SE').includes(query))){const label=el('label'),check=el('input');check.type='checkbox';check.checked=chosen.has(String(p.id));check.disabled=busy;check.onchange=()=>{if(check.checked)chosen.add(String(p.id));else chosen.delete(String(p.id));};label.append(check,document.createTextNode(p.full_name));$('qrPlayers').append(label);}};
-  const print=()=>{if(!allowed()||Auth.getToken()!==token||Auth.activeTeam()!==activeTeam||!records.length)return;document.querySelector('.qr-print-sheet')?.remove();const sheet=el('div');sheet.className='qr-print-sheet';for(const r of records){const card=el('section');card.className='qr-print-card';const qr=qrcode(0,'M');qr.addData(r.url);qr.make();const img=el('img');img.src=qr.createDataURL(5,4);img.alt='QR-kod för '+r.name;card.append(el('h2',r.name),img,el('p','NSK · Personlig slipningssida'));sheet.append(card);}try{openPrintPreview(sheet);$('qrBulkStatus').textContent='QR-listan öppnades i en egen utskriftsvy. Tryck Skriv ut där.';}catch(error){$('qrBulkStatus').textContent=error.message;}};
-  $('qrNameSearch').oninput=render;$('qrPrintAgain').onclick=print;
-  $('qrCreateList').onclick=async()=>{
-   if(busy||!chosen.size)return;if(!confirm('Skapa nya länkar för '+chosen.size+' valda spelare? Deras tidigare länkar slutar fungera.'))return;
-   const mode=$('qrMode').value;busy=true;$('qrMode').disabled=true;records=[];saveFile.hidden=true;$('qrPrintAgain').hidden=true;$('qrCreateList').disabled=true;render();const failures=[];
-   for(const p of people.filter(p=>chosen.has(String(p.id)))){if(disposed||!allowed()||Auth.getToken()!==token||Auth.activeTeam()!==activeTeam)break;
-    try{const url=base()+'/api/sharpening/link?team_id='+encodeURIComponent(team)+'&person_id='+encodeURIComponent(p.id),headers={Authorization:'Bearer '+token},currentResponse=await fetch(url,{headers,cache:'no-store'}),current=await currentResponse.json();if(!currentResponse.ok||!current.ok)throw Error();const response=await fetch(url,{method:'PUT',headers:{...headers,'Content-Type':'application/json'},body:JSON.stringify({mode,revision:current.revision}),cache:'no-store'}),data=await response.json();if(!response.ok||!data.ok||!data.token)throw Error();const link=new URL('../slipning/',location.href);link.hash='nyckel='+data.token;records.push({name:p.full_name,url:link.href,personId:String(p.id)});}
-    catch{failures.push(p.full_name);}if(!disposed)$('qrBulkStatus').textContent=records.length+' länkar klara…';
+  bulkDispose?.();
+  let disposed=false,busy=false,records=[],chosen=new Set(),modes=new Map();
+  const token=Auth.getToken(),activeTeam=Auth.activeTeam(),$=id=>root.querySelector('#'+id);
+  const valid=()=>!disposed&&allowed()&&Auth.getToken()===token&&Auth.activeTeam()===activeTeam;
+  const status=message=>{$('qrBulkStatus').textContent=message;};
+  const old=$('qrPlayers');old.replaceChildren();$('qrPrintAgain').hidden=true;
+  root.querySelector('.qr-file-actions')?.remove();
+  const files=el('div');files.className='qr-file-actions';
+  const saveFile=el('button','Spara aktuell QR-lista som fil');saveFile.type='button';saveFile.hidden=true;
+  const restoreLabel=el('label','Öppna tidigare sparad QR-lista'),restoreFile=el('input');
+  restoreFile.type='file';restoreFile.accept='.json,application/json';restoreLabel.append(restoreFile);
+  files.append(saveFile,restoreLabel,el('p','QR-länkar lagras inte i klartext på servern. Spara filen säkert för att visa samma QR-koder vid nästa besök.'));root.append(files);
+  const getRecord=id=>records.find(r=>String(r.personId)===String(id));
+  function qrImage(url,size=112){if(!window.qrcode)return el('span','QR-bibliotek saknas');const qr=qrcode(0,'M');qr.addData(url);qr.make();const img=el('img');img.src=qr.createDataURL(5,4);img.alt='Aktuell QR-kod';img.width=size;img.height=size;img.style.cssText='background:white;padding:6px;border-radius:8px;max-width:100%;height:auto';return img;}
+  function render(){
+   const query=$('qrNameSearch').value.trim().toLocaleLowerCase('sv-SE');
+   old.replaceChildren();
+   for(const p of people.filter(p=>p.full_name.toLocaleLowerCase('sv-SE').includes(query))){
+    const id=String(p.id),record=getRecord(id),card=el('details');card.className='equipment-qr-player';
+    const summary=el('summary'),check=el('input');check.type='checkbox';check.checked=chosen.has(id);check.disabled=busy;check.setAttribute('aria-label','Välj '+p.full_name);check.onclick=e=>e.stopPropagation();
+    check.onchange=()=>{if(check.checked)chosen.add(id);else chosen.delete(id);};
+    const name=el('strong',p.full_name),state=el('small',record?'Aktuell QR sparad':'QR behöver hämtas eller förnyas');
+    const heading=el('span');heading.append(name,state);summary.append(check,heading);card.append(summary);
+    const body=el('div');body.className='equipment-qr-player-body';
+    if(record){body.append(qrImage(record.url));const actions=el('div');actions.className='equipment-qr-actions';
+     const share=el('button','Dela');share.type='button';share.onclick=async()=>{try{if(navigator.share)await navigator.share({title:'Slipningslänk – '+p.full_name,url:record.url});else if(navigator.clipboard){await navigator.clipboard.writeText(record.url);status('Länken kopierad för '+p.full_name+'.');}else status('Öppna den sparade QR-listfilen för att dela länken.');}catch(error){if(error.name!=='AbortError')status('Delning misslyckades: '+error.message);}};
+     actions.append(share);body.append(actions);
+    }else body.append(el('p','En tidigare skapad QR-kod kan inte läsas tillbaka från servern. Öppna en sparad QR-listfil eller förnya länken.'));
+    const mode=el('select');for(const [v,label] of [['parent','Förälder'],['player','Spelare']])mode.append(new Option(label,v));mode.value=modes.get(id)||'parent';mode.onchange=()=>modes.set(id,mode.value);
+    const renew=el('button','Förnya QR');renew.type='button';renew.disabled=busy;
+    renew.onclick=async()=>{if(!valid()){status('Logga in igen och ladda om sidan.');return;}if(!confirm('Förnya QR för '+p.full_name+'? Den gamla länken slutar fungera.'))return;
+     busy=true;status('Förnyar QR för '+p.full_name+'…');render();
+     try{const rec=await renewOne(p,mode.value);records=records.filter(r=>String(r.personId)!==id);records.push(rec);status('Ny QR skapad för '+p.full_name+'. Spara QR-listfilen så att koden finns kvar.');}
+     catch(error){status('Kunde inte förnya QR för '+p.full_name+': '+error.message);}
+     finally{busy=false;render();}
+    };
+    const controls=el('div');controls.className='equipment-qr-actions';controls.append(mode,renew);body.append(controls);card.append(body);old.append(card);
    }
-   if(disposed)return;busy=false;$('qrMode').disabled=false;render();$('qrCreateList').disabled=false;saveFile.hidden=!records.length;$('qrPrintAgain').hidden=!records.length;$('qrBulkStatus').textContent=records.length+' QR-koder klara.'+(failures.length?' Kunde inte skapa för: '+failures.join(', ')+'. Spara de klara innan du försöker igen.':' Skriv ut eller spara listan.');
-  };render();bulkDispose=()=>{disposed=true;records=[];document.querySelector('.qr-print-sheet')?.remove();document.body.classList.remove('qr-printing');};
+   saveFile.hidden=!records.length;$('qrPrintAgain').hidden=!records.length;
+   $('qrCreateList').disabled=busy;
+  }
+  async function renewOne(p,mode){
+   if(!valid())throw Error('Inloggningen har ändrats.');
+   const url=base()+'/api/sharpening/link?team_id='+encodeURIComponent(team)+'&person_id='+encodeURIComponent(p.id);
+   const headers={Authorization:'Bearer '+token};
+   const currentResponse=await fetch(url,{headers,cache:'no-store'}),current=await currentResponse.json().catch(()=>({}));
+   if(!currentResponse.ok||!current.ok)throw Error(current.error||'Kunde inte hämta länkstatus ('+currentResponse.status+').');
+   const response=await fetch(url,{method:'PUT',headers:{...headers,'Content-Type':'application/json'},body:JSON.stringify({mode,revision:current.revision}),cache:'no-store'}),data=await response.json().catch(()=>({}));
+   if(!response.ok||!data.ok||!data.token)throw Error(data.error||'Kunde inte skapa QR ('+response.status+').');
+   const link=new URL('../slipning/',location.href);link.hash='nyckel='+data.token;
+   return {name:p.full_name,url:link.href,personId:String(p.id)};
+  }
+  const print=()=>{if(!valid()){status('Logga in igen.');return;}const selected=records.filter(r=>chosen.size===0||chosen.has(String(r.personId)));if(!selected.length){status('Inga aktuella QR-koder finns för de valda spelarna.');return;}
+   const sheet=el('div');sheet.className='qr-print-sheet';
+   for(const r of selected){const card=el('section');card.className='qr-print-card';card.append(el('h2',r.name),qrImage(r.url,190),el('p','NSK · Personlig slipningssida'));sheet.append(card);}
+   try{openPrintPreview(sheet);status('Utskriftsvyn öppnades med '+selected.length+' befintliga QR-koder. Inga länkar har ersatts.');}catch(error){status(error.message);}
+  };
+  saveFile.onclick=()=>{if(!valid()||!records.length)return;const blob=new Blob([JSON.stringify({format:'nsk-qr-list',version:1,team:String(team),records})],{type:'application/json'}),url=URL.createObjectURL(blob),link=el('a');link.href=url;link.download='nsk-qr-lista.json';link.click();setTimeout(()=>URL.revokeObjectURL(url),60000);};
+  restoreFile.onchange=async()=>{try{const file=restoreFile.files?.[0];if(!file)return;if(!valid())throw Error('Logga in igen.');if(file.size>2*1024*1024)throw Error('Filen är för stor.');
+   const data=JSON.parse(await file.text());if(!valid())throw Error('Inloggningen har ändrats.');
+   if(data.format!=='nsk-qr-list'||data.version!==1||String(data.team)!==String(team)||!Array.isArray(data.records)||!data.records.length||data.records.length>500)throw Error('Fel QR-lista eller lag.');
+   for(const r of data.records){const u=new URL(r.url);if(typeof r.name!=='string'||r.name.length>150||!people.some(p=>String(p.id)===String(r.personId))||!['https://nsk18.pages.dev/slipning/','https://zprcsv92cy-cmyk.github.io/NSK-2026/slipning/'].includes(u.origin+u.pathname)||u.search||u.username||u.password||!/^#nyckel=[a-f0-9]{64}$/.test(u.hash))throw Error('QR-filen innehåller ogiltiga uppgifter.');}
+   records=data.records.map(r=>({name:r.name,url:r.url,personId:String(r.personId)}));status('QR-listan är öppnad. Observera att äldre koder kan ha förnyats efter att filen sparades.');render();
+  }catch(error){status(error.message);}finally{restoreFile.value='';}};
+  $('qrNameSearch').oninput=render;$('qrPrintAgain').onclick=print;
+  $('qrCreateList').textContent='Skriv ut aktuell QR-lista';$('qrCreateList').onclick=print;
+  const renewSelected=el('button','Förnya QR för valda');renewSelected.type='button';$('qrCreateList').before(renewSelected);
+  renewSelected.onclick=async()=>{if(busy)return;if(!chosen.size){status('Markera minst en spelare först.');return;}if(!valid()){status('Logga in igen.');return;}
+   if(!confirm('Förnya QR för '+chosen.size+' valda spelare? Tidigare länkar slutar fungera.'))return;
+   busy=true;render();const failures=[];
+   for(const p of people.filter(p=>chosen.has(String(p.id)))){if(!valid())break;status('Förnyar QR: '+p.full_name+'…');try{const rec=await renewOne(p,modes.get(String(p.id))||$('qrMode').value);records=records.filter(r=>String(r.personId)!==String(p.id));records.push(rec);}catch(error){failures.push(p.full_name+': '+error.message);}}
+   busy=false;render();status(records.length+' QR-koder finns i listan.'+(failures.length?' Fel: '+failures.join('; '):' Spara filen innan du lämnar sidan.'));
+  };
+  render();bulkDispose=()=>{disposed=true;records=[];renewSelected.remove();};
  }
  window.addEventListener('afterprint',()=>{document.body.classList.remove('qr-printing');document.querySelector('.qr-print-sheet')?.remove();});
  const style=el('style');style.textContent='.sharpening-link-label{display:grid;gap:7px}.sharpening-link-label select,.sharpening-link-result input{box-sizing:border-box;width:100%;min-width:0}.sharpening-link-actions{display:flex;flex-wrap:wrap;gap:10px;align-items:center;margin:12px 0}.sharpening-link-actions button,.sharpening-link-actions a{min-height:44px}.sharpening-link-actions a{display:inline-flex;align-items:center}.sharpening-link-qr{display:block;max-width:100%;width:224px;height:auto;background:white;padding:8px;margin:14px auto;image-rendering:pixelated}.sharpening-link-result .small{line-height:1.5}@media print{.sharpening-link-manager{display:none!important}}';document.head.append(style);
