@@ -1,5 +1,5 @@
-// Server-side authorization policy for the future protected NSK production API.
-// This module does not modify or activate any production endpoint.
+// Shared server-side policy: explicit personal grants authorize staff actions.
+// A viewer membership remains read-only; team membership is always required.
 export const FEATURE_PERMISSIONS = Object.freeze({
   roster: 'roster:manage',
   pool: 'pool:create',
@@ -22,7 +22,7 @@ export function authorizeTeamFeature(actor, teamId, feature) {
     ? actor.memberships.find(m => m && m.team_id === teamId) : null;
   if (!membership) return { allowed: false, status: 403, reason: 'Ingen åtkomst till laget' };
   const permission = FEATURE_PERMISSIONS[feature];
-  const allowed = ((membership.role === 'team_admin' || membership.role === 'owner') || (actor.is_global_admin === true && membership.role !== 'viewer') || (membership.role === 'coach' && feature === 'lineup')) &&
+  const allowed = ['owner','team_admin','coach','team_manager','fitness','equipment','player'].includes(membership.role) &&
     Array.isArray(actor.permissions) && actor.permissions.includes(permission);
   return { allowed, status: allowed ? 200 : 403,
     reason: allowed ? 'Tillåtet' : 'Saknar behörighet', permission };

@@ -41,7 +41,7 @@ test('canonical feature grants map from UI aliases and require team membership',
   assert.equal(auth.can('pool', 'team-2'), false);
 });
 
-test('UI hints mirror server role ceilings while honoring explicit grants', async () => {
+test('UI hints honor coach grants while keeping viewers read-only', async () => {
   const coach = await makeAuth({
     user: { id: 'coach-1', name: 'Coach' },
     memberships: [{ team_id: 'team-18', role: 'coach' }],
@@ -49,7 +49,7 @@ test('UI hints mirror server role ceilings while honoring explicit grants', asyn
   });
   assert.equal(coach.can('read', 'team-18'), true);
   assert.equal(coach.can('lineup', 'team-18'), true);
-  assert.equal(coach.can('roster', 'team-18'), false);
+  assert.equal(coach.can('roster', 'team-18'), true);
 
   const viewer = await makeAuth({
     user: { id: 'viewer-1', name: 'Viewer' },
@@ -85,4 +85,15 @@ test('legacy roster UI stays disabled outside Team 18 even with an admin token',
   const html = readFileSync(new URL('../truppen/index.html', import.meta.url), 'utf8');
   const legacy = html.split("const token = localStorage.getItem('nsk_admin_token');")[0];
   assert.match(legacy, /if \(window\.Auth\?\.activeTeam\?\.\(\) !== 'NSK Team 18'\) return false;/);
+});
+
+
+test('UI decisions match the shared API policy for every feature and delegated role', async () => {
+  const {authorizeTeamFeature,FEATURE_PERMISSIONS}=await import('./team-authorization-policy.js');
+  for(const role of ['owner','team_admin','coach','team_manager','fitness','equipment','player','viewer','invalid']){
+    const identity={user:{id:'synthetic-user'},memberships:[{team_id:'team-18',role}],permissions:['read',...Object.values(FEATURE_PERMISSIONS),'unexpected']};
+    const auth=await makeAuth(identity);
+    for(const feature of Object.keys(FEATURE_PERMISSIONS))assert.equal(auth.can(feature,'team-18'),authorizeTeamFeature(identity,'team-18',feature).allowed,role+' '+feature);
+    assert.equal(auth.can('roster','foreign'),false);assert.equal(auth.can('unexpected','team-18'),false);
+  }
 });
