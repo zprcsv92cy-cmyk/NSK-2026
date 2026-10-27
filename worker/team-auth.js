@@ -1,3 +1,4 @@
+import {handleNavigationPreferences} from './navigation-preferences.js';
 import {PRIMARY_ADMIN_ID,PRIMARY_ADMIN_EMAIL,ALL_ACCOUNT_PERMISSIONS,withPrimaryAdministrator,isPrimaryAdministrator} from './primary-administrator.js';
 import {issuePasswordReset,accountEmailEnabled,sendAccountLink,accountRateLimit,passwordHash} from './account-recovery.js';
 import { authorizeTeamFeature, FEATURE_PERMISSIONS } from './team-authorization-policy.js';
@@ -93,6 +94,7 @@ export async function handleTeamAuth(request, env) {
     const user = await identity(db, request);
     return user ? json(user) : json({ error: 'Inte inloggad' }, 401);
   }
+  if(path === '/api/auth/navigation')return handleNavigationPreferences(request,db,await identity(db,request),json);
   // Staging access check for NSK features. Deny by default; personal grants are authoritative.
   if (path === '/api/auth/feature-access' && request.method === 'GET') {
     const actor = await identity(db, request);
