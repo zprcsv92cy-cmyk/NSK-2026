@@ -1,0 +1,196 @@
+/* NSK Arena: shared screen theme. Print documents keep their own plain layout. */
+@media screen {
+ html[data-nsk-theme="arena"] {
+  --arena-bg:#090f16;--arena-surface:#111d28;--arena-raised:#172635;
+  --arena-border:#344858;--arena-text:#edf2f7;--arena-muted:#b1becc;
+  --arena-red:#b11226;--arena-green:#40ce8b;--arena-amber:#ffc05b;--arena-blue:#76b8ed;
+  color-scheme:dark;
+ }
+ html[data-nsk-theme="arena"] [hidden] {display:none!important}
+ html[data-nsk-theme="arena"] body {
+  --bg:var(--arena-bg);--card:var(--arena-surface);--line:var(--arena-border);
+  --text:var(--arena-text);--muted:var(--arena-muted);--red:var(--arena-red);
+  color:var(--arena-text);background:radial-gradient(ellipse at 0 0,#29445d24,transparent 48%),radial-gradient(ellipse at 100% 0,#80132618,transparent 42%),var(--arena-bg);
+  font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Arial,sans-serif;
+  -webkit-tap-highlight-color:#b1122626;
+ }
+ html[data-nsk-theme="arena"] body.nsk-shell .arena-brand,
+ html[data-nsk-theme="arena"] body .arena-brand {
+  position:relative;min-height:126px;padding:18px 24px;margin-bottom:0;
+  gap:16px;border:0;border-bottom:1px solid #8d253c;border-radius:0;
+  background:linear-gradient(90deg,#040b13b8,#040b1338),url('login/arena.jpg') center 73%/cover;
+  box-shadow:0 8px 28px #0005;
+ }
+ html[data-nsk-theme="arena"] .arena-brand img {width:76px;height:76px;filter:drop-shadow(0 4px 8px #0008)}
+ html[data-nsk-theme="arena"] .arena-brand strong {font-size:30px;line-height:1.1;font-weight:850;letter-spacing:.6px;text-shadow:0 2px 10px #000}
+ html[data-nsk-theme="arena"] .arena-brand .arena-team {display:inline;margin:0 0 0 9px;font-size:.7em;font-weight:800;letter-spacing:1px;color:#ff435c}
+ html[data-nsk-theme="arena"] .arena-brand .arena-club {font-size:10px;letter-spacing:1.8px;color:#e1e7ee}
+ html[data-nsk-theme="arena"] .home-hero h1 {font-weight:850;letter-spacing:-.7px;line-height:1.15}
+ html[data-nsk-theme="arena"] .home-hero-sub {color:var(--arena-muted)}
+ html[data-nsk-theme="arena"] body .card {
+  background:linear-gradient(145deg,#172634,#101b26 80%);border:1px solid var(--arena-border);
+  border-radius:14px;box-shadow:0 7px 20px #0003,inset 0 1px 0 #ffffff04;
+ }
+ html[data-nsk-theme="arena"] body :is(input:not([type=checkbox]):not([type=radio]),select,textarea) {
+  min-height:44px;max-width:100%;border:1px solid #3c5367;border-radius:10px;
+  background:#0d1924;color:var(--arena-text);font-family:inherit;font-size:16px;
+ }
+ html[data-nsk-theme="arena"] input::placeholder,
+ html[data-nsk-theme="arena"] textarea::placeholder {color:#9caebf;opacity:1}
+ html[data-nsk-theme="arena"] input[type=checkbox],html[data-nsk-theme="arena"] input[type=radio] {accent-color:#c31a36}
+ html[data-nsk-theme="arena"] body :is(button,.nsk-action,.home-create-button) {
+  min-height:44px;border:1px solid #3a5063;border-radius:10px;
+  background:linear-gradient(180deg,#1b2b3b,#132231);color:var(--arena-text);
+  font-weight:650;box-shadow:0 2px 5px #0002;touch-action:manipulation;
+  transition:background-color .12s,border-color .12s,box-shadow .12s;
+ }
+ html[data-nsk-theme="arena"] body :is(.nsk-action--primary,.nsk-action--save,.home-create-button,#savePool,#trainingGroupButton,#personCardSharpen,#requestButton) {
+  background:linear-gradient(180deg,#d81c3b,#a60f29);border-color:#ed3854;color:#fff;
+  box-shadow:inset 0 1px 0 #ffffff12,0 3px 9px #0003;
+ }
+ html[data-nsk-theme="arena"] body :is(.danger,.nsk-action--delete) {background:#331b26;border-color:#a94a61;color:#ffb0be;box-shadow:none}
+ html[data-nsk-theme="arena"] body :is(button,.nsk-action):disabled {opacity:.48;box-shadow:none;cursor:default}
+ html[data-nsk-theme="arena"] :is(button,a,summary,input,select,textarea):focus-visible {outline:3px solid #ffa3b3;outline-offset:3px}
+ html[data-nsk-theme="arena"] body :is(.team-btn.active-team-btn,.match-btn.active-team-btn,.coach-choice.selected,.nsk-pool-team-choice.is-selected) {
+  background:linear-gradient(180deg,#a82038,#651b2b);border-color:#e94360;color:#fff;
+ }
+ html[data-nsk-theme="arena"] body button.shift-check.done {background:#125b3e;border-color:#44cc91;color:#fff;box-shadow:inset 0 0 0 1px #50dd9b20}
+ html[data-nsk-theme="arena"] .equipment-lamp--done,
+ html[data-nsk-theme="arena"] .status[data-state=done] {color:var(--arena-green)}
+ html[data-nsk-theme="arena"] .equipment-lamp--done .equipment-lamp-dot {background:var(--arena-green)}
+ html[data-nsk-theme="arena"] body .mainmenu {padding-top:7px;padding-bottom:7px;border-color:#2a3b4c}
+ html[data-nsk-theme="arena"] body .mainmenu a {min-height:40px;display:inline-flex;align-items:center;gap:7px;background:transparent;color:#bfcad6;border-radius:7px}
+ html[data-nsk-theme="arena"] body .mainmenu a.active {background:#b112262b;color:#fff;box-shadow:inset 0 -2px 0 #ed2448}
+ html[data-nsk-theme="arena"] .arena-bottom {background:linear-gradient(#11202d,#0a131d);border-color:#3a4a5a;box-shadow:0 -5px 18px #0004}
+ html[data-nsk-theme="arena"] .arena-bottom>a,
+ html[data-nsk-theme="arena"] .arena-more>summary {position:relative;border-radius:0;color:#adbbca}
+ html[data-nsk-theme="arena"] .arena-bottom .active {color:#ff3d5f}
+ html[data-nsk-theme="arena"] .arena-bottom>a.active::after,
+ html[data-nsk-theme="arena"] .arena-more>summary.active::after {content:"";position:absolute;bottom:-4px;left:15%;right:15%;height:3px;background:#e72548;border-radius:3px}
+ html[data-nsk-theme="arena"] .arena-icon {width:22px;height:22px;flex:none;vertical-align:middle}
+ html[data-nsk-theme="arena"] h2>.arena-icon {margin-right:8px;color:#bccddd}
+ html[data-nsk-theme="arena"] .mainmenu .arena-icon {width:17px;height:17px}
+ html[data-nsk-theme="arena"] .arena-bottom .arena-icon {width:26px;height:26px}
+ html[data-nsk-theme="arena"] body.home-page #activityList .nsk-pool-row {
+  overflow:hidden;background:linear-gradient(140deg,#172633,#101b26);border:1px solid #3a4c5e;border-left:4px solid #ba1735;border-radius:13px;box-shadow:0 5px 14px #0002;
+ }
+ html[data-nsk-theme="arena"] body.home-page #activityList .nsk-pool-row[data-date] {border-left-color:#69b4ee}
+ html[data-nsk-theme="arena"] body.home-page #activityList .nsk-pool-summary {background:transparent;padding:14px}
+ html[data-nsk-theme="arena"] body.home-page #activityList .nsk-pool-content {background:#0c1721;border-top:1px solid #2f4355}
+ html[data-nsk-theme="arena"] body.home-page #activityList .nsk-pool-name {color:#f2f5f9;font-weight:750}
+ html[data-nsk-theme="arena"] .arena-activity-icon {float:left;width:32px;height:42px;margin:3px 11px 0 0;color:#d3deea}
+ html[data-nsk-theme="arena"] body #activityList .nsk-pool-name .arena-icon {width:32px;height:38px}
+ html[data-nsk-theme="arena"] .equipment-tabs,html[data-nsk-theme="arena"] .roster-tabs {display:flex;gap:0;border-bottom:1px solid #3b4d60;background:transparent;padding:0;margin:10px 0 16px}
+ html[data-nsk-theme="arena"] body :is(.equipment-tabs,.roster-tabs)>button {flex:1;border:0;border-radius:0;background:transparent;box-shadow:none;padding:10px 6px;font-size:14px;color:#afbdcc}
+ html[data-nsk-theme="arena"] body :is(.equipment-tabs,.roster-tabs)>button[aria-selected=true] {color:#fff;box-shadow:inset 0 -3px 0 #e62548;background:transparent}
+ html[data-nsk-theme="arena"] .equipment-slip {border:1px solid #354b5f;border-radius:12px;background:linear-gradient(145deg,#162533,#101c27);margin-bottom:8px;padding:0 12px}
+ html[data-nsk-theme="arena"] .equipment-slip>summary {min-height:62px;padding:10px 0}
+ html[data-nsk-theme="arena"] .equipment-checklist {border-color:#354b5f;background:#111e2a;border-radius:12px}
+ html[data-nsk-theme="arena"] .roster-toolbar {margin:0 0 12px}
+ html[data-nsk-theme="arena"] .roster-toolbar label {display:block;font-size:.85rem;color:#bdc9d6}
+ html[data-nsk-theme="arena"] .roster-toolbar input {display:block;width:100%;margin:6px 0 0;padding:11px 14px}
+ html[data-nsk-theme="arena"] .roster-count {font-size:.85rem;color:#b6c3d0;margin:0 0 10px}
+ html[data-nsk-theme="arena"] .roster-other {display:grid;gap:12px}
+ html[data-nsk-theme="arena"] body.roster-page :is(#playersList,#coachesList) .roster-player-details {margin:0 0 7px;border:1px solid #364c60;border-radius:11px;background:linear-gradient(130deg,#172735,#0e1a25);box-shadow:0 3px 9px #0002}
+ html[data-nsk-theme="arena"] .roster-player-details>summary {padding:0 10px;gap:6px;min-height:62px}
+ html[data-nsk-theme="arena"] body.roster-page .person-card-open {display:flex;align-items:center;gap:11px;width:100%;min-height:62px;padding:9px 0!important;font-weight:700;flex:1;min-width:0}
+ html[data-nsk-theme="arena"] .roster-shirt {position:relative;display:grid;place-items:center;flex:none;width:40px;height:44px;color:#c4d0df}
+ html[data-nsk-theme="arena"] .roster-shirt svg {width:37px;height:40px}
+ html[data-nsk-theme="arena"] .roster-shirt-number {position:absolute;top:16px;left:0;right:0;text-align:center;font-size:10px;font-weight:800;line-height:1;pointer-events:none}
+ html[data-nsk-theme="arena"] .roster-person-text {min-width:0;flex:1}
+ html[data-nsk-theme="arena"] .roster-name {display:block;font-size:1rem;line-height:1.25;overflow-wrap:anywhere}
+ html[data-nsk-theme="arena"] .roster-meta {display:block;margin-top:4px;font-size:.78rem;line-height:1.3;font-weight:400;color:#b7c5d4}
+ html[data-nsk-theme="arena"] .roster-card-arrow {font-size:28px;font-weight:400;color:#b6c4d4;flex:none}
+ html[data-nsk-theme="arena"] .roster-player-chevron {font-size:22px;padding:12px 2px}
+ html[data-nsk-theme="arena"] body:not(.nsk-roster-admin) .roster-player-chevron {display:none}
+ html[data-nsk-theme="arena"] .roster-add {border:1px solid #486175;border-radius:10px;padding:0 12px;margin:12px 0 0;background:#0d1924}
+ html[data-nsk-theme="arena"] body:not(.nsk-roster-admin) .roster-add {display:none}
+ html[data-nsk-theme="arena"] .roster-add>summary {min-height:44px;display:flex;align-items:center;justify-content:center;cursor:pointer;font-size:.9rem;font-weight:650}
+ html[data-nsk-theme="arena"] .roster-add[open]>.roster-add-row {padding-bottom:12px}
+ html[data-nsk-theme="arena"] .roster-page .home-hero-sub {display:none}
+ html[data-nsk-theme="arena"] .roster-tab-panel>h2 {font-size:1rem;color:#c1cddb}
+ html[data-nsk-theme="arena"] .person-card-dialog {width:min(490px,calc(100% - 20px));max-height:calc(100dvh - 24px);padding:18px;border:1px solid #557085;border-radius:18px;background:linear-gradient(150deg,#122230,#08131e 75%);box-shadow:0 24px 90px #000b}
+ html[data-nsk-theme="arena"] .person-card-dialog::backdrop {background:#030a12c9;backdrop-filter:blur(5px)}
+ html[data-nsk-theme="arena"] .person-card-header {border-bottom:1px solid #344b5e;padding-bottom:10px;margin-bottom:14px}
+ html[data-nsk-theme="arena"] .person-card-header h2 {font-size:1.25rem;font-weight:800}
+ html[data-nsk-theme="arena"] .person-card-header button {background:transparent;border:0;box-shadow:none;color:#bac9d9}
+ html[data-nsk-theme="arena"] .person-card-identity {display:grid;grid-template-columns:120px minmax(0,1fr);align-items:center;gap:14px;text-align:left;padding:0 0 18px}
+ html[data-nsk-theme="arena"] #personCardAvatar {width:120px;height:145px;border:0;border-radius:0;background:none;box-shadow:none;overflow:visible;grid-row:auto}
+ html[data-nsk-theme="arena"] #personCardAvatar svg {width:116px;height:142px;filter:drop-shadow(0 5px 6px #0005)}
+ html[data-nsk-theme="arena"] #personCardAvatar img {width:86px;height:86px}
+ html[data-nsk-theme="arena"] .person-card-identity h3 {font-size:1.55rem;font-weight:800;text-align:left;margin:0;line-height:1.15}
+ html[data-nsk-theme="arena"] .person-card-team {color:#b5c5d4;font-size:.9rem;margin-top:6px}
+ html[data-nsk-theme="arena"] .person-card-badge {border-radius:6px;padding:4px 10px;margin-top:8px;font-size:.8rem;justify-self:start;align-self:start;background:#b11226}
+ html[data-nsk-theme="arena"] .person-card-section {padding:14px 0 0;border-color:#344b5e}
+ html[data-nsk-theme="arena"] .person-card-facts {gap:8px;margin-bottom:12px}
+ html[data-nsk-theme="arena"] .person-card-facts>div {padding:10px;background:#111f2c;border-color:#344b5e;border-radius:9px}
+ html[data-nsk-theme="arena"] .person-card-facts>div:last-child:nth-child(odd) {grid-column:auto}
+ html[data-nsk-theme="arena"] .person-card-facts dt {font-size:.76rem;color:#b7c7d7;margin-bottom:4px}
+ html[data-nsk-theme="arena"] .person-card-facts dd {font-size:.9rem;font-weight:650}
+ html[data-nsk-theme="arena"] .person-card-pair {padding:12px;border:1px solid #344b5e;border-radius:11px;background:linear-gradient(145deg,#142634,#0f1d29);margin-bottom:9px}
+ html[data-nsk-theme="arena"] .person-card-pair h4 {font-size:.9rem;display:flex;align-items:center;gap:8px;margin:0 0 11px;color:#f2f6fa}
+ html[data-nsk-theme="arena"] .person-card-pair h4 svg {width:25px;height:25px;color:#bfd0df}
+ html[data-nsk-theme="arena"] .person-card-pair .person-card-facts {grid-template-columns:repeat(3,minmax(0,1fr));gap:8px;margin:0}
+ html[data-nsk-theme="arena"] .person-card-pair .person-card-facts>div {border:0;border-right:1px solid #344b5e;padding:0 8px 0 0;border-radius:0;background:none}
+ html[data-nsk-theme="arena"] .person-card-pair .person-card-facts>div:last-child {border:0;padding-right:0}
+ html[data-nsk-theme="arena"] .person-card-note {font-size:.8rem;line-height:1.45;color:#b4c4d3;margin:9px 0 2px}
+ html[data-nsk-theme="arena"] .person-card-actions {margin-top:16px;gap:9px}
+ html[data-nsk-theme="arena"] .person-card-actions button {min-height:48px}
+ html[data-nsk-theme="arena"] .person-card-actions label {font-size:.8rem;color:#b7c7d7}
+ html[data-nsk-theme="arena"] .person-card-hint {display:none}
+ html[data-nsk-theme="arena"] body.login-page {display:grid;place-items:center;min-height:100dvh;height:auto;overflow-y:auto;padding:22px 16px;background:var(--arena-bg)}
+ html[data-nsk-theme="arena"] .login-page::before {background:linear-gradient(#06101bd6,#06101bf0),url('login/arena.jpg') center 72%/cover}
+ html[data-nsk-theme="arena"] .login-shell {display:block;max-width:510px;width:100%;max-height:none;margin:auto}
+ html[data-nsk-theme="arena"] .login-brand {display:flex;align-items:center;gap:17px;margin:0;padding:22px;border:1px solid #34495c;border-bottom:2px solid #b11226;border-radius:16px 16px 0 0;min-height:154px;background:linear-gradient(90deg,#07101b99,#07101b38),url('login/arena.jpg') center 72%/cover;text-align:left}
+ html[data-nsk-theme="arena"] .login-brand img {width:92px;height:92px;margin:0;filter:drop-shadow(0 5px 9px #0007)}
+ html[data-nsk-theme="arena"] .login-club {font-family:inherit;font-style:normal;letter-spacing:.5px;font-size:42px;line-height:1;margin:0;font-weight:900}
+ html[data-nsk-theme="arena"] .login-team {font-family:inherit;font-style:normal;font-size:21px;letter-spacing:1px;margin-top:5px;line-height:1.1;color:#ff3857;text-shadow:0 2px 8px #0009}
+ html[data-nsk-theme="arena"] .login-club-name {font-size:10px;text-transform:uppercase;letter-spacing:1.5px;color:#e0e8f1;margin:10px 0 0}
+ html[data-nsk-theme="arena"] .login-card {border-top:0;border-radius:0 0 16px 16px;padding:24px;background:linear-gradient(145deg,#142431,#0d1925);box-shadow:0 18px 45px #0006}
+ html[data-nsk-theme="arena"] .login-card h1 {text-transform:none;font-size:26px;letter-spacing:-.5px;margin-bottom:16px}
+ html[data-nsk-theme="arena"] .login-card label {font-size:14px;color:#c6d2df}
+ html[data-nsk-theme="arena"] .login-card input {min-height:46px;padding:12px}
+ html[data-nsk-theme="arena"] .login-card #submitButton {min-height:48px;background:linear-gradient(#d81c3b,#a60f29);border:1px solid #ed3854;box-shadow:inset 0 1px 0 #ffffff12,0 3px 9px #0003}
+ html[data-nsk-theme="arena"] .login-card #forgotOpen {background:transparent;border:0;box-shadow:none;color:#b9c9da}
+ html[data-nsk-theme="arena"] .public-brand {display:flex;align-items:center;gap:14px;padding:20px;margin:0 0 20px;border-bottom:2px solid #b11226;border-radius:12px;background:linear-gradient(90deg,#07101ba8,#07101b44),url('login/arena.jpg') center 73%/cover;min-height:110px;color:#fff}
+ html[data-nsk-theme="arena"] .public-brand img {width:62px;height:62px;object-fit:contain}
+ html[data-nsk-theme="arena"] .public-brand strong {display:block;font-size:22px;font-weight:850;letter-spacing:.5px}
+ html[data-nsk-theme="arena"] .public-brand small {display:block;margin-top:5px;font-size:11px;color:#d5deea}
+ html[data-nsk-theme="arena"] body.auth-page {padding:24px 16px}
+ html[data-nsk-theme="arena"] .auth-page main {margin:0 auto;padding:22px;max-width:510px;width:100%}
+ html[data-nsk-theme="arena"] .auth-page .public-brand {max-width:510px;margin:0 auto;border-radius:14px 14px 0 0}
+ html[data-nsk-theme="arena"] .auth-page main.card {border-top:0;border-radius:0 0 14px 14px}
+ html[data-nsk-theme="arena"] .auth-page main>a {display:inline-flex;align-items:center;min-height:44px;margin-top:16px;color:#d3dfeb}
+ html[data-nsk-theme="arena"] .auth-page button {width:100%}
+ html[data-nsk-theme="arena"] body.public-sharpening main {box-sizing:border-box;max-width:540px;padding-top:16px}
+ @media(max-width:760px) {
+  html[data-nsk-theme="arena"] body.nsk-shell .arena-brand,html[data-nsk-theme="arena"] body .arena-brand {min-height:112px;padding:14px 20px;gap:13px}
+  html[data-nsk-theme="arena"] .arena-brand img {width:64px;height:64px}
+  html[data-nsk-theme="arena"] .arena-brand strong {font-size:27px}
+  html[data-nsk-theme="arena"] .arena-brand .arena-team {display:block;font-size:17px;margin:4px 0 0}
+  html[data-nsk-theme="arena"] .arena-brand .arena-club {display:none}
+  html[data-nsk-theme="arena"] .home-hero h1 {font-size:28px}
+  html[data-nsk-theme="arena"] .nsk-shell .shell-views {min-width:0}
+  html[data-nsk-theme="arena"]:has(body.login-page) {height:auto;min-height:100%;overflow-y:auto}
+  html[data-nsk-theme="arena"] .login-brand {min-height:126px;padding:18px 22px}
+  html[data-nsk-theme="arena"] .login-brand img {width:70px;height:70px}
+  html[data-nsk-theme="arena"] .login-club {font-size:34px}
+  html[data-nsk-theme="arena"] .login-team {font-size:18px}
+  html[data-nsk-theme="arena"] .login-card {padding:22px}
+ }
+ @media(max-width:380px) {
+  html[data-nsk-theme="arena"] .person-card-identity {grid-template-columns:94px minmax(0,1fr);gap:10px}
+  html[data-nsk-theme="arena"] #personCardAvatar {width:94px;height:120px}
+  html[data-nsk-theme="arena"] #personCardAvatar svg {width:94px;height:116px}
+  html[data-nsk-theme="arena"] .person-card-identity h3 {font-size:1.35rem}
+  html[data-nsk-theme="arena"] .person-card-dialog {padding:14px}
+  html[data-nsk-theme="arena"] .person-card-pair {padding:10px}
+  html[data-nsk-theme="arena"] .person-card-pair .person-card-facts {grid-template-columns:1fr 1fr}
+  html[data-nsk-theme="arena"] .person-card-pair .person-card-facts>div:last-child {grid-column:1/-1;margin-top:5px}
+ }
+ @media(hover:hover) {
+  html[data-nsk-theme="arena"] button:not(:disabled):hover {border-color:#8da3b9;filter:brightness(1.08)}
+  html[data-nsk-theme="arena"] .person-card-open:hover {filter:none;background:transparent}
+ }
+ @media(prefers-reduced-motion:reduce) {html[data-nsk-theme="arena"] * {transition:none!important;scroll-behavior:auto!important}}
+}

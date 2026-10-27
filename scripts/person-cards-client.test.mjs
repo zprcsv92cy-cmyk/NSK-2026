@@ -23,3 +23,13 @@ test('duplicate pending slip request is not submitted and server conflicts propa
  await assert.rejects(f.api.sharpening('18','player','101','Alex'),/redan/);assert.equal(f.calls.length,1);
  const conflict=client(()=>({status:409,data:{ok:false,error:'Ladda om'}}));await assert.rejects(conflict.api.save('18','player','101',{},1),error=>error.status===409&&error.message==='Ladda om');
 });
+
+test('roster summaries reuse card reads, are scoped to team and person, and refresh after a save',async()=>{
+ let current={hollow:'17 mm',position:'Forward',number:'18'};
+ const f=client(()=>({data:{ok:true,card:current,revision:3}}));
+ assert.equal(f.api.summary('18','player','101'),undefined);assert.equal(f.calls.length,0);
+ await f.api.get('18','player','101');assert.equal(f.api.summary('18','player','101').position,'Forward');
+ assert.equal(f.api.summary('19','player','101'),undefined);assert.equal(f.api.summary('18','coach','101'),undefined);assert.equal(f.calls.length,1);
+ current={...current,position:'Back'};await f.api.save('18','player','101',current,3);
+ assert.equal(f.api.summary('18','player','101').position,'Back');assert.equal(f.calls.length,2);
+});

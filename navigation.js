@@ -9,12 +9,17 @@
 
   const iconPaths={"shirt":"<path d=\"m8 3-5 3 2 5 3-1v11h8V10l3 1 2-5-5-3-2 2h-2z\"/>","mask":"<path d=\"M12 2c-5 0-8 4-8 9 0 6 4 11 8 11s8-5 8-11c0-5-3-9-8-9Z\"/><path d=\"M5 9h14M5 13h14M8 5v12m8-12v12M8 17h8m-4-8v12M9 4l3 3 3-3\"/>","calendar":"<rect x=\"3\" y=\"5\" width=\"18\" height=\"16\" rx=\"2\"/><path d=\"M7 2v6m10-6v6M3 11h18\"/>","image":"<rect x=\"3\" y=\"3\" width=\"18\" height=\"18\" rx=\"2\"/><circle cx=\"8\" cy=\"8\" r=\"1.5\"/><path d=\"m3 17 6-6 4 4 3-3 5 5\"/>","person":"<circle cx=\"12\" cy=\"7\" r=\"4\"/><path d=\"M4 21v-2a8 8 0 0 1 16 0v2Z\"/>","group":"<circle cx=\"9\" cy=\"7\" r=\"3\"/><path d=\"M2 21v-3a7 7 0 0 1 14 0v3M17 4a3 3 0 0 1 0 6m2 4a6 6 0 0 1 3 5v2\"/>","case":"<rect x=\"3\" y=\"7\" width=\"18\" height=\"14\" rx=\"2\"/><path d=\"M8 7V3h8v4M3 12h18m-12 0v4h6v-4\"/>","plan":"<rect x=\"5\" y=\"4\" width=\"14\" height=\"18\" rx=\"2\"/><rect x=\"9\" y=\"2\" width=\"6\" height=\"4\" rx=\"1\"/><path d=\"M9 11h6m-6 4h6m-6 4h4\"/>"};
   function svgIcon(name){return '<svg class="arena-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false">'+iconPaths[name]+'</svg>';}
+  iconPaths.skate='<path d="M5 3h5l1 7 7 3v4H4V9h1zM3 21h17l2-2M7 17v4m10-4v4M7 6h3m-3 3h4"/>';
+  iconPaths.sticks='<path d="m4 3 11 17h5v-3h-3L7 3M20 3 9 20H4v-3h3L17 3"/>';
   let iconObserver;
   function decorateIcons(){
     const attach=(element,name,replace=false)=>{if(!element||element.dataset.arenaIcon)return;element.dataset.arenaIcon=name;if(replace)element.innerHTML=svgIcon(name);else element.insertAdjacentHTML('afterbegin',svgIcon(name));};
     for(const [id,name] of Object.entries({trainingGoalieCount:'mask',trainingShirtColorCount:'shirt',trainingCalendar:'calendar',trainingHall:'case'}))attach(document.getElementById(id)?.closest('label'),name);
     for(const [id,name] of Object.entries({trainingGroupButton:'shirt',trainingPrintButton:'plan',trainingImportRead:'image'}))attach(document.getElementById(id),name);
     attach(document.querySelector('.training-import>summary'),'image');
+    for(const link of document.querySelectorAll('.mainmenu a')){const slug=link.getAttribute('href')?.split('/').filter(Boolean).at(-1);const name={startsida:'calendar',truppen:'shirt',traningsgrupper:'plan',materialforvaltare:'skate',mittkonto:'person',ritverktyg:'sticks',malvaktsstatistik:'plan',ovningsarkiv:'case',anvandare:'group',skapapoolspel:'calendar'}[slug];if(name)attach(link,name);}
+    for(const name of document.querySelectorAll('#activityList .nsk-pool-name')){if(name.querySelector('.arena-activity-icon'))continue;const span=document.createElement('span');span.className='arena-activity-icon';span.setAttribute('aria-hidden','true');span.innerHTML=svgIcon(name.closest('[data-date]')?'calendar':'sticks');name.prepend(span);}
+
     for(const heading of document.querySelectorAll('.training-page h2')){
       const name={'Spelare':'person','Tränare':'group','Materialförvaltare':'case','Målvakter':'mask','Tröjfärger':'shirt'}[heading.textContent.trim()];
       if(name)attach(heading,name);
@@ -22,7 +27,7 @@
     for(const button of document.querySelectorAll('.nsk-training-function')){
       attach(button.querySelector('span'),button.hasAttribute('data-training-colors')?'shirt':'plan',true);
     }
-    for(const [slug,name] of Object.entries({startsida:'calendar',truppen:'group',traningsgrupper:'plan'}))attach(document.querySelector('.arena-bottom>a[href="../'+slug+'/"]>span'),name,true);
+    for(const [slug,name] of Object.entries({startsida:'calendar',truppen:'shirt',traningsgrupper:'plan'}))attach(document.querySelector('.arena-bottom>a[href="../'+slug+'/"]>span'),name,true);
   }
   let viewportBound=false;
   function bindMobileViewport(){
@@ -56,7 +61,7 @@
     if(!iconObserver){iconObserver=new MutationObserver(decorateIcons);iconObserver.observe(document.body,{childList:true,subtree:true});}
     if(!document.querySelector('.arena-brand')){
       const brand=document.createElement('header');brand.className='arena-brand';
-      brand.innerHTML='<img src="../icon-192.png" alt="NSK:s klubbmärke" width="64" height="64"><div><strong>NSK TEAM 18</strong><span>Nyköpings sportklubb</span></div>';
+      brand.innerHTML='<img src="../icon-192.png" alt="NSK:s klubbmärke" width="64" height="64"><div><strong>NSK <span class="arena-team">TEAM 18</span></strong><span class="arena-club">Nyköpings sportklubb</span></div>';
       document.body.prepend(brand);
     }
     nav.innerHTML = '';
