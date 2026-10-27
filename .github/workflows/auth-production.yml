@@ -40,6 +40,11 @@ jobs:
         env:
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+      - name: Ensure personal navigation settings schema exists
+        run: npx --yes wrangler@4 d1 execute nsk-auth-production --remote --file migrations/20261027_navigation_preferences.sql --yes
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
       - name: Deploy isolated production auth Worker
         run: npx --yes wrangler@4 deploy --config wrangler.auth.production.toml
         env:
