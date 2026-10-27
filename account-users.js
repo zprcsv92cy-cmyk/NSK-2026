@@ -17,15 +17,20 @@
  }
  let newGrants=choices($('newPermissions'),['read']);
  function button(label,action,disabled=false){const b=document.createElement('button');b.type='button';b.className='nsk-action nsk-action--neutral';b.textContent=label;b.disabled=disabled;b.onclick=async()=>{b.disabled=true;try{await action();}catch(error){message(error.message);}finally{b.disabled=disabled;}};return b;}
- async function linkAction(user,root,send){
+ const shareLinks=new Map();
+ async function linkAction(user,root,send,share=false){
   const path='/api/auth/users/'+user.id+(send?'/send-link':user.setup_required?'/setup-token':'/password-token');
-  const result=await api(path,'POST');
+  const cached=share&&shareLinks.get(user.id);
+  const result=cached&&cached.until>Date.now()?cached.result:await api(path,'POST');
+  if(!send)shareLinks.set(user.id,{result,until:Date.now()+result.expires_in_minutes*60000});
   root.replaceChildren();
   if(send){root.textContent='Länken har skickats till kontots e-postadress.';return;}
   const link=new URL('../aktivera/',location.href);link.hash=new URLSearchParams({token:result.token,purpose:result.purpose||'activate'}).toString();
   const note=document.createElement('p');note.textContent='Engångslänken gäller i '+result.expires_in_minutes+' minuter. Kontrollera mottagaren och dela länken enbart med den personen.';
   const copy=button('Kopiera '+(user.setup_required?'inbjudningslänk':'återställningslänk'),async()=>{try{await navigator.clipboard.writeText(link.href);message('Länken är kopierad.');}catch{message('Webbläsaren kunde inte kopiera. Tillåt urklipp och tryck Kopiera igen.');}});
-  root.append(note,copy);
+  const shareButton=button('Dela länk',async()=>{if(!navigator.share){message('Använd Kopiera länk och klistra in den i ett meddelande.');return;}try{await navigator.share({title:user.setup_required?'NSK – aktivera konto':'NSK – återställ lösenord',text:'Personlig länk för '+user.name,url:link.href});}catch(error){if(error.name!=='AbortError')message('Tryck Dela länk igen, eller välj Kopiera.');}});
+  root.append(note,...(navigator.share?[shareButton]:[]),copy);
+  if(share&&navigator.share){try{await navigator.share({title:'NSK – personlig kontolänk',url:link.href});}catch(error){if(error.name!=='AbortError')message('Länken är klar. Tryck Dela länk eller Kopiera nedan.');}}
  }
  function render(){
   const filter=$('userSearch').value.trim().toLocaleLowerCase('sv-SE');$('members').replaceChildren();
@@ -51,7 +56,9 @@
    if(!user.setup_required)accountActions.append(button(user.disabled?'Återaktivera konto':'Inaktivera konto',async()=>{if(!confirm((user.disabled?'Återaktivera ':'Inaktivera ')+user.name+'?'))return;await api('/api/auth/users/'+user.id+'/status','PATCH',{disabled:!user.disabled});await refresh();message('Kontostatus uppdaterad.');},locked||self||user.is_primary_admin));
    accountActions.append(button('Ändra namn och e-post',async()=>{const name=prompt('Namn',user.name);if(name===null)return;const email=prompt('E-postadress',user.email);if(email===null)return;await api('/api/auth/users/'+user.id,'PATCH',{name,email});if(self&&email.trim().toLowerCase()!==user.email){await window.Auth.logout();location.replace(new URL('../login/',location.href).href);return;}await refresh();message('Uppgifterna är uppdaterade. Ändrad e-post kräver ny inloggning.');},locked||user.is_primary_admin));
    const remove=button('Ta bort användare',async()=>{if(!confirm('Ta bort inloggningskontot för '+user.name+' ('+user.email+') permanent? Konto, behörigheter och lagkopplingar tas bort. Truppen och matchhistoriken påverkas inte. Detta kan inte ångras.'))return;await api('/api/auth/users/'+user.id,'DELETE');await refresh();message('Användarkontot är borttaget.');},locked||self||user.is_primary_admin);remove.className='nsk-action nsk-action--delete';accountActions.append(remove);
-   card.append(heading,info,state,roleLabel,roleInfo,actions,grantsBox,accountActions,linkStatus);$('members').append(card);
+   const details=document.createElement('details'),summary=document.createElement('summary'),identity=document.createElement('div');details.className='user-details';identity.className='user-identity';identity.append(heading,info,state);summary.append(identity);details.append(summary,roleLabel,roleInfo,actions,grantsBox,accountActions);
+   const share=button('↥',()=>linkAction(user,linkStatus,false,true),locked||(!user.setup_required&&user.disabled));share.classList.add('user-share');share.setAttribute('aria-label','Dela '+(user.setup_required?'inbjudningslänk':'återställningslänk')+' för '+user.name);share.title=share.getAttribute('aria-label');share.innerHTML='<svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><path d="M12 16V3m-4 4 4-4 4 4M6 10H4v11h16V10h-2"/></svg>';
+   card.append(details,share,linkStatus);$('members').append(card);
   }
   if(!$('members').children.length)$('members').textContent='Inga användare hittades.';
  }
