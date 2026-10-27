@@ -57,6 +57,12 @@
   const restoreLabel=el('label','Öppna tidigare sparad QR-lista'),restoreFile=el('input');
   restoreFile.type='file';restoreFile.accept='.json,application/json';restoreLabel.append(restoreFile);
   files.append(saveFile,restoreLabel,el('p','QR-länkar lagras inte i klartext på servern. Spara filen säkert för att visa samma QR-koder vid nästa besök.'));root.append(files);
+  async function checkLink(record){
+   const u=new URL(record.url),key=u.hash.slice('#nyckel='.length);
+   if(!/^[a-f0-9]{64}$/.test(key))return false;
+   try{const response=await fetch(base()+'/api/sharpening/public',{headers:{Authorization:'Sharpening '+key},cache:'no-store'});return response.ok;}
+   catch{return false;}
+  }
   const getRecord=id=>records.find(r=>String(r.personId)===String(id));
   function qrImage(url,size=112){if(!window.qrcode)return el('span','QR-bibliotek saknas');const qr=qrcode(0,'M');qr.addData(url);qr.make();const img=el('img');img.src=qr.createDataURL(5,4);img.alt='Aktuell QR-kod';img.width=size;img.height=size;img.style.cssText='background:white;padding:6px;border-radius:8px;max-width:100%;height:auto';return img;}
   function render(){
@@ -107,7 +113,8 @@
    const data=JSON.parse(await file.text());if(!valid())throw Error('Inloggningen har ändrats.');
    if(data.format!=='nsk-qr-list'||data.version!==1||String(data.team)!==String(team)||!Array.isArray(data.records)||!data.records.length||data.records.length>500)throw Error('Fel QR-lista eller lag.');
    for(const r of data.records){const u=new URL(r.url);if(typeof r.name!=='string'||r.name.length>150||!people.some(p=>String(p.id)===String(r.personId))||!['https://nsk18.pages.dev/slipning/','https://zprcsv92cy-cmyk.github.io/NSK-2026/slipning/'].includes(u.origin+u.pathname)||u.search||u.username||u.password||!/^#nyckel=[a-f0-9]{64}$/.test(u.hash))throw Error('QR-filen innehåller ogiltiga uppgifter.');}
-   records=data.records.map(r=>({name:r.name,url:r.url,personId:String(r.personId)}));status('QR-listan är öppnad. Observera att äldre koder kan ha förnyats efter att filen sparades.');render();
+   const verified=[];for(const r of data.records){if(!valid())throw Error('Inloggningen har ändrats.');if(await checkLink(r))verified.push({name:r.name,url:r.url,personId:String(r.personId)});}
+   records=verified;status(verified.length+' giltiga QR-koder hämtades från filen.'+(verified.length!==data.records.length?' '+(data.records.length-verified.length)+' gamla eller otillgängliga länkar utelämnades.':'')+' Kontrollera att rätt person får varje länk.');render();
   }catch(error){status(error.message);}finally{restoreFile.value='';}};
   $('qrNameSearch').oninput=render;$('qrPrintAgain').onclick=print;
   $('qrCreateList').textContent='Skriv ut aktuell QR-lista';$('qrCreateList').onclick=print;
