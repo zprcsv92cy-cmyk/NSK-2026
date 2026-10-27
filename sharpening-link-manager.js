@@ -12,9 +12,9 @@
   preview.opener=null;preview.focus();return preview;
  }
  function bulk(root,{team,people}){
-  let disposed=false,busy=false,metaBusy=false,listRecords=[],lastMeta=0;
-  const token=Auth.getToken(),activeTeam=Auth.activeTeam(),states=new Map(),records=new Map(),loading=new Set(),chosen=new Set();
-  const valid=()=>!disposed&&allowed()&&Auth.getToken()===token&&Auth.activeTeam()===activeTeam;
+  let disposed=false,busy=false,metaBusy=false,authorized=true,listRecords=[],lastMeta=0;
+  const token=Auth.getToken(),activeTeam=Auth.activeTeam(),states=new Map(),records=new Map(),loading=new Set(),revealed=new Set(),chosen=new Set();
+  const valid=()=>!disposed&&authorized&&allowed()&&Auth.getToken()===token&&Auth.activeTeam()===activeTeam;
   root.replaceChildren();
   const title=el('h2','Spelarnas QR-kort'),label=el('label','Sök namn'),search=el('input');search.type='search';search.id='qrNameSearch';search.placeholder='Sök namn';label.append(search);
   const toolbar=el('div');toolbar.className='equipment-qr-toolbar';
@@ -37,6 +37,7 @@
    const url=base()+'/api/sharpening/link?team_id='+encodeURIComponent(team)+(personId?'&person_id='+encodeURIComponent(personId):'');
    const response=await fetch(url,{method:payload?'PUT':'GET',headers:{Authorization:'Bearer '+token,...(payload?{'Content-Type':'application/json'}:{})},...(payload?{body:JSON.stringify(payload)}:{}),credentials:'omit',cache:'no-store',signal:AbortSignal.timeout(15000)});
    const data=await response.json().catch(()=>({}));if(!valid())throw Error('Inloggningen har ändrats. Ladda om sidan.');
+   if(response.status===401||response.status===403){authorized=false;records.clear();states.clear();invalidateList();cards.replaceChildren();create.disabled=print.disabled=selectAll.disabled=true;}
    if(!response.ok||!data.ok)throw Object.assign(Error(data.error||'QR-uppgifterna kunde inte hämtas ('+response.status+').'),{status:response.status});return data;
   }
   async function loadOne(p){const data=await request(String(p.id));accept(p,data);return data;}
@@ -47,10 +48,10 @@
    catch(error){status(error.message);}finally{metaBusy=false;controls();}
   }
   async function reveal(p){
-   const id=String(p.id);if(loading.has(id)||records.has(id)||!valid())return;loading.add(id);render();
-   try{await loadOne(p);}catch(error){status(p.full_name+': '+error.message);}finally{loading.delete(id);if(valid())render();}
+   const id=String(p.id);if(loading.has(id)||!valid())return;revealed.add(id);loading.add(id);render();
+   try{await loadOne(p);}catch(error){records.delete(id);invalidateList();status(p.full_name+': '+error.message);}finally{loading.delete(id);if(valid())render();}
   }
-  function controls(){create.disabled=busy||metaBusy;selectAll.disabled=busy;print.disabled=busy||!listRecords.length;selectAll.textContent=chosen.size===people.length?'Avmarkera alla':'Markera alla';}
+  function controls(){create.disabled=busy||metaBusy||!valid();selectAll.disabled=busy||!valid();print.disabled=busy||!valid()||!listRecords.length;selectAll.textContent=chosen.size===people.length?'Avmarkera alla':'Markera alla';}
   function qrImage(url,size=112){
    if(!window.qrcode)throw Error('QR-biblioteket kunde inte laddas. Ladda om sidan.');
    const qr=qrcode(0,'M');qr.addData(url);qr.make();const img=el('img');img.src=qr.createDataURL(5,4);img.alt='Personlig QR-kod till slipningssidan';img.width=size;img.height=size;return img;
@@ -82,13 +83,14 @@
     if(record){try{preview.append(qrImage(record.url));}catch(error){preview.append(el('p',error.message));}}
     else preview.append(el('p',loading.has(id)?'Hämtar QR…':!state?'Hämtar status…':state.mode==='off'?'Aktivera en personlig QR-kod.':'En äldre aktiv länk kan importeras från sparad QR-lista eller förnyas en gång.'));
     const actions=el('div');actions.className='equipment-qr-actions';
-    const renew=el('button',state?.mode==='off'?'Skapa QR':'Förnya QR');renew.type='button';renew.className='nsk-action nsk-action--save';renew.disabled=busy||!state;renew.onclick=()=>void mutate(p,state.mode==='off'?'parent':state.mode,'renew');actions.append(renew);
-    if(record){const shareButton=el('button','Dela länk');shareButton.type='button';shareButton.disabled=busy;shareButton.onclick=()=>void share(p,record,body);const visit=el('a','Öppna slipningssidan');visit.href=record.url;visit.target='_blank';visit.rel='noopener noreferrer';actions.append(shareButton,visit);}
+    if(!record&&state?.recoverable&&!loading.has(id)){const retry=el('button','Läs om QR');retry.type='button';retry.disabled=busy;retry.onclick=()=>{revealed.delete(id);void reveal(p);};actions.append(retry);}
+    const renew=el('button',state?.mode==='off'?'Skapa QR':'Förnya QR');renew.type='button';renew.className='nsk-action nsk-action--save';renew.disabled=busy||!state||loading.has(id);renew.onclick=()=>void mutate(p,state.mode==='off'?'parent':state.mode,'renew');actions.append(renew);
+    if(record){const shareButton=el('button','Dela länk');shareButton.type='button';shareButton.disabled=busy||loading.has(id);shareButton.onclick=()=>void share(p,record,body);const visit=el('a','Öppna slipningssidan');visit.href=record.url;visit.target='_blank';visit.rel='noopener noreferrer';actions.append(shareButton,visit);}
     const grid=el('div');grid.className='equipment-qr-grid';grid.append(preview,actions);body.append(grid);
     const manage=el('details');manage.className='equipment-qr-manage';manage.append(el('summary','Ändra ansvar'));
     const modeLabel=el('label','Ansvarig'),mode=el('select');for(const [value,label] of [['parent','Förälder'],['player','Spelare'],['off','Avstängt']])mode.append(new Option(label,value));mode.value=state?.mode||'off';mode.disabled=busy||!state;modeLabel.append(mode);
     const save=el('button','Spara ansvar');save.type='button';save.disabled=busy||!state;save.onclick=()=>void mutate(p,mode.value,'mode');manage.append(modeLabel,save);body.append(manage);card.append(body);
-    card.addEventListener('toggle',event=>{if(event.target===card&&card.open&&!records.has(id))void reveal(p);});cards.append(card);
+    card.addEventListener('toggle',event=>{if(event.target!==card)return;if(card.open&&!revealed.has(id))void reveal(p);else if(!card.open)revealed.delete(id);});cards.append(card);
    }
    if(!shown)cards.append(el('p','Inga spelare matchar namnet.'));controls();
   }
