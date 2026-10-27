@@ -25,7 +25,7 @@ jobs:
       - name: Verify production entrypoint syntax
         run: node --experimental-default-type=module --check worker/production-entry.js
       - name: Verify account management, activation and password recovery
-        run: node --test scripts/account-management.test.mjs scripts/account-access-client.test.mjs
+        run: node --test scripts/account-management.test.mjs scripts/account-access-client.test.mjs scripts/navigation-preferences.test.mjs
       - name: Run authorization tests
         run: node --experimental-default-type=module --test worker/team-authorization-policy.test.mjs worker/production-roster-route-guard.test.mjs worker/production-roster-team-resolver.test.mjs worker/production-roster-integration.test.mjs worker/production-lagpersonal-auth-guard.test.mjs
       - name: Build production Worker without deploying

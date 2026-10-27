@@ -20,9 +20,10 @@
  const nativeFetch=window.fetch;
  window.fetch=async function(input,options){
   const method=String(options?.method||(input instanceof Request?input.method:'GET')).toUpperCase(),write=!['GET','HEAD','OPTIONS'].includes(method);
-  if(write)host.writing(window,1);else host.reading?.(window,1);
-  try{const response=await nativeFetch.call(this,input,options);if(write&&response.ok)host.changed(window);return response;}
-  finally{if(write)host.writing(window,-1);else host.reading?.(window,-1);}
+  const personalMenu=String(input instanceof Request?input.url:input).split('?')[0]===String(window.APP_CONFIG?.AUTH_URL||'').replace(/\/$/,'')+'/api/auth/navigation';
+  if(write)host.writing(window,1);else if(!personalMenu)host.reading?.(window,1);
+  try{const response=await nativeFetch.call(this,input,options);if(write&&response.ok&&!personalMenu)host.changed(window);return response;}
+  finally{if(write)host.writing(window,-1);else if(!personalMenu)host.reading?.(window,-1);}
  };
  let ready=false,observer;
  const visible=()=>{if(!ready&&document.readyState!=='loading'&&document.documentElement.style.visibility!=='hidden'){ready=true;host.ready(window);}};
