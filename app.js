@@ -33,7 +33,7 @@ function showNskVersion() {
   label.id = "nsk-current-version";
   label.className = "nsk-current-version";
   label.textContent = "NSK-2026 · version " + nskDisplayVersion();
-  document.querySelector(".home-hero")?.appendChild(label);
+  document.querySelector(".wrap")?.appendChild(label);
 }
 
 function showNskUpdate(version, appVersion) {
