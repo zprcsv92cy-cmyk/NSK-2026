@@ -110,13 +110,12 @@
     for(const [kind,title] of [['player','Spelare'],['coach','Tränare']]){const group=element('optgroup');group.label=title;people.filter(p=>p.kind===kind).forEach(p=>group.append(new Option(p.full_name,kind+':'+p.id)));select.append(group);}
    }
    if(Auth.getToken()!==expectedToken||Auth.activeTeam()!==expectedTeam)return;
-   linksReady=!!saved.canWrite&&!!window.SharpeningLinks?.allowed();const linkSelect=$('sharpeningLinkPerson');linkSelect.replaceChildren(new Option('Välj spelare',''));if(linksReady)for(const p of people.filter(p=>p.kind==='player'))linkSelect.append(new Option(p.full_name,String(p.id)));
-   $('equipmentTabLinks').hidden=!linksReady;if(linksReady)SharpeningLinks.bulk($('equipmentQrBulk'),{team,people:people.filter(p=>p.kind==='player')});
+   linksReady=!!saved.canWrite&&!!window.SharpeningLinks?.allowed();$('equipmentTabLinks').hidden=!linksReady;if(linksReady)linkCleanup=SharpeningLinks.bulk($('equipmentQrBulk'),{team,people:people.filter(p=>p.kind==='player')});
    canWrite=saved.canWrite;void rememberBoard();render();status('Uppdaterat '+new Date().toLocaleTimeString('sv-SE',{hour:'2-digit',minute:'2-digit'})+(canWrite?'':' · Läsbehörighet'));
   }catch(error){canWrite=false;if(window.NSKViewCache?.denied(error)){denyBoard();}status(error.message);if(board)render();}
   finally{busy=false;lock();}
  }
- $('sharpeningLinkPerson').onchange=()=>{linkCleanup?.();linkCleanup=null;const id=$('sharpeningLinkPerson').value;if(linksReady&&people.some(p=>p.kind==='player'&&String(p.id)===id))linkCleanup=SharpeningLinks.mount($('equipmentLinkManager'),{team,personId:id});};
+
  for(const button of document.querySelectorAll('[data-pane]'))button.onclick=()=>{activePane=button.dataset.pane;for(const [key,id] of [['slips','equipmentPaneSlips'],['lists','equipmentPaneLists'],['links','equipmentPaneLinks']])$(id).hidden=key!==activePane;for(const tab of document.querySelectorAll('[data-pane]'))tab.setAttribute('aria-selected',String(tab===button));};
  $('equipmentNameSearch').oninput=$('equipmentStatusFilter').onchange=()=>{pageLimit=10;selectedRequests.clear();if(board)render();};$('equipmentShowMore').onclick=()=>{pageLimit+=10;render();};$('equipmentCompleteSelected').onclick=()=>void change(b=>{for(const r of b.requests)if(selectedRequests.has(r.id))r.done=true;selectedRequests.clear();});
  let selectionVersion=0;
