@@ -18,7 +18,7 @@
  html[data-nsk-theme="arena"] body .arena-brand {
   position:relative;min-height:126px;padding:18px 24px;margin-bottom:0;
   gap:16px;border:0;border-bottom:1px solid #8d253c;border-radius:0;
-  background:linear-gradient(90deg,#040b13b8,#040b1338),url('login/arena.jpg') center 73%/cover;
+  background:linear-gradient(90deg,#040b13b8,#040b1338),url('login/arena.jpg') center 46%/cover;
   box-shadow:0 8px 28px #0005;
  }
  html[data-nsk-theme="arena"] .arena-brand img {width:76px;height:76px;filter:drop-shadow(0 4px 8px #0008)}
@@ -142,11 +142,16 @@
  html[data-nsk-theme="arena"] .person-card-actions {margin-top:16px;gap:9px}
  html[data-nsk-theme="arena"] .person-card-actions button {min-height:48px}
  html[data-nsk-theme="arena"] .person-card-actions label {font-size:.8rem;color:#b7c7d7}
- html[data-nsk-theme="arena"] .person-card-hint {display:none}
+ html[data-nsk-theme="arena"] .person-card-hint,html[data-nsk-theme="arena"] #personCardDismiss {display:none}
+ html[data-nsk-theme="arena"] .person-card-profile-info {margin-top:8px;border:0;background:none;padding:0}
+ html[data-nsk-theme="arena"] .person-card-profile-info>summary {font-size:.75rem;color:#b9cbdc;cursor:pointer;min-height:28px;padding:5px 0}
+ html[data-nsk-theme="arena"] .roster-page .home-hero {padding-right:155px;margin-bottom:12px}
+ html[data-nsk-theme="arena"] .roster-page .roster-print-row {margin:-48px 0 12px;min-height:36px}
+
  html[data-nsk-theme="arena"] body.login-page {display:grid;place-items:center;min-height:100dvh;height:auto;overflow-y:auto;padding:22px 16px;background:var(--arena-bg)}
- html[data-nsk-theme="arena"] .login-page::before {background:linear-gradient(#06101bd6,#06101bf0),url('login/arena.jpg') center 72%/cover}
+ html[data-nsk-theme="arena"] .login-page::before {background:linear-gradient(#06101bd6,#06101bf0),url('login/arena.jpg') center 46%/cover}
  html[data-nsk-theme="arena"] .login-shell {display:block;max-width:510px;width:100%;max-height:none;margin:auto}
- html[data-nsk-theme="arena"] .login-brand {display:flex;align-items:center;gap:17px;margin:0;padding:22px;border:1px solid #34495c;border-bottom:2px solid #b11226;border-radius:16px 16px 0 0;min-height:154px;background:linear-gradient(90deg,#07101b99,#07101b38),url('login/arena.jpg') center 72%/cover;text-align:left}
+ html[data-nsk-theme="arena"] .login-brand {display:flex;align-items:center;gap:17px;margin:0;padding:22px;border:1px solid #34495c;border-bottom:2px solid #b11226;border-radius:16px 16px 0 0;min-height:154px;background:linear-gradient(90deg,#07101b99,#07101b38),url('login/arena.jpg') center 46%/cover;text-align:left}
  html[data-nsk-theme="arena"] .login-brand img {width:92px;height:92px;margin:0;filter:drop-shadow(0 5px 9px #0007)}
  html[data-nsk-theme="arena"] .login-club {font-family:inherit;font-style:normal;letter-spacing:.5px;font-size:42px;line-height:1;margin:0;font-weight:900}
  html[data-nsk-theme="arena"] .login-team {font-family:inherit;font-style:normal;font-size:21px;letter-spacing:1px;margin-top:5px;line-height:1.1;color:#ff3857;text-shadow:0 2px 8px #0009}
@@ -157,7 +162,7 @@
  html[data-nsk-theme="arena"] .login-card input {min-height:46px;padding:12px}
  html[data-nsk-theme="arena"] .login-card #submitButton {min-height:48px;background:linear-gradient(#d81c3b,#a60f29);border:1px solid #ed3854;box-shadow:inset 0 1px 0 #ffffff12,0 3px 9px #0003}
  html[data-nsk-theme="arena"] .login-card #forgotOpen {background:transparent;border:0;box-shadow:none;color:#b9c9da}
- html[data-nsk-theme="arena"] .public-brand {display:flex;align-items:center;gap:14px;padding:20px;margin:0 0 20px;border-bottom:2px solid #b11226;border-radius:12px;background:linear-gradient(90deg,#07101ba8,#07101b44),url('login/arena.jpg') center 73%/cover;min-height:110px;color:#fff}
+ html[data-nsk-theme="arena"] .public-brand {display:flex;align-items:center;gap:14px;padding:20px;margin:0 0 20px;border-bottom:2px solid #b11226;border-radius:12px;background:linear-gradient(90deg,#07101ba8,#07101b44),url('login/arena.jpg') center 46%/cover;min-height:110px;color:#fff}
  html[data-nsk-theme="arena"] .public-brand img {width:62px;height:62px;object-fit:contain}
  html[data-nsk-theme="arena"] .public-brand strong {display:block;font-size:22px;font-weight:850;letter-spacing:.5px}
  html[data-nsk-theme="arena"] .public-brand small {display:block;margin-top:5px;font-size:11px;color:#d5deea}

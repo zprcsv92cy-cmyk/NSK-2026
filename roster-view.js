@@ -21,7 +21,7 @@
   tabs.addEventListener('keydown',event=>{let next;if(event.key==='ArrowRight')next=(selected+1)%groups.length;else if(event.key==='ArrowLeft')next=(selected+groups.length-1)%groups.length;else if(event.key==='Home')next=0;else if(event.key==='End')next=groups.length-1;else return;event.preventDefault();select(next);groups[next].button.focus();});
   for(const [panel,label] of [[playerPanel,'spelare'],[coachPanel,'tränare']]){
    const row=panel.querySelector('.roster-add-row');if(!row)continue;
-   const details=document.createElement('details');details.className='roster-add no-print';const summary=document.createElement('summary');summary.textContent='＋ Lägg till '+label;row.before(details);details.append(summary,row);
+   const details=document.createElement('details');details.className='roster-add no-print';const summary=document.createElement('summary');summary.textContent='＋ Lägg till '+label;row.before(details);details.append(summary,row);panel.append(details);
   }
   const setText=(node,value)=>{if(node&&node.textContent!==value)node.textContent=value;};
   function refresh(){
@@ -36,7 +36,7 @@
      if(button){const [kind,id]=button.dataset.rosterName.split(':');const card=window.PersonCards?.summary?.(button.dataset.rosterTeam,kind,id);if(card){setText(button.querySelector('.roster-meta'),[card.position,card.hand].filter(Boolean).join(' · ')||(kind==='player'?'Spelarkort':'Tränarkort'));setText(button.querySelector('.roster-shirt-number'),kind==='player'?card.number||'':'');}}
     }
    }
-   message.hidden=!term;setText(message,term?(matches?matches+' träffar':'Inga namn matchar sökningen.'):'');
+   message.hidden=!term;setText(message,term?(matches?matches+(matches===1?' träff':' träffar'):'Inga namn matchar sökningen.'):'');
   }
   let queued=false;const schedule=()=>{if(queued)return;queued=true;queueMicrotask(()=>{queued=false;refresh();});};
   const observer=new MutationObserver(schedule);for(const list of [players,coaches,...staff])observer.observe(list,{childList:true,subtree:true});
