@@ -1260,6 +1260,8 @@ window.NSK2App = (() => {
   }
 
   let lineupPendingSnapshot=null,lineupSaveFailed=false,lineupIncomplete=false;
+  const lineupBases=new Map();
+  const lineupBaseKey=(pool,lag,match)=>[pool,lag,match].join(":");
   function queueAutoSaveLineup() {
     clearTimeout(window.__nskLineupSaveTimer);
     lineupPendingSnapshot=captureLineupSnapshot();
@@ -1615,28 +1617,7 @@ window.NSK2App = (() => {
     if (title) title.textContent = `Lag ${lagNo} • Match ${matchNo}`;
 
     const fromCreate = sessionStorage.getItem("nsk2_lineup_from_create") === "1";
-    if (fromCreate) {
-      sessionStorage.removeItem("nsk2_lineup_from_create");
-
-      if (byId("lineupStartTime")) byId("lineupStartTime").value = "";
-      if (byId("lineupOpponent")) byId("lineupOpponent").value = "";
-      if (byId("lineupPlan")) byId("lineupPlan").value = "Plan 1";
-      if (byId("lineupGoalie")) byId("lineupGoalie").value = "";
-
-      const coachSelect = byId("lineupCoach");
-      if (coachSelect) {
-        Array.from(coachSelect.options).forEach((opt) => { opt.selected = false; });
-      }
-
-      for (let i = 1; i <= 25; i++) {
-        const el = byId(`lineupPlayer${i}`);
-        if (el) el.value = "";
-      }
-
-      updateCoachEnabledState();
-      syncSelectedPlayersAcrossLineup();
-      return;
-    }
+    if(fromCreate)sessionStorage.removeItem('nsk2_lineup_from_create');
 
     if (!poolId) return;
 
@@ -1693,6 +1674,8 @@ window.NSK2App = (() => {
         }
         lineup = [...byPosition.values()];
       }
+
+      if(DB.lineupBase)lineupBases.set(lineupBaseKey(poolId,lagNo,matchNo),await DB.lineupBase(rowCurrent,lineup));
 
       // A saved lineup is valid only if all requested positions have distinct IDs.
       // Old failed writes can leave 7 identical entries (or only one entry).
@@ -1981,6 +1964,7 @@ window.NSK2App = (() => {
 
   async function saveLaguppstallningMatchConfigInternal(silent = false, snapshot) {
     const {poolId, lagNo, matchNo, goalie, playerCount} = snapshot;
+    const baseKey=lineupBaseKey(poolId,lagNo,matchNo),expected=lineupBases.get(baseKey);
     const stillSelected = () =>
       sessionStorage.getItem("nsk2_pool_id") === poolId &&
       (sessionStorage.getItem("nsk2_lag_nr") || "1") === lagNo &&
@@ -1997,7 +1981,7 @@ window.NSK2App = (() => {
     }
     if (!emptyDraft && (!goalie||selectedPlayers.length !== playerCount)) {
       lineupIncomplete=true;
-      try{await DB.saveMatchInfo({pool_id:Number(poolId),lag_no:Number(lagNo),match_no:Number(matchNo),start_time:snapshot.startTime,opponent:snapshot.opponent,plan:snapshot.plan});message('appError','');}catch(error){lineupSaveFailed=true;message('appError',error.message);}
+      try{const saved=await DB.saveMatchInfo({pool_id:Number(poolId),lag_no:Number(lagNo),match_no:Number(matchNo),start_time:snapshot.startTime,opponent:snapshot.opponent,plan:snapshot.plan,base:expected});if(saved?.base)lineupBases.set(baseKey,saved.base);message('appError','');}catch(error){lineupSaveFailed=true;message('appError',error.message);}
       message("lineupMsg", "Matchinfo sparas separat. Fyll alla spelarplatser innan du går vidare."); return;
     }
     try {
@@ -2011,7 +1995,7 @@ window.NSK2App = (() => {
         const current=await DB.getPoolTeamMatchConfig(poolId,lagNo,matchNo),entries=current?.id?await DB.getLineup(current.id):[];
         const ids=entries.filter(r=>r.person_type==='player').sort((a,b)=>a.sort_order-b.sort_order).map(r=>String(r.person_id));
         if(String(current?.goalie_player_id)!==String(goalie)||JSON.stringify(ids)!==JSON.stringify(selectedPlayers))throw Error('Matchen har genomförda byten. Uppställningen är låst.');
-        await DB.saveMatchInfo({pool_id:Number(poolId),lag_no:Number(lagNo),match_no:Number(matchNo),start_time:snapshot.startTime,opponent:snapshot.opponent,plan:snapshot.plan});lineupSaveFailed=false;message('appError','');message('lineupMsg','Matchinfo sparad. Spelarna är låsta efter matchstart.');return;
+        const saved=await DB.saveMatchInfo({pool_id:Number(poolId),lag_no:Number(lagNo),match_no:Number(matchNo),start_time:snapshot.startTime,opponent:snapshot.opponent,plan:snapshot.plan,base:expected});if(saved?.base)lineupBases.set(baseKey,saved.base);lineupSaveFailed=false;message('appError','');message('lineupMsg','Matchinfo sparad. Spelarna är låsta efter matchstart.');return;
       }
       const matchConfig = {
         pool_id: Number(poolId), lag_no: Number(lagNo), match_no: Number(matchNo),
@@ -2019,7 +2003,7 @@ window.NSK2App = (() => {
         player_count: emptyDraft ? null : playerCount, goalie_player_id: emptyDraft ? null : Number(goalie),
         players_on_field: emptyDraft ? [] : [goalie, ...selectedPlayers].map(Number)
       };
-      if(DB.saveFullLineup)await DB.saveFullLineup(matchConfig,selectedPlayers.map(Number),coachIds.map(Number));
+      if(DB.saveFullLineup){const saved=await DB.saveFullLineup(matchConfig,selectedPlayers.map(Number),coachIds.map(Number),expected);if(saved?.base)lineupBases.set(baseKey,saved.base);}
       else{const matchRow=await DB.savePoolTeamMatchConfig(matchConfig);await DB.saveLineup(matchRow.id,selectedPlayers.map(Number),coachIds.map(Number));}
       if(!emptyDraft)await regenerateShiftSchemaFor(poolId,lagNo,matchNo);else if(played.length&&DB.deleteShiftSchema)await DB.deleteShiftSchema(poolId,lagNo,matchNo);
       lineupSaveFailed=false;
@@ -2033,7 +2017,7 @@ window.NSK2App = (() => {
           if(existing.some(x=>x.person_type==='player')||target?.goalie_player_id||shifts.some(x=>x.done))continue;
           const conflict=await validateUniquePlayersPerMatch(poolId,lagNo,String(n),goalie,selectedPlayers);if(conflict)throw Error('Match '+n+': '+conflict);
           const copyConfig={pool_id:Number(poolId),lag_no:Number(lagNo),match_no:n,start_time:target?.start_time||null,opponent:target?.opponent||'',plan:target?.plan||'Plan 1',player_count:playerCount,goalie_player_id:Number(goalie),players_on_field:[goalie,...selectedPlayers].map(Number)};
-          if(DB.saveFullLineup)await DB.saveFullLineup(copyConfig,selectedPlayers.map(Number),coachIds.map(Number));else{const copied=await DB.savePoolTeamMatchConfig(copyConfig);await DB.saveLineup(copied.id,selectedPlayers.map(Number),coachIds.map(Number));}
+          if(DB.saveFullLineup)await DB.saveFullLineup(copyConfig,selectedPlayers.map(Number),coachIds.map(Number),DB.lineupBase?await DB.lineupBase(target,existing):undefined);else{const copied=await DB.savePoolTeamMatchConfig(copyConfig);await DB.saveLineup(copied.id,selectedPlayers.map(Number),coachIds.map(Number));}
           await DB.saveCoachSelection(poolId,lagNo,String(n),coachIds.map(Number));
           await regenerateShiftSchemaFor(poolId,lagNo,String(n));
         }
@@ -2179,6 +2163,8 @@ window.NSK2App = (() => {
   let shiftUndo=null;
   let shiftRefreshBusy = false;
   let shiftViewGeneration = 0;
+  let shiftStructure=null,shiftBackgroundRefresh=false;
+  const shiftStructureOf=rows=>JSON.stringify(rows.map(r=>[r.id,r.shift_no,r.period_no,r.time_left,r.players_json]));
 
   async function toggleShiftDone(shiftNo) {
     const poolId = sessionStorage.getItem("nsk2_pool_id");
@@ -2223,9 +2209,12 @@ window.NSK2App = (() => {
           sessionStorage.getItem("nsk2_pool_id") !== poolId ||
           (sessionStorage.getItem("nsk2_lag_nr") || "1") !== lagNo ||
           (byId("shiftMatch")?.value || "1") !== matchNo) return;
-      setText('dataFreshness','Uppdaterat '+new Date().toLocaleTimeString('sv-SE',{timeZone:'Europe/Stockholm',hour:'2-digit',minute:'2-digit'}));
       const checks = [...document.querySelectorAll("#shiftTableWrap [data-shift-toggle]")];
-      if (checks.length !== rows.length) return; // Schemat ändrades; rör inte tabellen.
+      if(checks.length!==rows.length||shiftStructure!==null&&shiftStructureOf(rows)!==shiftStructure){
+        setText('dataFreshness','Hämtar uppdaterat bytesschema…');shiftBackgroundRefresh=true;
+        try{await renderShiftSchema();}finally{shiftBackgroundRefresh=false;}return;
+      }
+      setText('dataFreshness','Uppdaterat '+new Date().toLocaleTimeString('sv-SE',{timeZone:'Europe/Stockholm',hour:'2-digit',minute:'2-digit'}));
       for (const check of checks) {
         const n = Number(check.dataset.shiftToggle);
         if (Number.isSafeInteger(n) && n >= 1 && rows.some(r=>Number(r.shift_no)===n))
@@ -2315,7 +2304,7 @@ window.NSK2App = (() => {
     const matchLink=byId('openMatchView');if(matchLink){matchLink.setAttribute('aria-disabled','true');matchLink.onclick=event=>{event.preventDefault();setText('shiftMsg','Vänta tills matchens byten har laddats.');};}
     const wrap = byId('shiftTableWrap');
     wrap?.setAttribute('aria-busy','true');
-    if(wrap)wrap.innerHTML='<p role="status">Hämtar byten…</p>';
+    if(wrap&&!shiftBackgroundRefresh)wrap.innerHTML='<p role="status">Hämtar byten…</p>';
     setText('appError','');
     const materialLoad=DB.getPoolMaterial?DB.getPoolMaterial(poolId).then(data=>({data}),error=>({error})):Promise.resolve({data:{name:'—'}});
     let loaded;
@@ -2323,6 +2312,7 @@ window.NSK2App = (() => {
     catch(error){if(isCurrent()){wrap?.setAttribute('aria-busy','false');if(wrap)wrap.innerHTML='<p>Bytena kunde inte hämtas.</p><button type="button" id="retryShiftLoad">Försök igen</button>';byId('retryShiftLoad')?.addEventListener('click',()=>void renderShiftSchema());setText('appError',error.message==='Failed to fetch'?'Anslutningen till servern misslyckades. Försök igen.':error.message);}return;}
     if(!isCurrent())return;
     const [pool,configs,players,coaches,rows,coachNames]=loaded;
+    shiftStructure=shiftStructureOf(rows);
     const row=configs.find(r=>String(r.lag_no)===String(lagNo)&&String(r.match_no)===String(matchNo))||null;
     const outfield=(row?.players_on_field||[]).filter(id=>String(id)!==String(row?.goalie_player_id));
     const expected=new Set(outfield.map(String));
@@ -2621,13 +2611,15 @@ window.NSK2App = (() => {
         if (document.hidden || window.NSKShellActive===false || matchvySaving || matchvyRefreshing || !matchvyCache) return;
         matchvyRefreshing = true;
         try {
-          const [fresh, currentRow] = await Promise.all([
+          const [fresh, currentRow, freshPool] = await Promise.all([
             DB.listShiftSchema(poolId, lagNo, matchNo),
-            DB.getPoolTeamMatchConfig(poolId, lagNo, matchNo)
+            DB.getPoolTeamMatchConfig(poolId, lagNo, matchNo),
+            DB.getPool(poolId)
           ]);
           if (!matchvyCache || matchvySaving || matchvyCache.poolId !== poolId ||
               matchvyCache.lagNo !== lagNo || matchvyCache.matchNo !== matchNo) return;
           matchvyCache.rows = fresh;
+          matchvyCache.closed=freshPool?.active===false;
           if (currentRow) matchvyCache.row = currentRow;
           const pending = fresh.findIndex(r => !r.done);
           matchCurrentShiftIndex = pending === -1 ? Math.max(0, fresh.length - 1) : pending;

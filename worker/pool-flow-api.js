@@ -1,3 +1,4 @@
+import {lineupSnapshot} from '../concurrency-merge.mjs';
 // Additive boundary: retain existing authentication and write handlers for every delegated operation.
 export function withPoolFlow(original,{resolveTables,listTeams,verifyIdentity,authorize,fetcher=globalThis.fetch}){
  const links=v=>Array.isArray(v)?v.map(x=>Number(typeof x==='object'?x.id:x)):[];
@@ -115,15 +116,19 @@ export function withPoolFlow(original,{resolveTables,listTeams,verifyIdentity,au
     return reply(200,null,{revision,staff_ids:selected,options:options.map(p=>({id:p.id,name:p.name})),legacy_name:legacyName,coach_id:null,name:options.filter(p=>selected.includes(p.id)).map(p=>p.name).join(', ')||legacyName});
    }
    if(closed(pool)&&!path.endsWith('/aktiv'))return reply(409,'Poolspelet är avslutat. Återöppna det före ändring.');
+   if(env.NSK_MULTIUSER_ENABLED==='true'&&!special){
+    if(/^\/api\/(?:matchkonfiguration|laguppstallningar)\/[1-9][0-9]*$/.test(path))return reply(428,'Läs om appen. Laguppställningar sparas med versionskontroll.');
+    if(path==='/api/matchkonfiguration'&&req.method==='POST'&&(await rows('matchkonfiguration')).some(r=>links(r.Poolspel).includes(poolId)&&Number(r.Lagnummer)===Number(body.lag_no)&&Number(r.Matchnummer)===Number(body.match_no)))return reply(409,'Matchen finns redan. Läs om laguppställningen.');
+   }
    if(special){
-    const info=special[2]==='match-info',data=info?body:body.config;
+    const info=special[2]==='match-info',data=info?Object.fromEntries(Object.entries(body).filter(([k])=>k!=='base')):body.config;
     if(!info){if(!Array.isArray(body.players)||!Array.isArray(body.coaches)||body.players.length>25||body.coaches.length>20||[...body.players,...body.coaches].some(n=>!positive(n))||new Set(body.players).size!==body.players.length||new Set(body.coaches).size!==body.coaches.length)return reply(400,'Ogiltiga spelar- eller tränarval');
      const expected=data?.goalie_player_id?[data.goalie_player_id,...body.players]:[];if(JSON.stringify(data?.players_on_field)!==JSON.stringify(expected)||body.players.length&&data.player_count!==body.players.length||body.players.includes(data?.goalie_player_id))return reply(400,'Uppställningen och matchuppgifterna stämmer inte överens');}
 
     if(!data||Number(data.pool_id)!==poolId||!positive(Number(data.lag_no))||!positive(Number(data.match_no)))return reply(400,'Ogiltig match');
     const configs=(await rows('matchkonfiguration')).filter(r=>links(r.Poolspel).includes(poolId)&&Number(r.Lagnummer)===Number(data.lag_no)&&Number(r.Matchnummer)===Number(data.match_no));if(configs.length>1)return reply(409,'Dubbla matchposter finns. Inget sparades.');
     const old=configs[0];
-    const configData=info?{...data,player_count:old?.['Antal spelare']||null,goalie_player_id:links(old?.Målvakt)[0]||null,players_on_field:links(old?.['Spelare på plan'])}:data;
+    let configData=info?{...data,player_count:old?.['Antal spelare']||null,goalie_player_id:links(old?.Målvakt)[0]||null,players_on_field:links(old?.['Spelare på plan'])}:data;
     const internal=(pathname,method,payload)=>new Request(new URL(pathname,req.url),{method,headers:{Authorization:req.headers.get('Authorization'),'Content-Type':'application/json'},body:JSON.stringify(payload)});
     const lag=Number(data.lag_no),match=Number(data.match_no);
     const started=(await rows('bytesschema')).some(r=>links(r.Poolspel).includes(poolId)&&Number(r.Lagnummer)===lag&&Number(r.Matchnummer)===match&&r.Genomfört===true);
@@ -131,11 +136,26 @@ export function withPoolFlow(original,{resolveTables,listTeams,verifyIdentity,au
     if(!info){const permission=authorize(actor,teams[0].Namn,'lineup');if(!permission.allowed)return reply(permission.status||403,permission.reason);}
     const lease=crypto.randomUUID(),now=Date.now();
     await env.AUTH_DB.prepare('INSERT OR IGNORE INTO pool_flow_saves(pool_id,lag_no,match_no,status) VALUES(?,?,?,?)').bind(poolId,lag,match,'ready').run();
-    const lock=await env.AUTH_DB.prepare("UPDATE pool_flow_saves SET lease=?,lease_until=?,status=CASE WHEN ?='ready' THEN status ELSE 'pending' END WHERE pool_id=? AND lag_no=? AND match_no=? AND lease_until<? RETURNING *").bind(lease,now+300000,info?'ready':'pending',poolId,lag,match,now).first();if(!lock)return reply(409,'Matchen sparas redan. Försök igen.');
+    const lock=await env.AUTH_DB.prepare("UPDATE pool_flow_saves SET lease=?,lease_until=?,status=CASE WHEN ?='ready' THEN status ELSE 'pending' END WHERE pool_id=? AND lag_no=? AND match_no=? AND lease_until<? RETURNING *").bind(lease,now+300000,info||env.NSK_MULTIUSER_ENABLED==='true'?'ready':'pending',poolId,lag,match,now).first();if(!lock)return reply(409,'Matchen sparas redan. Försök igen.');
     try{
+     if(env.NSK_MULTIUSER_ENABLED==='true'){
+      if(!body.base)return reply(428,'Uppdatera appen och läs in laguppställningen innan du sparar.');
+      const currentConfigs=(await rows('matchkonfiguration')).filter(r=>links(r.Poolspel).includes(poolId)&&Number(r.Lagnummer)===lag&&Number(r.Matchnummer)===match);
+      if(currentConfigs.length>1)return reply(409,'Dubbla matchposter finns. Inget sparades.');
+      const current=currentConfigs[0]||null,entries=current?(await rows('laguppstallningar')).filter(r=>links(r.Matchkonfiguration).includes(Number(current.id))):[];
+      if(JSON.stringify(lineupSnapshot(current,entries))!==JSON.stringify(body.base))return reply(409,'Laguppställningen ändrades av en annan ledare. Dina val finns kvar. Läs om innan du sparar.');
+      if((current?.id||null)!==(old?.id||null))return reply(409,'Matchen har ändrats. Läs om innan du sparar.');
+      if(info)configData={...data,player_count:current?.['Antal spelare']||null,goalie_player_id:links(current?.Målvakt)[0]||null,players_on_field:links(current?.['Spelare på plan'])};
+     }
+     if(!info&&env.NSK_MULTIUSER_ENABLED==='true')await env.AUTH_DB.prepare('UPDATE pool_flow_saves SET status=? WHERE pool_id=? AND lease=?').bind('pending',poolId,lease).run();
      const saved=await original(internal('/api/matchkonfiguration'+(old?'/'+old.id:''),old?'PATCH':'POST',configData),env,ctx);if(!saved.ok)return saved;const result=await saved.clone().json();
      if(!info){const lineup=await original(internal('/api/laguppstallningar/'+result.row.id,'POST',{players:body.players,coaches:body.coaches}),env,ctx);if(!lineup.ok)return lineup;}
-     if(!info)await env.AUTH_DB.prepare('UPDATE pool_flow_saves SET status=? WHERE pool_id=? AND lag_no=? AND match_no=? AND lease=?').bind('ready',poolId,lag,match,lease).run();return saved;
+     if(!info)await env.AUTH_DB.prepare('UPDATE pool_flow_saves SET status=? WHERE pool_id=? AND lag_no=? AND match_no=? AND lease=?').bind('ready',poolId,lag,match,lease).run();
+     if(env.NSK_MULTIUSER_ENABLED==='true'){
+      const entries=info?(await rows('laguppstallningar')).filter(r=>links(r.Matchkonfiguration).includes(Number(result.row.id))):[...body.players.map((id,i)=>({person_type:'player',person_id:id,sort_order:i+1})),...body.coaches.map((id,i)=>({person_type:'coach',person_id:id,sort_order:body.players.length+i+1}))];
+      return new Response(JSON.stringify({...result,base:lineupSnapshot(result.row,entries)}),{status:saved.status,headers:saved.headers});
+     }
+     return saved;
     }finally{await env.AUTH_DB.prepare('UPDATE pool_flow_saves SET lease_until=0 WHERE pool_id=? AND lag_no=? AND match_no=? AND lease=?').bind(poolId,lag,match,lease).run();}
    }
    // Existing clients cannot change player membership after the first completed shift.

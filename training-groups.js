@@ -51,31 +51,64 @@
     shirtColorCount=[2,3,4].includes(Number(data.shirtColorCount))?Number(data.shirtColorCount):3;
     $('trainingShirtColorCount').value=String(shirtColorCount);
     revision=Number(data.revision)||0;
+    confirmedTraining=await SharedTraining.snapshotSession(data);
+    if($('trainingDate').value!==date)return false;
     loadedDate=$('trainingDate').value;
     $('trainingGoalieCount').value=String(goalieCount);
     return true;
   }
+  let confirmedTraining={selected:[],selectedCoaches:[],allocation:[],goalies:[],goalieCount:0,shirtColorCount:3,hall:''};
+  let recoveryStatus=0;
   let revision=0;
   let saveQueue=Promise.resolve();
   let saveBlocked=false;
   let saveGeneration=0;
   let loadedDate='';
   function persist(){
-    if(saveBlocked){$('trainingStatus').textContent='Sparning stoppad efter konflikt. Ladda om sidan innan du ändrar träningen igen.';return;}
+    if(saveBlocked){$('trainingStatus').textContent='Dina val finns kvar men är inte sparade. Använd knapparna nedan för att fortsätta.';return;}
     if($('trainingDate').value!==loadedDate){$('trainingStatus').textContent='Vänta tills träningen för valt datum har lästs in.';return;}
     const date=$('trainingDate').value;
     if(!date){$('trainingStatus').textContent='Välj en träning först.';return;}
     if(goalies.filter(Boolean).length!==goalieCount){$('trainingStatus').textContent='Välj namn för alla målvakter innan träningen sparas.';return;}
-    const snapshot={selected:[...selected],selectedCoaches:[...selectedCoaches,...[...selectedEquipment].map(id=>'equipment:'+id)],allocation:allocation.map(group=>[...group]),goalies:[...goalies],goalieCount,shirtColorCount,hall:trainingHall};
+    const snapshot=captureTraining(),base=structuredClone(confirmedTraining);
     const generation=++saveGeneration;
     $('trainingStatus').textContent='Sparar träningen…';
     saveQueue=saveQueue.then(async()=>{
       if(saveBlocked)return;
-      const saved=await SharedTraining.save(date,{...snapshot,revision});
-      revision=saved.revision;
+      const saved=await SharedTraining.save(date,{...snapshot,revision,base:{session:base}});
+      revision=saved.revision;confirmedTraining=saved.session||snapshot;
+      if(generation===saveGeneration&&loadedDate===date&&saved.session&&JSON.stringify(snapshot)!==JSON.stringify(saved.session))applyTraining(saved.session);
       $('trainingStatus').textContent='Sparat '+new Date().toLocaleTimeString('sv-SE',{timeZone:'Europe/Stockholm',hour:'2-digit',minute:'2-digit'});
       if(generation===saveGeneration)window.NSKShellHost?.clean?.(window);
-    }).catch(error=>{saveBlocked=true;$('trainingStatus').textContent='Kunde inte spara: '+error.message+' Ladda om sidan för att hämta den senaste träningen.';});
+    }).catch(error=>{saveBlocked=true;recoveryStatus=error.status||0;$('trainingStatus').textContent='Kunde inte spara. Dina val finns kvar. '+error.message;showRecovery();});
+  }
+  function captureTraining(){return {selected:[...selected],selectedCoaches:[...selectedCoaches,...[...selectedEquipment].map(id=>'equipment:'+id)],allocation:allocation.map(group=>[...group]),goalies:[...goalies],goalieCount,shirtColorCount,hall:trainingHall};}
+  function applyTraining(data){
+    selected=new Set(data.selected);selectedCoaches=new Set(data.selectedCoaches.filter(id=>!id.startsWith('equipment:')));selectedEquipment=new Set(data.selectedCoaches.filter(id=>id.startsWith('equipment:')).map(id=>id.slice(10)));
+    allocation=data.allocation;goalies=data.goalies;goalieCount=data.goalieCount;shirtColorCount=data.shirtColorCount;trainingHall=data.hall;
+    $('trainingGoalieCount').value=String(goalieCount);$('trainingShirtColorCount').value=String(shirtColorCount);$('trainingHall').value=trainingHall;
+    renderRoster();renderCoaches();renderEquipment();renderGoalieSelectors();renderGroups();
+  }
+  function showRecovery(){
+    let root=$('trainingSaveRecovery');if(!root){root=document.createElement('div');root.id='trainingSaveRecovery';root.className='training-actions';$('trainingStatus').after(root);}root.replaceChildren();root.hidden=false;
+    for(const [mode,label] of [['retry','Försök spara igen'],['latest','Läs senaste träningen'],...(recoveryStatus===409?[['mine','Behåll mina ändringar']]:[])]){
+      const button=document.createElement('button');button.type='button';button.textContent=label;root.append(button);
+      button.onclick=async()=>{
+        if(mode==='latest'&&!confirm('Läsa senaste träningen och lämna dina osparade ändringar?'))return;
+        if(mode==='mine'&&!confirm('Spara de uppgifter du själv ändrat även där en annan ledare ändrat samma uppgifter? Övriga ändringar behålls.'))return;
+        if(mode==='retry'){root.hidden=true;saveBlocked=false;persist();return;}
+        const date=loadedDate,controls=[...$('trainingAttendance').querySelectorAll('input,select,textarea,button')],disabled=controls.map(c=>c.disabled);controls.forEach(c=>c.disabled=true);
+        try{
+          const latest=await SharedTraining.get(date);
+          if(!latest.session&&revision>0)throw Error('Träningen har tagits bort. Dina osparade val finns kvar.');
+          const current=await SharedTraining.snapshotSession(latest.session);
+          if(mode==='latest'){applyTraining(current);confirmedTraining=current;revision=latest.revision;}
+          else{const draft=await SharedTraining.mergeDraft(confirmedTraining,captureTraining(),current);const saved=await SharedTraining.save(date,{...draft,revision:latest.revision,base:{session:current}});confirmedTraining=saved.session||draft;revision=saved.revision;applyTraining(confirmedTraining);}
+          saveBlocked=false;root.hidden=true;$('trainingStatus').textContent=mode==='latest'?'Senaste träningen är inläst.':'Dina ändringar är sparade.';window.NSKShellHost?.clean?.(window);
+        }catch(error){recoveryStatus=error.status||0;$('trainingStatus').textContent=error.message;}
+        finally{controls.forEach((c,i)=>{if(c.isConnected)c.disabled=disabled[i];});}
+      };
+    }
   }
   function renderRoster() {
     const root=$('trainingRoster');root.replaceChildren();
