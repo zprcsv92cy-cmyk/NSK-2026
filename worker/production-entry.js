@@ -1,9 +1,10 @@
+import {withPagesOrigin} from './pages-migration.js';
 import { handleTeamAuth } from './team-auth.js';
 import { handleActivation } from './account-activation.js';
 import {handleAccountRecovery} from './account-recovery.js';
 
 const allowed = new Map([['/api/auth/login','POST'],['/api/auth/logout','POST'],['/api/auth/me','GET'],['/api/auth/feature-access','GET'],['/api/auth/integration/access','GET'],['/api/auth/activate','POST'],['/api/auth/users','GET,POST'],['/api/auth/users/email-check','POST'],['/api/auth/team-members','GET,PUT,DELETE'],['/api/auth/account-options','GET'],['/api/auth/forgot-password','POST'],['/api/auth/reset-password','POST'],['/api/auth/change-password','POST']]);
-export default {
+const productionAuth = {
   async fetch(request, env) {
     const path = new URL(request.url).pathname;
     const userRecord = /^\/api\/auth\/users\/[a-f0-9-]{36}$/.test(path);
@@ -40,3 +41,5 @@ export default {
     return new Response(result.body, {status:result.status, headers:output});
   }
 };
+
+export default {fetch:withPagesOrigin(productionAuth.fetch)};
