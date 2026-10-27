@@ -1,3 +1,5 @@
+import {withConcurrentResources} from './concurrent-resources.js';
+import {withConcurrentStaff} from './concurrent-staff.js';
 import {withPagesOrigin} from './pages-migration.js';
 import {withSweHockey,syncSweHockey} from './swehockey-schedule.js';
 import {installShiftRetime} from './shift-retime.js';
@@ -1277,3 +1279,5 @@ export {
   worker_default as default
 };
 //# sourceMappingURL=worker.js.map
+
+worker_default.fetch=withPagesOrigin(withConcurrentStaff(withConcurrentResources(worker_default.fetch)));

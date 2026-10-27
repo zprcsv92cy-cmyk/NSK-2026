@@ -18,11 +18,11 @@
  }
  const summary=(team,kind,id)=>summaries.get(summaryKey(team,kind,id));
  const get=async(team,kind,id)=>remember(team,kind,id,await request(path(kind,id),team));
- const save=async(team,kind,id,card,revision)=>remember(team,kind,id,await request(path(kind,id),team,{card,revision}));
+ const save=async(team,kind,id,card,revision,baseCard)=>remember(team,kind,id,await request(path(kind,id),team,{card,revision,...(baseCard===undefined?{}:{base:{card:baseCard}})}));
  async function sharpening(team,kind,id,name,note='',pair='regular'){
   const board=await request('/api/equipment',team);
   const keys=pair==='both'?['regular','goalie']:[pair],needed=keys.filter(key=>!board.requests.some(r=>r.kind===kind&&r.personId===String(id)&&(r.pair||'regular')===key&&!r.done));if(!needed.length)throw Error('Det finns redan ett väntande slipönskemål.');
-  return request('/api/equipment',team,{revision:board.revision,requests:[...board.requests,...needed.map(key=>({id:crypto.randomUUID(),kind,personId:String(id),pair:key,name,note,done:false}))],checklists:board.checklists});
+  return request('/api/equipment',team,{base:{requests:board.requests,checklists:board.checklists},revision:board.revision,requests:[...board.requests,...needed.map(key=>({id:crypto.randomUUID(),kind,personId:String(id),pair:key,name,note,done:false}))],checklists:board.checklists});
  }
  window.PersonCards={get,save,sharpening,profileDescription,summary};
  if(!document.getElementById('playersList'))return;
@@ -112,7 +112,7 @@
   finally{pending=false;controls();}
  }
  form.onsubmit=event=>{event.preventDefault();void perform(async()=>{
-  status('Sparar kort…');const result=await save(current.team,current.kind,current.id,values(),current.revision);
+  status('Sparar kort…');const result=await save(current.team,current.kind,current.id,values(),current.revision,current.card);
   current.card=result.card;current.revision=result.revision;editing=false;fillForm();render();status('Kortet är sparat.');
  });};
  $('personCardSharpen').onclick=()=>void perform(async()=>{

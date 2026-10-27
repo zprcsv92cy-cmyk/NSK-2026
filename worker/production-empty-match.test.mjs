@@ -52,7 +52,7 @@ test('empty match survives create, reload and repeated save through app, adapter
   const start = app.indexOf('  async function saveLaguppstallningMatchConfigInternal(');
   const end = app.indexOf('  async function initLaguppstallningPage()', start);
   const messages = [];
-  Object.assign(context, { DB: window.DB, sessionStorage: { getItem: key => key === 'nsk2_pool_id' ? '3' : '1' },
+  Object.assign(context, { lineupBases:new Map(),lineupBaseKey:(...ids)=>ids.join(':'),DB: window.DB, sessionStorage: { getItem: key => key === 'nsk2_pool_id' ? '3' : '1' },
     byId: () => ({ value: '8' }), setText: (id, value) => messages.push([id, value]),
     validateUniquePlayersPerMatch: async () => '' });
   vm.runInContext(app.slice(start, end) + '\nthis.saveMatch = saveLaguppstallningMatchConfigInternal;', context);

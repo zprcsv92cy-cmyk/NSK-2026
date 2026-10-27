@@ -1,5 +1,7 @@
 // Shared training client: only confirmed attendance IDs, never image/OCR data.
 (() => {
+  const mergeRoot=typeof document!=='undefined'&&document.currentScript?.src?new URL('./',document.currentScript.src):null;
+  const concurrency=()=>import(new URL('concurrency-merge.mjs?v='+encodeURIComponent(window.NSK_VERSION||'1'),mergeRoot));
   const base=()=>String(window.APP_CONFIG?.API_URL||'https://nsk-api.peter-hasselberg.workers.dev').replace(/\/$/,'');
   let teamId;
   let cachedTeamName;
@@ -35,7 +37,7 @@
     if(payload!==undefined)headers['Content-Type']='application/json';
     const response=await fetch(url,{method:payload===undefined?'GET':'PUT',headers,body:payload===undefined?undefined:JSON.stringify(payload),cache:'no-store'});
     const data=await response.json().catch(()=>({}));
-    if(!response.ok)throw Error(response.status===409?'Träningen ändrades av en annan ledare. Ladda om sidan.':data.error||'Träningen kunde inte sparas.');
+    if(!response.ok)throw Object.assign(Error(response.status===409?data.error||'Träningen ändrades av en annan ledare. Dina val finns kvar.':data.error||'Träningen kunde inte sparas.'),{status:response.status});
     if(payload!==undefined){window.NSKViewCache?.clear();try{sessionStorage.removeItem('nsk_view_cache_v1');}catch{}}
     return data;
   }
@@ -113,6 +115,6 @@
     }));
     return halls.size===1?[...halls][0]:'';
   }
-  window.SharedTraining={listEquipment,upcomingDates,calendarTrainings,calendarHall,list:()=>request(),get:date=>request(date),save:(date,data)=>request(date,data),remove,
+  window.SharedTraining={snapshotSession:async data=>(await concurrency()).trainingSnapshot(data),mergeDraft:async(base,desired,current)=>(await concurrency()).mergeTraining(base,desired,current,true),listEquipment,upcomingDates,calendarTrainings,calendarHall,list:()=>request(),get:date=>request(date),save:(date,data)=>request(date,data),remove,
     listPlayers:()=>roster('spelare'),listCoaches:()=>roster('tranare')};
 })();

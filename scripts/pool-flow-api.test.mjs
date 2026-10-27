@@ -1,3 +1,4 @@
+import {lineupSnapshot} from '../concurrency-merge.mjs';
 import test from 'node:test';import assert from 'node:assert/strict';import fs from 'node:fs';
 import {fixture} from './helpers/auth-d1-fixture.mjs';import {withPoolFlow} from '../worker/pool-flow-api.js';
 async function setup(t){const f=await fixture(t);await f.db.prepare('CREATE TABLE pool_calendar_imports(pool_id INTEGER PRIMARY KEY)').run();for(const sql of fs.readFileSync(new URL('../migrations/20261026_pool_flow.sql',import.meta.url),'utf8').split(';').filter(s=>s.trim()))await f.db.prepare(sql).run();
@@ -29,4 +30,21 @@ test('changing only shift duration is allowed after checked shifts; other struct
  assert.equal((await x.request('/api/bytesschema/retime','POST',{pool_id:10,lag_no:1,match_no:1})).status,200);assert.deepEqual(received,{action:'save',retime:true,pool_id:10,lag_no:1,match_no:1});
  assert.equal((await x.request('/api/bytesschema/retime','POST',{pool_id:20,lag_no:1,match_no:1})).status,403);
  x.data.poolspel[0].Aktiv=false;assert.equal((await x.request('/api/bytesschema/retime','POST',{pool_id:10,lag_no:1,match_no:1})).status,409);
+});
+
+
+test('multiuser lineup rejects stale editors and missing bases without blocking the match or changing saved data',async t=>{
+ const x=await setup(t);x.env.NSK_MULTIUSER_ENABLED='true';
+ const base=lineupSnapshot(x.data.matchkonfiguration[0],x.data.laguppstallningar);
+ const body={config:{...x.config,opponent:'Updated by A'},players:[2],coaches:[],base};
+ const first=await x.request('/api/poolspel/10/lineup','POST',body);assert.equal(first.status,200);assert((await first.json()).base);
+ const second=await x.request('/api/poolspel/10/lineup','POST',{...body,config:{...x.config,start_time:'11:00'}});assert.equal(second.status,409);
+ assert.equal(x.data.matchkonfiguration[0].Motståndare,'Updated by A');
+ assert.equal((await x.f.db.prepare('SELECT status FROM pool_flow_saves WHERE pool_id=10').first()).status,'ready');
+ assert.equal((await x.request('/api/poolspel/10/lineup','POST',{config:x.config,players:[2],coaches:[]})).status,428);
+ const fresh=lineupSnapshot(x.data.matchkonfiguration[0],x.data.laguppstallningar);
+ assert.equal((await x.request('/api/poolspel/10/match-info','POST',{...x.config,start_time:'11:00',opponent:'Updated by A',base:fresh})).status,200);
+ assert.equal((await x.request('/api/poolspel/10/match-info','POST',{...x.config,base:fresh})).status,409);
+ assert.equal(x.data.matchkonfiguration[0].Starttid,'11:00');
+ assert.equal((await x.request('/api/matchkonfiguration/30','PATCH',x.config)).status,428);
 });

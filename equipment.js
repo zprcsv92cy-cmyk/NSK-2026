@@ -19,7 +19,7 @@
  async function change(update,{optimistic=false}={}){
   if(busy||!canWrite)return;const expectedToken=Auth.getToken(),expectedTeam=teamName;changeVersion++;busy=true;lock();status('Sparar…');
   const before=board;
-  try{const next=structuredClone(board);update(next);if(optimistic){board=next;render();}const result=await request(next);if(Auth.getToken()!==expectedToken||Auth.activeTeam()!==expectedTeam){canWrite=false;denyBoard();return false;}next.revision=result.revision;next.requests=result.requests;next.checklists=result.checklists;board=next;window.NSKViewCache?.clear();void rememberBoard();status('Sparat · '+new Date().toLocaleTimeString('sv-SE',{hour:'2-digit',minute:'2-digit'}));render();return true;}
+  try{const next=structuredClone(board);update(next);if(optimistic){board=next;render();}const result=await request({...next,base:{requests:before.requests,checklists:before.checklists}});if(Auth.getToken()!==expectedToken||Auth.activeTeam()!==expectedTeam){canWrite=false;denyBoard();return false;}next.revision=result.revision;next.requests=result.requests;next.checklists=result.checklists;board=next;window.NSKViewCache?.clear();void rememberBoard();status('Sparat · '+new Date().toLocaleTimeString('sv-SE',{hour:'2-digit',minute:'2-digit'}));render();return true;}
   catch(error){board=before;status(error.message+' Ändringen har inte bekräftats som sparad.');render();return false;}
   finally{busy=false;lock();}
  }
