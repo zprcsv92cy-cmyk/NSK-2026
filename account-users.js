@@ -33,8 +33,8 @@
   if(share&&navigator.share){try{await navigator.share({title:'NSK – personlig kontolänk',url:link.href});}catch(error){if(error.name!=='AbortError')message('Länken är klar. Tryck Dela länk eller Kopiera nedan.');}}
  }
  function render(){
-  const filter=$('userSearch').value.trim().toLocaleLowerCase('sv-SE');$('members').replaceChildren();
-  for(const user of users.filter(u=>(u.name+' '+u.email).toLocaleLowerCase('sv-SE').includes(filter))){
+  $('members').replaceChildren();
+  for(const user of users){
    const card=document.createElement('article');card.className='user-card';
    const heading=document.createElement('h3');heading.textContent=user.name+(user.is_primary_admin?' – Huvudadministratör':user.is_global_admin?' – Global administratör':'');
    const info=document.createElement('p');info.textContent=user.email;
@@ -67,10 +67,8 @@
   if(!actor?.permissions?.includes('users:manage')){$('userAdmin').hidden=true;throw Error('Du saknar behörighet att hantera användare.');}
   const [records,teams]=await Promise.all([api('/api/auth/users'),api('/api/auth/team-members')]);users=records.users;memberships=teams.memberships;emailDelivery=records.email_delivery===true;
   $('administratorBadge').textContent=actor.is_primary_admin?'Inloggad som huvudadministratör – alltid full åtkomst':'Inloggad med behörighet att hantera användare';
-  $('deliveryInfo').textContent=emailDelivery?'Inbjudan och återställningslänk kan skickas till användarens registrerade e-postadress.':'Automatiska e-postutskick är inte konfigurerade. Skapa en engångslänk och dela den säkert. Begäran från Glömt lösenord visas på användarens konto.';
   $('userAdmin').hidden=false;render();
  }
- $('userSearch').addEventListener('input',render);
  $('createUser').addEventListener('submit',async event=>{
   event.preventDefault();const submit=event.submitter||$('createUser').querySelector('button');submit.disabled=true;message('Skapar användare…');
   try{await api('/api/auth/users','POST',{name:$('newName').value.trim(),email:$('newEmail').value.trim(),team_id:$('newTeam').value,role:$('newRole').value,permissions:newGrants()});$('createUser').reset();newGrants=choices($('newPermissions'),['read']);await refresh();message('Kontot är skapat och väntar på aktivering. Skapa en inbjudningslänk på användarens konto nedan.');}

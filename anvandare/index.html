@@ -17,7 +17,7 @@
 <form id="createUser" class="user-form"><label>Namn<input id="newName" required maxlength="150" autocomplete="name"></label><label>E-postadress<input id="newEmail" type="email" required maxlength="254" autocomplete="email"></label>
 <label>Lag<select id="newTeam"><option>NSK Team 18</option></select></label><label>Lagroll<select id="newRole"><option value="viewer">Läsare</option><option value="coach">Tränare</option><option value="team_admin">Administratör</option><option value="team_manager">Lagledare</option><option value="fitness">Fysansvarig</option><option value="equipment">Materialförvaltare</option><option value="player">Spelare</option></select></label>
 <fieldset><legend>Personliga behörigheter</legend><div id="newPermissions" class="permission-list"></div></fieldset><button type="submit" class="nsk-action nsk-action--save">Skapa användare</button></form></details>
-<section class="card"><h2>Registrerade användare</h2><p id="deliveryInfo"></p><label>Sök namn eller e-post<input id="userSearch" type="search" autocomplete="off"></label><div id="members"></div></section>
+<section class="card"><h2>Användare</h2><div id="members"></div></section>
 </section></div>
 <script>for(const file of ['auth.js','navigation.js','account-users.js'])document.write('<script src="../'+file+'?v='+window.NSK_VERSION+'"><\/script>');</script>
 </body></html>
