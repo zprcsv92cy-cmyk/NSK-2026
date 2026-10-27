@@ -2416,19 +2416,16 @@ window.NSK2App = (() => {
   }
 
   async function getCoachNamesForLag(poolId, lagNo, matchNo = "1") {
-    const rows = await DB.listPoolTeamMatchConfigs(poolId);
-    const coaches = await getCoachesCached();
+    const [coaches, selection] = await Promise.all([
+      getCoachesCached(),
+      typeof DB.getCoachSelection==='function'?DB.getCoachSelection(poolId,lagNo,matchNo):Promise.resolve(null)
+    ]);
     const coachMap = {};
-    coaches.forEach((c) => { coachMap[String(c.id)] = c.full_name; });
-
-    const firstRow =
-      rows.find((r) => String(r.lag_no) === String(lagNo) && String(r.match_no) === String(matchNo)) ||
-      rows.find((r) => String(r.lag_no) === String(lagNo));
-
-    if(typeof DB.getCoachSelection==='function'){
-      const selection=await DB.getCoachSelection(poolId,lagNo,matchNo);
-      if(selection.saved)return selection.coach_ids.map(id=>coachMap[String(id)]||'').filter(Boolean).join(', ')||'—';
-    }
+    coaches.forEach(c=>{coachMap[String(c.id)]=c.full_name;});
+    if(selection?.saved)return selection.coach_ids.map(id=>coachMap[String(id)]||'').filter(Boolean).join(', ')||'—';
+    const rows = await DB.listPoolTeamMatchConfigs(poolId);
+    const firstRow = rows.find(r=>String(r.lag_no)===String(lagNo)&&String(r.match_no)===String(matchNo)) ||
+      rows.find(r=>String(r.lag_no)===String(lagNo));
     if(!firstRow?.id)return "—";
     const lineup = await DB.getLineup(firstRow.id);
     const names = lineup
@@ -2451,13 +2448,14 @@ window.NSK2App = (() => {
     }
 
     try {
+      const coachLoad=getCoachesCached();coachLoad.catch(()=>{});
       const pool = await DB.getPool(poolId);
       const teams = safeInt(pool?.teams || "2", 2);
 
       box.innerHTML = "";
 
       for (let lagNo = 1; lagNo <= teams; lagNo++) {
-        const coachNames = await getCoachNamesForLag(poolId, lagNo);
+
 
         const btn = document.createElement("button");
         btn.type = "button";
@@ -2466,9 +2464,14 @@ window.NSK2App = (() => {
         btn.dataset.activePool = String(poolId);
         btn.innerHTML = `
           <div class="lag-overview-title">Lag ${lagNo}</div>
-          <div class="lag-overview-coaches">Tränare: ${esc(coachNames)}</div>
+          <div class="lag-overview-coaches">Tränare: Hämtar…</div>
         `;
         box.appendChild(btn);
+        getCoachNamesForLag(poolId,lagNo).then(names=>{
+          if(btn.isConnected&&sessionStorage.getItem("nsk2_pool_id")===poolId)btn.querySelector('.lag-overview-coaches').textContent='Tränare: '+names;
+        }).catch(error=>{
+          if(btn.isConnected&&sessionStorage.getItem("nsk2_pool_id")===poolId){btn.querySelector('.lag-overview-coaches').textContent='Tränare kunde inte hämtas';setText("appError",error?.message||String(error));}
+        });
       }
 
       setText("activeTeam", `${pool.place || "Poolspel"} • ${pool.pool_date || ""}`);
