@@ -63,15 +63,14 @@
   });
   function can(permission, team = activeTeam()) {
     const required = permissionKeys[permission] || permission;
+    if (!Object.values(permissionKeys).includes(required)) return false;
     if(identity?.is_primary_admin===true&&Object.values(permissionKeys).includes(required))return true;
     const membership = identity?.memberships?.find(m => m && m.team_id === team);
     if (!team || !membership || !Array.isArray(identity?.permissions) ||
         !identity.permissions.includes(required)) return false;
-    // Mirror the server's role ceiling for UI hints only. The server remains authoritative.
+    // Match the server: personal grants apply to staff; viewer memberships stay read-only.
     if (required === 'read') return true;
-    return membership.role === 'team_admin' || membership.role === 'owner' ||
-      (identity.is_global_admin === true && membership.role !== 'viewer') ||
-      (membership.role === 'coach' && required === 'lineup:edit');
+    return ['owner','team_admin','coach','team_manager','fitness','equipment','player'].includes(membership.role);
   }
   // Confirm each team-specific edit against the server; browser role flags are only UI hints.
   async function checkTeamFeature(feature, team = activeTeam()) {

@@ -7,7 +7,7 @@ test('only verified team member with explicit roster permission may write', () =
   assert.equal(authorizeTeamFeature(actor, 'team-18', 'roster').allowed, true);
   assert.equal(authorizeTeamFeature(actor, 'team-2', 'roster').status, 403);
   assert.equal(authorizeTeamFeature({ ...actor, permissions: [] }, 'team-18', 'roster').status, 403);
-  assert.equal(authorizeTeamFeature({ ...actor, memberships: [{ team_id: 'team-18', role: 'coach' }] }, 'team-18', 'roster').status, 403);
+  assert.equal(authorizeTeamFeature({ ...actor, memberships: [{ team_id: 'team-18', role: 'coach' }] }, 'team-18', 'roster').status, 200);
   assert.equal(authorizeTeamFeature(null, 'team-18', 'roster').status, 401);
   assert.equal(authorizeTeamFeature(actor, 'team-18', 'unknown').status, 400);
 });
@@ -67,7 +67,7 @@ test('global administrator still requires membership and explicit personal grant
   assert.equal(authorizeTeamFeature(globalAdmin, 'team-18', 'roster').allowed, true);
   assert.equal(authorizeTeamFeature(globalAdmin, 'team-2', 'roster').allowed, false);
   assert.equal(authorizeTeamFeature({ ...globalAdmin, permissions: [] }, 'team-18', 'roster').allowed, false);
-  assert.equal(authorizeTeamFeature({ ...globalAdmin, is_global_admin: false }, 'team-18', 'roster').allowed, false);
+  assert.equal(authorizeTeamFeature({ ...globalAdmin, is_global_admin: false }, 'team-18', 'roster').allowed, true);
   assert.equal(authorizeTeamFeature({ ...globalAdmin, memberships: [{ team_id: 'team-18', role: 'viewer' }] }, 'team-18', 'roster').allowed, false);
 });
 
@@ -85,7 +85,7 @@ test('shift permission is scoped to team membership and an explicit personal gra
   assert.equal(authorizeTeamFeature({ ...shiftAdmin, permissions: [] }, 'team-18', 'shifts').status, 403);
   assert.equal(authorizeTeamFeature({ ...shiftAdmin, permissions: ['lineup:edit'] }, 'team-18', 'shifts').status, 403);
   assert.equal(authorizeTeamFeature({ ...shiftAdmin, memberships: [{ team_id: 'team-18', role: 'viewer' }] }, 'team-18', 'shifts').status, 403);
-  assert.equal(authorizeTeamFeature({ ...shiftAdmin, memberships: [{ team_id: 'team-18', role: 'coach' }] }, 'team-18', 'shifts').status, 403);
+  assert.equal(authorizeTeamFeature({ ...shiftAdmin, memberships: [{ team_id: 'team-18', role: 'coach' }] }, 'team-18', 'shifts').status, 200);
   const globalAdmin = { ...shiftAdmin, is_global_admin: true, memberships: [{ team_id: 'team-18', role: 'coach' }] };
   assert.equal(authorizeTeamFeature(globalAdmin, 'team-18', 'shifts').allowed, true);
   assert.equal(authorizeTeamFeature(globalAdmin, 'team-2', 'shifts').status, 403);
@@ -113,4 +113,17 @@ test('team owner requires membership and explicit personal grant for shifts', ()
   assert.equal(authorizeTeamFeature(owner, 'NSK Testlag 2', 'shifts').status, 403);
   assert.equal(authorizeTeamFeature({ ...owner, permissions: [] }, 'NSK Team 18', 'shifts').status, 403);
   assert.equal(authorizeTeamFeature({ ...owner, memberships: [] }, 'NSK Team 18', 'shifts').status, 403);
+});
+
+
+test('every delegated feature honors personal grants for each non-viewer role without inferring grants from role', async () => {
+  const {FEATURE_PERMISSIONS}=await import('./team-authorization-policy.js');
+  for(const role of ['owner','team_admin','coach','team_manager','fitness','equipment','player'])for(const [feature,permission] of Object.entries(FEATURE_PERMISSIONS)){
+    const member={memberships:[{team_id:'NSK Team 18',role}],permissions:[permission]};
+    assert.equal(authorizeTeamFeature(member,'NSK Team 18',feature).allowed,true,role+' '+feature);
+    assert.equal(authorizeTeamFeature({...member,permissions:[]},'NSK Team 18',feature).allowed,false);
+    assert.equal(authorizeTeamFeature(member,'Other team',feature).allowed,false);
+    assert.equal(authorizeTeamFeature({...member,memberships:[{team_id:'NSK Team 18',role:'viewer'}]},'NSK Team 18',feature).allowed,false);
+    assert.equal(authorizeTeamFeature({...member,memberships:[{team_id:'NSK Team 18',role:'invalid'}]},'NSK Team 18',feature).allowed,false);
+  }
 });

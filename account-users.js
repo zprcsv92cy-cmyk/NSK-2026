@@ -47,6 +47,7 @@
    const roleLabel=document.createElement('label');roleLabel.textContent='Lagroll – NSK Team 18';const select=document.createElement('select');select.setAttribute('aria-label','Lagroll för '+user.name);
    for(const [value,label] of Object.entries(roles)){const option=document.createElement('option');option.value=value;option.textContent=label;select.append(option);}select.value=member?.role||'viewer';select.disabled=locked||user.is_primary_admin;roleLabel.append(select);
    const roleInfo=document.createElement('p');roleInfo.textContent=member?'Kopplat till NSK Team 18':'Ingen koppling till NSK Team 18';
+   if(member?.role==='viewer'&&(user.permissions||[]).some(p=>p!=='read'&&p!=='users:manage'))roleInfo.textContent+=' · Läsarrollen är skrivskyddad. Välj annan lagroll för att använda tilldelade lagfunktioner.';
    const actions=document.createElement('div');actions.className='user-actions';
    actions.append(button('Spara lagroll',async()=>{await api('/api/auth/team-members','PUT',{user_id:user.id,team_id:'NSK Team 18',role:select.value});await refresh();message('Lagrollen är sparad.');},locked||user.is_primary_admin));
    if(member)actions.append(button('Ta bort lagkoppling',async()=>{if(!confirm('Ta bort '+user.name+' från NSK Team 18? Inloggningskontot behålls.'))return;await api('/api/auth/team-members','DELETE',{user_id:user.id,team_id:'NSK Team 18'});await refresh();message('Lagkopplingen är borttagen.');},locked||self||user.is_primary_admin));

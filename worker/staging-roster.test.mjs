@@ -31,14 +31,14 @@ test('cross-team reads and writes never access database', async () => {
   assert.equal(write.status, 403);
   assert.equal(db.calls.length, 0);
 });
-test('coach can read but cannot write', async () => {
+test('coach can read and write with explicit roster permission', async () => {
   const db = store();
   const coach = { memberships: [{ team_id: 'team-18', role: 'coach' }], permissions: ['roster:manage'] };
   const read = await stagingRoster(request('GET', 'team-18'), db, coach, json);
   const write = await stagingRoster(request('POST', 'team-18', { kind: 'player', name: 'Test' }), db, coach, json);
-  assert.equal(read.body.canManage, false);
-  assert.equal(write.status, 403);
-  assert.equal(db.calls.length, 1);
+  assert.equal(read.body.canManage, true);
+  assert.equal(write.status, 201);
+  assert.equal(db.calls.length, 2);
 });
 test('authorized POST writes to own team', async () => {
   const db = store();

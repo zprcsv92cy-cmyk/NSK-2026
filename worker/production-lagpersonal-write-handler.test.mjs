@@ -74,10 +74,10 @@ test('team administrator without personal roster grant cannot write', async () =
   const result = await handlePersonalLagpersonalWrite(request('POST'), x.env, x);
   assert.equal(result.status, 403); assert.equal(x.writes, 0);
 });
-test('coach with personal roster grant cannot write staff', async () => {
+test('coach with personal roster grant can write staff', async () => {
   const x = setup('coach', ['roster:manage']);
   const result = await handlePersonalLagpersonalWrite(request('POST'), x.env, x);
-  assert.equal(result.status, 403); assert.equal(x.writes, 0);
+  assert.equal(result.status, 201); assert.equal(x.writes, 1);
 });
 test('PATCH cannot move a staff record to another team', async () => {
   const x = setup();

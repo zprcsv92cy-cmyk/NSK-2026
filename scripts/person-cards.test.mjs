@@ -80,3 +80,16 @@ test('existing pending slip requests resolve current card settings; completed re
  const response=await f.handler(req('/api/equipment','PUT',{revision:8,requests:[{...order,done:true},result.requests[1]],checklists:[]}));assert.equal(response.status,200);
  const saved=await response.json();assert.equal(saved.requests[0].skates.hollow,'21 mm');assert.equal(saved.requests[1].skates.hollow,'16 mm');
 });
+
+
+test('coach roster grant edits player and coach cards; revoked grant blocks the next save with no profile change',async()=>{
+ for(const kind of ['player','coach']){
+  const f=fixture(),path='/api/person-card?kind='+kind+'&person_id=101';f.setRole('coach');
+  let result=await(await f.handler(req(path))).json();assert.equal(result.canEditProfile,true);assert.equal(result.canEditSkates,true);
+  assert.equal((await f.handler(req(path,'PUT',{revision:0,card:card()}))).status,200);
+  f.setPermissions(['read']);result=await(await f.handler(req(path))).json();assert.equal(result.canEditProfile,false);assert.equal(result.canEditSkates,false);
+  const before=f.rows.get('18').board_json;
+  assert.equal((await f.handler(req(path,'PUT',{revision:1,card:{...card(),number:'99'}}))).status,403);
+  assert.equal(f.rows.get('18').board_json,before);
+ }
+});
