@@ -9,6 +9,7 @@ on:
       - '*.html'
       - '*.js'
       - 'calendar-match-plan.mjs'
+      - 'calendar-pool-reconcile.mjs'
       - '*.css'
       - '*.png'
       - 'slipning/**'
