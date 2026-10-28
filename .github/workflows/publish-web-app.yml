@@ -33,6 +33,7 @@ on:
       - 'manifest.webmanifest'
       - 'deploy.json'
       - 'scripts/bump-version.cjs'
+      - 'scripts/assemble-frontend.mjs'
       - '.github/workflows/publish-web-app.yml'
 
 permissions:
