@@ -61,6 +61,7 @@
   let recoveryStatus=0;
   let revision=0;
   let saveQueue=Promise.resolve();
+  let queuedTraining=null;
   let saveBlocked=false;
   let saveGeneration=0;
   let loadedDate='';
@@ -71,7 +72,9 @@
     const date=$('trainingDate').value;
     if(!date){setTrainingSaveMessage('Välj en träning först.');return;}
     if(goalies.filter(Boolean).length!==goalieCount){setTrainingSaveMessage('Välj namn för alla målvakter innan träningen sparas.');return;}
-    const snapshot=captureTraining(),base=structuredClone(confirmedTraining);
+    preserveColorGroups();
+    const snapshot=captureTraining(),base=structuredClone(queuedTraining||confirmedTraining);
+    queuedTraining=snapshot;
     const generation=++saveGeneration;
     setTrainingSaveMessage('Sparar träningen…');
     saveQueue=saveQueue.then(async()=>{
@@ -81,7 +84,7 @@
       if(generation===saveGeneration&&loadedDate===date&&saved.session&&JSON.stringify(snapshot)!==JSON.stringify(saved.session))applyTraining(saved.session);
       if(generation===saveGeneration)setTrainingSaveMessage('Sparat '+new Date().toLocaleTimeString('sv-SE',{timeZone:'Europe/Stockholm',hour:'2-digit',minute:'2-digit'}));
       if(generation===saveGeneration)window.NSKShellHost?.clean?.(window);
-    }).catch(error=>{saveBlocked=true;recoveryStatus=error.status||0;setTrainingSaveMessage('Kunde inte spara. Dina val finns kvar. '+error.message);showRecovery();});
+    }).catch(error=>{saveBlocked=true;recoveryStatus=error.status||0;setTrainingSaveMessage('Kunde inte spara. Dina val finns kvar. '+error.message);showRecovery();}).finally(()=>{if(queuedTraining===snapshot)queuedTraining=null;});
     return saveQueue;
   }
   async function saveColors(){
@@ -124,6 +127,11 @@
       };
     }
   }
+  function preserveColorGroups(){
+    if(!allocation.length)return;
+    const seen=new Set(),keepers=new Set(goalies.filter(Boolean));
+    allocation=Array.from({length:shirtColorCount},(_,i)=>(Array.isArray(allocation[i])?allocation[i]:[]).map(String).filter(id=>{if(!selected.has(id)||keepers.has(id)||seen.has(id))return false;seen.add(id);return true;}));
+  }
   function renderRoster() {
     const root=$('trainingRoster');root.replaceChildren();
     for(const p of players){
@@ -132,7 +140,7 @@
       check.addEventListener('change',()=>{
         if(check.checked)selected.add(String(p.id));else selected.delete(String(p.id));
         goalies = goalies.filter(id=>selected.has(id));
-        allocation=[];persist();renderCount();renderGoalieSelectors();renderGroups();
+        preserveColorGroups();persist();renderCount();renderGoalieSelectors();renderGroups();
       });
       label.append(check,document.createTextNode(p.full_name));root.append(label);
     }
@@ -190,7 +198,7 @@
         if(next&&goalies.some((id,i)=>i!==index&&id===next))return;
         goalies[index]=next;
         goalies=Array.from({length:goalieCount},(_,i)=>goalies[i]||'');
-        allocation=[];persist();renderGoalieSelectors();renderGroups();
+        preserveColorGroups();persist();renderGoalieSelectors();renderGroups();
       });
       label.append(select);root.append(label);
     }
@@ -202,7 +210,7 @@
     const id=String(playerId);
     if(!selected.has(id)||goalies.includes(id)||targetIndex<0||targetIndex>=shirtColorCount)return;
     const current=allocation.findIndex(group=>Array.isArray(group)&&group.map(String).includes(id));
-    if(current<0||current===targetIndex)return;
+    if(current===targetIndex)return;
     allocation=Array.from({length:shirtColorCount},(_,i)=>Array.isArray(allocation[i])?[...allocation[i]].map(String).filter(x=>x!==id):[]);
     allocation[targetIndex].push(id);
     persist();renderGroups();
@@ -210,18 +218,20 @@
   function renderGroups(){
     const root=$('trainingGroups');root.replaceChildren();
     const available=new Map(players.map(p=>[String(p.id),p.full_name]));
-    for(let i=0;i<shirtColorCount;i++){
-      const ids=allocation[i];
+    const assigned=new Set(allocation.flat().map(String));
+    for(const i of [...Array(shirtColorCount).keys(),-1]){
+      const ids=i<0?players.filter(p=>selected.has(String(p.id))&&!goalies.includes(String(p.id))&&!assigned.has(String(p.id))).map(p=>String(p.id)):allocation[i];
+      if(i<0&&!ids.length)continue;
       if(!Array.isArray(ids))continue;
       const section=document.createElement('section');section.className='training-group';
       section.dataset.colorIndex=String(i);
-      const heading=document.createElement('h3');heading.textContent=palette[i].name;heading.style.background=palette[i].hex;heading.style.color=palette[i].text;
+      const heading=document.createElement('h3');heading.textContent=i<0?'Utan tröjfärg':palette[i].name;heading.style.background=i<0?'#33485a':palette[i].hex;heading.style.color=i<0?'#fff':palette[i].text;
       const ul=document.createElement('ul');
-      section.addEventListener('dragover',event=>{if(event.dataTransfer?.types.includes('text/plain'))event.preventDefault();});
+      section.addEventListener('dragover',event=>{if(i>=0&&event.dataTransfer?.types.includes('text/plain'))event.preventDefault();});
       section.addEventListener('drop',event=>{
         event.preventDefault();
         const id=event.dataTransfer?.getData('text/plain');
-        if(id)movePlayerToColor(id,i);
+        if(id&&i>=0)movePlayerToColor(id,i);
       });
       for(const id of ids){
         const key=String(id);
@@ -234,6 +244,7 @@
         const name=document.createElement('span');name.textContent=available.get(key);
         const select=document.createElement('select');
         select.setAttribute('aria-label','Flytta '+available.get(key)+' till tröjfärg');
+        if(i<0){const empty=document.createElement('option');empty.value='-1';empty.textContent='Välj tröjfärg';empty.disabled=true;select.append(empty);}
         for(let color=0;color<shirtColorCount;color++){
           const option=document.createElement('option');option.value=String(color);option.textContent=palette[color].name;
           select.append(option);
@@ -247,14 +258,15 @@
   }
   function distribute(){
     if(goalieCount !== goalies.filter(Boolean).length){$('trainingStatus').textContent='Välj namn för alla målvakter först.';return;}
-    const ids=players.filter(p=>selected.has(String(p.id))&&!goalies.includes(String(p.id))).map(p=>String(p.id));
-    if(!ids.length){$('trainingStatus').textContent='Det finns inga utespelare att dela in.';return;}
+    preserveColorGroups();const assigned=new Set(allocation.flat().map(String));
+    const ids=players.filter(p=>selected.has(String(p.id))&&!goalies.includes(String(p.id))&&!assigned.has(String(p.id))).map(p=>String(p.id));
+    if(!ids.length){$('trainingStatus').textContent='Alla närvarande utespelare har redan en tröjfärg. Ändra vid spelarens namn om du vill flytta någon.';return;}
     for(let i=ids.length-1;i>0;i--){const j=Math.floor(Math.random()*(i+1));[ids[i],ids[j]]=[ids[j],ids[i]];}
     const count=shirtColorCount;
-    allocation=Array.from({length:count},()=>[]);
-    ids.forEach((id,i)=>allocation[i%count].push(id));
+    allocation=Array.from({length:count},(_,i)=>Array.isArray(allocation[i])?[...allocation[i]]:[]);
+    ids.forEach(id=>{const smallest=allocation.reduce((best,group,i)=>group.length<allocation[best].length?i:best,0);allocation[smallest].push(id);});
     persist();renderGroups();
-    $('trainingStatus').textContent='Grupperna är fördelade.';
+    $('trainingStatus').textContent='Nya spelare är fördelade. Tidigare färgval behålls.';
   }
 
   // Import is explicitly reviewed before any attendance state is changed.
@@ -459,7 +471,7 @@
     });
     $('trainingShirtColorCount').addEventListener('change',()=>{
       shirtColorCount=Number($('trainingShirtColorCount').value);
-      allocation=[];persist();renderGroups();
+      preserveColorGroups();persist();renderGroups();
     });
     $('trainingImportApply').addEventListener('click',()=>{
       if(!importMatches.length)return;
@@ -475,7 +487,7 @@
         goalieCount=0;
         $('trainingGoalieCount').value='0';
       }
-      allocation=[];persist();renderRoster();renderCoaches();renderEquipment();renderGoalieSelectors();renderGroups();
+      preserveColorGroups();persist();renderRoster();renderCoaches();renderEquipment();renderGoalieSelectors();renderGroups();
       $('trainingImportStatus').textContent=approved.length+' deltagare markerade som Kommer. Tidigare närvaro har ersatts.';
       $('trainingImportApply').disabled=true;
       importMatches=[];
@@ -499,7 +511,7 @@
     $('trainingGoalieCount').addEventListener('change',()=>{
       goalieCount=Number($('trainingGoalieCount').value);
       goalies=goalies.slice(0,goalieCount);
-      allocation=[];persist();renderGoalieSelectors();renderGroups();
+      preserveColorGroups();persist();renderGoalieSelectors();renderGroups();
     });
     $('trainingGroupButton').addEventListener('click',distribute);
     $('trainingSaveColors').addEventListener('click',()=>void saveColors());
