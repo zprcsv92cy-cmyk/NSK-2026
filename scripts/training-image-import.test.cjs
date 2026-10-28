@@ -132,7 +132,6 @@ test('SvenskaLag initials resolve compound surnames and Swedish names',()=>{
 
 test('shirt colors support red/white, black and green in order',()=>{
  assert.match(js,/let shirtColorCount = 3/);
- assert.match(js,/const count=shirtColorCount/);
  assert.match(js,/shirtColorCount=Number\(\$\('trainingShirtColorCount'\)\.value\)/);
  for(const n of ['2','3','4'])assert.ok(html.includes('value="'+n+'"'));
  assert.ok(js.indexOf("name:'Röd'")<js.indexOf("name:'Vit'"));

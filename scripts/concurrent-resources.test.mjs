@@ -40,10 +40,10 @@ test('training merges separate attendance changes; true field conflict needs exp
  const resolved=mergeTraining(base,{...base,hall:'Lilla Hallen'},{...base,hall:'Stora hallen',shirtColorCount:4},true);assert.equal(resolved.hall,'Lilla Hallen');assert.equal(resolved.shirtColorCount,4);
  const f=resources({session:base});
  // A training handler returns session reads and accepts flat training writes.
- let session=base,revision=0;
- const handler=withConcurrentResources(async r=>{if(r.method==='GET')return Response.json({ok:true,session,revision});const body=await r.json();if(body.revision!==revision)return Response.json({ok:false},{status:409});session=body;return Response.json({ok:true,revision:++revision});});
+ let session=base,revision=1;
+ const handler=withConcurrentResources(async r=>{if(r.method==='GET')return Response.json({ok:true,session:{...session,revision}});const body=await r.json();if(body.revision!==revision)return Response.json({ok:false},{status:409});session=body;return Response.json({ok:true,revision:++revision});});
  for(const draft of [a,b]){const result=await handler(req('/api/training',{...draft,revision:0,base:{session:base}}),env);assert.equal(result.status,200);assert((await result.json()).session);}
- assert.deepEqual(session.selected,['1','2','3']);
+ assert.deepEqual(session.selected,['1','2','3']);assert.deepEqual(session.allocation,[['1'],['2'],['3']]);
 });
 test('staff adapter retains overlapping additions, scopes teams and rejects conflicting same-record edits',async t=>{
  const f=await fixture(t);await f.db.prepare(readFileSync(new URL('../migrations/20261027_concurrent_staff.sql',import.meta.url),'utf8')).run();
@@ -72,4 +72,9 @@ test('real material handler accepts independent simultaneous card edits and reta
  role='equipment';permissions=['read'];
  const current=await(await original(new Request('https://test/api/person-card?team_id=18&kind=player&person_id=101',{headers:{Authorization:'Bearer test'}}))).json();
  const response=await wrapped(req('/api/person-card?team_id=18&kind=player&person_id=101',{revision:current.revision,card:{...current.card,number:'88'},base:{card:current.card}}),env);assert.equal(response.status,403);
+});
+
+test('training merge rejects a read without a valid revision instead of attempting a write',async()=>{
+ let writes=0;const original=withConcurrentResources(async r=>{if(r.method==='GET')return Response.json({ok:true,session:{selected:[]}});writes++;return Response.json({ok:true});});
+ const base={selected:[],selectedCoaches:[],goalies:[],goalieCount:0,allocation:[],shirtColorCount:3,hall:''};const result=await original(req('/api/training',{...base,revision:0,base:{session:base}}),env);assert.equal(result.status,502);assert.equal(writes,0);
 });
