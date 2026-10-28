@@ -1,0 +1,24 @@
+name: Branded QR scan verification
+on:
+  pull_request:
+    branches: [main]
+    paths: ['sharpening-link-manager.js', 'qr-code.js', 'icon-192.png', 'scripts/verify-branded-qr.mjs', '.github/workflows/branded-qr-check.yml']
+  push:
+    branches: [main]
+    paths: ['sharpening-link-manager.js', 'qr-code.js', 'icon-192.png', 'scripts/verify-branded-qr.mjs', '.github/workflows/branded-qr-check.yml']
+permissions:
+  contents: read
+jobs:
+  decode-logo-qr:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Install isolated scan verification tools
+        run: npm install --prefix "$RUNNER_TEMP/nsk-qr-check" --no-audit --no-fund --ignore-scripts --package-lock=false jsqr@1.4.0 @resvg/resvg-js@2.6.2
+      - name: Decode rendered QR codes with the actual embedded crest
+        env:
+          NSK_QR_CHECK_DIR: ${{ runner.temp }}/nsk-qr-check
+        run: node scripts/verify-branded-qr.mjs
