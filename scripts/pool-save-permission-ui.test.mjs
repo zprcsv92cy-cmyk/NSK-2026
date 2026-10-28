@@ -11,7 +11,7 @@ test('pool save button uses server-confirmed personal permission when rollout is
   assert.match(page, /Auth\?\.activeTeam\?\.\(\)/);
 });
 
-test('legacy pool save behavior is preserved while rollout is disabled', () => {
-  assert.match(page, /localStorage\.getItem\('nsk_admin_token'\)/);
-  assert.match(page, /\/api\/admin\/status/);
+test('pool page never enables saving through shared administrator credentials', () => {
+  assert.doesNotMatch(page, /nsk_admin_token/);
+  assert.doesNotMatch(page, /\/api\/admin\/status/);
 });

@@ -49,10 +49,10 @@ test('missing personal login does not fall back to Adminläge', async () => {
   assert.equal(x.requests.length,0);
 });
 
-test('existing admin requests remain unchanged while rollout disabled', async () => {
+test('disabled personal rollout cannot fall back to a cached administrator token', async () => {
   const x=await exercise({enabled:false,path:'/api/spelare'});
-  assert.equal(x.requests.length,1);
-  assert.equal(x.requests[0].options.headers.Authorization,'Bearer legacy-admin');
+  assert.equal(x.requests.length,0);
+  assert.match(x.error.message,/Personlig inloggning/);
 });
 
 test('roster page switches permission checks with server verification and limits to mapped team', () => {

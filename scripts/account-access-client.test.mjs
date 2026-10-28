@@ -18,7 +18,7 @@ test('public account pages contain no administrator bootstrap SQL and package ve
  assert.match(activation,/name="referrer" content="no-referrer"/);
  assert.match(source,/history\.replaceState/);
  const workflow=readFileSync(new URL('../.github/workflows/publish-web-app.yml',import.meta.url),'utf8');
- assert.match(workflow,/cp -a account-access\.js account-users\.js/);
+ assert.match(workflow,/assembleFrontend/);
 });
 
 test('account navigation uses the current version on every page instead of a fixed old menu version',()=>{

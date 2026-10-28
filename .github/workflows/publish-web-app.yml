@@ -131,11 +131,13 @@ jobs:
       - name: Assemble only public frontend files
         run: |
           set -euo pipefail
-          mkdir -p _site
-          cp -a account-access.js account-users.js concurrency-merge.mjs shell-entry.js app-shell.js private-skills.js view-cache.js equipment.js person-cards.js calendar-match-plan.mjs calendar-list.js index.html app.css app.js navigation.js home-training.js svenskalag-home.js changing-rooms.js training-cards.js shared-training.js admin-mode.js auth.js config.js db.js deploy.json version.js sw.js manifest.webmanifest icon-192.png icon-512.png login-patch.js login-gate.js training-groups.js exercise-archive.js exercise-backup.js rink-drawer.js rink-text-parser.js exercise-rink-preview.js hockeyakademin-catalog.js pool-team-editor.js skate-fields.js qr-code.js sharpening-link-manager.js sharpening-public.js home-icon-black.png print-view.js arena-theme.css roster-view.js _site/
-          for dir in skills app aktivera anvandare bytesschema lag laguppstallning login malvaktsstatistik matchvy mittkonto skapapoolspel startsida truppen traningsgrupper ovningsarkiv ritverktyg materialforvaltare slipning; do
-            cp -a "$dir" _site/
-          done
+          node --input-type=module - <<'NODE'
+          import {assembleFrontend} from './scripts/assemble-frontend.mjs';
+          import fs from 'node:fs';
+          fs.rmSync('_site',{recursive:true,force:true});
+          fs.mkdirSync('_site');
+          assembleFrontend(process.cwd(),'_site');
+          NODE
           touch _site/.nojekyll
           test -s _site/startsida/index.html
           test -s _site/svenskalag-home.js
