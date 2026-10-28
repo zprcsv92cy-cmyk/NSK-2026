@@ -25,7 +25,7 @@ for(const origin of ['https://nsk18.pages.dev','https://zprcsv92cy-cmyk.github.i
   assert.ok(svg.indexOf('<image ')<svg.indexOf('<rect x='),'Skate is behind the QR sampling centres');
   assert.match(svg,/<g shape-rendering="crispEdges">/,'Keep QR sampling edges sharp at screen and print scales');
   assert.doesNotMatch(svg,/opacity=/,'Keep the skate image fully visible');
-  assert.match(svg,/<rect x="[^\"]+" y="[^\"]+" width="0\.65" height="0\.65"/,'Use square data sampling centres');
+  assert.match(svg,/<rect x="[^\"]+" y="[^\"]+" width="0\.45" height="0\.45"/,'Use square data sampling centres');
   assert.ok(svg.includes(readFileSync('slipning/icon-192.png').toString('base64')),'Use the personal sharpening skate icon');
   assert.ok(!svg.includes(url),'URL should be encoded as QR modules only');
   for(const size of [190,380,400,570,650]){
