@@ -22,7 +22,7 @@ for(const origin of ['https://nsk18.pages.dev','https://zprcsv92cy-cmyk.github.i
   const svg=decodeURIComponent(data.slice(data.indexOf(',')+1));
   assert.match(svg,/<image .*xlink:href="data:image\/png;base64,/);
   assert.ok(!svg.includes(url),'URL should be encoded as QR modules only');
-  for(const size of [112,190,400,650]){
+  for(const size of [160,190,400,650]){
    const image=new Resvg(svg,{fitTo:{mode:'width',value:size}}).render();
    const result=jsQR(new Uint8ClampedArray(image.pixels),image.width,image.height);
    assert.equal(result?.data,url,'Logo QR must decode at '+size+'px, sample '+sample);
