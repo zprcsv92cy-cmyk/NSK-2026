@@ -47,22 +47,22 @@ test('denied equipment access removes private cards and disables list controls',
 
 test('printed NSK signs show first name, heading and unchanged QR with embedded crest',async()=>{
  const f=fixture({recoverable:true});await settle();await f.button('Skapa aktuell QR-lista').onclick();await settle();f.button('Skriv ut').onclick();await settle();
- assert.match(f.preview.html,/grid-template-columns:repeat\(3,60mm\)/);
- assert.match(f.preview.html,/height:84mm/);
+ assert.match(f.preview.html,/grid-template-columns:repeat\(2,84mm\)/);
+ assert.match(f.preview.html,/height:60mm/);
  const card=f.preview.sheet.children[0];
- assert.equal(card.children[0].className,'qr-sign-brand');
- assert.match(card.children[0].children[0].src,/^data:image\/png;base64,/);
- assert.equal(card.children[1].textContent,'Skridskoslipning');
- assert.equal(card.children[2].textContent,'Synthetic');
- assert.equal(card.children[3].className,'qr-sign-code');
- assert.match(card.children[3].src,/^data:image\/svg/);
+ assert.equal(card.children[0].className,'qr-sign-arena');assert.match(card.children[0].src,/^data:image\/jpeg;base64,/);assert.match(f.preview.html,/left:3mm;top:11mm/);assert.match(f.preview.html,/left:46mm;top:24mm/);
+ assert.match(card.children[2].children[0].src,/^data:image\/png;base64,/);
+ assert.equal(card.children[3].textContent,'Slipning');
+ assert.equal(card.children[4].textContent,'Synthetic');
+ assert.equal(card.children[5].className,'qr-sign-code');
+ assert.match(card.children[5].src,/^data:image\/svg/);
  assert(f.calls.every(c=>c.options.method==='GET'));f.dispose();
 });
 
 test('coach and player with same ID have distinct cards, requests and printed signs',async()=>{
- const f=fixture({recoverable:true,withCoach:true});await settle();assert.equal(f.cards().length,2);assert.deepEqual(f.cards().map(c=>c.dataset.personId),['101','coach:101']);
+ const f=fixture({recoverable:true,withCoach:true});await settle();const groups=f.root.querySelectorAll('*').filter(c=>c.className==='equipment-qr-group');assert.deepEqual(groups.map(g=>g.children[0].textContent),['Spelare','Tränare']);assert.equal(groups[0].children[1].dataset.personId,'101');assert.equal(groups[1].children[1].dataset.personId,'coach:101');assert.equal(f.cards().length,2);assert.deepEqual(f.cards().map(c=>c.dataset.personId),['101','coach:101']);
  for(const card of f.cards())card.open=true;await settle();
  const reads=f.calls.filter(c=>new URL(c.url).searchParams.has('person_id'));assert.equal(reads.length,2);assert(reads.some(c=>new URL(c.url).searchParams.get('kind')==='coach'));
  await f.button('Skapa aktuell QR-lista').onclick();await settle();f.button('Skriv ut').onclick();await settle();
- assert.equal(f.preview.sheet.children.length,2);const signs=f.preview.sheet.children;assert.deepEqual(signs.map(s=>s.children[2].textContent),['Coach','Synthetic']);assert(f.qrData.some(u=>u.endsWith('cd'.repeat(32))));assert(f.qrData.some(u=>u.endsWith('ab'.repeat(32))));assert(f.calls.every(c=>c.options.method==='GET'));f.dispose();
+ assert.equal(f.preview.sheet.children.length,2);const signs=f.preview.sheet.children;assert.deepEqual(signs.map(s=>s.children[4].textContent),['Coach','Synthetic']);assert(f.qrData.some(u=>u.endsWith('cd'.repeat(32))));assert(f.qrData.some(u=>u.endsWith('ab'.repeat(32))));assert(f.calls.every(c=>c.options.method==='GET'));f.dispose();
 });
