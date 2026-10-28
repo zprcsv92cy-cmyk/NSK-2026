@@ -21,6 +21,9 @@ for(const origin of ['https://nsk18.pages.dev','https://zprcsv92cy-cmyk.github.i
   const data=window.SharpeningLinks.brandedQrDataUrl(url);
   const svg=decodeURIComponent(data.slice(data.indexOf(',')+1));
   assert.match(svg,/<image .*xlink:href="data:image\/png;base64,/);
+  assert.ok(svg.indexOf('<image ')<svg.indexOf('<path '),'Skate is behind the QR modules');
+  assert.match(svg,/opacity="0\.18"/);
+  assert.ok(svg.includes(readFileSync('slipning/icon-192.png').toString('base64')),'Use the personal sharpening skate icon');
   assert.ok(!svg.includes(url),'URL should be encoded as QR modules only');
   for(const size of [190,400,650]){
    const image=new Resvg(svg,{fitTo:{mode:'width',value:size}}).render();
