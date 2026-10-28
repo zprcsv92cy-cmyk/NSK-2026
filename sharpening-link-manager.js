@@ -19,7 +19,7 @@
   let marks='';
   for(let y=0;y<count;y++)for(let x=0;x<count;x++){
    // Square black/white sampling centres leave the actual skate visible between them.
-   const width=structural(x,y)?1:.65,offset=(1-width)/2;
+   const width=structural(x,y)?1:.45,offset=(1-width)/2;
    marks+='<rect x="'+(x+margin+offset)+'" y="'+(y+margin+offset)+'" width="'+width+'" height="'+width+'" fill="'+(qr.isDark(y,x)?'#050505':'#fff')+'"/>';
   }
   const svg='<svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" viewBox="0 0 '+side+' '+side+'" width="650" height="650"><rect width="'+side+'" height="'+side+'" fill="white"/><image x="'+margin+'" y="'+margin+'" width="'+count+'" height="'+count+'" xlink:href="'+qrSkate+'"/>'+'<g shape-rendering="crispEdges">'+marks+'</g></svg>';
