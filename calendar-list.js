@@ -14,6 +14,15 @@
     if(name&&!name.querySelector('.calendar-kind')){
       const label=document.createElement('span');label.className='calendar-kind';label.textContent=training?'Träning':'Poolspel';name.prepend(label);
     }
+    // Keep the date intact without preventing long event names from wrapping.
+    if(name&&!name.querySelector('.calendar-date')){
+      for(const node of [...name.childNodes]){
+        if(node.nodeType!==3)continue;
+        const match=node.textContent.match(/\b\d{4}-\d{2}-\d{2}\b/);if(!match)continue;
+        const dateLabel=document.createElement('span');dateLabel.className='calendar-date';dateLabel.textContent=match[0];
+        node.replaceWith(document.createTextNode(node.textContent.slice(0,match.index)),dateLabel,document.createTextNode(node.textContent.slice(match.index+match[0].length)));break;
+      }
+    }
     const raw=training?decodeURIComponent(row.dataset.date):row.dataset.poolDate;
     const date=raw.replaceAll('-','');
     const time=training?(row.querySelector('.nsk-training-time')?.textContent||'').trim():'';
