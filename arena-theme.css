@@ -204,3 +204,18 @@
  }
  @media(prefers-reduced-motion:reduce) {html[data-nsk-theme="arena"] * {transition:none!important;scroll-behavior:auto!important}}
 }
+
+/* Dates remain whole; the time must not squeeze the calendar heading on phones. */
+@media screen {
+ html[data-nsk-theme="arena"] #activityList .calendar-date {display:inline-block;white-space:nowrap}
+}
+@media screen and (max-width:600px) {
+ html[data-nsk-theme="arena"] body.home-page #activityList .nsk-pool-summary {grid-template-columns:minmax(0,1fr) 20px;column-gap:8px}
+ html[data-nsk-theme="arena"] body.home-page #activityList .nsk-pool-name {grid-column:1;grid-row:1;font-size:14px}
+ html[data-nsk-theme="arena"] body.home-page #activityList .nsk-pool-hall {grid-column:1;grid-row:2}
+ html[data-nsk-theme="arena"] body.home-page #activityList .nsk-training-time {grid-column:1;grid-row:3;white-space:nowrap;font-size:13px}
+ html[data-nsk-theme="arena"] body.home-page #activityList .nsk-training-time:empty {display:none}
+ html[data-nsk-theme="arena"] body.home-page #activityList .nsk-pool-chevron {grid-column:2;grid-row:1 / 4}
+ html[data-nsk-theme="arena"] body.home-page #activityList .arena-activity-icon {width:24px;margin-right:7px}
+ html[data-nsk-theme="arena"] body.home-page #activityList .nsk-pool-name .arena-icon {width:24px}
+}
