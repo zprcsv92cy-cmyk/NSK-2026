@@ -147,6 +147,21 @@
     document.addEventListener('focusout',()=>{schedule();setTimeout(schedule,150);setTimeout(schedule,500);});
     sync();
   }
+  function mountCodes(){
+    if(window.NSKShellHost||document.getElementById('arenaCodes')||!window.Auth?.getSession?.()?.user)return;
+    const brand=document.querySelector('.arena-brand');if(!brand)return;
+    const button=document.createElement('button');button.id='arenaCodes';button.type='button';button.className='arena-codes-button';button.textContent='Koder';button.setAttribute('aria-haspopup','dialog');
+    const dialog=document.createElement('dialog');dialog.className='arena-codes-dialog';dialog.setAttribute('aria-labelledby','arenaCodesTitle');
+    const title=document.createElement('h2');title.id='arenaCodesTitle';title.textContent='Koder';
+    const label=document.createElement('p');label.textContent='Förråd';
+    const code=document.createElement('p');code.className='arena-codes-value';code.textContent='6584';
+    const teamLabel=document.createElement('p');teamLabel.textContent='Förråd NSK Team 18';
+    const teamCode=document.createElement('p');teamCode.className='arena-codes-value';teamCode.textContent='1881';
+    const close=document.createElement('button');close.type='button';close.textContent='Stäng';close.addEventListener('click',()=>dialog.close());
+    dialog.append(title,label,code,teamLabel,teamCode,close);button.addEventListener('click',()=>dialog.showModal());
+    dialog.addEventListener('click',event=>{if(event.target===dialog){const rect=dialog.getBoundingClientRect();if(event.clientX<rect.left||event.clientX>rect.right||event.clientY<rect.top||event.clientY>rect.bottom)dialog.close();}});
+    brand.append(button);document.body.append(dialog);
+  }
   async function render() {
     const nav = document.querySelector('nav.mainmenu');
     if (!nav) return;
@@ -166,6 +181,7 @@
     nav.innerHTML = '';
     const visibleEntries=[...entries];
     try { if(window.Auth){await window.Auth.init();if(window.Auth.getSession()?.permissions?.includes('users:manage'))visibleEntries.push(['anvandare','Användare']);} }catch{}
+    mountCodes();
     for (const [slug,label] of visibleEntries) {
       const a = document.createElement('a');
       a.href = '../' + slug + '/' + (slug==='skapapoolspel'?'?new=1':'');
