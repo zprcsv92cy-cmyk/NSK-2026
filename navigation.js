@@ -117,14 +117,25 @@
     }
     for(const [slug,name] of Object.entries({startsida:'calendar',truppen:'shirt',traningsgrupper:'plan'}))attach(document.querySelector('.arena-bottom>a[href="../'+slug+'/"]>span'),name,true);
   }
+  // The shell hosts editors in an iframe. Safari pans the outer viewport when
+  // their keyboard opens, so checking only the outer activeElement is insufficient.
+  function editingViewport(doc=document){
+    try{
+      const element=doc.activeElement;
+      if(element?.matches('input,textarea,select,[contenteditable]:not([contenteditable="false"])'))return true;
+      if(element?.tagName==='IFRAME')return element.contentDocument?editingViewport(element.contentDocument):true;
+    }catch{return true;}
+    return false;
+  }
   let viewportBound=false;
   function bindMobileViewport(){
     if(viewportBound)return;viewportBound=true;
     let frame=0;
     const sync=()=>{
       frame=0;
-      document.documentElement.style.setProperty('--nsk-app-height',Math.round(window.innerHeight)+'px');
-      const editing=document.activeElement?.matches('input,textarea,select,[contenteditable="true"]');
+      const height=Math.round(window.innerHeight)+'px';
+      if(document.documentElement.style.getPropertyValue('--nsk-app-height')!==height)document.documentElement.style.setProperty('--nsk-app-height',height);
+      const editing=editingViewport();
       // Safari can leave the root document panned after dismissing its keyboard.
       // Only the inner content is scrollable; do not reset that content or a zoomed page.
       if(window.innerWidth<=760&&!editing&&(!window.visualViewport||Math.abs(window.visualViewport.scale-1)<0.01)&&window.scrollY!==0)window.scrollTo({top:0,left:0,behavior:'instant'});
