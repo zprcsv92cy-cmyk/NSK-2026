@@ -14,8 +14,10 @@
   const colors=['Röd','Vit','Svart','Grön'];
   let html='<h4>Målvakter</h4><p>'+((session.goalies||[]).filter(id=>selected.has(String(id))).map(name).join(', ')||'Inga målvakter valda')+'</p>';
   const groups=Array.isArray(session.allocation)?session.allocation:[];
-  if(!groups.length)return html+'<p>Tröjfärger är inte fördelade ännu.</p>';
-  return html+'<div class="nsk-training-color-groups">'+groups.slice(0,4).map((ids,index)=>'<section class="nsk-training-color nsk-training-color-'+index+'"><h4>'+colors[index]+'</h4><ul>'+ids.filter(id=>selected.has(String(id))&&!goalies.has(String(id))).map(id=>'<li>'+name(id)+'</li>').join('')+'</ul></section>').join('')+'</div>';
+  const assigned=new Set(groups.flat().map(String)),unassigned=[...selected].filter(id=>!goalies.has(id)&&!assigned.has(id));
+  const extra=unassigned.length?'<section class="nsk-training-color"><h4>Utan tröjfärg</h4><ul>'+unassigned.map(id=>'<li>'+name(id)+'</li>').join('')+'</ul></section>':'';
+  if(!groups.length)return html+'<p>Tröjfärger är inte fördelade ännu.</p>'+extra;
+  return html+'<div class="nsk-training-color-groups">'+groups.slice(0,4).map((ids,index)=>'<section class="nsk-training-color nsk-training-color-'+index+'"><h4>'+colors[index]+'</h4><ul>'+ids.filter(id=>selected.has(String(id))&&!goalies.has(String(id))).map(id=>'<li>'+name(id)+'</li>').join('')+'</ul></section>').join('')+extra+'</div>';
  }
  function enrich(session,events){
   const hall=value=>String(value||'').trim().toLocaleLowerCase('sv-SE').replace(/ishallen/g,'hallen');

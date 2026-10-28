@@ -30,3 +30,6 @@ test('calendar enrichment preserves saved data and refuses ambiguous or other-ha
  assert.equal(cards.enrich({date:event.date,hall:''},[event,{...event,startTime:'18:00'}]).hall,'');
  assert.equal(cards.enrich({date:event.date,hall:'Lilla Hallen',startTime:'14:00'},[event]).startTime,'14:00');
 });
+test('calendar shows new attendees without silently assigning or hiding their color',()=>{
+ const html=cards.presentation({selected:['1','2','3'],goalies:[],allocation:[['1'],['2']]},[{id:1,full_name:'One'},{id:2,full_name:'Two'},{id:3,full_name:'New <Player>'}]);assert.match(html,/Utan tröjfärg/);assert.match(html,/New &lt;Player&gt;/);assert.equal(html.match(/New &lt;Player&gt;/g).length,1);
+});
