@@ -55,18 +55,44 @@
   up.textContent='Kommande träningar ('+upcoming.length+')';title.textContent='Avslutade träningar ('+past.length+')';
  }
  window.NSKTrainingCards={actions,presentation,enrich,finished,reorder};
- document.addEventListener('DOMContentLoaded',()=>{setInterval(()=>reorder(),15000);document.addEventListener('visibilitychange',()=>{if(!document.hidden)reorder();});});
+ let colorsEpoch=0;
+ const pendingColors=new WeakMap(),colorsContext=new WeakMap();
+ async function loadColors(row,panel,button){
+  const team=Auth.activeTeam(),token=Auth.getToken(),date=decodeURIComponent(row.dataset.date),epoch=colorsEpoch,key=JSON.stringify([team,token,date]);
+  const previous=pendingColors.get(row);if(previous?.key===key&&previous.epoch===epoch)return previous.promise;
+  if(colorsContext.get(row)!==key){panel.textContent='Hämtar…';colorsContext.set(row,key);}
+  const entry={key,epoch};pendingColors.set(row,entry);button.disabled=true;
+  entry.promise=(async()=>{
+   try{
+    const [data,players]=await Promise.all([SharedTraining.get(date),SharedTraining.listPlayers()]);
+    if(!row.isConnected||panel.hidden||epoch!==colorsEpoch||Auth.activeTeam()!==team||Auth.getToken()!==token)return;
+    const html=presentation(data.session,players);if(panel.innerHTML!==html)panel.innerHTML=html;
+   }catch{
+    if(row.isConnected&&!panel.hidden&&epoch===colorsEpoch&&Auth.activeTeam()===team&&Auth.getToken()===token)panel.textContent='Kunde inte uppdatera tröjfärger. Försök igen.';
+   }finally{if(pendingColors.get(row)===entry){pendingColors.delete(row);button.disabled=false;}}
+  })();
+  return entry.promise;
+ }
+ async function refreshColors(){
+  if(document.hidden||window.NSKShellActive===false)return;
+  const root=document.getElementById('activityList')||document.getElementById('savedTrainingsList');if(!root)return;
+  await Promise.all([...root.querySelectorAll('details[data-date]')].map(row=>{
+   const panel=row.querySelector('[data-training-presentation]'),button=row.querySelector('[data-training-colors]');
+   return row.open&&panel&&!panel.hidden&&button?loadColors(row,panel,button):Promise.resolve();
+  }));
+ }
+ document.addEventListener('toggle',event=>{if(event.target?.open&&event.target.matches?.('details[data-date]'))void refreshColors();},true);
+ document.addEventListener('nsk:page-show',()=>void refreshColors());
+ window.addEventListener?.('focus',()=>void refreshColors());
+ window.addEventListener?.('nsk:saved-trainings-rendered',()=>void refreshColors());
+ window.addEventListener?.('nsk:page-hide',()=>{colorsEpoch++;});
+ window.addEventListener?.('pagehide',()=>{colorsEpoch++;});
+ document.addEventListener('DOMContentLoaded',()=>{setInterval(()=>{reorder();void refreshColors();},15000);document.addEventListener('visibilitychange',()=>{if(!document.hidden){reorder();void refreshColors();}else colorsEpoch++;});});
  document.addEventListener('click',async event=>{
   const button=event.target.closest?.('[data-training-colors]');if(!button)return;
   const row=button.closest('details[data-date]'),panel=row?.querySelector('[data-training-presentation]');if(!panel)return;
   if(!panel.hidden){panel.hidden=true;button.setAttribute('aria-expanded','false');return;}
-  panel.hidden=false;button.setAttribute('aria-expanded','true');panel.textContent='Hämtar…';button.disabled=true;
-  const team=Auth.activeTeam(),date=decodeURIComponent(row.dataset.date);
-  try{
-   const [data,players]=await Promise.all([SharedTraining.get(date),SharedTraining.listPlayers()]);
-   if(!row.isConnected||Auth.activeTeam()!==team)return;
-   panel.innerHTML=presentation(data.session,players);
-  }catch{panel.textContent='Kunde inte hämta tröjfärger. Försök igen.';}
-  finally{button.disabled=false;}
+  panel.hidden=false;button.setAttribute('aria-expanded','true');panel.textContent='Hämtar…';
+  await loadColors(row,panel,button);
  });
 })();
