@@ -3,7 +3,7 @@
  const esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
  function actions(date,hall=''){
   const href='../traningsgrupper/?date='+encodeURIComponent(date)+(hall?'&calendar_hall='+encodeURIComponent(hall):'');
-  return '<div class="nsk-training-grid"><button type="button" class="nsk-training-function" data-training-colors aria-expanded="false"><span aria-hidden="true">♙</span>Tröjfärger</button><a class="nsk-training-function" href="'+esc(href)+'"><span aria-hidden="true">↻</span>Träningsplanering</a></div><div class="nsk-training-presentation" data-training-presentation hidden></div>';
+  return '<div class="nsk-training-grid"><button type="button" class="nsk-training-function" data-training-colors aria-expanded="false"><span aria-hidden="true">♙</span>Tröjfärger</button><a class="nsk-training-function" href="'+esc(href)+'"><span aria-hidden="true">↻</span>Träningsplanering</a><a class="nsk-training-function" style="grid-column:1/-1" href="'+esc(href+'&edit=colors#trainingGroups')+'">Redigera tröjfärger</a></div><div class="nsk-training-presentation" data-training-presentation hidden></div>';
  }
  function presentation(session,players){
   if(!session)return '<p>Ingen fördelning sparad ännu.</p>';

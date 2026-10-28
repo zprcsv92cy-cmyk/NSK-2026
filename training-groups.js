@@ -53,7 +53,7 @@
     revision=Number(data.revision)||0;
     confirmedTraining=await SharedTraining.snapshotSession(data);
     if($('trainingDate').value!==date)return false;
-    loadedDate=$('trainingDate').value;
+    loadedDate=$('trainingDate').value;const colorsStatus=$('trainingColorStatus');if(colorsStatus)colorsStatus.textContent='';
     $('trainingGoalieCount').value=String(goalieCount);
     return true;
   }
@@ -64,23 +64,37 @@
   let saveBlocked=false;
   let saveGeneration=0;
   let loadedDate='';
+  function setTrainingSaveMessage(text){$('trainingStatus').textContent=text;const colors=$('trainingColorStatus');if(colors)colors.textContent=text;}
   function persist(){
-    if(saveBlocked){$('trainingStatus').textContent='Dina val finns kvar men är inte sparade. Använd knapparna nedan för att fortsätta.';return;}
-    if($('trainingDate').value!==loadedDate){$('trainingStatus').textContent='Vänta tills träningen för valt datum har lästs in.';return;}
+    if(saveBlocked){setTrainingSaveMessage('Dina val finns kvar men är inte sparade. Använd knapparna nedan för att fortsätta.');return;}
+    if($('trainingDate').value!==loadedDate){setTrainingSaveMessage('Vänta tills träningen för valt datum har lästs in.');return;}
     const date=$('trainingDate').value;
-    if(!date){$('trainingStatus').textContent='Välj en träning först.';return;}
-    if(goalies.filter(Boolean).length!==goalieCount){$('trainingStatus').textContent='Välj namn för alla målvakter innan träningen sparas.';return;}
+    if(!date){setTrainingSaveMessage('Välj en träning först.');return;}
+    if(goalies.filter(Boolean).length!==goalieCount){setTrainingSaveMessage('Välj namn för alla målvakter innan träningen sparas.');return;}
     const snapshot=captureTraining(),base=structuredClone(confirmedTraining);
     const generation=++saveGeneration;
-    $('trainingStatus').textContent='Sparar träningen…';
+    setTrainingSaveMessage('Sparar träningen…');
     saveQueue=saveQueue.then(async()=>{
       if(saveBlocked)return;
       const saved=await SharedTraining.save(date,{...snapshot,revision,base:{session:base}});
       revision=saved.revision;confirmedTraining=saved.session||snapshot;
       if(generation===saveGeneration&&loadedDate===date&&saved.session&&JSON.stringify(snapshot)!==JSON.stringify(saved.session))applyTraining(saved.session);
-      $('trainingStatus').textContent='Sparat '+new Date().toLocaleTimeString('sv-SE',{timeZone:'Europe/Stockholm',hour:'2-digit',minute:'2-digit'});
+      if(generation===saveGeneration)setTrainingSaveMessage('Sparat '+new Date().toLocaleTimeString('sv-SE',{timeZone:'Europe/Stockholm',hour:'2-digit',minute:'2-digit'}));
       if(generation===saveGeneration)window.NSKShellHost?.clean?.(window);
-    }).catch(error=>{saveBlocked=true;recoveryStatus=error.status||0;$('trainingStatus').textContent='Kunde inte spara. Dina val finns kvar. '+error.message;showRecovery();});
+    }).catch(error=>{saveBlocked=true;recoveryStatus=error.status||0;setTrainingSaveMessage('Kunde inte spara. Dina val finns kvar. '+error.message);showRecovery();});
+    return saveQueue;
+  }
+  async function saveColors(){
+    const button=$('trainingSaveColors'),status=$('trainingColorStatus'),date=loadedDate;
+    button.disabled=true;
+    try{
+      let pending=persist();
+      if(!pending){status.textContent=$('trainingStatus').textContent;return;}
+      status.textContent='Sparar tröjfärger…';
+      for(;;){await pending;if(pending===saveQueue)break;pending=saveQueue;}
+      if(loadedDate!==date)return;
+      status.textContent=saveBlocked?$('trainingStatus').textContent:'Tröjfärger sparade för '+date+'.';
+    }finally{button.disabled=false;}
   }
   function captureTraining(){return {selected:[...selected],selectedCoaches:[...selectedCoaches,...[...selectedEquipment].map(id=>'equipment:'+id)],allocation:allocation.map(group=>[...group]),goalies:[...goalies],goalieCount,shirtColorCount,hall:trainingHall};}
   function applyTraining(data){
@@ -488,6 +502,7 @@
       allocation=[];persist();renderGoalieSelectors();renderGroups();
     });
     $('trainingGroupButton').addEventListener('click',distribute);
+    $('trainingSaveColors').addEventListener('click',()=>void saveColors());
     $('trainingPrintButton').addEventListener('click',()=>window.print());
     try{
       const session=await Auth.init();
