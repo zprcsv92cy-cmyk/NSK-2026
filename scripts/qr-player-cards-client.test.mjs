@@ -16,18 +16,19 @@ class Element {
 }
 const tick=()=>new Promise(resolve=>setImmediate(resolve));
 async function settle(){for(let i=0;i<20;i++)await tick();}
-function fixture({recoverable=false,denied=false}={}){
+function fixture({recoverable=false,denied=false,withCoach=false}={}){
  const preview={html:'',sheet:null};
  const printButtons=new Map();const printDoc={open(){},write(html){preview.html=html;},close(){},images:[],body:{append(sheet){preview.sheet=sheet;}},importNode:sheet=>sheet,getElementById(id){if(!printButtons.has(id))printButtons.set(id,new Element('button'));return printButtons.get(id);}};
+ const qrData=[];
  const calls=[],root=new Element('section'),tab=new Element('button'),pane={hidden:false},head=new Element('head');
  const document={head,hidden:false,getElementById:id=>id==='equipmentTabLinks'?tab:id==='equipmentPaneLinks'?pane:null,createElement:tag=>new Element(tag)};
  const Auth={getToken:()=> 'fixture-session',activeTeam:()=> 'NSK Team 18',getSession:()=>({is_primary_admin:true})};
- const window={open:()=>({document:printDoc,focus(){},print(){},close(){}}),Auth,APP_CONFIG:{API_URL:'https://api.example'},addEventListener(){},removeEventListener(){},qrcode:()=>({addData(){},make(){},getModuleCount(){return 57;},isDark(y,x){return (x+y)%2===0;}})};
+ const window={open:()=>({document:printDoc,focus(){},print(){},close(){}}),Auth,APP_CONFIG:{API_URL:'https://api.example'},addEventListener(){},removeEventListener(){},qrcode:()=>({addData(value){qrData.push(value);},make(){},getModuleCount(){return 57;},isDark(y,x){return (x+y)%2===0;}})};
  const context={window,Auth,document,Option:class extends Element{constructor(text,value){super('option');this.textContent=text;this.value=value;}},location:{href:'https://nsk18.pages.dev/materialforvaltare/'},navigator:{},URL,AbortSignal,setInterval:()=>1,clearInterval(){},console};
- context.fetch=async(url,options)=>{calls.push({url,options});await tick();const personal=new URL(url).searchParams.has('person_id');const data=personal?{ok:true,mode:'parent',revision:1,recoverable,...(recoverable?{token:'ab'.repeat(32)}:{})}:{ok:true,links:[{personId:'101',mode:'parent',revision:1,recoverable}]};return {ok:!denied,status:denied?403:200,json:async()=>denied?{ok:false,error:'Åtkomst nekad'}:data};};
+ context.fetch=async(url,options)=>{calls.push({url,options});await tick();const personal=new URL(url).searchParams.has('person_id'),coach=new URL(url).searchParams.get('kind')==='coach';const data=personal?{ok:true,mode:coach?'player':'parent',revision:1,recoverable,...(recoverable?{token:(coach?'cd':'ab').repeat(32)}:{})}:{ok:true,links:[{personId:'101',mode:'parent',revision:1,recoverable},...(withCoach?[{personId:'101',kind:'coach',mode:'player',revision:1,recoverable}]:[])]};return {ok:!denied,status:denied?403:200,json:async()=>denied?{ok:false,error:'Åtkomst nekad'}:data};};
  vm.runInNewContext(readFileSync(new URL('../sharpening-link-manager.js',import.meta.url),'utf8'),context);
- const dispose=window.SharpeningLinks.bulk(root,{team:'18',people:[{id:101,full_name:'Synthetic Player'}]});
- return {preview,root,calls,dispose,cards:()=>root.querySelectorAll('*').filter(c=>c.className==='equipment-qr-player'),button:text=>root.querySelectorAll('*').find(c=>c.tagName==='BUTTON'&&c.textContent===text)};
+ const dispose=window.SharpeningLinks.bulk(root,{team:'18',people:[{id:101,kind:'player',full_name:'Synthetic Player'},...(withCoach?[{id:101,kind:'coach',full_name:'Coach Person'}]:[])]});
+ return {preview,qrData,root,calls,dispose,cards:()=>root.querySelectorAll('*').filter(c=>c.className==='equipment-qr-player'),button:text=>root.querySelectorAll('*').find(c=>c.tagName==='BUTTON'&&c.textContent===text)};
 }
 test('opening a legacy QR card performs one read and does not start a re-render request loop',async()=>{
  const f=fixture();await settle();f.cards()[0].open=true;await settle();
@@ -56,4 +57,12 @@ test('printed NSK signs show first name, heading and unchanged QR with embedded 
  assert.equal(card.children[3].className,'qr-sign-code');
  assert.match(card.children[3].src,/^data:image\/svg/);
  assert(f.calls.every(c=>c.options.method==='GET'));f.dispose();
+});
+
+test('coach and player with same ID have distinct cards, requests and printed signs',async()=>{
+ const f=fixture({recoverable:true,withCoach:true});await settle();assert.equal(f.cards().length,2);assert.deepEqual(f.cards().map(c=>c.dataset.personId),['101','coach:101']);
+ for(const card of f.cards())card.open=true;await settle();
+ const reads=f.calls.filter(c=>new URL(c.url).searchParams.has('person_id'));assert.equal(reads.length,2);assert(reads.some(c=>new URL(c.url).searchParams.get('kind')==='coach'));
+ await f.button('Skapa aktuell QR-lista').onclick();await settle();f.button('Skriv ut').onclick();await settle();
+ assert.equal(f.preview.sheet.children.length,2);const signs=f.preview.sheet.children;assert.deepEqual(signs.map(s=>s.children[2].textContent),['Coach','Synthetic']);assert(f.qrData.some(u=>u.endsWith('cd'.repeat(32))));assert(f.qrData.some(u=>u.endsWith('ab'.repeat(32))));assert(f.calls.every(c=>c.options.method==='GET'));f.dispose();
 });
