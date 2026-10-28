@@ -4,13 +4,14 @@ import { readFileSync } from 'node:fs';
 import vm from 'node:vm';
 
 const source = readFileSync(new URL('../db.js', import.meta.url), 'utf8');
-function client({ session, requests, shiftRows = null, pendingRetime = 0 }) {
+function client({ session, requests, shiftRows = null, pendingRetime = 0, failure = null }) {
   const window = { APP_CONFIG: { API_URL: 'https://api.test' }, Auth: { getToken: () => session, getSession: () => session ? { user: { id: 'test-user' } } : null }, prompt: () => { throw new Error('Legacy match-code prompt must not appear'); } };
   const context = {
     window,
     localStorage: { getItem: key => key === 'nsk_admin_token' ? 'legacy-admin' : null },
     fetch: async (url, init) => {
       requests.push({ url, init });
+      if(failure){const next=failure;failure=null;if(next instanceof Error)throw next;return next;}
       if(init?.method==='PATCH'&&pendingRetime-->0)return {ok:false,status:409,json:async()=>({ok:false,pending_retime:true})};
       return { ok: true, status: 200, json: async () => url.includes('/api/lag?') ? ({ ok: true, results: [{ id: 18, Namn: 'NSK Team 18', 'Säsong': '2026' }], next: null }) : url.includes('/api/bytesschema?') ? ({ ok: true, results: shiftRows ?? [], next: null }) : ({ ok: true, count: 1, verified: true }) };
     },
@@ -26,10 +27,10 @@ test('saving shifts sends personal Bearer token when logged in', async () => {
   assert.equal(requests[0].init.headers.Authorization, 'Bearer personal-session');
   assert.equal(requests[0].init.method, 'POST');
 });
-test('legacy admin remains fallback only without personal login', async () => {
+test('missing personal login rejects shift save despite cached administrator token', async () => {
   const requests = [];
-  await client({ session: null, requests }).saveShiftSchema(1, 1, 1, [{period_no:1,time_left:'10:00',players:[1]}]);
-  assert.equal(requests[0].init.headers.Authorization, 'Bearer legacy-admin');
+  await assert.rejects(client({session:null,requests}).saveShiftSchema(1,1,1,[{period_no:1,time_left:'10:00',players:[1]}]),/Personlig inloggning/);
+  assert.equal(requests.length,0);
 });
 
 test('marking a shift complete uses personal session and never prompts for match code', async () => {
@@ -43,11 +44,10 @@ test('marking a shift complete uses personal session and never prompts for match
   assert.equal(JSON.parse(update.init.body).done, true);
 });
 
-test('stale token without verified session does not override legacy flow', async () => {
-  const requests = [];
-  const db = client({ session: null, requests });
-  await db.saveShiftSchema(1, 1, 1, [{period_no:1,time_left:'10:00',players:[1]}]);
-  assert.equal(requests[0].init.headers.Authorization, 'Bearer legacy-admin');
+test('missing personal session rejects shift completion without prompting or using cached tokens', async () => {
+ const requests=[];
+ await assert.rejects(client({session:null,requests}).setShiftDone(1,1,1,1,true,42),/Personlig inloggning/);
+ assert.equal(requests.length,0);
 });
 
 test('known shift id saves directly without fetching collections', async()=>{
@@ -56,3 +56,17 @@ test('known shift id saves directly without fetching collections', async()=>{
 });
 
 test('shift check continues server recovery batches before reporting success',async()=>{const requests=[];await client({session:'personal-session',requests,pendingRetime:2}).setShiftDone(1,1,1,3,true,42);assert.equal(requests.length,3);assert(requests.every(r=>r.init.headers.Authorization==='Bearer personal-session'&&JSON.parse(r.init.body).done===true));});
+
+test('network interruption is not automatically replayed and does not block the next explicit save',async()=>{
+ const requests=[],db=client({session:'personal-session',requests,failure:new Error('Connection lost')});
+ const shifts=[{period_no:1,time_left:'10:00',players:[1]}];
+ await assert.rejects(db.saveShiftSchema(1,1,1,shifts),/Connection lost/);
+ assert.equal(requests.length,1);
+ await db.saveShiftSchema(1,1,1,shifts);
+ assert.equal(requests.length,2);
+});
+test('authorization failure with a misleading recovery flag cannot trigger repeated writes',async()=>{
+ const requests=[],failure={ok:false,status:401,json:async()=>({ok:false,pending_retime:true,error:'Session expired'})};
+ await assert.rejects(client({session:'personal-session',requests,failure}).setShiftDone(1,1,1,1,true,42),/Session expired/);
+ assert.equal(requests.length,1);
+});

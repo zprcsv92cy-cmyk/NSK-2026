@@ -202,9 +202,7 @@
    }catch{btn.hidden=true;btn.disabled=true;}
    return;
   }
-  const token=localStorage.getItem('nsk_admin_token');
-  if(!token){btn.hidden=true;btn.disabled=true;return;}
-  try{const r=await fetch('https://nsk-api.peter-hasselberg.workers.dev/api/admin/status',{headers:{Authorization:'Bearer '+token},cache:'no-store'});const data=await r.json();btn.hidden=!data.admin;btn.disabled=!data.admin;}catch{btn.hidden=true;btn.disabled=true;}
+  btn.hidden=true;btn.disabled=true;
  }
  window.addEventListener('storage',refresh);
  window.addEventListener('focus',refresh);

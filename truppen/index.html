@@ -334,17 +334,7 @@ window.NSKRosterCanEdit = async function () {
     try { return await window.Auth.checkTeamFeature('roster', team); }
     catch { return false; }
   }
-  // Legacy roster routes are bound to Team 18. Never enable those controls for another active team.
-  if (window.Auth?.activeTeam?.() !== 'NSK Team 18') return false;
-  const token = localStorage.getItem('nsk_admin_token');
-  if (!token) return false;
-  try {
-    const response = await fetch(
-      (window.APP_CONFIG?.API_URL || 'https://nsk-api.peter-hasselberg.workers.dev') + '/api/admin/status',
-      { headers: { Authorization: 'Bearer ' + token }, cache: 'no-store' }
-    );
-    return response.ok && (await response.json()).admin === true;
-  } catch { return false; }
+  return false;
 };
 </script>
 <script>

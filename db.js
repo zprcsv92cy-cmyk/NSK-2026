@@ -175,10 +175,10 @@ window.DB = (() => {
         window.Auth?.activeTeam?.() !== 'NSK Team 18')
       throw new Error('Välj NSK Team 18 för att ändra spelare eller tränare.');
     const personalToken = personalWrite ? window.Auth?.getToken?.() : null;
-    const token = personalWrite ? personalToken : localStorage.getItem('nsk_admin_token');
+    const token = personalToken;
     if(!token)throw new Error(personalPoolWrite ? 'Personlig inloggning krävs för att ändra poolspel.' :
       personalMatchWrite ? 'Personlig inloggning krävs för match och laguppställning.' :
-      personalRosterWrite ? 'Personlig inloggning krävs för att ändra truppen.' : 'Aktivera Adminläge först.');
+      personalRosterWrite ? 'Personlig inloggning krävs för att ändra truppen.' : 'Personlig inloggning krävs för att spara.');
     if (personalRosterWrite) {
       const team = window.Auth?.activeTeam?.();
       if (!team || typeof window.Auth?.checkTeamFeature !== 'function' ||
@@ -246,11 +246,10 @@ window.DB = (() => {
       return adminRequest(`/api/laguppstallningar/${Number(configId)}`,'POST',{players:players.map(Number),coaches:coaches.map(Number)});
     });
   }
-  // Tränarval använder personlig behörighet först när API och klient aktiverats tillsammans.
-  const personalCoachSelectionEnabled=()=>window.APP_CONFIG?.REQUIRE_PERSONAL_COACH_SELECTION===true;
+  // Coach selection always uses the personal account.
   async function getCoachSelection(poolId,lagNo,matchNo){
-    const token=personalCoachSelectionEnabled()?window.Auth?.getToken?.():localStorage.getItem('nsk_admin_token');
-    if(!token)throw new Error(personalCoachSelectionEnabled()?'Personlig inloggning krävs för tränarval.':'Aktivera Adminläge för att hämta tränarval.');
+    const token=window.Auth?.getToken?.();
+    if(!token)throw new Error('Personlig inloggning krävs för tränarval.');
     const params=new URLSearchParams({pool_id:String(poolId),lag_no:String(lagNo),match_no:String(matchNo)});
     const response=await fetch(`${API}/api/coach-selection?${params}`,{headers:{Authorization:'Bearer '+token},cache:'no-store'});
     const data=await response.json().catch(()=>({}));
@@ -260,7 +259,6 @@ window.DB = (() => {
   async function saveCoachSelection(poolId,lagNo,matchNo,coachIds){
     const payload={pool_id:Number(poolId),lag_no:Number(lagNo),match_no:Number(matchNo),
       coach_ids:[...new Set(coachIds.map(Number))]};
-    if(!personalCoachSelectionEnabled())return adminRequest('/api/coach-selection','POST',payload);
     const token=window.Auth?.getToken?.();
     if(!token)throw new Error('Personlig inloggning krävs för att spara tränarval.');
     const response=await fetch(`${API}/api/coach-selection`,{
@@ -271,11 +269,10 @@ window.DB = (() => {
     if(!response.ok||!data.ok)throw new Error(data.error||'Kunde inte spara tränarval');
     return data;
   }
-  // Personal sessions take priority for shift writes. Legacy admin is used only without a personal session.
+  // Shift writes require a verified personal session.
   async function shiftSaveRequest(payload){
     const token=(window.Auth?.getSession?.() ? window.Auth.getToken() : null);
-    if(!token&&window.APP_CONFIG?.REQUIRE_PERSONAL_MATCH_WRITES===true)throw new Error('Personlig inloggning krävs för byten.');
-    if(!token)return adminRequest('/api/bytesschema/save','POST',payload);
+    if(!token)throw new Error('Personlig inloggning krävs för byten.');
     const response=await fetch(`${API}/api/bytesschema/save`,{
       method:'POST',headers:{'Content-Type':'application/json',Authorization:'Bearer '+token},
       body:JSON.stringify(payload)
@@ -308,34 +305,21 @@ window.DB = (() => {
   async function deleteShiftSchema(poolId,lagNo,matchNo){
     return saveShiftSchema(poolId,lagNo,matchNo,[]);
   }
-  // Matchcode only authorizes marking existing shifts as completed.
+  // Completed shifts use the same personal authorization as the rest of the app.
   async function matchRequest(path,payload){
-    const key='nsk_match_token';
     async function send(token){
       for(let attempt=0;attempt<100;attempt++){
       const response=await fetch(`${API}${path}`,{method:'PATCH',headers:{'Content-Type':'application/json',Authorization:'Bearer '+token},body:JSON.stringify(payload)});
       const data=await response.json().catch(()=>({}));
-      if(data.pending_retime===true)continue;
+      if(response.status===409&&data.pending_retime===true)continue;
       if(!response.ok||!data.ok)throw Object.assign(new Error(data.error||'Kunde inte spara byte'),{status:response.status});
       return data;
       }
       throw Error('Omräkningen behöver fortsätta. Tryck på bytet igen.');
     }
     const personalToken=(window.Auth?.getSession?.() ? window.Auth.getToken() : null);
-    if(personalToken)return send(personalToken);
-    if(window.APP_CONFIG?.REQUIRE_PERSONAL_MATCH_WRITES===true)throw new Error('Personlig inloggning krävs för att checka byten.');
-    let token=localStorage.getItem(key);
-    if(token){try{return await send(token)}catch(error){if(error.status!==401)throw error;localStorage.removeItem(key)}}
-    const adminToken=localStorage.getItem('nsk_admin_token');
-    if(adminToken){try{return await send(adminToken)}catch(error){if(error.status!==401)throw error}}
-    const password=window.prompt('Ange gemensam matchkod för att spara genomförda byten:');
-    if(password===null)throw new Error('Ingen matchkod angavs.');
-    if(!password.trim())throw new Error('Matchkod saknas.');
-    const loginResponse=await fetch(`${API}/api/match/login`,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({password})});
-    const loginData=await loginResponse.json().catch(()=>({}));
-    if(!loginResponse.ok||!loginData.ok||!loginData.token)throw new Error(loginData.error||'Fel matchkod');
-    localStorage.setItem(key,loginData.token);
-    return send(loginData.token);
+    if(!personalToken)throw new Error('Personlig inloggning krävs för att checka byten.');
+    return send(personalToken);
   }
   async function setShiftDone(poolId,lagNo,matchNo,shiftNo,done,knownRowId){
     if(Number.isSafeInteger(Number(knownRowId))&&Number(knownRowId)>0){

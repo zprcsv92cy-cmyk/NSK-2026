@@ -23,6 +23,6 @@ test('client and Worker pool-write switches are jointly enabled', () => {
 test('client sends the personal token only for pool writes after explicit opt-in', () => {
   assert.match(client, /REQUIRE_PERSONAL_POOL_WRITES === true/);
   assert.match(client, /window\.Auth\?\.getToken\?\.\(\)/);
-  assert.ok(client.includes("personalWrite ? personalToken : localStorage.getItem('nsk_admin_token')"));
+  assert.doesNotMatch(client,/nsk_admin_token|nsk_match_token|\/api\/match\/login/);
   assert.match(client, /Personlig inloggning krävs för att ändra poolspel/);
 });

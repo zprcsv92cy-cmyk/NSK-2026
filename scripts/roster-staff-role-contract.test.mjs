@@ -25,14 +25,13 @@ async function run(enabled, role, action='write') {
   return {calls,output};
 }
 
-test('staff names are converted to protected API roles only when opt-in is enabled',async()=>{
+test('staff names use protected API roles and disabled personal writes never use shared admin',async()=>{
  for(const [role,swedish] of [['leader','Lagledare'],['fitness','Fysansvarig'],['equipment','Materialförvaltare']]){
-   const now=await run(true,role), legacy=await run(false,role);
+   const now=await run(true,role);
+   await assert.rejects(()=>run(false,role),/Personlig inloggning/);
    const write=now.calls.find(x=>x.options.method==='POST');
    assert.equal(JSON.parse(write.options.body).role,swedish);
    assert.equal(write.options.headers.Authorization,'Bearer '+'p'.repeat(43));
-   assert.equal(JSON.parse(legacy.calls.find(x=>x.options.method==='POST').options.body).role,role);
-   assert.equal(legacy.calls.find(x=>x.options.method==='POST').options.headers.Authorization,'Bearer legacy-admin');
  }
 });
 
