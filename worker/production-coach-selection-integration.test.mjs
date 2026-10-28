@@ -11,9 +11,9 @@ test('coach selection is protected server-side only when enabled',()=>{
  assert.match(worker,/await authorizeCoachSelection\(req, env/);
  assert.match(worker,/else if \(!env\.ADMIN_KV \|\| !await session\(req, env\)\)/);
 });
-test('client switches read/write tokens together with both production switches enabled',()=>{
- assert.match(client,/personalCoachSelectionEnabled\(\)\?window\.Auth\?\.getToken/);
- assert.match(client,/if\(!personalCoachSelectionEnabled\(\)\)return adminRequest/);
+test('client uses personal coach credentials without shared-token fallback',()=>{
+ assert.match(client,/const token=window\.Auth\?\.getToken\?\.\(\)/);
+ assert.doesNotMatch(client,/nsk_admin_token|personalCoachSelectionEnabled/);
  assert.match(config,/REQUIRE_PERSONAL_COACH_SELECTION: true/);
  assert.match(wrangler,/NSK_REQUIRE_PERSONAL_COACH_SELECTION = "true"/);
 });

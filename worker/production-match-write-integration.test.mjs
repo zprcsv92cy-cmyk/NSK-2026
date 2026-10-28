@@ -19,7 +19,7 @@ test('match-write client and Worker are jointly enabled for rollout', () => {
   assert.match(config, /REQUIRE_PERSONAL_MATCH_WRITES: true/);
   assert.match(workerConfig, /NSK_REQUIRE_PERSONAL_MATCH_WRITES = "true"/);
   assert.match(client, /REQUIRE_PERSONAL_MATCH_WRITES === true/);
-  assert.ok(client.includes("personalWrite ? personalToken : localStorage.getItem('nsk_admin_token')"));
+  assert.doesNotMatch(client,/nsk_admin_token|nsk_match_token|\/api\/match\/login/);
 });
 
 test('client only selects personal match token for match configuration and lineup write routes', () => {
