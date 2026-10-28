@@ -20,7 +20,7 @@ function fixture({recoverable=false,denied=false}={}){
  const calls=[],root=new Element('section'),tab=new Element('button'),pane={hidden:false},head=new Element('head');
  const document={head,hidden:false,getElementById:id=>id==='equipmentTabLinks'?tab:id==='equipmentPaneLinks'?pane:null,createElement:tag=>new Element(tag)};
  const Auth={getToken:()=> 'fixture-session',activeTeam:()=> 'NSK Team 18',getSession:()=>({is_primary_admin:true})};
- const window={Auth,APP_CONFIG:{API_URL:'https://api.example'},addEventListener(){},removeEventListener(){},qrcode:()=>({addData(){},make(){},createDataURL(){return 'data:image/png;base64,fixture';}})};
+ const window={Auth,APP_CONFIG:{API_URL:'https://api.example'},addEventListener(){},removeEventListener(){},qrcode:()=>({addData(){},make(){},getModuleCount(){return 57;},isDark(y,x){return (x+y)%2===0;}})};
  const context={window,Auth,document,Option:class extends Element{constructor(text,value){super('option');this.textContent=text;this.value=value;}},location:{href:'https://nsk18.pages.dev/materialforvaltare/'},navigator:{},URL,AbortSignal,setInterval:()=>1,clearInterval(){},console};
  context.fetch=async(url,options)=>{calls.push({url,options});await tick();const personal=new URL(url).searchParams.has('person_id');const data=personal?{ok:true,mode:'parent',revision:1,recoverable,...(recoverable?{token:'ab'.repeat(32)}:{})}:{ok:true,links:[{personId:'101',mode:'parent',revision:1,recoverable}]};return {ok:!denied,status:denied?403:200,json:async()=>denied?{ok:false,error:'Åtkomst nekad'}:data};};
  vm.runInNewContext(readFileSync(new URL('../sharpening-link-manager.js',import.meta.url),'utf8'),context);
