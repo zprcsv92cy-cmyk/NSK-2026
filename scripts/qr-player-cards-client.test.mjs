@@ -48,8 +48,8 @@ test('denied equipment access removes private cards and disables list controls',
 test('printed NSK signs show first name, heading and unchanged QR with embedded crest',async()=>{
  const f=fixture({recoverable:true});await settle();await f.button('Skapa aktuell QR-lista').onclick();await settle();f.button('Skriv ut').onclick();await settle();
  assert.match(f.preview.html,/grid-template-columns:repeat\(2,84mm\)/);
- assert.match(f.preview.html,/height:60mm/);
- const card=f.preview.sheet.children[0];
+ assert.match(f.preview.html,/height:60mm/);assert.match(f.preview.html,/repeat\(4,43\.50000mm\)/);assert.match(f.preview.html,/size:A4 portrait/);
+ const card=f.preview.sheet.children[0].children[0].children[0];
  assert.equal(card.children[0].className,'qr-sign-arena');assert.match(card.children[0].src,/^data:image\/jpeg;base64,/);assert.match(f.preview.html,/left:3mm;top:11mm/);assert.match(f.preview.html,/left:46mm;top:24mm/);
  assert.match(card.children[2].children[0].src,/^data:image\/png;base64,/);
  assert.equal(card.children[3].textContent,'Slipning');
@@ -64,14 +64,14 @@ test('coach and player with same ID have distinct cards, requests and printed si
  for(const card of f.cards())card.open=true;await settle();
  const reads=f.calls.filter(c=>new URL(c.url).searchParams.has('person_id'));assert.equal(reads.length,2);assert(reads.some(c=>new URL(c.url).searchParams.get('kind')==='coach'));
  await f.button('Skapa aktuell QR-lista').onclick();await settle();f.button('Skriv ut').onclick();await settle();
- assert.equal(f.preview.sheet.children.length,2);const signs=f.preview.sheet.children;assert.deepEqual(signs.map(s=>s.children[4].textContent),['Coach','Synthetic']);assert(f.qrData.some(u=>u.endsWith('cd'.repeat(32))));assert(f.qrData.some(u=>u.endsWith('ab'.repeat(32))));assert(f.calls.every(c=>c.options.method==='GET'));f.dispose();
+ assert.equal(f.preview.sheet.children.length,2);const signs=f.preview.sheet.children.flatMap(p=>p.children.map(slot=>slot.children[0]));assert.deepEqual(signs.map(s=>s.children[4].textContent),['Synthetic','Coach']);assert(f.qrData.some(u=>u.endsWith('cd'.repeat(32))));assert(f.qrData.some(u=>u.endsWith('ab'.repeat(32))));assert(f.calls.every(c=>c.options.method==='GET'));f.dispose();
 });
 
-test('local PDF has A4 pages, exact landscape sign dimensions and binary-safe cross references',async()=>{
+test('local PDF has A4 pages, equal configured sign dimensions and binary-safe cross references',async()=>{
  const f=fixture();await settle();const bytes=new Uint8Array([255,216,0,128,255,217]);
- const blob=f.api.buildPrintPdf(Array.from({length:9},()=>({width:992,height:709,bytes})));assert.equal(blob.type,'application/pdf');
+ const blob=f.api.buildPrintPdf(Array.from({length:31},(_,i)=>({kind:i<24?'player':'coach',width:992,height:709,bytes})));assert.equal(blob.type,'application/pdf');
  const data=new Uint8Array(await blob.arrayBuffer()),text=new TextDecoder('latin1').decode(data);assert(text.startsWith('%PDF-1.4'));
- assert.match(text,/\/Count 2/);assert.match(text,/\/MediaBox \[0 0 595\.2756 841\.8898\]/);assert.match(text,/238\.1102 0 0 170\.0787/);
+ assert.match(text,/\/Count 2/);assert.match(text,/\/MediaBox \[0 0 595\.2756 841\.8898\]/);assert.match(text,/123\.3071 0 0 88\.0765/);
  const start=Number(text.match(/startxref\n(\d+)/)[1]);assert.equal(new TextDecoder().decode(data.slice(start,start+4)),'xref');
  const entries=text.slice(start).split('\n').slice(3).filter(line=>/^\d{10} 00000 n/.test(line));entries.forEach((line,i)=>{const at=Number(line.slice(0,10));assert(new TextDecoder().decode(data.slice(at,at+20)).startsWith((i+1)+' 0 obj'));});
  f.dispose();
@@ -80,8 +80,19 @@ test('PDF can be prepared on the QR page without opening a popup',async()=>{
  const f=fixture({recoverable:true});await settle();assert.equal(f.button('Skapa PDF').disabled,true);
  f.context.Image=class{constructor(){this.width=650;this.height=650;}set src(value){setImmediate(()=>this.onload());}};
  const original=f.context.document.createElement;f.context.document.createElement=tag=>tag!=='canvas'?original(tag):{width:0,height:0,getContext:()=>({save(){},restore(){},translate(){},scale(){},drawImage(){},createLinearGradient:()=>({addColorStop(){}}),fillRect(){},fillText(){},measureText:()=>({width:10})}),toBlob:callback=>callback(new Blob([new Uint8Array([255,216,255,217])]))};
- f.context.window.open=()=>{throw Error('Popup must not be used for PDF generation');};
+ const openPreview=f.context.window.open;f.context.window.open=()=>{throw Error('Popup must not be used for PDF generation');};
  await f.button('Skapa aktuell QR-lista').onclick();await settle();await f.button('Skapa PDF').onclick();await settle();
- const link=f.root.querySelectorAll('*').find(e=>e.tagName==='A'&&e.textContent==='Öppna PDF / Spara');assert.equal(link.hidden,false);assert.match(link.href,/^blob:/);assert.equal(link.download,'NSK-slipning.pdf');
+ const link=f.root.querySelectorAll('*').find(e=>e.tagName==='A'&&e.textContent==='Öppna PDF / Spara');assert.equal(link.hidden,false);assert.match(link.href,/^blob:/);assert.equal(link.download,'NSK-slipning-a4-portrait.pdf');const shared=[];f.context.File=File;f.context.navigator.canShare=()=>true;f.context.navigator.share=async data=>shared.push(data);f.button('Dela PDF').onclick();await settle();assert.equal(shared.length,1);assert.equal(shared[0].files[0].type,'application/pdf');const paper=f.root.querySelectorAll('*').find(e=>e.id==='qrPaper');paper.value='a3';paper.onchange();assert.equal(link.hidden,true);assert.equal(f.button('Dela PDF').disabled,true);assert.equal(f.button('Skriv ut').disabled,false);f.context.window.open=openPreview;f.button('Skriv ut').onclick();assert.match(f.preview.html,/size:A3 portrait/);
  assert(f.calls.every(c=>c.options.method==='GET'));f.dispose();
+});
+
+test('A4/A3 portrait and landscape share one size across player and coach pages',async()=>{
+ const f=fixture();await settle();
+ for(const [paper,direction,w,h,columns,rows,pageW,pageH] of [['a4','portrait',43.5,31.07142857,4,6,210,297],['a4','landscape',47.6,34,5,5,297,210],['a3','portrait',65.25,46.60714286,4,6,297,420],['a3','landscape',71.96,51.4,5,5,420,297]]){
+  const l=f.api.printLayout(paper,direction,24);assert(Math.abs(l.cardWidth-w)<.00001);assert(Math.abs(l.cardHeight-h)<.00001);assert.equal(l.columns,columns);assert.equal(l.rows,rows);assert.equal(l.width,pageW);assert.equal(l.height,pageH);
+  assert(l.columns*l.cardWidth+(l.columns-1)*l.gap<=pageW-24+.00001);assert(l.rows*l.cardHeight+(l.rows-1)*l.gap<=pageH-24+.00001);
+  const blob=f.api.buildPrintPdf(Array.from({length:31},(_,i)=>({kind:i<24?'player':'coach',width:992,height:709,bytes:new Uint8Array([255,216,255,217])})),l),text=await blob.text();assert.match(text,/\/Count 2/);
+  const matrices=[...text.matchAll(/q ([0-9.]+) 0 0 ([0-9.]+) /g)];assert.equal(matrices.length,31);assert.equal(new Set(matrices.map(m=>m[1]+':'+m[2])).size,1);
+ }
+ f.dispose();
 });
