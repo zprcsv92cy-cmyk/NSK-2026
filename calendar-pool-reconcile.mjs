@@ -6,7 +6,8 @@ const time=match=>{const value=String(match.startTime||match.start_time||'').tri
 const opponent=match=>text(match.opponent);
 function fixtures(item,all){
  if(item.matches?.length)return item.matches;
- return all.filter(m=>m.type==='match'&&m.date===item.date&&((item.activityId&&m.poolActivityId)?String(item.activityId)===String(m.poolActivityId):venue(item)&&venue(item)===venue(m)));
+ const label=x=>venue(x)||text(x.hall||x.place);
+ return all.filter(m=>m.type==='match'&&m.date===item.date&&((item.activityId&&m.poolActivityId)?String(item.activityId)===String(m.poolActivityId):label(item)&&label(item)===label(m)));
 }
 function sameFixtures(a,b){
  if(a.length!==b.length||!a.length||a.some(m=>!opponent(m))||b.some(m=>!opponent(m)))return false;

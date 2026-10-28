@@ -53,3 +53,11 @@ test('unresolved cancellation text is a visible notice and never a venue',()=>{
  const a={...pool('SvenskaLag',[]),place:'EV inställd',hall:'EV inställd'};
  const result=reconcile([a],[]);assert.equal(result.items.length,1);assert.equal(result.items[0].place,'');assert.equal(result.items[0].hall,'');assert.match(result.items[0].notice,/EV inställd/);
 });
+
+test('raw calendar cancellation placeholders retain their linked standalone fixture during merging',()=>{
+ const placeholder={type:'pool',source:'SvenskaLag',date,place:'EV inställd',hall:''};
+ const match={type:'match',date,place:'EV inställd',opponent:'Linden Vit',startTime:'12:00'};
+ const rich=pool('SweHockey',[{opponent:'Linden Vit',startTime:'12:00'}]);
+ const result=reconcile([placeholder,match,rich],[]);
+ assert.equal(result.items.length,1);assert.match(result.items[0].notice,/EV inställd/);assert.equal(result.items[0].matches.length,1);
+});
