@@ -5,17 +5,17 @@ import {fixture} from './helpers/auth-d1-fixture.mjs';
 import {createSharpeningHandler} from '../worker/sharpening-links-api.js';
 import {createEquipmentHandler} from '../worker/equipment-api.js';
 async function setup(t){
- const f=await fixture(t);f.env.NSK_QR_LINK_KEY='11'.repeat(32);for(const file of ['20261026_equipment_boards.sql','20261026_sharpening_links.sql','20261026_sharpening_history.sql','20261026_skate_pairs.sql','20261027_recoverable_qr.sql'])for(const statement of readFileSync(new URL('../migrations/'+file,import.meta.url),'utf8').split(/;\s*(?=CREATE|INSERT|ALTER|DROP)/).filter(s=>s.trim()))await f.db.prepare(statement).run();
+ const f=await fixture(t);f.env.NSK_QR_LINK_KEY='11'.repeat(32);for(const file of ['20261026_equipment_boards.sql','20261026_sharpening_links.sql','20261026_sharpening_history.sql','20261026_skate_pairs.sql','20261027_recoverable_qr.sql','20261028_coach_sharpening.sql'])for(const statement of readFileSync(new URL('../migrations/'+file,import.meta.url),'utf8').split(/;\s*(?=CREATE|INSERT|ALTER|DROP)/).filter(s=>s.trim()))await f.db.prepare(statement).run();
  let actor={user:{id:'manager'},is_primary_admin:true,permissions:['read'],memberships:[{team_id:'NSK Team 18',role:'owner'}]},present=true,teamReads=0;
- const teams=async()=>{teamReads++;return [{id:18,Namn:'NSK Team 18','Säsong':'2026'},{id:19,Namn:'Other','Säsong':'2026'}];},readPerson=async(team,id)=>present&&team==='18'&&id==='101'?{name:'Alex SyntheticSurname'}:null,verifyIdentity=async token=>token==='session'?actor:null;
+ const teams=async()=>{teamReads++;return [{id:18,Namn:'NSK Team 18','Säsong':'2026'},{id:19,Namn:'Other','Säsong':'2026'}];},readPerson=async(team,id,kind='player')=>present&&team==='18'&&id==='101'?{name:kind==='coach'?'Coach SyntheticSurname':'Alex SyntheticSurname'}:null,verifyIdentity=async token=>token==='session'?actor:null;
  const handler=createSharpeningHandler(f.env,teams,{verifyIdentity,readPerson});
- const manage=(method='GET',data,team='18',person='101',token='session')=>handler(new Request(`https://test/api/sharpening/link?team_id=${team}&person_id=${person}`,{method,headers:{Authorization:'Bearer '+token,...(data?{'Content-Type':'application/json'}:{})},...(data?{body:JSON.stringify(data)}:{})}));
+ const manage=(method='GET',data,team='18',person='101',token='session',kind='')=>handler(new Request(`https://test/api/sharpening/link?team_id=${team}&person_id=${person}${kind?'&kind='+kind:''}`,{method,headers:{Authorization:'Bearer '+token,...(data?{'Content-Type':'application/json'}:{})},...(data?{body:JSON.stringify(data)}:{})}));
  const publicCall=(token,method='GET',data,suffix='')=>handler(new Request('https://test/api/sharpening/public'+suffix,{method,headers:{Authorization:'Sharpening '+token,...(data?{'Content-Type':'application/json'}:{})},...(data?{body:JSON.stringify(data)}:{})}));
- const board={requests:[],checklists:[{id:'list',title:'Private checklist',items:[]}],profiles:{'player:101':{number:'18',hollow:'20 mm',profile:'Quad XS',model:'Private model',notes:'PRIVATE NOTES',position:'Forward'},'player:102':{number:'19',notes:'OTHER CHILD'}}};
+ const board={requests:[],checklists:[{id:'list',title:'Private checklist',items:[]}],profiles:{'player:101':{number:'18',hollow:'20 mm',profile:'Quad XS',model:'Private model',notes:'PRIVATE NOTES',position:'Forward'},'player:102':{number:'19',notes:'OTHER CHILD'},'coach:101':{hollow:'24 mm',profile:'Coach profile',model:'Coach skates'}}};
  await f.db.prepare('INSERT INTO equipment_boards(team_id,board_json,revision,updated_by) VALUES (?,?,1,?)').bind('18',JSON.stringify(board),'fixture').run();
  const row=()=>f.db.prepare('SELECT board_json,revision FROM equipment_boards WHERE team_id=?').bind('18').first();
  const create=async(mode='parent',revision=0)=>{const r=await manage('PUT',{mode,revision});assert.equal(r.status,200);return r.json();};
- const equipment=createEquipmentHandler(f.env,teams,{verifyIdentity,readPerson:async(team,kind,id)=>kind==='player'?readPerson(team,id):null});
+ const equipment=createEquipmentHandler(f.env,teams,{verifyIdentity,readPerson:async(team,kind,id)=>readPerson(team,id,kind)});
  const personCard=(method='GET',data)=>equipment(new Request('https://test/api/person-card?team_id=18&kind=player&person_id=101',{method,headers:{Authorization:'Bearer session',...(data?{'Content-Type':'application/json'}:{})},...(data?{body:JSON.stringify(data)}:{})}));
  const material=(method='GET',data)=>equipment(new Request('https://test/api/equipment?team_id=18',{method,headers:{Authorization:'Bearer session',...(data?{'Content-Type':'application/json'}:{})},...(data?{body:JSON.stringify(data)}:{})}));
  const metadata=()=>handler(new Request('https://test/api/sharpening/link?team_id=18',{headers:{Authorization:'Bearer session'}}));
@@ -118,7 +118,7 @@ test('current QR is recoverable across reads, encrypted at rest, and absent from
  const f=await setup(t),link=await f.create(),a=await(await f.manage()).json(),b=await(await f.manage()).json();
  assert.equal(a.token,link.token);assert.equal(b.token,link.token);assert.equal(b.revision,1);
  const stored=await f.db.prepare('SELECT token_hash,token_ciphertext FROM sharpening_links').first();assert(!JSON.stringify(stored).includes(link.token));assert.match(stored.token_ciphertext,/^v1\.[a-f0-9]{24}\.[a-f0-9]{160}$/);
- const list=await(await f.metadata()).json();assert.deepEqual(list.links,[{personId:'101',mode:'parent',revision:1,recoverable:true}]);assert(!JSON.stringify(list).includes(link.token));assert(!JSON.stringify(list).includes(stored.token_hash));
+ const list=await(await f.metadata()).json();assert.deepEqual(list.links,[{personId:'101',kind:'player',mode:'parent',revision:1,recoverable:true}]);assert(!JSON.stringify(list).includes(link.token));assert(!JSON.stringify(list).includes(stored.token_hash));
  const visible=await(await f.publicCall(link.token)).json();assert(!JSON.stringify(visible).includes(link.token));assert(!JSON.stringify(visible).includes(stored.token_ciphertext));
  f.setActor({user:{id:'viewer'},memberships:[{team_id:'NSK Team 18',role:'viewer'}],permissions:['read']});assert.equal((await f.metadata()).status,403);assert.equal((await f.manage()).status,403);
 });
@@ -153,4 +153,26 @@ test('concurrent QR renewals commit one revision and missing encryption configur
  const f=await setup(t),link=await f.create();const results=await Promise.all([f.manage('PUT',{action:'renew',mode:'parent',revision:1}),f.manage('PUT',{action:'renew',mode:'parent',revision:1})]);
  assert.deepEqual(results.map(r=>r.status).sort(),[200,409]);const saved=await results.find(r=>r.status===200).json();assert.equal((await(await f.manage()).json()).token,saved.token);assert.equal((await f.publicCall(link.token)).status,404);
  delete f.env.NSK_QR_LINK_KEY;assert.equal((await f.manage('PUT',{action:'renew',mode:'parent',revision:2})).status,503);assert.equal((await f.publicCall(saved.token)).status,200);
+});
+
+test('coach QR isolates same-number player links, settings, orders and completion history',async t=>{
+ const f=await setup(t),player=await f.create();
+ const response=await f.manage('PUT',{mode:'player',revision:0},'18','101','session','coach');assert.equal(response.status,200);const coach=await response.json();assert.notEqual(coach.token,player.token);
+ assert.equal((await(await f.manage()).json()).token,player.token);
+ assert.equal((await(await f.manage('GET',null,'18','101','session','coach')).json()).token,coach.token);
+ let state=await(await f.publicCall(coach.token)).json();assert.equal(state.firstName,'Coach');assert.equal(state.hollow,'24 mm');
+ assert.equal((await f.publicCall(coach.token,'POST',{note:'Coach order'})).status,200);
+ let stored=JSON.parse((await f.row()).board_json);assert.equal(stored.requests.length,1);assert.equal(stored.requests[0].kind,'coach');assert.equal(stored.requests[0].personId,'101');assert.equal(stored.requests[0].skates.hollow,'24 mm');
+ assert.equal((await(await f.publicCall(player.token)).json()).status,'none');
+ stored.requests[0].done=true;assert.equal((await f.material('PUT',{revision:(await f.row()).revision,requests:stored.requests,checklists:stored.checklists})).status,200);
+ state=await(await f.publicCall(coach.token)).json();assert.equal(state.history.length,1);assert.equal(state.history[0].hollow,'24 mm');assert.equal(state.noteRequired,true);
+ assert.equal((await(await f.publicCall(player.token)).json()).history.length,0);
+ assert.equal((await f.publicCall(coach.token,'POST',{note:''})).status,400);
+ const latest=await f.row();assert.equal((await f.publicCall(coach.token,'PUT',{revision:latest.revision,pair:'regular',settings:{model:'New coach skates',hollow:'23 mm',profile:'Coach updated',notes:''}})).status,200);
+ stored=JSON.parse((await f.row()).board_json);assert.equal(stored.profiles['coach:101'].hollow,'23 mm');assert.equal(stored.profiles['player:101'].hollow,'20 mm');
+ const metadata=await(await f.metadata()).json();assert.equal(metadata.links.length,2);assert(metadata.links.some(l=>l.kind==='coach'&&l.personId==='101'));
+ assert.equal((await f.manage('GET',null,'19','101','session','coach')).status,403);
+ assert.equal((await f.manage('GET',null,'18','102','session','coach')).status,404);
+ for(const kind of ['invalid','coach&kind=player',''])if(kind)assert.equal((await f.manage('GET',null,'18','101','session',kind)).status,400);
+ f.setPresent(false);assert.equal((await f.publicCall(coach.token)).status,404);
 });

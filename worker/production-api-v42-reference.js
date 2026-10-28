@@ -347,7 +347,7 @@ var worker_default = { async fetch(req, env) {
     const headers={...cors,"Vary":"Origin, Authorization","Cache-Control":"private, no-store","Access-Control-Allow-Methods":"GET,PUT,POST,OPTIONS"};
     if(origin&&origin!==ORIGIN)return json({ok:false,error:"Åtkomst nekad"},403,headers);
     if(req.method==="OPTIONS")return new Response(null,{status:204,headers});
-    const response=await createSharpeningHandler(env,()=>listTrustedRosterTeams(env),{readPerson:(team,id)=>readSharpeningPerson(env,TABLES.spelare,team,id,fetch)})(req);
+    const response=await createSharpeningHandler(env,()=>listTrustedRosterTeams(env),{readPerson:(team,id,kind='player')=>readSharpeningPerson(env,kind==='coach'?TABLES.tranare:TABLES.spelare,team,id,fetch)})(req);
     const finalHeaders=new Headers(response.headers);for(const [key,value] of Object.entries(headers))finalHeaders.set(key,value);
     return new Response(response.body,{status:response.status,headers:finalHeaders});
   }

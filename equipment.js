@@ -110,7 +110,7 @@
     for(const [kind,title] of [['player','Spelare'],['coach','Tränare']]){const group=element('optgroup');group.label=title;people.filter(p=>p.kind===kind).forEach(p=>group.append(new Option(p.full_name,kind+':'+p.id)));select.append(group);}
    }
    if(Auth.getToken()!==expectedToken||Auth.activeTeam()!==expectedTeam)return;
-   linksReady=!!saved.canWrite&&!!window.SharpeningLinks?.allowed();$('equipmentTabLinks').hidden=!linksReady;if(linksReady)linkCleanup=SharpeningLinks.bulk($('equipmentQrBulk'),{team,people:people.filter(p=>p.kind==='player')});
+   linksReady=!!saved.canWrite&&!!window.SharpeningLinks?.allowed();$('equipmentTabLinks').hidden=!linksReady;if(linksReady)linkCleanup=SharpeningLinks.bulk($('equipmentQrBulk'),{team,people});
    canWrite=saved.canWrite;void rememberBoard();render();status('Uppdaterat '+new Date().toLocaleTimeString('sv-SE',{hour:'2-digit',minute:'2-digit'})+(canWrite?'':' · Läsbehörighet'));
   }catch(error){canWrite=false;if(window.NSKViewCache?.denied(error)){denyBoard();}status(error.message);if(board)render();}
   finally{busy=false;lock();}
