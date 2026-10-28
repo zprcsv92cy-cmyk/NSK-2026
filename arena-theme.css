@@ -219,3 +219,14 @@
  html[data-nsk-theme="arena"] body.home-page #activityList .arena-activity-icon {width:24px;margin-right:7px}
  html[data-nsk-theme="arena"] body.home-page #activityList .nsk-pool-name .arena-icon {width:24px}
 }
+
+@media screen {
+ html[data-nsk-theme="arena"] body .arena-brand {padding-right:90px}
+ html[data-nsk-theme="arena"] .arena-codes-button {position:absolute;right:14px;top:12px;min-height:44px;padding:8px 12px;border:1px solid #657384;border-radius:9px;background:#101c2ce6;color:#f4f6fa;font:inherit;font-size:13px;cursor:pointer}
+ html[data-nsk-theme="arena"] .arena-codes-dialog {box-sizing:border-box;width:300px;max-width:calc(100vw - 32px);padding:24px;border:1px solid #526477;border-radius:14px;background:#142230;color:#f4f6fa;text-align:center}
+ html[data-nsk-theme="arena"] .arena-codes-dialog::backdrop {background:#0009}
+ html[data-nsk-theme="arena"] .arena-codes-dialog h2 {margin:0 0 18px}
+ html[data-nsk-theme="arena"] .arena-codes-value {font-size:32px;font-weight:800;letter-spacing:5px;margin:14px 0 24px;font-variant-numeric:tabular-nums}
+ html[data-nsk-theme="arena"] .arena-codes-dialog button {min-height:44px;min-width:100px}
+}
+@media print {.arena-codes-button,.arena-codes-dialog{display:none!important}}
