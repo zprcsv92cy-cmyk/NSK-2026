@@ -24,11 +24,11 @@ function fixture({recoverable=false,denied=false,withCoach=false}={}){
  const document={head,hidden:false,getElementById:id=>id==='equipmentTabLinks'?tab:id==='equipmentPaneLinks'?pane:null,createElement:tag=>new Element(tag)};
  const Auth={getToken:()=> 'fixture-session',activeTeam:()=> 'NSK Team 18',getSession:()=>({is_primary_admin:true})};
  const window={open:()=>({document:printDoc,focus(){},print(){},close(){}}),Auth,APP_CONFIG:{API_URL:'https://api.example'},addEventListener(){},removeEventListener(){},qrcode:()=>({addData(value){qrData.push(value);},make(){},getModuleCount(){return 57;},isDark(y,x){return (x+y)%2===0;}})};
- const context={window,Auth,document,Option:class extends Element{constructor(text,value){super('option');this.textContent=text;this.value=value;}},location:{href:'https://nsk18.pages.dev/materialforvaltare/'},navigator:{},URL,AbortSignal,setInterval:()=>1,clearInterval(){},console};
+ const context={Blob,TextEncoder,Uint8Array,window,Auth,document,Option:class extends Element{constructor(text,value){super('option');this.textContent=text;this.value=value;}},location:{href:'https://nsk18.pages.dev/materialforvaltare/'},navigator:{},URL,AbortSignal,setInterval:()=>1,clearInterval(){},console};
  context.fetch=async(url,options)=>{calls.push({url,options});await tick();const personal=new URL(url).searchParams.has('person_id'),coach=new URL(url).searchParams.get('kind')==='coach';const data=personal?{ok:true,mode:coach?'player':'parent',revision:1,recoverable,...(recoverable?{token:(coach?'cd':'ab').repeat(32)}:{})}:{ok:true,links:[{personId:'101',mode:'parent',revision:1,recoverable},...(withCoach?[{personId:'101',kind:'coach',mode:'player',revision:1,recoverable}]:[])]};return {ok:!denied,status:denied?403:200,json:async()=>denied?{ok:false,error:'Åtkomst nekad'}:data};};
  vm.runInNewContext(readFileSync(new URL('../sharpening-link-manager.js',import.meta.url),'utf8'),context);
  const dispose=window.SharpeningLinks.bulk(root,{team:'18',people:[{id:101,kind:'player',full_name:'Synthetic Player'},...(withCoach?[{id:101,kind:'coach',full_name:'Coach Person'}]:[])]});
- return {preview,qrData,root,calls,dispose,cards:()=>root.querySelectorAll('*').filter(c=>c.className==='equipment-qr-player'),button:text=>root.querySelectorAll('*').find(c=>c.tagName==='BUTTON'&&c.textContent===text)};
+ return {api:window.SharpeningLinks,context,preview,qrData,root,calls,dispose,cards:()=>root.querySelectorAll('*').filter(c=>c.className==='equipment-qr-player'),button:text=>root.querySelectorAll('*').find(c=>c.tagName==='BUTTON'&&c.textContent===text)};
 }
 test('opening a legacy QR card performs one read and does not start a re-render request loop',async()=>{
  const f=fixture();await settle();f.cards()[0].open=true;await settle();
@@ -65,4 +65,23 @@ test('coach and player with same ID have distinct cards, requests and printed si
  const reads=f.calls.filter(c=>new URL(c.url).searchParams.has('person_id'));assert.equal(reads.length,2);assert(reads.some(c=>new URL(c.url).searchParams.get('kind')==='coach'));
  await f.button('Skapa aktuell QR-lista').onclick();await settle();f.button('Skriv ut').onclick();await settle();
  assert.equal(f.preview.sheet.children.length,2);const signs=f.preview.sheet.children;assert.deepEqual(signs.map(s=>s.children[4].textContent),['Coach','Synthetic']);assert(f.qrData.some(u=>u.endsWith('cd'.repeat(32))));assert(f.qrData.some(u=>u.endsWith('ab'.repeat(32))));assert(f.calls.every(c=>c.options.method==='GET'));f.dispose();
+});
+
+test('local PDF has A4 pages, exact landscape sign dimensions and binary-safe cross references',async()=>{
+ const f=fixture();await settle();const bytes=new Uint8Array([255,216,0,128,255,217]);
+ const blob=f.api.buildPrintPdf(Array.from({length:9},()=>({width:992,height:709,bytes})));assert.equal(blob.type,'application/pdf');
+ const data=new Uint8Array(await blob.arrayBuffer()),text=new TextDecoder('latin1').decode(data);assert(text.startsWith('%PDF-1.4'));
+ assert.match(text,/\/Count 2/);assert.match(text,/\/MediaBox \[0 0 595\.2756 841\.8898\]/);assert.match(text,/238\.1102 0 0 170\.0787/);
+ const start=Number(text.match(/startxref\n(\d+)/)[1]);assert.equal(new TextDecoder().decode(data.slice(start,start+4)),'xref');
+ const entries=text.slice(start).split('\n').slice(3).filter(line=>/^\d{10} 00000 n/.test(line));entries.forEach((line,i)=>{const at=Number(line.slice(0,10));assert(new TextDecoder().decode(data.slice(at,at+20)).startsWith((i+1)+' 0 obj'));});
+ f.dispose();
+});
+test('PDF can be prepared on the QR page without opening a popup',async()=>{
+ const f=fixture({recoverable:true});await settle();assert.equal(f.button('Skapa PDF').disabled,true);
+ f.context.Image=class{constructor(){this.width=650;this.height=650;}set src(value){setImmediate(()=>this.onload());}};
+ const original=f.context.document.createElement;f.context.document.createElement=tag=>tag!=='canvas'?original(tag):{width:0,height:0,getContext:()=>({save(){},restore(){},translate(){},scale(){},drawImage(){},createLinearGradient:()=>({addColorStop(){}}),fillRect(){},fillText(){},measureText:()=>({width:10})}),toBlob:callback=>callback(new Blob([new Uint8Array([255,216,255,217])]))};
+ f.context.window.open=()=>{throw Error('Popup must not be used for PDF generation');};
+ await f.button('Skapa aktuell QR-lista').onclick();await settle();await f.button('Skapa PDF').onclick();await settle();
+ const link=f.root.querySelectorAll('*').find(e=>e.tagName==='A'&&e.textContent==='Öppna PDF / Spara');assert.equal(link.hidden,false);assert.match(link.href,/^blob:/);assert.equal(link.download,'NSK-slipning.pdf');
+ assert(f.calls.every(c=>c.options.method==='GET'));f.dispose();
 });
