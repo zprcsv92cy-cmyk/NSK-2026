@@ -128,9 +128,9 @@
     }
   }
   function preserveColorGroups(){
-    if(!allocation.length)return;
     const seen=new Set(),keepers=new Set(goalies.filter(Boolean));
     allocation=Array.from({length:shirtColorCount},(_,i)=>(Array.isArray(allocation[i])?allocation[i]:[]).map(String).filter(id=>{if(!selected.has(id)||keepers.has(id)||seen.has(id))return false;seen.add(id);return true;}));
+    for(const id of selected){if(keepers.has(id)||seen.has(id))continue;const smallest=allocation.reduce((best,group,i)=>group.length<allocation[best].length?i:best,0);allocation[smallest].push(id);seen.add(id);}
   }
   function renderRoster() {
     const root=$('trainingRoster');root.replaceChildren();
@@ -140,6 +140,7 @@
       check.addEventListener('change',()=>{
         if(check.checked)selected.add(String(p.id));else selected.delete(String(p.id));
         goalies = goalies.filter(id=>selected.has(id));
+        if(goalies.length<goalieCount){goalieCount=goalies.length;$('trainingGoalieCount').value=String(goalieCount);}
         preserveColorGroups();persist();renderCount();renderGoalieSelectors();renderGroups();
       });
       label.append(check,document.createTextNode(p.full_name));root.append(label);
@@ -258,15 +259,10 @@
   }
   function distribute(){
     if(goalieCount !== goalies.filter(Boolean).length){$('trainingStatus').textContent='Välj namn för alla målvakter först.';return;}
-    preserveColorGroups();const assigned=new Set(allocation.flat().map(String));
-    const ids=players.filter(p=>selected.has(String(p.id))&&!goalies.includes(String(p.id))&&!assigned.has(String(p.id))).map(p=>String(p.id));
-    if(!ids.length){$('trainingStatus').textContent='Alla närvarande utespelare har redan en tröjfärg. Ändra vid spelarens namn om du vill flytta någon.';return;}
-    for(let i=ids.length-1;i>0;i--){const j=Math.floor(Math.random()*(i+1));[ids[i],ids[j]]=[ids[j],ids[i]];}
-    const count=shirtColorCount;
-    allocation=Array.from({length:count},(_,i)=>Array.isArray(allocation[i])?[...allocation[i]]:[]);
-    ids.forEach(id=>{const smallest=allocation.reduce((best,group,i)=>group.length<allocation[best].length?i:best,0);allocation[smallest].push(id);});
+    const previous=JSON.stringify(allocation);preserveColorGroups();
+    if(previous===JSON.stringify(allocation)){$('trainingStatus').textContent='Alla närvarande utespelare har redan en tröjfärg. Färgerna uppdateras automatiskt när närvaron ändras.';return;}
     persist();renderGroups();
-    $('trainingStatus').textContent='Nya spelare är fördelade. Tidigare färgval behålls.';
+    $('trainingStatus').textContent='Tröjfärgerna är uppdaterade. Tidigare färgval behålls.';
   }
 
   // Import is explicitly reviewed before any attendance state is changed.
@@ -483,9 +479,8 @@
       selectedEquipment=new Set(approved.filter(p=>p.kind==='equipment').map(p=>String(p.id)));
       goalies=goalies.filter(id=>selected.has(id));
       if(goalies.length<goalieCount){
-        goalies=[];
-        goalieCount=0;
-        $('trainingGoalieCount').value='0';
+        goalieCount=goalies.length;
+        $('trainingGoalieCount').value=String(goalieCount);
       }
       preserveColorGroups();persist();renderRoster();renderCoaches();renderEquipment();renderGoalieSelectors();renderGroups();
       $('trainingImportStatus').textContent=approved.length+' deltagare markerade som Kommer. Tidigare närvaro har ersatts.';

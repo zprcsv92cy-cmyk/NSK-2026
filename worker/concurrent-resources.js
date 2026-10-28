@@ -18,8 +18,16 @@ export function withConcurrentResources(handler){
    if(!base||typeof base!=='object'||Array.isArray(base)||Object.keys(base).length!==keys.length||keys.some(k=>!Object.hasOwn(base,k)))return response(400,'Ogiltig sparversion');
    for(let retry=0;retry<4;retry++){
     const read=await handler(new Request(request.url,{headers:request.headers}),...args);if(!read.ok)return read;
-    const latest=await read.json();let merged={...submitted,revision:latest.revision};
-    if(training)merged={...mergeTraining(base.session,trainingSnapshot(submitted),trainingSnapshot(latest.session)),revision:latest.revision};
+    const latest=await read.json(),latestRevision=training?(latest.session===null?0:latest.session?.revision??latest.revision):latest.revision;
+    if(!Number.isSafeInteger(latestRevision)||latestRevision<0)return response(502,'Sparversionen kunde inte läsas. Försök igen.');
+    let merged={...submitted,revision:latestRevision};
+    if(training){
+     merged={...mergeTraining(base.session,trainingSnapshot(submitted),trainingSnapshot(latest.session)),revision:latestRevision};
+     const count=merged.shirtColorCount||3;
+     merged.allocation=Array.from({length:count},(_,i)=>[...(merged.allocation[i]||[])]);
+     const assigned=new Set(merged.allocation.flat()),goalies=new Set(merged.goalies);
+     for(const id of merged.selected){if(assigned.has(id)||goalies.has(id))continue;const smallest=merged.allocation.reduce((best,group,i)=>group.length<merged.allocation[best].length?i:best,0);merged.allocation[smallest].push(id);assigned.add(id);}
+    }
     else for(const key of keys)merged[key]=mergeConcurrent(base[key],submitted[key],latest[key]);
     const result=await handler(new Request(request.url,{method:'PUT',headers:request.headers,body:JSON.stringify(merged)}),...args);
     if(result.status!==409){if(result.ok&&training){const saved=await result.json();return new Response(JSON.stringify({...saved,session:trainingSnapshot(merged)}),{status:result.status,headers:result.headers});}return result;}
