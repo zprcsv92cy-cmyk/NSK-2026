@@ -80,7 +80,7 @@
   const clauses=input.split(/[,.;!?\n]+|,?\s+(?:sedan|därefter|och sedan|och därefter)\s*|\s+och\s+(?=sväng|svänger|vänd|stanna|passa|skjut|åk|runda|fortsätt|framåt|bakåt|baklänges)/).map(s=>s.trim()).filter(Boolean);
   for(const clause of clauses){
    const before=warnings.length;let touched=false;
-   const moving=/(?:passar|passning|passa\b|spelar pucken|skjuter|skott|avslut|åk\b|åker|åkning|skridsko|åkväg|driver|rundar|runt\b|sväng|svänger|vänder|vändning|slalom|framåt|bakåt|baklänges|stanna(?:r)?|stopp|översteg)/.test(clause);
+   const moving=/(?:passar|passning|passa\b|spelar pucken|skjut(?:er)?|skott|avslut|åk\b|åker|åkning|skridsko|åkväg|driver|runda(?:r)?|runt\b|sväng|svänger|vänd(?:er|ning)?|slalom|framåt|bakåt|baklänges|stanna(?:r)?|stopp|översteg)/.test(clause);
    const divider=/avdelare|avgränsare|sargdelare/.test(clause);
    const localContext={...context};if(zone(clause))localContext.zone=zone(clause);
    // Object clauses have their own location; action subjects refer to already placed players.
@@ -112,14 +112,14 @@
     }
    }
    if(moving||divider){
-    const isPass=/passar|passning|passa\b|spelar pucken/.test(clause),isShot=/skjuter|skott|avslut/.test(clause);
-    const backwards=/bakåt|baklänges/.test(clause),turn=/sväng|svänger|vänd|rundar|runt\b|slalom/.test(clause),stop=/stanna(?:r)?|stopp/.test(clause),crossover=/översteg/.test(clause);
+    const isPass=/passar|passning|passa\b|spelar pucken/.test(clause),isShot=/skjut(?:er)?|skott|avslut/.test(clause);
+    const backwards=/bakåt|baklänges/.test(clause),turn=/sväng|svänger|vänd|runda(?:r)?|runt\b|slalom/.test(clause),stop=/stanna(?:r)?|stopp/.test(clause),crossover=/översteg/.test(clause);
     const fromTo=/(?:från|ifrån)\s+(.+?)\s+(?:till|mot)\s+(.+)/.exec(clause),from=/(?:från|ifrån)\s+(.+?)(?=\s+(?:framåt|bakåt|baklänges|sväng|och|runt|i slalom)|$)/.exec(clause),actor=/(spelare\s*(?:\d{1,2}|[abc])|första spelaren|andra spelaren|tredje spelaren)/.exec(clause);
     const destination=/(?:till|mot)\s+(.+)/.exec(clause);
     let a=fromTo?resolve(fromTo[1]):from?resolve(from[1]):actor?resolve(actor[1]):remembered;
     let b=fromTo?resolve(fromTo[2]):destination?resolve(destination[1]):null;
     if(isShot&&!destination&&!fromTo)b=point(240,localContext.zone==='lower'?rink.goalLower:rink.goalUpper);
-    const around=/(?:runt|rundar)\s+(.+)/.exec(clause);
+    const around=/(?:runt|runda(?:r)?)\s+(.+)/.exec(clause);
     if(around&&/cirkel|kon|däck/.test(around[1])){
      let c;
      if(/cirkel/.test(around[1]))c=location(around[1],localContext,warn);

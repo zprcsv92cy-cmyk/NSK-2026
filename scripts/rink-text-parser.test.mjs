@@ -53,3 +53,8 @@ test('goalkeepers follow moved and rotated goals rather than the printed creases
  const r=parse('En målvakt i varje mål.','#b11226',{goals:[{x:150,y:300,angle:90},{x:320,y:550,angle:270}]});
  assert.equal(r.marks.length,2);assert.deepEqual(xy(r.marks[0]),[132,300]);assert.deepEqual(xy(r.marks[1]),[338,550]);
 });
+
+test('imperative instructions support turning, rounding and shooting',()=>{
+ const r=parse('En spelare i mittcirkeln. Vänd. Skjut mot övre målet.');assert.equal(r.warnings.length,0);assert.equal(r.marks[1].type,'curve');assert.equal(r.marks[2].type,'shot');
+ const cone=parse('En kon i mittcirkeln. Runda kon 1.');assert.equal(cone.warnings.length,0);assert.equal(cone.marks.at(-1).type,'curve');
+});
