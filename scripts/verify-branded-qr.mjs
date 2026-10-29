@@ -43,3 +43,22 @@ for(const origin of ['https://nsk18.pages.dev','https://zprcsv92cy-cmyk.github.i
  }
 }
 console.log(checked+' branded QR images decoded to their original synthetic links.');
+// Exercise the actual printed size, rather than the larger on-screen preview.
+let printed=0;
+for(const paper of ['a4','a3'])for(const orientation of ['portrait','landscape']){
+ const layout=window.SharpeningLinks.printLayout(paper,orientation);
+ const mm=42*layout.cardWidth/84;
+ for(const origin of ['https://nsk18.pages.dev','https://zprcsv92cy-cmyk.github.io/NSK-2026'])for(let sample=0;sample<12;sample++){
+  const url=origin+'/slipning/#nyckel='+createHash('sha256').update('qr-print-fixture-'+sample).digest('hex');
+  const data=window.SharpeningLinks.printQrDataUrl(url),svg=decodeURIComponent(data.slice(data.indexOf(',')+1));
+  assert.doesNotMatch(svg,/<image|width="0\.45"/,'No photograph or sampling centres in printed QR');
+  for(const dpi of [200,300]){
+   const size=Math.round(mm*dpi/25.4),image=new Resvg(svg,{fitTo:{mode:'width',value:size}}).render();
+   const pixels=new Uint8ClampedArray(image.pixels);
+   // Grayscale and reduced black density model a lower-contrast paper print.
+   for(let i=0;i<pixels.length;i+=4){const gray=Math.round(pixels[i]*.299+pixels[i+1]*.587+pixels[i+2]*.114);pixels[i]=pixels[i+1]=pixels[i+2]=40+Math.round(gray*215/255);}
+   assert.equal(jsQR(pixels,image.width,image.height)?.data,url,paper+' '+orientation+' '+mm.toFixed(1)+'mm at '+dpi+'dpi');printed++;
+  }
+ }
+}
+console.log(printed+' printed QR images decoded at their actual A4/A3 sizes in grayscale.');
