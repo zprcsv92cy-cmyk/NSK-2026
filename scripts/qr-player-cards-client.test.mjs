@@ -16,7 +16,7 @@ class Element {
 }
 const tick=()=>new Promise(resolve=>setImmediate(resolve));
 async function settle(){for(let i=0;i<20;i++)await tick();}
-function fixture({recoverable=false,denied=false,withCoach=false}={}){
+function fixture({recoverable=false,denied=false,withCoach=false,writeBody,writeError,writeStatus=200}={}){
  const preview={html:'',sheet:null};
  const printButtons=new Map();const printDoc={open(){},write(html){preview.html=html;},close(){},images:[],body:{append(sheet){preview.sheet=sheet;}},importNode:sheet=>sheet,getElementById(id){if(!printButtons.has(id))printButtons.set(id,new Element('button'));return printButtons.get(id);}};
  const qrData=[];
@@ -24,8 +24,8 @@ function fixture({recoverable=false,denied=false,withCoach=false}={}){
  const document={head,hidden:false,getElementById:id=>id==='equipmentTabLinks'?tab:id==='equipmentPaneLinks'?pane:null,createElement:tag=>new Element(tag)};
  const Auth={getToken:()=> 'fixture-session',activeTeam:()=> 'NSK Team 18',getSession:()=>({is_primary_admin:true})};
  const window={open:()=>({document:printDoc,focus(){},print(){},close(){}}),Auth,APP_CONFIG:{API_URL:'https://api.example'},addEventListener(){},removeEventListener(){},qrcode:()=>({addData(value){qrData.push(value);},make(){},getModuleCount(){return 57;},isDark(y,x){return (x+y)%2===0;}})};
- const context={Blob,TextEncoder,Uint8Array,window,Auth,document,Option:class extends Element{constructor(text,value){super('option');this.textContent=text;this.value=value;}},location:{href:'https://nsk18.pages.dev/materialforvaltare/'},navigator:{},URL,AbortSignal,setInterval:()=>1,clearInterval(){},console};
- context.fetch=async(url,options)=>{calls.push({url,options});await tick();const personal=new URL(url).searchParams.has('person_id'),coach=new URL(url).searchParams.get('kind')==='coach';const data=personal?{ok:true,mode:coach?'player':'parent',revision:1,recoverable,...(recoverable?{token:(coach?'cd':'ab').repeat(32)}:{})}:{ok:true,links:[{personId:'101',mode:'parent',revision:1,recoverable},...(withCoach?[{personId:'101',kind:'coach',mode:'player',revision:1,recoverable}]:[])]};return {ok:!denied,status:denied?403:200,json:async()=>denied?{ok:false,error:'Åtkomst nekad'}:data};};
+ const context={confirm:()=>true,Blob,TextEncoder,Uint8Array,window,Auth,document,Option:class extends Element{constructor(text,value){super('option');this.textContent=text;this.value=value;}},location:{href:'https://nsk18.pages.dev/materialforvaltare/'},navigator:{},URL,AbortSignal,setInterval:()=>1,clearInterval(){},console};
+ context.fetch=async(url,options)=>{calls.push({url,options});await tick();if(options.method==='PUT'){if(writeError)throw writeError;return {ok:writeStatus<400,status:writeStatus,json:async()=>writeBody};}const personal=new URL(url).searchParams.has('person_id'),coach=new URL(url).searchParams.get('kind')==='coach';const data=personal?{ok:true,mode:coach?'player':'parent',revision:1,recoverable,...(recoverable?{token:(coach?'cd':'ab').repeat(32)}:{})}:{ok:true,links:[{personId:'101',mode:'parent',revision:1,recoverable},...(withCoach?[{personId:'101',kind:'coach',mode:'player',revision:1,recoverable}]:[])]};return {ok:!denied,status:denied?403:200,json:async()=>denied?{ok:false,error:'Åtkomst nekad'}:data};};
  vm.runInNewContext(readFileSync(new URL('../sharpening-link-manager.js',import.meta.url),'utf8'),context);
  const dispose=window.SharpeningLinks.bulk(root,{team:'18',people:[{id:101,kind:'player',full_name:'Synthetic Player'},...(withCoach?[{id:101,kind:'coach',full_name:'Coach Person'}]:[])]});
  return {api:window.SharpeningLinks,context,preview,qrData,root,calls,dispose,cards:()=>root.querySelectorAll('*').filter(c=>c.className==='equipment-qr-player'),button:text=>root.querySelectorAll('*').find(c=>c.tagName==='BUTTON'&&c.textContent===text)};
@@ -95,4 +95,13 @@ test('A4/A3 portrait and landscape share one size across player and coach pages'
   const matrices=[...text.matchAll(/q ([0-9.]+) 0 0 ([0-9.]+) /g)];assert.equal(matrices.length,31);assert.equal(new Set(matrices.map(m=>m[1]+':'+m[2])).size,1);
  }
  f.dispose();
+});
+
+for(const failure of ['timeout','invalid','invalid-token','missing-token','server-error'])test(`an unconfirmed QR renewal (${failure}) hides old QR and print output until reread`,async()=>{
+ const f=fixture({recoverable:true,...(failure==='timeout'?{writeError:new DOMException('Timed out','TimeoutError')}:{writeStatus:failure==='server-error'?500:200,writeBody:failure==='invalid-token'?{ok:true,mode:'parent',revision:2,recoverable:true,token:'bad'}:failure==='missing-token'?{ok:true,mode:'parent',revision:2,recoverable:true}:{ok:true}})});await settle();
+ f.cards()[0].open=true;await settle();await f.button('Skapa aktuell QR-lista').onclick();await settle();assert.equal(f.button('Skriv ut').disabled,false);assert(f.button('Dela länk'));
+ f.button('Förnya QR').onclick();await settle();
+ assert.equal(f.calls.filter(c=>c.options.method==='PUT').length,1);assert.equal(f.button('Skriv ut').disabled,true);assert.equal(f.button('Dela länk'),undefined);assert.equal(f.button('Förnya QR').disabled,true);assert.equal(f.button('Skapa aktuell QR-lista').disabled,false);
+ const message=f.root.querySelectorAll('*').find(e=>e.id==='qrBulkStatus').textContent;assert.doesNotMatch(message,/Ny QR skapad/);assert.match(message,/bekräftas/);assert(f.button('Läs om QR'));
+ f.button('Läs om QR').onclick();await settle();assert(f.button('Dela länk'));assert.equal(f.button('Förnya QR').disabled,false);assert.equal(f.calls.filter(c=>c.options.method==='PUT').length,1);f.dispose();
 });
