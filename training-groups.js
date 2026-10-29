@@ -539,7 +539,6 @@
       $('trainingDate').value=date;$('trainingDate').hidden=!manualMode;$('trainingDate').readOnly=false;
       refreshTrainingChoices();
       await restore();saveBlocked=false;renderRoster();renderCoaches();renderEquipment();renderGoalieSelectors();renderGroups();
-      if($('trainingAttendance')&&allocation.some(group=>group.length))$('trainingAttendance').open=false;
       $('trainingStatus').textContent=calendarError;
     }catch(error){$('trainingStatus').textContent=error.message||'Kunde inte läsa truppen.';}
   });

@@ -37,3 +37,21 @@ test('inactive pages pause periodic reads but a pending write completes and noti
 test('failed writes release their saving guard without reporting a confirmed change',async()=>{
  const f=embedded(),pending=f.window.fetch('https://api.test/endpoint',{method:'POST'});f.resolve({ok:false});await pending;assert.deepEqual(f.calls,[['writing',1],['writing',-1]]);
 });
+
+// Exercise the real activation path after retained detail state has been restored.
+for(const returning of [false,true])test('training attendance opens on '+(returning?'retained menu/calendar return':'initial calendar/menu entry'),()=>{
+ const panel={open:false},events=[];
+ const context={sequence:1,signedOut:false,active:null,pending:null,lastRoutes:{},Date,Event:class{constructor(type){this.type=type;}},clearTimeout(){},document:{querySelector:()=>null},persist(){},selection(){},restore(){panel.open=false;},status(){},prune(){},remember(){}};
+ const e={everActive:returning,route:{slug:'traningsgrupper',url:new URL(root.href+'traningsgrupper/?date=2026-11-02')},frame:{dataset:{},setAttribute(){},contentWindow:{dispatchEvent:event=>events.push(event.type)},contentDocument:{getElementById:id=>id==='trainingAttendance'?panel:null,dispatchEvent:event=>events.push(event.type)}}};
+ const code=shell.slice(shell.indexOf(' function activate('),shell.indexOf(' async function navigate('));
+ vm.runInNewContext(code+'this.run=activate;',context);context.run(e,1,{history:false});
+ assert.equal(panel.open,true);assert.equal(e.frame.dataset.active,'true');
+ if(returning)assert(events.includes('nsk:page-show'));
+ // User can still collapse it during this visit; there is no forced-open observer.
+ panel.open=false;assert.equal(panel.open,false);
+});
+test('saved shirt groups no longer automatically collapse the attendance panel',()=>{
+ const groups=readFileSync(new URL('../training-groups.js',import.meta.url),'utf8');
+ assert.doesNotMatch(groups,/trainingAttendance'\)\.open\s*=\s*false/);
+ assert.match(readFileSync(new URL('../traningsgrupper/index.html',import.meta.url),'utf8'),/id="trainingAttendance" open/);
+});

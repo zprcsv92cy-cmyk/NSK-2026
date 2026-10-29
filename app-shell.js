@@ -28,7 +28,9 @@
   const returning=e.everActive;active=e;pending=null;e.everActive=true;e.used=Date.now();e.frame.contentWindow.NSKShellActive=true;e.frame.dataset.active='true';e.frame.inert=false;e.frame.setAttribute('aria-hidden','false');
   if(options.history!==false&&(options.replace||location.href!==e.route.url.href)){const method=options.replace?'replaceState':'pushState';history[method]({nskShell:true,entryId:e.id,context:e.context},'',e.route.url.pathname+e.route.url.search+e.route.url.hash);}
   lastRoutes[e.route.slug]=e.route.url.pathname+e.route.url.search+e.route.url.hash;persist();
-  selection(e);restore(e.frame.contentWindow);status('');clearTimeout(e.timeout);
+  selection(e);restore(e.frame.contentWindow);
+  if(e.route.slug==='traningsgrupper'){const attendance=e.frame.contentDocument?.getElementById('trainingAttendance');if(attendance)attendance.open=true;}
+  status('');clearTimeout(e.timeout);
   document.querySelector('.arena-more')?.removeAttribute('open');
   if(returning){e.frame.contentWindow.dispatchEvent(new Event('focus'));e.frame.contentDocument.dispatchEvent(new Event('nsk:page-show'));}
   if(options.focus)e.frame.focus({preventScroll:true});prune();
