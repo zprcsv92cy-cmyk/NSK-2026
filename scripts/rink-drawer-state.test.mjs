@@ -4,7 +4,7 @@ import fs from 'node:fs';
 import vm from 'node:vm';
 const code=fs.readFileSync(new URL('../rink-drawer.js',import.meta.url),'utf8');
 const DRAFT='nsk_rink_draft_v2',SAVED='nsk_rink_drawing_v1';
-function editor(stored={}){
+function editor(stored={},movableGoals=false){
  const nodes=new Map(),storage=new Map(Object.entries(stored)),timers=new Map(),documentEvents={},windowEvents={};let nextId=0,quota=false;
  class Node{
   constructor(tag='div'){this.tagName=tag;this.children=[];this.attrs={};this.events={};this.value='';this.dataset={};this.hidden=false;this.open=false;this.options=[];this.textContent='';}
@@ -19,10 +19,11 @@ function editor(stored={}){
   createSVGPoint(){return {x:0,y:0,matrixTransform(){return {x:this.x,y:this.y};}};}
  }
  const node=id=>{if(!nodes.has(id))nodes.set(id,new Node());return nodes.get(id);};
- const tools=['move','player','goalie','puck','cone','skate','pass','shot','divider','divider-yellow','divider-blue','tire','erase','curve','pan'].map(tool=>{const n=new Node('button');n.dataset.tool=tool;return n;});
+ const tools=['move','goal','player','goalie','puck','cone','skate','pass','shot','divider','divider-yellow','divider-blue','tire','erase','curve','pan'].map(tool=>{const n=new Node('button');n.dataset.tool=tool;return n;});
+ if(movableGoals)node('rinkSvg').dataset.goalTemplate='movable';
  node('rinkColor').value='#b11226';node('rinkCategory').value='Passningar';node('rinkCategory').options=[{value:'Passningar'},{value:'Skott'}];
  const document={activeElement:null,hidden:false,getElementById:node,createElementNS:(_ns,tag)=>new Node(tag),querySelectorAll:selector=>selector==='[data-tool]'?tools:[],addEventListener:(type,fn)=>{documentEvents[type]=fn;},body:{classList:{toggle:()=>true}}};
- const context={document,window:{addEventListener:(type,fn)=>windowEvents[type]=fn},crypto:{randomUUID:()=>String(++nextId)},localStorage:{getItem:key=>storage.get(key)??null,setItem:(key,value)=>{if(quota)throw Error('Quota exceeded');storage.set(key,value);}},setTimeout:fn=>{const id=++nextId;timers.set(id,fn);return id;},clearTimeout:id=>timers.delete(id),Blob};
+ const context={confirm:()=>true,document,window:{addEventListener:(type,fn)=>windowEvents[type]=fn},crypto:{randomUUID:()=>String(++nextId)},localStorage:{getItem:key=>storage.get(key)??null,setItem:(key,value)=>{if(quota)throw Error('Quota exceeded');storage.set(key,value);}},setTimeout:fn=>{const id=++nextId;timers.set(id,fn);return id;},clearTimeout:id=>timers.delete(id),Blob};
  vm.runInNewContext(code,context);documentEvents.DOMContentLoaded();
  const flush=()=>{for(const [id,fn] of [...timers]){timers.delete(id);fn();}};
  const pointer=(type,x,y)=>node('rinkSvg').emit(type,{clientX:x,clientY:y,pointerId:1,isPrimary:true,pointerType:'touch',button:0});
@@ -111,4 +112,19 @@ test('multiple exercise categories survive draft save and restore',()=>{
  picker.options[0].selected=true;picker.options[1].selected=true;picker.emit('change');f.flush();
  assert.deepEqual(f.draft().categories,['Skridskoåkning','Skott och avslut']);
  assert.equal(f.draft().category,'Skridskoåkning, Skott och avslut');
+});
+
+test('template goals can move, rotate, copy and reload; clearing does not recreate them',()=>{
+ const f=editor({},true);f.choose('move');f.pointer('pointerdown',240,78);f.pointer('pointermove',310,200);f.pointer('pointerup',310,200);f.flush();
+ assert.equal(f.draft().marks.length,2);assert.equal(f.draft().marks[0].x,310);
+ f.node('rinkGoalRotation').value='90';f.node('rinkGoalRotation').onchange();f.node('rinkDuplicate').onclick();f.flush();
+ assert.equal(f.draft().marks.length,3);assert.equal(f.draft().marks[2].angle,90);
+ f.node('rinkUndo').onclick();f.flush();assert.equal(f.draft().marks.length,2);assert.equal(f.draft().marks[0].angle,90);
+ const g=editor(Object.fromEntries(f.storage),true);g.leave();assert.equal(g.draft().marks.length,2);assert.equal(g.draft().marks[0].angle,90);
+ g.node('rinkClear').onclick();g.flush();const cleared=editor(Object.fromEntries(g.storage),true);cleared.leave();assert.equal(cleared.draft().marks.length,0);
+});
+test('backwards skating and movement labels survive loading, copying and draft recovery',()=>{
+ const f=editor({[DRAFT]:JSON.stringify({title:'Bakåt',marks:[{id:'b',type:'skate',x:240,y:430,x2:240,y2:550,color:'#b11226',motion:'backward',movementLabel:'Stopp'}]})});
+ f.choose('move');f.pointer('pointerdown',240,490);f.pointer('pointerup',240,490);f.node('rinkDuplicate').onclick();f.flush();
+ assert.equal(f.draft().marks[1].motion,'backward');assert.equal(f.draft().marks[1].movementLabel,'Stopp');
 });
