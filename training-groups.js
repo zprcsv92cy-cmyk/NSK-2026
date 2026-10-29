@@ -122,9 +122,11 @@
         try{
           const latest=await SharedTraining.get(date);
           if(!latest.session&&revision>0)throw Error('Träningen har tagits bort. Dina osparade val finns kvar.');
+          const latestRevision=latest.session===null?0:latest.session?.revision??latest.revision;
+          if(!Number.isSafeInteger(latestRevision)||latestRevision<0)throw Error('Träningens sparversion kunde inte läsas. Dina osparade val finns kvar.');
           const current=await SharedTraining.snapshotSession(latest.session);
-          if(mode==='latest'){applyTraining(current);confirmedTraining=current;revision=latest.revision;}
-          else{const draft=await SharedTraining.mergeDraft(confirmedTraining,captureTraining(),current);const saved=await SharedTraining.save(date,{...draft,revision:latest.revision,base:{session:current}});confirmedTraining=saved.session||draft;revision=saved.revision;applyTraining(confirmedTraining);}
+          if(mode==='latest'){applyTraining(current);confirmedTraining=current;revision=latestRevision;}
+          else{const draft=await SharedTraining.mergeDraft(confirmedTraining,captureTraining(),current);const saved=await SharedTraining.save(date,{...draft,revision:latestRevision,base:{session:current}});confirmedTraining=saved.session||draft;revision=saved.revision;applyTraining(confirmedTraining);}
           saveBlocked=false;root.hidden=true;$('trainingStatus').textContent=mode==='latest'?'Senaste träningen är inläst.':'Dina ändringar är sparade.';window.NSKShellHost?.clean?.(window);
         }catch(error){recoveryStatus=error.status||0;$('trainingStatus').textContent=error.message;}
         finally{controls.forEach((c,i)=>{if(c.isConnected)c.disabled=disabled[i];});}
