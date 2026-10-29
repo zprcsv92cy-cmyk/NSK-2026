@@ -25,6 +25,7 @@ export function withPoolFlow(original,{resolveTables,listTeams,verifyIdentity,au
    if(origin!==allowedOrigin||!methods.includes(method)||requested.some(x=>!['authorization','content-type'].includes(x)))return reply(403,'Preflight not allowed');
    return new Response(null,{status:204,headers:{...headers,'Access-Control-Allow-Methods':methods.join(', ')+', OPTIONS','Access-Control-Allow-Headers':'Authorization, Content-Type'}});
   }
+  let operationId=null;
   try{
    if(scopedRead){
     const filters={};for(const key of ['pool_id','lag_no','match_no','match_config_id']){const values=url.searchParams.getAll(key);if(values.length){if(values.length!==1||!/^[1-9]\d*$/.test(values[0])||!positive(Number(values[0])))return reply(400,'Ogiltigt matchfilter');filters[key]=Number(values[0]);}}
@@ -36,7 +37,7 @@ export function withPoolFlow(original,{resolveTables,listTeams,verifyIdentity,au
    const tables=resolveTables(env),base='https://api.baserow.io/api/database/rows/table/',auth={Authorization:'Token '+env.BASEROW_TOKEN};
    const row=async(table,id)=>{const r=await fetcher(base+tables[table]+'/'+id+'/?user_field_names=true',{headers:auth});if(r.status===404)return null;if(!r.ok)throw Error('Databasen kunde inte läsas');return r.json();};
    const rows=async table=>{const result=[];for(let page=1;page<=100;page++){const r=await fetcher(base+tables[table]+'/?user_field_names=true&size=200&page='+page,{headers:auth});if(!r.ok)throw Error('Databasen kunde inte läsas');const d=await r.json();if(!Array.isArray(d.results)||d.results.length>200)throw Error('Ogiltigt databasunderlag');result.push(...d.results);if(!d.next)return result;}throw Error('För stort underlag');};
-   if(poolRead){const response=await original(req,env,ctx);if(!response.ok)return response;const data=await response.clone().json();if(!Array.isArray(data.results))return response;const deleted=await env.AUTH_DB.prepare('SELECT pool_id,step,plan_json FROM pool_flow_deletions').all();const hidden=new Set((deleted.results||[]).filter(x=>Number(x.step)>=JSON.parse(x.plan_json).length).map(x=>Number(x.pool_id)));const deleting=new Set((deleted.results||[]).map(x=>Number(x.pool_id)));const imports=await env.AUTH_DB.prepare('SELECT pool_id FROM pool_flow_calendar').all();const imported=new Set((imports.results||[]).map(x=>Number(x.pool_id)));const saves=await env.AUTH_DB.prepare("SELECT pool_id,lag_no,match_no FROM pool_flow_saves WHERE status='pending'").all();data.results=data.results.filter(x=>!hidden.has(Number(x.id))).map(x=>({...x,nsk_calendar_imported:imported.has(Number(x.id)),nsk_deleting:deleting.has(Number(x.id)),nsk_pending_matches:(saves.results||[]).filter(s=>Number(s.pool_id)===Number(x.id)).map(s=>({lag_no:s.lag_no,match_no:s.match_no}))}));data.count=data.results.length;return new Response(JSON.stringify(data),{status:response.status,headers:response.headers});}
+   if(poolRead){const response=await original(req,env,ctx);if(!response.ok)return response;const data=await response.clone().json();if(!Array.isArray(data.results))return response;const deleted=await env.AUTH_DB.prepare('SELECT pool_id,step,plan_json FROM pool_flow_deletions').all();const hidden=new Set((deleted.results||[]).filter(x=>Array.isArray(JSON.parse(x.plan_json))&&Number(x.step)>=JSON.parse(x.plan_json).length).map(x=>Number(x.pool_id)));const deleting=new Set((deleted.results||[]).map(x=>Number(x.pool_id)));const imports=await env.AUTH_DB.prepare('SELECT pool_id FROM pool_flow_calendar').all();const imported=new Set((imports.results||[]).map(x=>Number(x.pool_id)));const saves=await env.AUTH_DB.prepare("SELECT pool_id,lag_no,match_no FROM pool_flow_saves WHERE status='pending'").all();data.results=data.results.filter(x=>!hidden.has(Number(x.id))).map(x=>({...x,nsk_calendar_imported:imported.has(Number(x.id)),nsk_deleting:deleting.has(Number(x.id)),nsk_pending_matches:(saves.results||[]).filter(s=>Number(s.pool_id)===Number(x.id)).map(s=>({lag_no:s.lag_no,match_no:s.match_no}))}));data.count=data.results.length;return new Response(JSON.stringify(data),{status:response.status,headers:response.headers});}
    const token=/^Bearer ([A-Za-z0-9_-]{32,256})$/.exec(req.headers.get('Authorization')||'')?.[1];
    if(!token)return reply(401,'Personlig inloggning krävs');
    const actor=await verifyIdentity(env,token);if(!actor)return reply(401,'Giltig inloggning krävs');
@@ -68,24 +69,40 @@ export function withPoolFlow(original,{resolveTables,listTeams,verifyIdentity,au
    let feature=remove?'pool':special?.[2]==='material'?'lineup':special?'matches':path==='/api/coach-selection'?'lineup':path.startsWith('/api/laguppstallningar')?'lineup':['/api/bytesschema/save','/api/bytesschema/retime'].includes(path)?(path.endsWith('/retime')?'pool':'lineup'):path.startsWith('/api/bytesschema')?'shifts':path.endsWith('/aktiv')?(body.active?'pool_reopen':'pool_finish'):path.startsWith('/api/poolspel')?'pool':'matches';
    const access=special?.[2]==='material'&&req.method==='GET'?{allowed:actor.permissions?.includes('read')&&actor.memberships?.some(m=>m.team_id===teams[0].Namn),status:403}:authorize(actor,teams[0].Namn,feature);if(!access.allowed)return reply(access.status||403,access.reason||'Saknar behörighet');
    if(remove){
-    // Delete in resumable batches, children before parent. A tombstone blocks all further writes.
+    // Mark deletion before reading children. Atomic predicates exclude all active writers.
     const lease=crypto.randomUUID(),now=Date.now();
-    if(!deletion){
-     const configs=(await rows('matchkonfiguration')).filter(r=>links(r.Poolspel).includes(poolId)),configIds=new Set(configs.map(r=>Number(r.id)));
-     const plan=[];
-     for(const table of ['bytesschema','laguppstallningar','malvaktsstatistik','matcher'])for(const r of await rows(table)){
-      const own=links(r.Poolspel).includes(poolId)||(table==='laguppstallningar'&&links(r.Matchkonfiguration).some(id=>configIds.has(id)))||(table==='malvaktsstatistik'&&String(r['Match-ID']||r['Match-id']||r.match_id||'').startsWith(poolId+':'));
-      if(own){if(links(r.Poolspel).some(id=>id!==poolId)||(table==='laguppstallningar'&&links(r.Matchkonfiguration).some(id=>!configIds.has(id))))return reply(409,'En kopplad rad delas med annat poolspel');plan.push({table,id:Number(r.id)});}
-     }
-     plan.push(...configs.map(r=>({table:'matchkonfiguration',id:Number(r.id)})),{table:'poolspel',id:poolId});
-     await env.AUTH_DB.prepare('INSERT OR IGNORE INTO pool_flow_deletions(pool_id,team_row_id,plan_json,step) VALUES(?,?,?,0)').bind(poolId,teamIds[0],JSON.stringify(plan)).run();
-    }
+    if(!deletion)await env.AUTH_DB.prepare("INSERT OR IGNORE INTO pool_flow_deletions(pool_id,team_row_id,plan_json,step) SELECT ?,?,'null',0 WHERE NOT EXISTS(SELECT 1 FROM pool_flow_operations WHERE pool_id=? AND lease_until>?)").bind(poolId,teamIds[0],poolId,now).run();
     const job=await env.AUTH_DB.prepare('UPDATE pool_flow_deletions SET lease=?,lease_until=? WHERE pool_id=? AND lease_until<? RETURNING *').bind(lease,now+120000,poolId,now).first();
-    if(!job)return reply(409,'Radering pågår redan. Vänta och försök igen.');
-    try{const plan=JSON.parse(job.plan_json);let step=Number(job.step);const end=Math.min(step+15,plan.length);for(;step<end;step++){const item=plan[step];const r=await fetcher(base+tables[item.table]+'/'+item.id+'/',{method:'DELETE',headers:auth});if(!r.ok&&r.status!==404)throw Error('Raderingen avbröts. Tryck Ta bort igen för att fortsätta.');await env.AUTH_DB.prepare('UPDATE pool_flow_deletions SET step=? WHERE pool_id=? AND lease=?').bind(step+1,poolId,lease).run();}if(step===plan.length){for(let l=1;l<=Number(pool?.['Antal lag']||8);l++)for(let m=1;m<=Number(pool?.['Antal matcher']||8);m++)await env.NSK_TRAINERS?.delete('coaches:v1:'+poolId+':'+l+':'+m);return reply(200,null,{deleted:true});}return reply(200,null,{pending:true});}
-    finally{await env.AUTH_DB.prepare('UPDATE pool_flow_deletions SET lease_until=0 WHERE pool_id=? AND lease=?').bind(poolId,lease).run();}
+    if(!job)return reply(409,'Poolspelet sparas eller tas bort just nu. Vänta och försök igen.');
+    try{
+     let plan=JSON.parse(job.plan_json);
+     if(!Array.isArray(plan)){
+      const configs=(await rows('matchkonfiguration')).filter(r=>links(r.Poolspel).includes(poolId)),configIds=new Set(configs.map(r=>Number(r.id)));
+      plan=[];
+      for(const table of ['bytesschema','laguppstallningar','malvaktsstatistik','matcher'])for(const r of await rows(table)){
+       const own=links(r.Poolspel).includes(poolId)||(table==='laguppstallningar'&&links(r.Matchkonfiguration).some(id=>configIds.has(id)))||(table==='malvaktsstatistik'&&String(r['Match-ID']||r['Match-id']||r.match_id||'').startsWith(poolId+':'));
+       if(own){if(links(r.Poolspel).some(id=>id!==poolId)||(table==='laguppstallningar'&&links(r.Matchkonfiguration).some(id=>!configIds.has(id))))return reply(409,'En kopplad rad delas med annat poolspel');plan.push({table,id:Number(r.id)});}
+      }
+      plan.push(...configs.map(r=>({table:'matchkonfiguration',id:Number(r.id)})),{table:'poolspel',id:poolId});
+      const stored=await env.AUTH_DB.prepare('UPDATE pool_flow_deletions SET plan_json=? WHERE pool_id=? AND lease=?').bind(JSON.stringify(plan),poolId,lease).run();
+      if(!stored.meta?.changes)throw Error('Borttagningen behöver läsas om. Försök igen.');
+     }
+     let step=Number(job.step);const end=Math.min(step+15,plan.length);for(;step<end;step++){const item=plan[step];const r=await fetcher(base+tables[item.table]+'/'+item.id+'/',{method:'DELETE',headers:auth});if(!r.ok&&r.status!==404)throw Error('Raderingen avbröts. Tryck Ta bort igen för att fortsätta.');await env.AUTH_DB.prepare('UPDATE pool_flow_deletions SET step=? WHERE pool_id=? AND lease=?').bind(step+1,poolId,lease).run();}if(step===plan.length){for(let l=1;l<=Number(pool?.['Antal lag']||8);l++)for(let m=1;m<=Number(pool?.['Antal matcher']||8);m++)await env.NSK_TRAINERS?.delete('coaches:v1:'+poolId+':'+l+':'+m);return reply(200,null,{deleted:true});}return reply(200,null,{pending:true});
+    }finally{
+     // Failed planning has not deleted anything and must not leave the pool blocked.
+     await env.AUTH_DB.prepare("DELETE FROM pool_flow_deletions WHERE pool_id=? AND lease=? AND plan_json='null'").bind(poolId,lease).run();
+     await env.AUTH_DB.prepare('UPDATE pool_flow_deletions SET lease_until=0 WHERE pool_id=? AND lease=?').bind(poolId,lease).run();
+    }
    }
    if(deletion)return reply(409,'Poolspelet håller på att tas bort.');
+   if(write){
+    const now=Date.now(),id=crypto.randomUUID();
+    await env.AUTH_DB.prepare('DELETE FROM pool_flow_operations WHERE lease_until<=?').bind(now).run();
+    const registered=await env.AUTH_DB.prepare('INSERT INTO pool_flow_operations(operation_id,pool_id,lease_until) SELECT ?,?,? WHERE NOT EXISTS(SELECT 1 FROM pool_flow_deletions WHERE pool_id=?)').bind(id,poolId,now+300000,poolId).run();
+    if(!registered.meta?.changes)return reply(409,'Poolspelet håller på att tas bort.');
+    operationId=id;
+   }
+
    if(path==='/api/poolspel/'+poolId&&req.method==='PATCH'){
     const fields={teams:'Antal lag',matches:'Antal matcher',players_on_field:'Spelare på plan',periods:'Perioder',period_time:'Periodtid'};
     if(Object.entries(fields).some(([key,field])=>body[key]!==undefined&&Number(body[key])!==Number(pool[field]))&&(await rows('bytesschema')).some(r=>links(r.Poolspel).includes(poolId)&&r.Genomfört===true))return reply(409,'Poolspelet har genomförda byten. Antal lag, matcher och spelregler är låsta.');
@@ -183,5 +200,6 @@ export function withPoolFlow(original,{resolveTables,listTeams,verifyIdentity,au
    }
    const response=await original(req,env,ctx);if(response.ok&&body.schedule_only===true)await env.AUTH_DB.prepare('INSERT OR IGNORE INTO pool_flow_calendar(pool_id) VALUES(?)').bind(poolId).run();return response;
   }catch(error){return reply(503,error.message||'Poolspelsflödet kunde inte kontrolleras');}
+  finally{if(operationId)await env.AUTH_DB.prepare('DELETE FROM pool_flow_operations WHERE operation_id=?').bind(operationId).run().catch(()=>{});}
  };
 }
