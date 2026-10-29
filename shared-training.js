@@ -33,33 +33,45 @@
     cachedTeamToken=token;
     return teamId;
   }
+  const captureSession=()=>({token:Auth.getToken(),team:Auth.activeTeam()});
+  function assertSession(session){
+    if(Auth.getToken()!==session.token||Auth.activeTeam()!==session.team)throw Error('Inloggningen eller lagvalet ändrades. Försök igen.');
+  }
   async function request(date,payload){
+    const session=captureSession();
     const team=await resolveTeam();
+    assertSession(session);
     const url=base()+'/api/training?team_id='+encodeURIComponent(team)+(date?'&date='+encodeURIComponent(date):'');
-    const headers={Authorization:'Bearer '+Auth.getToken()};
+    const headers={Authorization:'Bearer '+session.token};
     if(payload!==undefined)headers['Content-Type']='application/json';
     const response=await fetch(url,{method:payload===undefined?'GET':'PUT',headers,body:payload===undefined?undefined:JSON.stringify(payload),cache:'no-store'});
     const data=await response.json().catch(()=>({}));
+    assertSession(session);
     if(!response.ok)throw Object.assign(Error(response.status===409?data.error||'Träningen ändrades av en annan ledare. Dina val finns kvar.':data.error||'Träningen kunde inte sparas.'),{status:response.status});
     if(payload!==undefined){window.NSKViewCache?.clear();try{sessionStorage.removeItem('nsk_view_cache_v1');}catch{}}
     return data;
   }
   async function remove(date,revision){
+    const session=captureSession();
     if(!/^\d{4}-\d{2}-\d{2}$/.test(date)||!Number.isSafeInteger(revision)||revision<1)
       throw Error('Träningen behöver läsas om innan den kan tas bort.');
     const id=await resolveTeam();
+    assertSession(session);
     const response=await fetch(base()+'/api/training?team_id='+encodeURIComponent(id)+'&date='+encodeURIComponent(date)+'&revision='+revision,{
-      method:'DELETE',headers:{Authorization:'Bearer '+Auth.getToken()},cache:'no-store'
+      method:'DELETE',headers:{Authorization:'Bearer '+session.token},cache:'no-store'
     });
     const data=await response.json().catch(()=>({}));
+    assertSession(session);
     if(!response.ok)throw Error(response.status===409?'Träningen har ändrats eller tagits bort av någon annan. Ladda om sidan.':data.error||'Träningen kunde inte tas bort.');
     window.NSKViewCache?.clear();try{sessionStorage.removeItem('nsk_view_cache_v1');}catch{}
     return data;
   }
   async function roster(kind){
+    const session=captureSession();
     if(!['spelare','tranare'].includes(kind))throw Error('Ogiltig trupptyp');
     const id=await resolveTeam();
-    const token=Auth.getToken();
+    assertSession(session);
+    const token=session.token;
     const result=[];
     for(let page=1;page<=100;page++){
       const response=await fetch(base()+'/api/'+kind+'?page='+page+'&size=200&team_id='+encodeURIComponent(id),{
@@ -67,6 +79,7 @@
       });
       if(!response.ok)throw Error('Kunde inte hämta '+(kind==='spelare'?'spelare':'tränare')+': '+response.status);
       const data=await response.json();
+      assertSession(session);
       if(!data.ok||!Array.isArray(data.results))throw Error('Ogiltigt truppsvar');
       for(const person of data.results){
         const teams=Array.isArray(person.Lag)?person.Lag:[];
@@ -78,19 +91,26 @@
     throw Error('För många sidor i truppsvaret');
   }
   async function listEquipment(){
+    const session=captureSession();
     const id=await resolveTeam();
-    const response=await fetch(base()+'/api/lagpersonal?team_id='+encodeURIComponent(id),{headers:{Authorization:'Bearer '+Auth.getToken()},cache:'no-store'});
+    assertSession(session);
+    const response=await fetch(base()+'/api/lagpersonal?team_id='+encodeURIComponent(id),{headers:{Authorization:'Bearer '+session.token},cache:'no-store'});
     const data=await response.json();
+    assertSession(session);
     if(!response.ok||!data.ok)throw Error('Materialförvaltare kunde inte hämtas');
     const coaches=(data.results||[]).some(p=>p.coach_id)?await roster('tranare'):[];
+    assertSession(session);
     return (data.results||[]).filter(person=>['equipment','Materialförvaltare'].includes(person.role)).map(person=>({id:String(person.id),coach_id:person.coach_id,full_name:coaches.find(c=>Number(c.id)===person.coach_id)?.full_name||person.name})).sort((a,b)=>a.full_name.localeCompare(b.full_name,'sv'));
   }
   async function calendarTrainings(){
+    const session=captureSession();
     if(Auth.activeTeam()!=='NSK Team 18')return [];
     const id=await resolveTeam();
-    const response=await fetch(base()+'/api/training?team_id='+encodeURIComponent(id)+'&action=svenskalag-saved&training_history=1',{headers:{Authorization:'Bearer '+Auth.getToken()},cache:'no-store'});
+    assertSession(session);
+    const response=await fetch(base()+'/api/training?team_id='+encodeURIComponent(id)+'&action=svenskalag-saved&training_history=1',{headers:{Authorization:'Bearer '+session.token},cache:'no-store'});
     if(!response.ok)throw Error('Kalendern kunde inte hämtas');
     const data=await response.json();
+    assertSession(session);
     return (Array.isArray(data.items)?data.items:[]).filter(item=>item.type==='training');
   }
   function upcomingDates(items,now=new Date()){
@@ -107,11 +127,14 @@
     return [...dates].sort(([a],[b])=>a.localeCompare(b)).map(([date,details])=>({date,label:date+(details.length?' · '+details.join(' / '):'')}));
   }
   async function calendarHall(date){
+    const session=captureSession();
     if(Auth.activeTeam()!=='NSK Team 18')return '';
     const id=await resolveTeam();
-    const response=await fetch(base()+'/api/training?team_id='+encodeURIComponent(id)+'&action=svenskalag-saved',{headers:{Authorization:'Bearer '+Auth.getToken()},cache:'no-store'});
+    assertSession(session);
+    const response=await fetch(base()+'/api/training?team_id='+encodeURIComponent(id)+'&action=svenskalag-saved',{headers:{Authorization:'Bearer '+session.token},cache:'no-store'});
     if(!response.ok)throw Error('Kalendern kunde inte hämtas');
     const data=await response.json();
+    assertSession(session);
     const halls=new Set((Array.isArray(data.items)?data.items:[]).filter(item=>item.type==='training'&&item.date===date).map(item=>{
       const hall=String(item.hall||item.place||'').trim().toLocaleLowerCase('sv-SE');
       return /^(lilla hallen|lilla ishallen)$/.test(hall)?'Lilla Hallen':/^(stora hallen|stora ishallen)$/.test(hall)?'Stora hallen':'';
