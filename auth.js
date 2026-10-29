@@ -143,14 +143,17 @@
     const current = token();
     clear(false);
     try { localStorage.removeItem('nsk_admin_token'); localStorage.removeItem('nsk_match_token'); } catch {}
+    let revocation;
     if (base && current) {
       try {
-        await fetch(base + '/api/auth/logout', {
-          method: 'POST', headers: { Authorization: 'Bearer ' + current }, credentials: 'omit', keepalive: true
-        });
+        revocation=fetch(base + '/api/auth/logout', {
+          method: 'POST', headers: { Authorization: 'Bearer ' + current }, credentials: 'omit', keepalive: true,
+          signal: typeof AbortSignal !== 'undefined' && AbortSignal.timeout ? AbortSignal.timeout(5000) : undefined
+        }).catch(()=>{});
       } catch { /* Local logout succeeds even if the server is unavailable. */ }
     }
     window.NSKShellHost?.signedOut(); window.NSKAppShell?.signedOut();
+    await revocation;
   }
   window.Auth = Object.freeze({
     init, login, logout, can, checkTeamFeature, stagingRosterList, stagingRosterWrite, activeTeam, selectTeam,
