@@ -99,7 +99,7 @@ export function parseSvenskalagIcal(text,today){
           items.push(pool?{type:'pool',date,place,hall:''}:training?{type:'training',date,hall,startTime,endTime}:{type:'match',date,startTime,opponent,place});
           // Explicit U9 pool fixture groups also supply future pool cards, even without a standalone pool event.
           if(opponent&&place&&title.split(/\s+[-–]\s+/u).length===3&&/poolspel/iu.test(title)&&/(?:^|\W)u\s*9(?:\W|$)/iu.test(title))
-            items.push({type:'pool',date,place,hall:''});
+            items.push({type:'pool',date,place,hall:'',fixtureOverview:true});
         }
       }
       event=null;continue;
@@ -115,7 +115,7 @@ export function parseSvenskalagIcal(text,today){
     const key=item.type+':'+item.date+':'+(item.type==='pool'?normalizePlace(item.place).toLocaleLowerCase('sv-SE'):item.type==='match'?item.startTime+':'+item.opponent.toLocaleLowerCase('sv-SE'):'');
     const older=unique.get(key);
     if(older&&item.type==='training'&&(older.hall!==item.hall||older.startTime!==item.startTime||older.endTime!==item.endTime))older.multipleSessions=true;
-    else if(!older)unique.set(key,item);
+    else if(!older||(item.type==='pool'&&older.fixtureOverview===true&&item.fixtureOverview!==true))unique.set(key,item);
   }
   return [...unique.values()].slice(0,500);
 }
