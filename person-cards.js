@@ -2,9 +2,13 @@
 (() => {
  const {profileGroups,profileDescription}=window.SkateFields;
  const base=()=>String(window.APP_CONFIG?.API_URL||'https://nsk-api.peter-hasselberg.workers.dev').replace(/\/$/,'');
+ const mergeRoot=typeof document!=='undefined'&&document.currentScript?.src?new URL('./',document.currentScript.src):null;
+ const concurrency=()=>import(new URL('concurrency-merge.mjs?v='+encodeURIComponent(window.NSK_VERSION||'1'),mergeRoot));
  async function request(path,team,payload){
-  const response=await fetch(base()+path+(path.includes('?')?'&':'?')+'team_id='+encodeURIComponent(team),{method:payload?'PUT':'GET',headers:{Authorization:'Bearer '+Auth.getToken(),...(payload?{'Content-Type':'application/json'}:{})},body:payload?JSON.stringify(payload):undefined,cache:'no-store'});
+  const expectedToken=Auth.getToken();
+  const response=await fetch(base()+path+(path.includes('?')?'&':'?')+'team_id='+encodeURIComponent(team),{method:payload?'PUT':'GET',headers:{Authorization:'Bearer '+expectedToken,...(payload?{'Content-Type':'application/json'}:{})},body:payload?JSON.stringify(payload):undefined,cache:'no-store'});
   const data=await response.json().catch(()=>({}));
+  if(Auth.getToken()!==expectedToken)throw Error('Inloggningen ändrades. Öppna kortet igen.');
   if(!response.ok||!data.ok){const error=Error(data.error||'Kortet kunde inte hämtas eller sparas.');error.status=response.status;throw error;}
   if(payload){window.NSKViewCache?.clear();try{sessionStorage.removeItem('nsk_view_cache_v1');}catch{}}
   return data;
@@ -31,6 +35,7 @@
  const pairStyle=document.createElement('style');pairStyle.textContent='#personCardGoalieEnabled{width:22px;min-height:22px;height:22px;margin-right:8px}#personCardGoalieLabel{display:flex;align-items:center;margin:16px 0}#personCardGoalieEditor label{display:grid;gap:6px}.goalie-card-facts{grid-column:1/-1;font-size:.85rem;line-height:1.5}';document.head.append(pairStyle);
  document.body.append(dialog);
  const $=id=>dialog.querySelector('#'+id),form=$('personCardForm');
+ const recovery=document.createElement('button');recovery.type='button';recovery.hidden=true;form.after(recovery);
  const skateIcon='<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 3h5l1 7 7 3v4H4V9h1zM3 21h17l2-2M7 17v4m10-4v4M7 6h3m-3 3h4"/></svg>';
  for(const id of ['personCardRegularTitle','personCardGoalieTitle','personCardSharpen'])$(id).insertAdjacentHTML('afterbegin',skateIcon);
  $('personCardEdit').insertAdjacentHTML('afterbegin','<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m4 16-1 5 5-1L21 7l-4-4zM14 6l4 4M4 16l4 4"/></svg>');
@@ -40,20 +45,20 @@
  const flatValues=()=>Object.fromEntries([...form.elements].filter(e=>e.name&&(e.name!=='radius'||Object.hasOwn(current.card,'radius'))).map(e=>[e.name,e.value.trim()]));
  const values=()=>({...flatValues(),goalieEnabled:$('personCardGoalieEnabled').checked,goalie:{radius:current.card.goalie?.radius||'',...goalieEditor.get()}});
  const dirty=()=>editing&&current&&JSON.stringify(values())!==JSON.stringify({...current.card,goalieEnabled:current.card.goalieEnabled??false,goalie:{radius:'',model:'',hollow:'17 mm',profile:'',notes:'',...current.card.goalie}});
- function selectionOptions(){
+ function selectionOptions(card=current.card){
   const hollow=form.elements.hollow,profile=form.elements.profile;
   hollow.replaceChildren(new Option('Ej angivet',''));
   for(let mm=15;mm<=25;mm++)hollow.append(new Option(mm+' mm',mm+' mm'));
   profile.replaceChildren(new Option('Ej angivet',''));
   for(const [label,items] of profileGroups){const group=document.createElement('optgroup');group.label=label;for(const [name,description] of items){const option=new Option(name,name);option.title=description;group.append(option);}profile.append(group);}
   // Retain values saved before these lists existed; never silently replace them.
-  for(const field of [hollow,profile]){const value=current.card[field.name]||'';if(value&&![...field.options].some(o=>o.value===value))field.prepend(new Option('Tidigare värde: '+value,value));}
+  for(const field of [hollow,profile]){const value=card[field.name]||'';if(value&&![...field.options].some(o=>o.value===value))field.prepend(new Option('Tidigare värde: '+value,value));}
  }
  function showProfileHelp(){
   const description=profileDescription(form.elements.profile.value);
   $('personCardProfileHelp').textContent=description;$('personCardProfileHelp').hidden=!description;
  }
- function fillForm(){goalieEditor=SkateFields.editor($('personCardGoalieEditor'),current.card.goalie||{hollow:'17 mm'});$('personCardGoalieEnabled').checked=!!current.card.goalieEnabled;$('personCardGoalieFields').hidden=!current.card.goalieEnabled;selectionOptions();for(const field of [...form.elements].filter(e=>e.name))field.value=current.card[field.name]||'';showProfileHelp();}
+ function fillForm(card=current.card){goalieEditor=SkateFields.editor($('personCardGoalieEditor'),card.goalie||{hollow:'17 mm'});$('personCardGoalieEnabled').checked=!!card.goalieEnabled;$('personCardGoalieFields').hidden=!card.goalieEnabled;selectionOptions(card);for(const field of [...form.elements].filter(e=>e.name))field.value=card[field.name]||'';showProfileHelp();}
  $('personCardGoalieEnabled').onchange=()=>{$('personCardGoalieFields').hidden=!$('personCardGoalieEnabled').checked;};
  form.elements.profile.addEventListener('change',showProfileHelp);
  function facts(target,rows){
@@ -81,6 +86,7 @@
   $('personCardIdentityFacts').hidden=editing;$('personCardOverview').hidden=editing;form.hidden=!editing;controls();
  }
  function controls(){
+  recovery.hidden=!conflicted;recovery.disabled=pending;recovery.textContent=editing?'Hämta senaste och granska mina ändringar':'Läs om kortet';
   for(const field of [...form.elements].filter(e=>e.name))field.disabled=pending||conflicted||!current||(['number','position','hand'].includes(field.name)?!current.canEditProfile:!current.canEditSkates);
   $('personCardSave').disabled=pending||conflicted;
   $('personCardEdit').hidden=editing||!current?.canEditSkates;$('personCardEdit').disabled=pending||conflicted;
@@ -106,9 +112,28 @@
   }catch(error){if(generation===version)status(error.message);}
  }
  document.addEventListener('click',event=>{const target=event.target.closest('[data-roster-name][data-roster-team]');if(!target)return;event.preventDefault();void open(target);});
+ async function recoverConflict(){
+  if(!current||pending||!conflicted)return;
+  const previous=current,expectedToken=Auth.getToken(),generation=version,draft=editing?values():null;
+  pending=true;controls();status('Hämtar senaste kortet…');
+  try{
+   const latest=await get(previous.team,previous.kind,previous.id);
+   let proposed=latest.card;
+   if(draft){
+    if(!latest.canEditSkates||!latest.canEditProfile&&['number','position','hand'].some(k=>draft[k]!==previous.card[k]))throw Error('Din behörighet att ändra kortet har ändrats. Utkastet är inte sparat.');
+    const {mergeConcurrent}=await concurrency();
+    proposed=mergeConcurrent(previous.card,draft,latest.card,true);
+   }
+   if(current!==previous||version!==generation||Auth.getToken()!==expectedToken)throw Error('Inloggningen eller kortet ändrades. Öppna kortet igen.');
+   current={...previous,...latest};conflicted=false;fillForm(proposed);render();
+   status(draft?'Senaste kortet är hämtat. Dina ändringar finns kvar i formuläret. Granska och tryck Spara kort.':'Senaste kortet är hämtat.');
+  }catch(error){status(error.message+' Inga ändringar har sparats.');}
+  finally{pending=false;controls();}
+ }
+ recovery.onclick=()=>void recoverConflict();
  async function perform(action){
   if(!current||pending||conflicted)return;pending=true;controls();
-  try{await action();}catch(error){if(error.status===409){conflicted=true;status(error.message+' Stäng och öppna kortet igen.');}else status(error.message+' Ändringen har inte bekräftats som sparad.');}
+  try{await action();}catch(error){if(error.status===409){conflicted=true;status(error.message+' Läs om kortet med knappen nedan.');}else status(error.message+' Ändringen har inte bekräftats som sparad.');}
   finally{pending=false;controls();}
  }
  form.onsubmit=event=>{event.preventDefault();void perform(async()=>{

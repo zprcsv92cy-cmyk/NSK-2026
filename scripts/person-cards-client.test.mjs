@@ -33,3 +33,10 @@ test('roster summaries reuse card reads, are scoped to team and person, and refr
  current={...current,position:'Back'};await f.api.save('18','player','101',current,3);
  assert.equal(f.api.summary('18','player','101').position,'Back');assert.equal(f.calls.length,2);
 });
+
+test('a delayed card response from another session cannot populate the current summary cache',async()=>{
+ let token='old-session',release;
+ const context={window:{APP_CONFIG:{API_URL:'https://api.example.test'}},Auth:{getToken:()=>token},document:{getElementById:()=>null},fetch:()=>new Promise(r=>release=()=>r({ok:true,status:200,json:async()=>({ok:true,card:{number:'18'},revision:1})}))};
+ vm.runInNewContext(fs.readFileSync(new URL('../skate-fields.js',import.meta.url),'utf8')+'\n'+script,context);
+ const pending=context.window.PersonCards.get('18','player','101');token='new-session';release();await assert.rejects(pending,/Inloggningen ändrades/);assert.equal(context.window.PersonCards.summary('18','player','101'),undefined);
+});
