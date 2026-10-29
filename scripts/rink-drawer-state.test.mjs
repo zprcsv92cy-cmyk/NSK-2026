@@ -18,7 +18,7 @@ function editor(stored={}){
   createSVGPoint(){return {x:0,y:0,matrixTransform(){return {x:this.x,y:this.y};}};}
  }
  const node=id=>{if(!nodes.has(id))nodes.set(id,new Node());return nodes.get(id);};
- const tools=['move','player','goalie','puck','cone','skate','pass','shot','divider','erase','curve','pan'].map(tool=>{const n=new Node('button');n.dataset.tool=tool;return n;});
+ const tools=['move','player','goalie','puck','cone','skate','pass','shot','divider','divider-yellow','divider-blue','tire','erase','curve','pan'].map(tool=>{const n=new Node('button');n.dataset.tool=tool;return n;});
  node('rinkColor').value='#b11226';node('rinkCategory').value='Passningar';node('rinkCategory').options=[{value:'Passningar'},{value:'Skott'}];
  const document={activeElement:null,hidden:false,getElementById:node,createElementNS:(_ns,tag)=>new Node(tag),querySelectorAll:selector=>selector==='[data-tool]'?tools:[],addEventListener:(type,fn)=>{documentEvents[type]=fn;},body:{classList:{toggle:()=>true}}};
  const context={document,window:{addEventListener:(type,fn)=>windowEvents[type]=fn},crypto:{randomUUID:()=>String(++nextId)},localStorage:{getItem:key=>storage.get(key)??null,setItem:(key,value)=>{if(quota)throw Error('Quota exceeded');storage.set(key,value);}},setTimeout:fn=>{const id=++nextId;timers.set(id,fn);return id;},clearTimeout:id=>timers.delete(id),Blob};
@@ -77,4 +77,25 @@ test('the NSK template is embedded below editable marks without changing their c
  f.choose('player');f.pointer('pointerdown',240,430);f.pointer('pointerup',240,430);f.flush();
  assert.equal(f.draft().marks[0].x,240);assert.equal(f.draft().marks[0].y,430);
  assert.equal(f.node('rinkSvg').children[0].attrs['data-rink-background'],'nsk');
+});
+
+test('yellow and blue rink dividers retain their endpoints and color type through copy, undo and reload',()=>{
+ for(const tool of ['divider-yellow','divider-blue']){
+  const f=editor();f.choose(tool);f.pointer('pointerdown',80,180);f.pointer('pointermove',320,180);f.pointer('pointerup',320,180);f.flush();
+  assert.equal(f.draft().marks[0].type,tool);assert.equal(f.draft().marks[0].x2,320);
+  const shape=f.node('rinkSvg').children.find(n=>n.attrs['data-mark']===f.draft().marks[0].id).children[0];assert.equal(shape.attrs.stroke,tool==='divider-yellow'?'#facc15':'#2563eb');assert.equal(shape.attrs['marker-end'],undefined);
+  f.node('rinkDuplicate').onclick();f.flush();assert.equal(f.draft().marks.length,2);
+  f.node('rinkUndo').onclick();f.flush();assert.equal(f.draft().marks.length,1);
+  const restored=editor(Object.fromEntries(f.storage));restored.choose('move');restored.pointer('pointerdown',150,180);assert.equal(restored.node('rinkSelectedLabel').textContent,tool==='divider-yellow'?'Gul rinkavdelare markerad':'Blå rinkavdelare markerad');
+  restored.pointer('pointermove',160,200);restored.pointer('pointerup',160,200);restored.flush();assert.equal(restored.draft().marks[0].x2,330);
+ }
+});
+test('small tires stay hollow, editable and recoverable like other symbols',()=>{
+ const f=editor();f.choose('tire');f.pointer('pointerdown',140,240);f.pointer('pointerup',140,240);f.flush();
+ assert.equal(f.draft().marks[0].type,'tire');
+ const group=f.node('rinkSvg').children.find(n=>n.attrs['data-mark']===f.draft().marks[0].id);
+ assert(group.children.some(n=>n.tagName==='circle'&&n.attrs.fill==='none'&&n.attrs.r===10));
+ f.node('rinkDuplicate').onclick();f.flush();assert.equal(f.draft().marks.length,2);
+ const restored=editor(Object.fromEntries(f.storage));restored.choose('move');restored.pointer('pointerdown',140,240);assert.equal(restored.node('rinkSelectedLabel').textContent,'Däck markerad');
+ restored.node('rinkDelete').onclick();restored.flush();assert.equal(restored.draft().marks.length,1);
 });
