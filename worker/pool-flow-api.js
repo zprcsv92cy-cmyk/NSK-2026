@@ -129,7 +129,7 @@ export function withPoolFlow(original,{resolveTables,listTeams,verifyIdentity,au
     const configs=(await rows('matchkonfiguration')).filter(r=>links(r.Poolspel).includes(poolId)&&Number(r.Lagnummer)===Number(data.lag_no)&&Number(r.Matchnummer)===Number(data.match_no));if(configs.length>1)return reply(409,'Dubbla matchposter finns. Inget sparades.');
     const old=configs[0];
     let configData=info?{...data,player_count:old?.['Antal spelare']||null,goalie_player_id:links(old?.Målvakt)[0]||null,players_on_field:links(old?.['Spelare på plan'])}:data;
-    const internal=(pathname,method,payload)=>new Request(new URL(pathname,req.url),{method,headers:{Authorization:req.headers.get('Authorization'),'Content-Type':'application/json'},body:JSON.stringify(payload)});
+    const internal=(pathname,method,payload)=>new Request(new URL(pathname,req.url),{method,headers:{Authorization:req.headers.get('Authorization'),'Content-Type':'application/json',...(origin?{Origin:origin}:{})},body:JSON.stringify(payload)});
     const lag=Number(data.lag_no),match=Number(data.match_no);
     const started=(await rows('bytesschema')).some(r=>links(r.Poolspel).includes(poolId)&&Number(r.Lagnummer)===lag&&Number(r.Matchnummer)===match&&r.Genomfört===true);
     if(!info&&started)return reply(409,'Matchen har genomförda byten. Uppställningen är låst.');
