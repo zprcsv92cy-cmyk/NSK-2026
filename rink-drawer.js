@@ -18,7 +18,8 @@
  const announce=text=>{$('rinkStatus').textContent=text;};
  const uuid=()=>crypto.randomUUID();
  const selected=()=>marks.find(m=>m.id===selectedId);
- function record(){return {title:$('rinkTitle').value.slice(0,100),description:$('rinkDescription').value.slice(0,2000),category:$('rinkCategory').value,marks};}
+ function selectedCategories(){const picker=$('rinkCategory');return picker.selectedOptions?[...picker.selectedOptions].map(o=>o.value).filter(Boolean):[picker.value].filter(Boolean);}
+ function record(){return {title:$('rinkTitle').value.slice(0,100),description:$('rinkDescription').value.slice(0,2000),category:selectedCategories().join(', '),categories:selectedCategories(),marks};}
  function flushDraft(){
   clearTimeout(draftTimer);draftTimer=0;if(!draftDirty)return;
   try{localStorage.setItem(DRAFT,JSON.stringify({...record(),updated:Date.now()}));draftDirty=false;$('rinkDraftStatus').textContent='Utkast sparat på denna enhet.';}
@@ -140,7 +141,9 @@
  function applyRecord(value){
   marks=safeMarks(value.marks);history=[];future=[];selectedId=null;
   $('rinkTitle').value=String(value.title||'').slice(0,100);$('rinkDescription').value=String(value.description||'').slice(0,2000);
-  if([...$('rinkCategory').options].some(o=>o.value===value.category))$('rinkCategory').value=value.category;
+  const aliases={'Skridskoteknik':'Skridskoåkning','Passningar':'Passningar och mottagningar','Skott':'Skott och avslut','Målvakter':'Målvaktsträning','Spelsituationer':'Spelförståelse'},categories=(value.categories||[value.category]).map(c=>aliases[c]||c);
+  for(const option of $('rinkCategory').options)option.selected=categories.includes(option.value);
+  if(!$('rinkCategory').selectedOptions&&categories.length===1)$('rinkCategory').value=categories[0];
   $('rinkSettingsSummary').textContent=$('rinkTitle').value.trim()||'Övningens uppgifter';render();
  }
  function restore(){const draft=readStored(DRAFT),saved=draft||readStored(SAVED);if(saved){applyRecord(saved);$('rinkDraftStatus').textContent=draft?'Utkast återställt från denna enhet.':'Senaste sparade övningen öppnad.';}else render();}
@@ -171,14 +174,14 @@
  }
  async function saveDrawing(){
   if(!marks.length){announce('Rita först symboler och rörelser på rinken.');return;}
-  const title=$('rinkTitle').value.trim(),category=$('rinkCategory').value;
+  const title=$('rinkTitle').value.trim(),category=selectedCategories().join(', ');
   if(!title||!category){$('rinkSettings').open=true;closeMenus();announce(!title?'Ge övningen ett namn innan du sparar.':'Välj kategori innan du sparar.');$(!title?'rinkTitle':'rinkCategory').focus();return;}
   const button=$('rinkSave');button.disabled=true;closeMenus();
   try{
    const saved={...record(),title};
    localStorage.setItem(SAVED,JSON.stringify(saved));flushDraft();
    const blob=new Blob([new XMLSerializer().serializeToString(cleanSvg())],{type:'image/svg+xml'});
-   await archiveDrawing({id:uuid(),origin:'rink-drawer',title:saved.title,description:saved.description,category:saved.category,filename:'hockeyovning.svg',blob,created:Date.now()});
+   await archiveDrawing({id:uuid(),origin:'rink-drawer',title:saved.title,description:saved.description,category:saved.category,categories:saved.categories,filename:'hockeyovning.svg',blob,created:Date.now()});
    announce('Sparad i Övningsarkivet på denna enhet.');
   }catch(error){announce('Kunde inte spara i Övningsarkivet: '+(error.message||'okänt fel'));}
   finally{button.disabled=false;}
