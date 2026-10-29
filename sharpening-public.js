@@ -13,12 +13,26 @@
  }
  function render(data){state=data;const previous=$('requestPair').value;$('pairView').hidden=data.pairs.length<2;$('requestPair').replaceChildren();for(const p of data.pairs)$('requestPair').append(new Option(p.label,p.key));if(data.pairs.length>1)$('requestPair').append(new Option('Båda paren','both'));if([...$('requestPair').options].some(o=>o.value===previous))$('requestPair').value=previous;paint();}
  function clear(){state=null;editing=false;$('sharpeningContent').hidden=true;for(const id of ['childName','hollow','profile','historyHint','intervalNotice'])$(id).textContent='';$('historyList').replaceChildren();$('skateEditFields').replaceChildren();$('requestNote').value='';$('requestNote').required=false;}
+ function validState(data){
+  const pair=p=>p&&['regular','goalie'].includes(p.key)&&typeof p.label==='string'&&['none','pending','done'].includes(p.status)&&typeof p.noteRequired==='boolean'&&p.settings&&['model','hollow','profile','notes'].every(k=>typeof p.settings[k]==='string')&&Array.isArray(p.history)&&p.history.every(e=>e&&typeof e==='object'&&!Array.isArray(e));
+  return data?.ok===true&&Number.isSafeInteger(data.revision)&&data.revision>=0&&typeof data.firstName==='string'&&['parent','player'].includes(data.mode)&&Array.isArray(data.pairs)&&data.pairs.length>=1&&data.pairs.length<=2&&data.pairs.every(pair)&&new Set(data.pairs.map(p=>p.key)).size===data.pairs.length;
+ }
  async function update(method='GET',payload){
   if(busy)return;if(!/^[a-f0-9]{64}$/.test(token)){$('pageMessage').textContent='Öppna din personliga länk eller QR-kod. Be materialförvaltaren om en ny om den saknas.';return;}
   if(method==='POST'&&required()&&!payload.note.trim()){$('pageMessage').textContent='Skriv ett meddelande om varför slipning behövs igen.';$('requestNote').focus();return;}
   const ticket=++generation,key=token;busy=true;controls();$('pageMessage').textContent=method==='GET'?'Hämtar status…':'Sparar…';
-  try{const r=await fetch(base+'/api/sharpening/public',{method,headers:{Authorization:'Sharpening '+key,...(payload?{'Content-Type':'application/json'}:{})},body:payload?JSON.stringify(payload):undefined,cache:'no-store',credentials:'omit',referrerPolicy:'no-referrer'}),data=await r.json().catch(()=>({}));if(ticket!==generation)return;if(!r.ok||!data.ok){if(r.status===404)clear();throw Error(data.error||'Sidan kunde inte nås. Försök igen.');}editing=false;render(data);if(method==='POST')$('requestNote').value='';$('pageMessage').textContent=method==='PUT'?'Skridskouppgifterna är sparade.':method==='POST'?'Slipönskemålet finns nu hos materialförvaltaren.':'Status uppdaterad.';}
-  catch(error){if(ticket===generation)$('pageMessage').textContent=error.message;}finally{if(ticket===generation){busy=false;controls();}}
+  try{
+   const signal=typeof AbortSignal!=='undefined'&&typeof AbortSignal.timeout==='function'?AbortSignal.timeout(15000):undefined;
+   const r=await fetch(base+'/api/sharpening/public',{method,headers:{Authorization:'Sharpening '+key,...(payload?{'Content-Type':'application/json'}:{})},body:payload?JSON.stringify(payload):undefined,cache:'no-store',credentials:'omit',referrerPolicy:'no-referrer',...(signal?{signal}:{})});
+   let data;
+   try{data=await r.json();}catch(error){if(['AbortError','TimeoutError'].includes(error.name))throw error;if(r.ok)throw Error('Svaret kunde inte läsas. Åtgärden kan inte bekräftas. Uppdatera status innan du försöker igen.');data={};}
+   if(ticket!==generation)return;
+   if(!r.ok){if(r.status===404)clear();throw Error(data?.error||'Sidan kunde inte nås. Försök igen.');}
+   const targets=payload?.pair==='both'?['regular','goalie']:[payload?.pair||'regular'];
+   if(!validState(data)||method==='POST'&&(!data.revision||!targets.every(key=>data.pairs.some(p=>p.key===key&&p.status==='pending')))||method==='PUT'&&data.revision<=payload.revision)throw Error('Åtgärden kan inte bekräftas. Uppdatera status innan du försöker igen.');
+   editing=false;render(data);if(method==='POST')$('requestNote').value='';$('pageMessage').textContent=method==='PUT'?'Skridskouppgifterna är sparade.':method==='POST'?'Slipönskemålet finns nu hos materialförvaltaren.':'Status uppdaterad.';
+  }
+  catch(error){if(ticket===generation)$('pageMessage').textContent=['AbortError','TimeoutError'].includes(error.name)?'Anropet tog för lång tid. Uppdatera status innan du försöker igen.':error.message;}finally{if(ticket===generation){busy=false;controls();}}
  }
  document.addEventListener('DOMContentLoaded',()=>{
   $('requestPair').onchange=paint;$('refreshStatus').onclick=()=>{if(editing&&!confirm('Lämna osparade skridskouppgifter och uppdatera?'))return;editing=false;void update();};$('sharpeningRequest').onsubmit=e=>{e.preventDefault();void update('POST',{note:$('requestNote').value.trim(),pair:$('requestPair').value});};
