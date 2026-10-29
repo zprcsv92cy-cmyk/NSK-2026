@@ -3,6 +3,24 @@
   const mergeRoot=typeof document!=='undefined'&&document.currentScript?.src?new URL('./',document.currentScript.src):null;
   const concurrency=()=>import(new URL('concurrency-merge.mjs?v='+encodeURIComponent(window.NSK_VERSION||'1'),mergeRoot));
   const base=()=>String(window.APP_CONFIG?.API_URL||'https://nsk-api.peter-hasselberg.workers.dev').replace(/\/$/,'');
+  async function fetchJson(url,options){
+    try{
+      const signal=typeof AbortSignal!=='undefined'&&typeof AbortSignal.timeout==='function'?AbortSignal.timeout(15000):undefined;
+      const response=await fetch(url,{...options,...(signal?{signal}:{})});
+      let data;
+      try{data=await response.json();}
+      catch(error){
+        if(['AbortError','TimeoutError'].includes(error.name))throw error;
+        if(response.ok)throw Error('Svaret kunde inte läsas. Åtgärden kan inte bekräftas. Läs om sidan innan du försöker igen.');
+        data={};
+      }
+      if(response.ok&&(!data||typeof data!=='object'))throw Error('Svaret kunde inte läsas. Åtgärden kan inte bekräftas. Läs om sidan innan du försöker igen.');
+      return {response,data};
+    }catch(error){
+      if(['AbortError','TimeoutError'].includes(error.name))throw Error('Anropet tog för lång tid. Kontrollera anslutningen och läs om innan du försöker spara igen.');
+      throw error;
+    }
+  }
   let teamId;
   let cachedTeamName;
   let cachedTeamToken;
@@ -21,9 +39,8 @@
     if(!token)throw Error('Logga in först');
     if(teamId&&cachedTeamName===activeTeam&&cachedTeamToken===token)return teamId;
     teamId=undefined;
-    const r=await fetch(base()+'/api/lag',{headers:{Authorization:'Bearer '+token},cache:'no-store'});
+    const {response:r,data}=await fetchJson(base()+'/api/lag',{headers:{Authorization:'Bearer '+token},cache:'no-store'});
     if(!r.ok)throw Error('Lag kunde inte hämtas');
-    const data=await r.json();
     if(Auth.activeTeam()!==activeTeam||Auth.getToken()!==token)throw Error('Inloggningen eller lagvalet ändrades. Försök igen.');
     const teams=Array.isArray(data.results)?data.results:Array.isArray(data)?data:[];
     const matches=teams.filter(t=>t.Namn===activeTeam&&String(t['Säsong'])==='2026');
@@ -44,10 +61,10 @@
     const url=base()+'/api/training?team_id='+encodeURIComponent(team)+(date?'&date='+encodeURIComponent(date):'');
     const headers={Authorization:'Bearer '+session.token};
     if(payload!==undefined)headers['Content-Type']='application/json';
-    const response=await fetch(url,{method:payload===undefined?'GET':'PUT',headers,body:payload===undefined?undefined:JSON.stringify(payload),cache:'no-store'});
-    const data=await response.json().catch(()=>({}));
+    const {response,data}=await fetchJson(url,{method:payload===undefined?'GET':'PUT',headers,body:payload===undefined?undefined:JSON.stringify(payload),cache:'no-store'});
     assertSession(session);
     if(!response.ok)throw Object.assign(Error(response.status===409?data.error||'Träningen ändrades av en annan ledare. Dina val finns kvar.':data.error||'Träningen kunde inte sparas.'),{status:response.status});
+    if(data.ok!==true||(payload!==undefined&&(!Number.isSafeInteger(data.revision)||data.revision<1)))throw Error('Sparningen kan inte bekräftas. Läs om träningen innan du försöker igen.');
     if(payload!==undefined){window.NSKViewCache?.clear();try{sessionStorage.removeItem('nsk_view_cache_v1');}catch{}}
     return data;
   }
@@ -57,12 +74,12 @@
       throw Error('Träningen behöver läsas om innan den kan tas bort.');
     const id=await resolveTeam();
     assertSession(session);
-    const response=await fetch(base()+'/api/training?team_id='+encodeURIComponent(id)+'&date='+encodeURIComponent(date)+'&revision='+revision,{
+    const {response,data}=await fetchJson(base()+'/api/training?team_id='+encodeURIComponent(id)+'&date='+encodeURIComponent(date)+'&revision='+revision,{
       method:'DELETE',headers:{Authorization:'Bearer '+session.token},cache:'no-store'
     });
-    const data=await response.json().catch(()=>({}));
     assertSession(session);
     if(!response.ok)throw Error(response.status===409?'Träningen har ändrats eller tagits bort av någon annan. Ladda om sidan.':data.error||'Träningen kunde inte tas bort.');
+    if(data.ok!==true||data.deleted!==true)throw Error('Borttagningen kan inte bekräftas. Läs om träningen innan du försöker igen.');
     window.NSKViewCache?.clear();try{sessionStorage.removeItem('nsk_view_cache_v1');}catch{}
     return data;
   }
@@ -74,11 +91,10 @@
     const token=session.token;
     const result=[];
     for(let page=1;page<=100;page++){
-      const response=await fetch(base()+'/api/'+kind+'?page='+page+'&size=200&team_id='+encodeURIComponent(id),{
+      const {response,data}=await fetchJson(base()+'/api/'+kind+'?page='+page+'&size=200&team_id='+encodeURIComponent(id),{
         headers:{Authorization:'Bearer '+token},cache:'no-store'
       });
       if(!response.ok)throw Error('Kunde inte hämta '+(kind==='spelare'?'spelare':'tränare')+': '+response.status);
-      const data=await response.json();
       assertSession(session);
       if(!data.ok||!Array.isArray(data.results))throw Error('Ogiltigt truppsvar');
       for(const person of data.results){
@@ -94,8 +110,7 @@
     const session=captureSession();
     const id=await resolveTeam();
     assertSession(session);
-    const response=await fetch(base()+'/api/lagpersonal?team_id='+encodeURIComponent(id),{headers:{Authorization:'Bearer '+session.token},cache:'no-store'});
-    const data=await response.json();
+    const {response,data}=await fetchJson(base()+'/api/lagpersonal?team_id='+encodeURIComponent(id),{headers:{Authorization:'Bearer '+session.token},cache:'no-store'});
     assertSession(session);
     if(!response.ok||!data.ok)throw Error('Materialförvaltare kunde inte hämtas');
     const coaches=(data.results||[]).some(p=>p.coach_id)?await roster('tranare'):[];
@@ -107,9 +122,8 @@
     if(Auth.activeTeam()!=='NSK Team 18')return [];
     const id=await resolveTeam();
     assertSession(session);
-    const response=await fetch(base()+'/api/training?team_id='+encodeURIComponent(id)+'&action=svenskalag-saved&training_history=1',{headers:{Authorization:'Bearer '+session.token},cache:'no-store'});
+    const {response,data}=await fetchJson(base()+'/api/training?team_id='+encodeURIComponent(id)+'&action=svenskalag-saved&training_history=1',{headers:{Authorization:'Bearer '+session.token},cache:'no-store'});
     if(!response.ok)throw Error('Kalendern kunde inte hämtas');
-    const data=await response.json();
     assertSession(session);
     return (Array.isArray(data.items)?data.items:[]).filter(item=>item.type==='training');
   }
@@ -131,9 +145,8 @@
     if(Auth.activeTeam()!=='NSK Team 18')return '';
     const id=await resolveTeam();
     assertSession(session);
-    const response=await fetch(base()+'/api/training?team_id='+encodeURIComponent(id)+'&action=svenskalag-saved',{headers:{Authorization:'Bearer '+session.token},cache:'no-store'});
+    const {response,data}=await fetchJson(base()+'/api/training?team_id='+encodeURIComponent(id)+'&action=svenskalag-saved',{headers:{Authorization:'Bearer '+session.token},cache:'no-store'});
     if(!response.ok)throw Error('Kalendern kunde inte hämtas');
-    const data=await response.json();
     assertSession(session);
     const halls=new Set((Array.isArray(data.items)?data.items:[]).filter(item=>item.type==='training'&&item.date===date).map(item=>{
       const hall=String(item.hall||item.place||'').trim().toLocaleLowerCase('sv-SE');
