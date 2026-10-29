@@ -30,9 +30,9 @@
   if(!window.qrcode)throw Error('QR-biblioteket kunde inte laddas. Ladda om sidan.');
   const qr=window.qrcode(0,'M');qr.addData(url);qr.make();
   const count=qr.getModuleCount(),margin=4,side=count+margin*2;
-  let marks='';
+  const center=(side-7)/2;let marks='';
   for(let y=0;y<count;y++)for(let x=0;x<count;x++)if(qr.isDark(y,x))marks+='<rect x="'+(x+margin)+'" y="'+(y+margin)+'" width="1" height="1" fill="#000"/>';
-  return 'data:image/svg+xml;charset=utf-8,'+encodeURIComponent('<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 '+side+' '+side+'" width="650" height="650"><rect width="'+side+'" height="'+side+'" fill="white"/><g shape-rendering="crispEdges">'+marks+'</g></svg>');
+  return 'data:image/svg+xml;charset=utf-8,'+encodeURIComponent('<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 '+side+' '+side+'" width="650" height="650"><rect width="'+side+'" height="'+side+'" fill="white"/><g shape-rendering="crispEdges">'+marks+'</g><rect x="'+center+'" y="'+center+'" width="7" height="7" fill="white"/><image x="'+(center+1)+'" y="'+(center+1)+'" width="5" height="5" href="'+qrSkate+'"/></svg>');
  }
  const el=(tag,text)=>{const n=document.createElement(tag);if(text!==undefined)n.textContent=text;return n;};
  const base=()=>String(window.APP_CONFIG?.API_URL||'https://nsk-api.peter-hasselberg.workers.dev').replace(/\/$/,'');
@@ -83,7 +83,7 @@
  }
  async function createPrintPdf(records,layout=printLayout()){
   const load=src=>new Promise((resolve,reject)=>{const image=new Image();image.onload=()=>resolve(image);image.onerror=()=>reject(Error('En bild kunde inte laddas till PDF.'));image.src=src;});
-  const [arena,crest]=await Promise.all([load(printArena),load(printCrest)]),images=[],scale=300/25.4;
+  const [arena,crest,skate]=await Promise.all([load(printArena),load(printCrest),load(qrSkate)]),images=[],scale=300/25.4;
   for(const record of records){
    const canvas=document.createElement('canvas');canvas.width=Math.round(84*scale);canvas.height=Math.round(60*scale);
    const ctx=canvas.getContext('2d');if(!ctx)throw Error('PDF kunde inte skapas i denna webbläsare.');
@@ -96,7 +96,7 @@
    let line='',row=0;for(const letter of record.firstName){if(line&&ctx.measureText(line+letter).width>35*scale){ctx.fillText(line,46*scale,(34+row*7)*scale);line='';row++;}line+=letter;}ctx.fillText(line,46*scale,(34+row*7)*scale);
    const svg=decodeURIComponent(printQrDataUrl(record.url).split(',').slice(1).join(',')),side=Number(svg.match(/viewBox="0 0 ([0-9.]+)/)[1]);
    ctx.save();ctx.translate(3*scale,11*scale);ctx.scale(42*scale/side,42*scale/side);ctx.fillStyle='white';ctx.fillRect(0,0,side,side);
-   for(const cell of svg.matchAll(/<rect x="([0-9.]+)" y="([0-9.]+)" width="([0-9.]+)" height="([0-9.]+)" fill="([^"]+)"/g)){ctx.fillStyle=cell[5];ctx.fillRect(Number(cell[1]),Number(cell[2]),Number(cell[3]),Number(cell[4]));}ctx.restore();
+   for(const cell of svg.matchAll(/<rect x="([0-9.]+)" y="([0-9.]+)" width="([0-9.]+)" height="([0-9.]+)" fill="([^"]+)"/g)){ctx.fillStyle=cell[5];ctx.fillRect(Number(cell[1]),Number(cell[2]),Number(cell[3]),Number(cell[4]));}ctx.drawImage(skate,(side-5)/2,(side-5)/2,5,5);ctx.restore();
    const jpeg=await new Promise(resolve=>canvas.toBlob(resolve,'image/jpeg',1));if(!jpeg)throw Error('PDF-bilden kunde inte skapas.');
    images.push({kind:record.kind||'player',width:canvas.width,height:canvas.height,bytes:new Uint8Array(await jpeg.arrayBuffer())});canvas.width=canvas.height=1;
   }

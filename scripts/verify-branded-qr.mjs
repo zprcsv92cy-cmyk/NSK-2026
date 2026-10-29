@@ -51,7 +51,7 @@ for(const paper of ['a4','a3'])for(const orientation of ['portrait','landscape']
  for(const origin of ['https://nsk18.pages.dev','https://zprcsv92cy-cmyk.github.io/NSK-2026'])for(let sample=0;sample<12;sample++){
   const url=origin+'/slipning/#nyckel='+createHash('sha256').update('qr-print-fixture-'+sample).digest('hex');
   const data=window.SharpeningLinks.printQrDataUrl(url),svg=decodeURIComponent(data.slice(data.indexOf(',')+1));
-  assert.doesNotMatch(svg,/<image|width="0\.45"/,'No photograph or sampling centres in printed QR');
+  assert.doesNotMatch(svg,/width="0\.45"/);assert.match(svg,/<image .*width="5" height="5"/);
   for(const dpi of [200,300]){
    const size=Math.round(mm*dpi/25.4),image=new Resvg(svg,{fitTo:{mode:'width',value:size}}).render();
    const pixels=new Uint8ClampedArray(image.pixels);

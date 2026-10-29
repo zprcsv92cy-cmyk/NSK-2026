@@ -57,7 +57,7 @@ test('printed NSK signs show first name, heading and unchanged QR with embedded 
  assert.equal(card.children[5].className,'qr-sign-code');
  assert.match(card.children[5].src,/^data:image\/svg/);
  const svg=decodeURIComponent(card.children[5].src.split(',')[1]);
- assert.doesNotMatch(svg,/<image|width="0\.45"/);
+ assert.doesNotMatch(svg,/width="0\.45"/);assert.match(svg,/<image .*width="5" height="5"/);
  assert.match(svg,/<rect x="4" y="4" width="1" height="1" fill="#000"/);
  assert.match(svg,/<rect width="65" height="65" fill="white"/);
  assert(f.calls.every(c=>c.options.method==='GET'));f.dispose();
