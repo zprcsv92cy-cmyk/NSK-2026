@@ -9,6 +9,90 @@
  let marks=[],history=[],future=[],tool='move',drag=null,selectedId=null,draftTimer=0,draftDirty=false,numberEditId=null;
  let zoom=1,viewX=0,viewY=0;
  const geometry=m=>m.points||[{x:m.x,y:m.y},...(m.x2===undefined?[]:[{x:m.x2,y:m.y2}])];
+ // Conservative local cleanup. Endpoints, goals and exercise metadata are preserved.
+ function segmentDistance(p,a,b){const dx=b.x-a.x,dy=b.y-a.y,k=clamp(((p.x-a.x)*dx+(p.y-a.y)*dy)/(dx*dx+dy*dy||1),0,1);return Math.hypot(p.x-a.x-k*dx,p.y-a.y-k*dy);}
+ function simplifyPath(points,epsilon){
+  if(points.length<=2)return points.map(p=>({...p}));
+  let far=epsilon,index=-1;for(let i=1;i<points.length-1;i++){const d=segmentDistance(points[i],points[0],points.at(-1));if(d>far){far=d;index=i;}}
+  if(index<0)return [{...points[0]},{...points.at(-1)}];
+  return [...simplifyPath(points.slice(0,index+1),epsilon).slice(0,-1),...simplifyPath(points.slice(index),epsilon)];
+ }
+ function labelBase(m){
+  if(m.type==='goal')return {x:clamp(m.x+34,45,435),y:m.y-8};
+  if(m.motion==='backward'||m.movementLabel){
+   const points=geometry(m),length=points.slice(1).reduce((n,p,i)=>n+Math.hypot(p.x-points[i].x,p.y-points[i].y),0);let remaining=length/2,p=points[0];
+   for(let i=1;i<points.length;i++){const a=points[i-1],b=points[i],d=Math.hypot(b.x-a.x,b.y-a.y);if(remaining<=d){const f=d?remaining/d:0;p={x:a.x+(b.x-a.x)*f,y:a.y+(b.y-a.y)*f};break;}remaining-=d;}
+   return {x:p.x,y:p.y-10};
+  }
+  return null;
+ }
+ function labelPoint(m){const p=labelBase(m);return p?{x:p.x+(m.labelOffset?.x||0),y:p.y+(m.labelOffset?.y||0)}:null;}
+ function tidyLayout(input){
+  const result=JSON.parse(JSON.stringify(input));
+  const symbols=input.filter(m=>['player','goalie','puck','cone','tire','goal'].includes(m.type));
+  const attached=p=>input.some(m=>['skate','pass','shot','curve'].includes(m.type)&&[geometry(m)[0],geometry(m).at(-1)].some(q=>Math.hypot(p.x-q.x,p.y-q.y)<30));
+  for(const m of result){
+   if(m.type==='curve'&&m.points?.length>2){
+    const original=m.points,first=original[0],last=original.at(-1),length=original.slice(1).reduce((n,p,i)=>n+Math.hypot(p.x-original[i].x,p.y-original[i].y),0),chord=Math.hypot(last.x-first.x,last.y-first.y);
+    if(chord>20&&length<chord*1.12&&original.every(p=>segmentDistance(p,first,last)<=4))m.points=[{...first},{...last}];
+    else {
+     const smoothed=original.map((p,i)=>{
+      if(!i||i===original.length-1)return {...p};const a=original[i-1],b=original[i+1];
+      if(Math.hypot(p.x-a.x,p.y-a.y)>14||Math.hypot(p.x-b.x,p.y-b.y)>14)return {...p};
+      const q={x:(a.x+2*p.x+b.x)/4,y:(a.y+2*p.y+b.y)/4};return Math.hypot(q.x-p.x,q.y-p.y)<=4?q:{...p};
+     });
+     const cleaned=simplifyPath(smoothed,1.2);
+     if(original.every(p=>cleaned.slice(1).some((q,i)=>segmentDistance(p,cleaned[i],q)<=5)))m.points=cleaned;
+    }
+   }
+   if(['skate','pass','shot'].includes(m.type)&&Number.isFinite(m.x2)){
+    const a={x:m.x,y:m.y},b={x:m.x2,y:m.y2},nearSymbol=p=>symbols.some(s=>Math.hypot(s.x-p.x,s.y-p.y)<30);
+    if(!nearSymbol(a)&&!nearSymbol(b)){
+     if(Math.abs(m.y2-m.y)<=6&&Math.abs(m.x2-m.x)>40)m.y=m.y2=(m.y+m.y2)/2;
+     else if(Math.abs(m.x2-m.x)<=6&&Math.abs(m.y2-m.y)>40)m.x=m.x2=(m.x+m.x2)/2;
+    }
+   }
+  }
+  // Only near-even rows of matching symbols qualify. Keep row endpoints and connected symbols fixed.
+  const moved=new Set();
+  for(const axis of ['x','y']){
+   const cross=axis==='x'?'y':'x',candidates=result.filter(m=>['player','cone'].includes(m.type)),groups=[];
+   for(const m of [...candidates].sort((a,b)=>a[cross]-b[cross])){
+    let group=groups.find(g=>g[0].type===m.type&&g[0].color===m.color&&Math.abs(g[0][cross]-m[cross])<=10);if(!group){group=[];groups.push(group);}group.push(m);
+   }
+   for(const group of groups){
+    const rows=[];for(const m of group.sort((a,b)=>a[axis]-b[axis])){let row=rows.at(-1);if(!row||m[axis]-row.at(-1)[axis]>110){row=[];rows.push(row);}row.push(m);}
+    for(const row of rows){
+     if(row.length<3)continue;const first=row[0],last=row.at(-1),step=(last[axis]-first[axis])/(row.length-1);
+     if(step<24||step>100)continue;
+     const proposals=row.map((m,i)=>({m,p:{x:first.x+(last.x-first.x)*i/(row.length-1),y:first.y+(last.y-first.y)*i/(row.length-1)}}));
+     if(proposals.some(({m,p})=>Math.hypot(p.x-m.x,p.y-m.y)>8))continue;
+     for(const {m,p} of proposals.slice(1,-1))if(!moved.has(m.id)&&!attached(m)){m.x=p.x;m.y=p.y;moved.add(m.id);}
+    }
+   }
+  }
+  // Move only generated captions; player numbers stay inside the player symbols.
+  const placed=[];
+  for(const m of result){
+   const base=labelBase(m);if(!base)continue;
+   const width=m.type==='goal'?38:Math.max(40,([m.motion==='backward'?'Bakåt':'',m.movementLabel||''].filter(Boolean).join(' · ').length)*7);
+   const blocked=p=>{
+    const box={left:p.x-(m.type==='goal'?0:width/2),right:p.x+(m.type==='goal'?width:width/2),top:p.y-13,bottom:p.y+3};
+    if(box.left<22||box.right>458||box.top<20||box.bottom>840)return true;
+    if(result.some(s=>['player','goalie','puck','cone','tire','goal'].includes(s.type)&&s.id!==m.id&&s.x+18>box.left&&s.x-18<box.right&&s.y+18>box.top&&s.y-18<box.bottom))return true;
+    return placed.some(b=>b.left<box.right&&b.right>box.left&&b.top<box.bottom&&b.bottom>box.top);
+   };
+   const current=labelPoint(m),options=[m.labelOffset||{x:0,y:0},{x:0,y:-18},{x:0,y:18},{x:24,y:-18},{x:-24,y:-18},{x:0,y:-36},{x:24,y:18},{x:-24,y:18}];
+   if(blocked(current)){const offset=options.find(o=>!blocked({x:base.x+o.x,y:base.y+o.y}));if(offset)m.labelOffset={...offset};}
+   const p=labelPoint(m);placed.push({left:p.x-(m.type==='goal'?0:width/2),right:p.x+(m.type==='goal'?width:width/2),top:p.y-13,bottom:p.y+3});
+  }
+  return result;
+ }
+ function tidyDrawing(){
+  closeMenus();const next=tidyLayout(marks);
+  if(JSON.stringify(next)===snapshot()){announce('Inget behövde snyggas till.');return;}
+  remember();marks=next;selectedId=null;render();saveDraft();announce('Övningen är tillstädad. Ångra återställer hela ändringen.');
+ }
  function viewport(){$('rinkSvg').setAttribute('viewBox',[viewX,viewY,W/zoom,H/zoom].join(' '));$('rinkZoomLabel').textContent=Math.round(zoom*100)+'%';$('rinkZoomOut').disabled=zoom===1;$('rinkZoomIn').disabled=zoom===3;}
  function changeZoom(next){const cx=viewX+W/zoom/2,cy=viewY+H/zoom/2;zoom=clamp(next,1,3);viewX=clamp(cx-W/zoom/2,0,W-W/zoom);viewY=clamp(cy-H/zoom/2,0,H-H/zoom);viewport();}
  const el=(tag,props={},parent)=>{const n=document.createElementNS(NS,tag);for(const [k,v] of Object.entries(props))n.setAttribute(k,v);if(parent)parent.append(n);return n;};
@@ -59,7 +143,7 @@
    for(const x of [-16,-8,0,8,16])el('line',{x1:x,y1:-19,x2:x,y2:0,stroke:'#9ca3af','stroke-width':1},net);
    for(const y of [-6,-12,-18])el('line',{x1:-23,y1:y,x2:23,y2:y,stroke:'#9ca3af','stroke-width':1},net);
    el('line',{x1:-27,y1:0,x2:27,y2:0,stroke:'#b11226','stroke-width':4},net);
-   const goalLabel=el('text',{x:clamp(m.x+34,45,435),y:m.y-8,fill:'#b11226',stroke:'white','stroke-width':2,'paint-order':'stroke','font-size':11,'font-weight':700,'pointer-events':'none'},group);goalLabel.textContent='Mål '+(marks.filter(g=>g.type==='goal').indexOf(m)+1);
+   const goalLabel=el('text',{x:labelPoint(m).x,y:labelPoint(m).y,fill:'#b11226',stroke:'white','stroke-width':2,'paint-order':'stroke','font-size':11,'font-weight':700,'pointer-events':'none'},group);goalLabel.textContent='Mål '+(marks.filter(g=>g.type==='goal').indexOf(m)+1);
   }else if(m.type==='player'||m.type==='goalie'){
    el('circle',{cx:m.x,cy:m.y,r:m.type==='goalie'?17:13,fill:m.color,stroke:'white','stroke-width':3},group);
    if(m.type==='goalie'&&!m.number)el('circle',{cx:m.x,cy:m.y,r:7,fill:'white'},group);
@@ -77,7 +161,7 @@
    if(m.type==='shot'){el('line',{...props,'stroke-width':9},group);el('line',{...props,stroke:'white','stroke-width':3,'marker-end':''},group);}
    else el('line',props,group);
   }
-  if(m.motion==='backward'||m.movementLabel){const p=m.points?.[Math.floor(m.points.length/2)]||{x:(m.x+(m.x2??m.x))/2,y:(m.y+(m.y2??m.y))/2};const label=el('text',{x:p.x,y:p.y-10,fill:m.color,stroke:'white','stroke-width':3,'paint-order':'stroke','font-size':13,'font-weight':700,'text-anchor':'middle','pointer-events':'none'},group);label.textContent=[m.motion==='backward'?'Bakåt':'',m.movementLabel||''].filter(Boolean).join(' · ');}
+  if(m.motion==='backward'||m.movementLabel){const p=labelPoint(m);const label=el('text',{x:p.x,y:p.y,fill:m.color,stroke:'white','stroke-width':3,'paint-order':'stroke','font-size':13,'font-weight':700,'text-anchor':'middle','pointer-events':'none'},group);label.textContent=[m.motion==='backward'?'Bakåt':'',m.movementLabel||''].filter(Boolean).join(' · ');}
  }
  function selectionOutline(){
   const m=selected();if(!m)return;
@@ -147,6 +231,7 @@
    const n={id:typeof m.id==='string'&&!ids.has(m.id)?m.id:uuid(),type:m.type,x:clamp(m.x,22,W-22),y:clamp(m.y,20,H-20),color:m.color};ids.add(n.id);
    if(m.type==='curve'){n.points=m.points.map(p=>({x:clamp(p.x,22,W-22),y:clamp(p.y,20,H-20)}));n.x=n.points[0].x;n.y=n.points[0].y;}
    if(m.x2!==undefined){n.x2=clamp(m.x2,22,W-22);n.y2=clamp(m.y2,20,H-20);}
+   if(m.labelOffset&&Number.isFinite(m.labelOffset.x)&&Number.isFinite(m.labelOffset.y)&&Math.abs(m.labelOffset.x)<=60&&Math.abs(m.labelOffset.y)<=60)n.labelOffset={x:m.labelOffset.x,y:m.labelOffset.y};
    if(m.type==='goal')n.angle=[0,90,180,270].includes(m.angle)?m.angle:0;
    if(['skate','curve'].includes(m.type)){if(m.motion==='backward')n.motion='backward';if(['Stopp','Översteg'].includes(m.movementLabel))n.movementLabel=m.movementLabel;}
    if(['player','goalie'].includes(m.type)&&/^\d{1,2}$/.test(String(m.number??'')))n.number=String(m.number);
@@ -217,6 +302,7 @@
   document.querySelectorAll('[data-tool-menu]').forEach(d=>d.addEventListener('toggle',()=>{if(d.open)document.querySelectorAll('[data-tool-menu]').forEach(other=>{if(other!==d)other.open=false;});}));
   $('rinkUndo').onclick=()=>{if(!history.length)return;future.push(snapshot());marks=JSON.parse(history.pop());selectedId=null;render();saveDraft();};
   $('rinkRedo').onclick=()=>{if(!future.length)return;history.push(snapshot());marks=JSON.parse(future.pop());selectedId=null;render();saveDraft();};
+  $('rinkTidy').onclick=tidyDrawing;
   $('rinkClear').onclick=()=>{if(marks.length&&confirm('Rensa alla symboler från rinken?')){remember();marks=[];selectedId=null;render();saveDraft();}closeMenus();};
   $('rinkGoalRotation').onchange=()=>{const m=selected(),angle=Number($('rinkGoalRotation').value);if(!m||m.type!=='goal'||![0,90,180,270].includes(angle)||m.angle===angle)return;remember();m.angle=angle;render();saveDraft();};
   $('rinkSelectedMove').onclick=()=>setTool('move');
