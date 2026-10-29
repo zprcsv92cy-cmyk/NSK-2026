@@ -25,3 +25,8 @@ test('the drawing archive recognizes old rink drawings without including unrelat
  assert.equal(api.isDrawing({filename:'match.pdf'}),false);assert.equal(api.isDrawing({filename:'ovning.png'}),false);
  assert.doesNotMatch(source,/fetch\(|XMLHttpRequest|api\/training/);
 });
+test('archive navigation uses the current tab so the personal session remains available',()=>{
+ const html=readFileSync(new URL('../ritverktyg/index.html',import.meta.url),'utf8');
+ const links=html.match(/<a\b[^>]*href="\.\/ovningsarkiv\.html(?:#trainingArchive)?"[^>]*>/g)||[];
+ assert.equal(links.length,2);for(const link of links)assert.doesNotMatch(link,/target="_blank"/);
+});

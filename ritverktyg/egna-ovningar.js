@@ -71,7 +71,7 @@
     if(!$('trainingPlanForm'))return;const generation=++trainingChoicesGeneration;
     const base=[];
     try{const files=await getFiles();if(generation!==trainingChoicesGeneration)return;trainingChoices=[...files.map(entry=>({key:'file:'+entry.id,entry,source:'file',index:0})),...base];filterTrainingChoices();}
-    catch{if(generation!==trainingChoicesGeneration)return;trainingChoices=base;filterTrainingChoices();planMessage('Egna övningsfiler kunde inte läsas in. De färdiga övningarna är tillgängliga.');}
+    catch{if(generation!==trainingChoicesGeneration)return;trainingChoices=base;filterTrainingChoices();planMessage('Övningsarkivet kunde inte läsas in. Försök ladda om sidan.');}
   }
   function editTraining(plan){if(trainingBusy)return;trainingEditing={id:plan.id,revision:plan.revision,created:plan.created};trainingParts=plan.parts.map(p=>({...p,exercise:trainingSnapshot(p.exercise)}));$('trainingPlanTitle').value=plan.title;$('trainingPlanNotes').value=plan.notes||'';$('trainingPlanSave').textContent='Spara ändringar';drawTrainingParts();planMessage('Träningen är öppnad för redigering.');$('trainingArchive').scrollIntoView({block:'start'});}
   async function loadTrainingPlans(){
