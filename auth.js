@@ -18,13 +18,16 @@
     return promise;
   }
   async function loadIdentity() {
-    if (!base || !token()) { clear(); return null; }
+    const current=token();
+    if (!base || !current) { clear(); return null; }
     try {
       const response = await fetch(base + '/api/auth/me', {
-        headers: { Authorization: 'Bearer ' + token() }, cache: 'no-store', credentials: 'omit', signal: typeof AbortSignal !== 'undefined' && AbortSignal.timeout ? AbortSignal.timeout(15000) : undefined
+        headers: { Authorization: 'Bearer ' + current }, cache: 'no-store', credentials: 'omit', signal: typeof AbortSignal !== 'undefined' && AbortSignal.timeout ? AbortSignal.timeout(15000) : undefined
       });
+      if(token()!==current)return null;
       if (!response.ok) { clear(); return null; }
       const data = await response.json();
+      if(token()!==current)return null;
       if (!data?.user || !Array.isArray(data.memberships) || !Array.isArray(data.permissions)) {
         clear(); return null;
       }
@@ -37,7 +40,7 @@
         sessionStorage.removeItem(teamKey);
       }
       return identity;
-    } catch { identity = null; return null; }
+    } catch { if(token()===current)identity = null; return null; }
   }
   function activeTeam() {
     return identity?.memberships?.some(m => m.team_id === 'NSK Team 18') ? 'NSK Team 18' : null;
@@ -119,10 +122,15 @@
   };
   async function login(email, password) {
     if (!base) throw new Error('Personlig inloggning är inte aktiverad ännu');
-    const response = await fetch(base + '/api/auth/login', {
+    let response;
+    try { response = await fetch(base + '/api/auth/login', {
       method: 'POST', headers: { 'Content-Type': 'application/json' }, credentials: 'omit',
-      body: JSON.stringify({ email, password })
-    });
+      body: JSON.stringify({ email, password }),
+      signal: typeof AbortSignal !== 'undefined' && AbortSignal.timeout ? AbortSignal.timeout(15000) : undefined
+    }); } catch(error) {
+      if(error?.name==='TimeoutError')throw new Error('Inloggningen tog för lång tid. Kontrollera anslutningen och försök igen.');
+      throw error;
+    }
     const data = await response.json().catch(() => ({}));
     if (!response.ok || !data.token) throw new Error(data.error || 'Inloggningen misslyckades');
     clear();
