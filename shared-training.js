@@ -5,6 +5,7 @@
   const base=()=>String(window.APP_CONFIG?.API_URL||'https://nsk-api.peter-hasselberg.workers.dev').replace(/\/$/,'');
   let teamId;
   let cachedTeamName;
+  let cachedTeamToken;
   let pendingTeam=null;
   function resolveTeam(){
     const key=JSON.stringify([Auth.activeTeam(),Auth.getToken()]);
@@ -15,19 +16,21 @@
   }
   async function loadTeam(){
     const activeTeam=Auth.activeTeam();
-    if(teamId&&cachedTeamName===activeTeam)return teamId;
-    teamId=undefined;
     if(!activeTeam)throw Error('Välj ett lag');
     const token=Auth.getToken();
     if(!token)throw Error('Logga in först');
+    if(teamId&&cachedTeamName===activeTeam&&cachedTeamToken===token)return teamId;
+    teamId=undefined;
     const r=await fetch(base()+'/api/lag',{headers:{Authorization:'Bearer '+token},cache:'no-store'});
     if(!r.ok)throw Error('Lag kunde inte hämtas');
     const data=await r.json();
+    if(Auth.activeTeam()!==activeTeam||Auth.getToken()!==token)throw Error('Inloggningen eller lagvalet ändrades. Försök igen.');
     const teams=Array.isArray(data.results)?data.results:Array.isArray(data)?data:[];
-    const matches=teams.filter(t=>t.Namn===Auth.activeTeam()&&String(t['Säsong'])==='2026');
+    const matches=teams.filter(t=>t.Namn===activeTeam&&String(t['Säsong'])==='2026');
     if(matches.length!==1)throw Error('Lagkopplingen kunde inte verifieras');
     teamId=String(matches[0].id);
     cachedTeamName=activeTeam;
+    cachedTeamToken=token;
     return teamId;
   }
   async function request(date,payload){
