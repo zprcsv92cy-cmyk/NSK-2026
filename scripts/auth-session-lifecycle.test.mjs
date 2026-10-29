@@ -7,7 +7,7 @@ const actor=name=>({user:{id:name},memberships:[{team_id:'NSK Team 18',role:'coa
 function fixture(){
  const values=new Map(),calls=[],timeouts=[];let signedOut=0;
  const storage={getItem:k=>values.get(k)??null,setItem:(k,v)=>values.set(k,v),removeItem:k=>values.delete(k)};
- const context={window:{APP_CONFIG:{AUTH_URL:'https://auth.test'}},sessionStorage:storage,localStorage:storage,AbortSignal:{timeout(ms){const controller=new AbortController();timeouts.push({ms,controller});return controller.signal;}},fetch:(url,options)=>new Promise((resolve,reject)=>{calls.push({url,options,respond:resolve,resolve:(data,status=200)=>resolve({ok:status<400,json:async()=>data}),reject});options.signal?.addEventListener('abort',()=>reject(options.signal.reason),{once:true});})};
+ const context={URLSearchParams,window:{APP_CONFIG:{AUTH_URL:'https://auth.test'}},sessionStorage:storage,localStorage:storage,AbortSignal:{timeout(ms){const controller=new AbortController();timeouts.push({ms,controller});return controller.signal;}},fetch:(url,options)=>new Promise((resolve,reject)=>{calls.push({url,options,respond:resolve,resolve:(data,status=200)=>resolve({status,ok:status<400,json:async()=>data}),reject});options.signal?.addEventListener('abort',()=>reject(options.signal.reason),{once:true});})};
  vm.runInNewContext(source,context);
  context.window.NSKAppShell={signedOut(){signedOut++;}};
  return {auth:context.window.Auth,storage,calls,timeouts,signedOut:()=>signedOut,token:value=>storage.setItem('nsk_user_token',value)};
@@ -44,4 +44,22 @@ test('logout network failure and missing session both complete with local creden
  const f=fixture();f.token('current');f.storage.setItem('nsk_admin_token','obsolete');f.storage.setItem('nsk_match_token','obsolete');const pending=f.auth.logout();f.calls[0].reject(Error('offline'));await pending;
  assert.equal(f.auth.getToken(),null);assert.equal(f.storage.getItem('nsk_admin_token'),null);assert.equal(f.storage.getItem('nsk_match_token'),null);
  await f.auth.logout();assert.equal(f.calls.length,1);assert.equal(f.signedOut(),2);
+});
+test('late feature grants and denials cannot authorize or clear a replacement session',async()=>{
+ for(const status of [200,401]){
+  const f=fixture();f.token('old');const initial=f.auth.init();f.calls[0].resolve(actor('old'));await initial;
+  const check=f.auth.checkTeamFeature('roster');f.token('new');const next=f.auth.init();f.calls[2].resolve(actor('new'));await next;
+  f.calls[1].resolve({allowed:true,team_id:'NSK Team 18'},status);assert.equal(await check,false);assert.equal(f.auth.getSession().user.id,'new');assert.equal(f.auth.getToken(),'new');
+ }
+});
+test('feature checks fail closed on timeout and discard a body loaded after logout',async()=>{
+ const f=fixture();f.token('old');const initial=f.auth.init();f.calls[0].resolve(actor('old'));await initial;
+ const timeout=f.auth.checkTeamFeature('roster');assert.equal(f.timeouts.at(-1).ms,15000);f.timeouts.at(-1).controller.abort(new DOMException('Timed out','TimeoutError'));assert.equal(await timeout,false);
+ let release;const body=new Promise(r=>release=r),check=f.auth.checkTeamFeature('roster');f.calls[2].respond({status:200,ok:true,json:()=>body});await Promise.resolve();
+ const logout=f.auth.logout();f.calls[3].resolve({});await logout;release({allowed:true,team_id:'NSK Team 18'});assert.equal(await check,false);
+});
+test('staging writes stop when the session changes while checking permission',async()=>{
+ const f=fixture();f.token('old');const initial=f.auth.init();f.calls[0].resolve(actor('old'));await initial;
+ const write=f.auth.stagingRosterWrite('POST',null,{name:'Synthetic'});f.token('new');f.calls[1].resolve({allowed:true,team_id:'NSK Team 18'});
+ await assert.rejects(write,/verifierad rätt|ändrades/);assert.equal(f.calls.length,2);
 });

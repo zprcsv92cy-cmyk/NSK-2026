@@ -77,41 +77,49 @@
   }
   // Confirm each team-specific edit against the server; browser role flags are only UI hints.
   async function checkTeamFeature(feature, team = activeTeam()) {
-    if (!base || !token() || !team || !identity?.memberships?.some(m => m.team_id === team)) return false;
+    const current=token();
+    if (!base || !current || !team || !identity?.memberships?.some(m => m.team_id === team)) return false;
     try {
       const query = new URLSearchParams({ team_id: team, feature });
       const response = await fetch(base + '/api/auth/feature-access?' + query, {
-        headers: { Authorization: 'Bearer ' + token() },
-        credentials: 'omit', cache: 'no-store'
+        headers: { Authorization: 'Bearer ' + current },
+        credentials: 'omit', cache: 'no-store',
+        signal: typeof AbortSignal !== 'undefined' && AbortSignal.timeout ? AbortSignal.timeout(15000) : undefined
       });
+      if(token()!==current)return false;
       if (response.status === 401) { clear(); return false; }
       if (!response.ok) return false;
       const result = await response.json();
+      if(token()!==current)return false;
       return result.allowed === true && result.team_id === team;
     } catch { return false; }
   }
   // Isolated staging roster only. Never sends personal credentials to the legacy production API.
   async function stagingRosterRequest(method, rowId, payload, team = activeTeam()) {
     if (base === 'https://nsk-auth.peter-hasselberg.workers.dev') throw new Error('Testtruppen är inte tillgänglig med produktionsinloggning');
-    if (!base || !token() || !team || !identity?.memberships?.some(m => m.team_id === team)) {
+    const current=token();
+    if (!base || !current || !team || !identity?.memberships?.some(m => m.team_id === team)) {
       throw new Error('Personlig inloggning och giltigt lag krävs');
     }
     if (method !== 'GET' && !(await checkTeamFeature('roster', team))) {
       throw new Error('Saknar verifierad rätt att ändra truppen');
     }
+    if(token()!==current)throw new Error('Inloggningen ändrades. Försök igen.');
     const query = new URLSearchParams({ team_id: team });
     const url = base + '/api/auth/roster-staging' + (rowId == null ? '' : '/' + encodeURIComponent(rowId)) + '?' + query;
     let response;
     try {
       response = await fetch(url, {
         method,
-        headers: { Authorization: 'Bearer ' + token(), ...(method === 'GET' ? {} : { 'Content-Type': 'application/json' }) },
+        headers: { Authorization: 'Bearer ' + current, ...(method === 'GET' ? {} : { 'Content-Type': 'application/json' }) },
         credentials: 'omit', cache: 'no-store',
         ...(method === 'GET' ? {} : { body: JSON.stringify(payload || {}) })
       });
     } catch { throw new Error('Testservern kunde inte nås'); }
-    if (response.status === 401) clear();
+    if(token()!==current)throw new Error('Inloggningen ändrades. Försök igen.');
     const data = await response.json().catch(() => ({}));
+    if(token()!==current)throw new Error('Inloggningen ändrades. Försök igen.');
+    if (response.status === 401) clear();
     if (!response.ok) throw new Error(data.error || 'Testservern nekade begäran');
     return data;
   }
