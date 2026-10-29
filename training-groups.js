@@ -26,36 +26,40 @@
     $('trainingDate').hidden=selected||!date;$('trainingDate').readOnly=true;
   }
 
+  let restoreGeneration=0;
   async function restore(){
-    const date=$('trainingDate').value;
+    const generation=++restoreGeneration,date=$('trainingDate').value;
     if(!date)return false;
-    const response=await SharedTraining.get(date);
-    if($('trainingDate').value!==date)return false;
-    const data=response.session||{};
-    const fetchedHall=data.hall?'':await SharedTraining.calendarHall(date).catch(()=> '');
-    if($('trainingDate').value!==date)return false;
-    const allowed=new Set(players.map(p=>String(p.id)));
-    const allowedCoaches=new Set(coaches.map(p=>String(p.id)));
-    const allowedEquipment=new Set(equipment.map(p=>String(p.id)));
-    selectedEquipment=new Set((data.selectedCoaches||[]).filter(id=>String(id).startsWith('equipment:')).map(id=>String(id).slice(10)).filter(id=>allowedEquipment.has(id)));
-    selected=new Set((data.selected||[]).map(String).filter(x=>allowed.has(x)));
-    selectedCoaches=new Set((data.selectedCoaches||[]).map(String).filter(x=>allowedCoaches.has(x)));
-    allocation=Array.isArray(data.allocation)?data.allocation:[];
-    goalies=(data.goalies||[]).map(String).filter(id=>allowed.has(id)&&selected.has(id));
-    goalieCount=Number(data.goalieCount)||0;
-    trainingHall=['Lilla Hallen','Stora hallen'].includes(data.hall)?data.hall:'';
-    const calendarHall=new URLSearchParams(location.search).get('calendar_hall');
-    if(!response.session&&new URLSearchParams(location.search).get('date')===date&&['Lilla Hallen','Stora hallen'].includes(calendarHall))trainingHall=calendarHall;
-    if(!trainingHall)trainingHall=fetchedHall;
-    $('trainingHall').value=trainingHall;
-    shirtColorCount=[2,3,4].includes(Number(data.shirtColorCount))?Number(data.shirtColorCount):3;
-    $('trainingShirtColorCount').value=String(shirtColorCount);
-    revision=Number(data.revision)||0;
-    confirmedTraining=await SharedTraining.snapshotSession(data);
-    if($('trainingDate').value!==date)return false;
-    loadedDate=$('trainingDate').value;const colorsStatus=$('trainingColorStatus');if(colorsStatus)colorsStatus.textContent='';
-    $('trainingGoalieCount').value=String(goalieCount);
-    return true;
+    try{
+      const response=await SharedTraining.get(date);
+      if(generation!==restoreGeneration||$('trainingDate').value!==date)return false;
+      const data=response.session||{};
+      const fetchedHall=data.hall?'':await SharedTraining.calendarHall(date).catch(()=> '');
+      if(generation!==restoreGeneration||$('trainingDate').value!==date)return false;
+      const snapshot=await SharedTraining.snapshotSession(data);
+      if(generation!==restoreGeneration||$('trainingDate').value!==date)return false;
+      const allowed=new Set(players.map(p=>String(p.id)));
+      const allowedCoaches=new Set(coaches.map(p=>String(p.id)));
+      const allowedEquipment=new Set(equipment.map(p=>String(p.id)));
+      selectedEquipment=new Set((data.selectedCoaches||[]).filter(id=>String(id).startsWith('equipment:')).map(id=>String(id).slice(10)).filter(id=>allowedEquipment.has(id)));
+      selected=new Set((data.selected||[]).map(String).filter(x=>allowed.has(x)));
+      selectedCoaches=new Set((data.selectedCoaches||[]).map(String).filter(x=>allowedCoaches.has(x)));
+      allocation=Array.isArray(data.allocation)?data.allocation:[];
+      goalies=(data.goalies||[]).map(String).filter(id=>allowed.has(id)&&selected.has(id));
+      goalieCount=Number(data.goalieCount)||0;
+      trainingHall=['Lilla Hallen','Stora hallen'].includes(data.hall)?data.hall:'';
+      const calendarHall=new URLSearchParams(location.search).get('calendar_hall');
+      if(!response.session&&new URLSearchParams(location.search).get('date')===date&&['Lilla Hallen','Stora hallen'].includes(calendarHall))trainingHall=calendarHall;
+      if(!trainingHall)trainingHall=fetchedHall;
+      $('trainingHall').value=trainingHall;
+      shirtColorCount=[2,3,4].includes(Number(data.shirtColorCount))?Number(data.shirtColorCount):3;
+      $('trainingShirtColorCount').value=String(shirtColorCount);
+      revision=Number(data.revision)||0;
+      confirmedTraining=snapshot;
+      loadedDate=date;const colorsStatus=$('trainingColorStatus');if(colorsStatus)colorsStatus.textContent='';
+      $('trainingGoalieCount').value=String(goalieCount);
+      return true;
+    }catch(error){if(generation!==restoreGeneration||$('trainingDate').value!==date)return false;throw error;}
   }
   let confirmedTraining={selected:[],selectedCoaches:[],allocation:[],goalies:[],goalieCount:0,shirtColorCount:3,hall:''};
   let recoveryStatus=0;

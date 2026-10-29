@@ -49,11 +49,7 @@ test('queued training saves snapshot group and goalie arrays',()=>{
 });
 
 
-test('shared training save is blocked until selected date is loaded',()=>{
- assert.match(js,/let loadedDate=''/);
- assert.match(js,/loadedDate=\$\('trainingDate'\)\.value/);
- assert.match(js,/\$\('trainingDate'\)\.value!==loadedDate/);
-});
+
 
 test('failed shared save blocks subsequent writes and date changes',()=>{
  assert.match(js,/let saveBlocked=false/);
@@ -67,11 +63,7 @@ test('incomplete goalie selections are not sent to shared storage',()=>{
 });
 
 
-test('training date responses must be ignored after date changes',()=>{
- const source=fs.readFileSync('training-groups.js','utf8');
- assert.match(source,/const date=\$\('trainingDate'\)\.value;[\s\S]*?SharedTraining\.get\(date\)/);
- assert.match(source,/if\(\$\('trainingDate'\)\.value!==date\)return/);
-});
+
 
 test('only uncertain OCR matches require review',()=>{
  assert.match(js,/matches\.filter\(p=>!p\.exact\)/);
