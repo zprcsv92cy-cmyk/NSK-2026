@@ -105,7 +105,7 @@
  const personKey=p=>p.kind==='coach'?'coach:'+p.id:String(p.id);
  function bulk(root,{team,people}){
   let disposed=false,busy=false,metaBusy=false,authorized=true,listRecords=[],lastMeta=0,pdfUrl=null,pdfBusy=false,pdfBlob=null;
-  const token=Auth.getToken(),activeTeam=Auth.activeTeam(),states=new Map(),records=new Map(),loading=new Set(),revealed=new Set(),chosen=new Set();
+  const token=Auth.getToken(),activeTeam=Auth.activeTeam(),states=new Map(),records=new Map(),uncertain=new Set(),loading=new Set(),revealed=new Set(),chosen=new Set();
   const valid=()=>!disposed&&authorized&&allowed()&&Auth.getToken()===token&&Auth.activeTeam()===activeTeam;
   root.replaceChildren();
   const title=el('h2','Spelarnas och tränarnas QR-kort'),label=el('label','Sök namn'),search=el('input');search.type='search';search.id='qrNameSearch';search.placeholder='Sök namn';label.append(search);
@@ -129,12 +129,20 @@
   async function request(personId,payload){
    if(!valid())throw Error('Inloggningen har ändrats. Ladda om sidan.');
    const url=base()+'/api/sharpening/link?team_id='+encodeURIComponent(team)+(personId?'&person_id='+encodeURIComponent(personId.replace(/^coach:/,''))+(personId.startsWith('coach:')?'&kind=coach':''):'');
+   try{
    const response=await fetch(url,{method:payload?'PUT':'GET',headers:{Authorization:'Bearer '+token,...(payload?{'Content-Type':'application/json'}:{})},...(payload?{body:JSON.stringify(payload)}:{}),credentials:'omit',cache:'no-store',signal:AbortSignal.timeout(15000)});
-   const data=await response.json().catch(()=>({}));if(!valid())throw Error('Inloggningen har ändrats. Ladda om sidan.');
+   let data;
+   try{data=await response.json();}catch(error){if(['AbortError','TimeoutError'].includes(error.name))throw error;if(response.ok)throw Error('QR-svaret kunde inte läsas.');data={};}
+   if(!valid())throw Error('Inloggningen har ändrats. Ladda om sidan.');
    if(response.status===401||response.status===403){authorized=false;records.clear();states.clear();invalidateList();cards.replaceChildren();create.disabled=print.disabled=selectAll.disabled=true;}
-   if(!response.ok||!data.ok)throw Object.assign(Error(data.error||'QR-uppgifterna kunde inte hämtas ('+response.status+').'),{status:response.status});return data;
+   if(!response.ok)throw Object.assign(Error(data?.error||'QR-uppgifterna kunde inte hämtas ('+response.status+').'),{status:response.status});
+   const stateOk=s=>s&&['off','parent','player'].includes(s.mode)&&Number.isSafeInteger(s.revision)&&s.revision>=0&&typeof s.recoverable==='boolean';
+   const personalOk=stateOk(data)&&(!payload||data.revision>=1)&&(!data.token||/^[a-f0-9]{64}$/.test(data.token))&&(!data.recoverable||/^[a-f0-9]{64}$/.test(data.token))&&(!payload||payload.action!=='renew'||/^[a-f0-9]{64}$/.test(data.token));
+   if(data?.ok!==true||(personId?!personalOk:!Array.isArray(data.links)||!data.links.every(stateOk)))throw Error('QR-svaret kunde inte verifieras.');
+   return data;
+   }catch(error){if(payload&&(!error.status||error.status>=500))error.uncertain=true;throw error;}
   }
-  async function loadOne(p){const data=await request(personKey(p));accept(p,data);return data;}
+  async function loadOne(p){const data=await request(personKey(p));accept(p,data);uncertain.delete(personKey(p));return data;}
   async function metadata(force=false){
    if(!valid()||metaBusy||busy||!force&&Date.now()-lastMeta<30000)return;
    metaBusy=true;controls();status('Hämtar QR-status…');
@@ -158,12 +166,12 @@
    catch{let field=body.querySelector('[data-private-link]');if(!field){field=el('input');field.readOnly=true;field.setAttribute('data-private-link','');field.setAttribute('aria-label','Kopiera personlig slipningslänk');field.autocomplete='off';body.append(field);}field.value=record.url;field.focus();field.select();status(document.execCommand('copy')?'Länken är kopierad.':'Markera och kopiera länken i fältet.');}
   }
   async function mutate(p,mode,action){
-   if(busy||!valid())return;const id=personKey(p),state=states.get(id);if(!state){status('Hämta personens QR-status först.');return;}
+   if(busy||!valid())return;const id=personKey(p),state=states.get(id);if(uncertain.has(id)){status('Läs om QR innan du ändrar länken igen.');return;}if(!state){status('Hämta personens QR-status först.');return;}
    if(action==='renew'&&state.mode!=='off'&&!confirm('Förnya QR för '+p.full_name+'? Den gamla länken slutar fungera. Pågående slipönskemål finns kvar.'))return;
    if(mode==='off'&&state.mode!=='off'&&!confirm('Stäng av slipningslänken för '+p.full_name+'? Den nuvarande QR-koden slutar fungera.'))return;
    busy=true;render();status('Sparar QR-uppgifter för '+p.full_name+'…');
    try{const data=await request(id,{mode,action,revision:state.revision});accept(p,data);invalidateList();status(action==='renew'?'Ny QR skapad för '+p.full_name+'.':mode==='off'?'Länken är avstängd.':'Ansvaret är sparat. Den aktiva länken är oförändrad.');}
-   catch(error){status(error.message);if(error.status===409){records.delete(id);invalidateList();try{await loadOne(p);}catch{}}}
+   catch(error){if(error.uncertain){uncertain.add(id);records.delete(id);invalidateList();status('Ändringen kunde inte bekräftas. Läs om QR innan du försöker igen.');}else{status(error.message);if(error.status===409){records.delete(id);invalidateList();try{await loadOne(p);}catch{}}}}
    finally{busy=false;if(valid())render();}
   }
   const shirt='<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.4" aria-hidden="true"><path d="m8 3-5 3 2 5 3-1v11h8V10l3 1 2-5-5-3-2 2h-2z"/><path d="M8 17h8M8 19h8" stroke="#e32648"/></svg>';
@@ -172,18 +180,18 @@
    for(const p of people){if(!p.full_name.toLocaleLowerCase('sv-SE').includes(query))continue;shown++;const id=personKey(p),state=states.get(id),record=records.get(id),card=el('details');card.className='equipment-qr-player';card.dataset.personId=id;card.open=open.has(id);
     const summary=el('summary'),check=el('input');check.type='checkbox';check.checked=chosen.has(id);check.disabled=busy;check.setAttribute('aria-label','Välj '+p.full_name+' till QR-listan');check.onclick=e=>e.stopPropagation();check.onchange=()=>{if(check.checked)chosen.add(id);else chosen.delete(id);invalidateList();controls();};
     const icon=el('span');icon.className='equipment-qr-avatar';icon.innerHTML=shirt;const text=el('span');text.className='equipment-qr-person';text.append(el('strong',p.full_name));if(p.kind==='coach')text.append(el('small','Tränare'));
-    const info=el('small',!state?'Hämtar QR-status…':state.mode==='off'?(state.revision?'Avstängt':'Ingen QR skapad'):((state.recoverable?'Aktiv QR':'Aktiv länk · QR behöver förnyas en gång')+' · '+(p.kind==='coach'?'Tränare':state.mode==='parent'?'Förälder':'Spelare')));if(state?.mode!=='off'&&state?.recoverable)info.className='equipment-qr-active';text.append(info);const chevron=el('span','⌄');chevron.className='equipment-qr-chevron';summary.append(check,icon,text,chevron);card.append(summary);
+    const info=el('small',uncertain.has(id)?'QR-status behöver läsas om':!state?'Hämtar QR-status…':state.mode==='off'?(state.revision?'Avstängt':'Ingen QR skapad'):((state.recoverable?'Aktiv QR':'Aktiv länk · QR behöver förnyas en gång')+' · '+(p.kind==='coach'?'Tränare':state.mode==='parent'?'Förälder':'Spelare')));if(state?.mode!=='off'&&state?.recoverable)info.className='equipment-qr-active';text.append(info);const chevron=el('span','⌄');chevron.className='equipment-qr-chevron';summary.append(check,icon,text,chevron);card.append(summary);
     const body=el('div');body.className='equipment-qr-player-body';const preview=el('div');preview.className='equipment-qr-preview';
     if(record){try{preview.append(qrImage(record.url));}catch(error){preview.append(el('p',error.message));}}
     else preview.append(el('p',loading.has(id)?'Hämtar QR…':!state?'Hämtar status…':state.mode==='off'?'Aktivera en personlig QR-kod.':'En äldre aktiv länk kan importeras från sparad QR-lista eller förnyas en gång.'));
     const actions=el('div');actions.className='equipment-qr-actions';
-    if(!record&&state?.recoverable&&!loading.has(id)){const retry=el('button','Läs om QR');retry.type='button';retry.disabled=busy;retry.onclick=()=>{revealed.delete(id);void reveal(p);};actions.append(retry);}
-    const renew=el('button',state?.mode==='off'?'Skapa QR':'Förnya QR');renew.type='button';renew.className='nsk-action nsk-action--save';renew.disabled=busy||!state||loading.has(id);renew.onclick=()=>void mutate(p,state.mode==='off'?(p.kind==='coach'?'player':'parent'):state.mode,'renew');actions.append(renew);
+    if(!record&&(uncertain.has(id)||state?.recoverable)&&!loading.has(id)){const retry=el('button','Läs om QR');retry.type='button';retry.disabled=busy;retry.onclick=()=>{revealed.delete(id);void reveal(p);};actions.append(retry);}
+    const renew=el('button',state?.mode==='off'?'Skapa QR':'Förnya QR');renew.type='button';renew.className='nsk-action nsk-action--save';renew.disabled=busy||!state||uncertain.has(id)||loading.has(id);renew.onclick=()=>void mutate(p,state.mode==='off'?(p.kind==='coach'?'player':'parent'):state.mode,'renew');actions.append(renew);
     if(record){const shareButton=el('button','Dela länk');shareButton.type='button';shareButton.disabled=busy||loading.has(id);shareButton.onclick=()=>void share(p,record,body);const visit=el('a','Öppna slipningssidan');visit.href=record.url;visit.target='_blank';visit.rel='noopener noreferrer';actions.append(shareButton,visit);}
     const grid=el('div');grid.className='equipment-qr-grid';grid.append(preview,actions);body.append(grid);
     const manage=el('details');manage.className='equipment-qr-manage';manage.append(el('summary','Ändra ansvar'));
     const modeLabel=el('label','Ansvarig'),mode=el('select');for(const [value,label] of (p.kind==='coach'?[['player','Tränare'],['off','Avstängt']]:[['parent','Förälder'],['player','Spelare'],['off','Avstängt']]))mode.append(new Option(label,value));mode.value=state?.mode||'off';mode.disabled=busy||!state;modeLabel.append(mode);
-    const save=el('button','Spara ansvar');save.type='button';save.disabled=busy||!state;save.onclick=()=>void mutate(p,mode.value,'mode');manage.append(modeLabel,save);body.append(manage);card.append(body);
+    const save=el('button','Spara ansvar');save.type='button';save.disabled=busy||!state||uncertain.has(id);save.onclick=()=>void mutate(p,mode.value,'mode');manage.append(modeLabel,save);body.append(manage);card.append(body);
     card.addEventListener('toggle',event=>{if(event.target!==card)return;if(card.open&&!revealed.has(id))void reveal(p);else if(!card.open)revealed.delete(id);});groups.get(p.kind==='coach'?'coach':'player').append(card);
    }
    for(const [kind,group] of groups)if(group.children.length===1)group.append(el('p',query?'Inga namn matchar sökningen.':kind==='coach'?'Inga tränare i laget.':'Inga spelare i laget.'));controls();
