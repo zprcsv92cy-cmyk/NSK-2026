@@ -106,3 +106,9 @@ test('saving a drawn exercise requires an explicit name and category before writ
  await f.node('rinkSave').onclick();assert.match(f.node('rinkStatus').textContent,/namn/);assert.equal(f.node('rinkSettings').open,true);assert.equal(f.node('rinkTitle').focused,true);
  f.node('rinkTitle').value='Min övning';f.node('rinkCategory').value='';await f.node('rinkSave').onclick();assert.match(f.node('rinkStatus').textContent,/kategori/);assert.equal(f.node('rinkCategory').focused,true);assert.equal(f.storage.has(SAVED),false);
 });
+test('multiple exercise categories survive draft save and restore',()=>{
+ const f=editor(),picker=f.node('rinkCategory');picker.options=[{value:'Skridskoåkning'},{value:'Skott och avslut'},{value:'Uppvärmning'}];Object.defineProperty(picker,'selectedOptions',{get(){return this.options.filter(o=>o.selected);}});
+ picker.options[0].selected=true;picker.options[1].selected=true;picker.emit('change');f.flush();
+ assert.deepEqual(f.draft().categories,['Skridskoåkning','Skott och avslut']);
+ assert.equal(f.draft().category,'Skridskoåkning, Skott och avslut');
+});

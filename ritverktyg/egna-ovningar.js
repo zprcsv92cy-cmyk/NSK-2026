@@ -2,6 +2,7 @@
 (() => {
  'use strict';
  const $=id=>document.getElementById(id);
+ const exerciseCategories=entry=>Array.isArray(entry.categories)&&entry.categories.length?entry.categories:[entry.category].filter(Boolean);
  const isDrawing=entry=>entry?.origin==='rink-drawer'||entry?.filename==='hockeyovning.svg';
  function text(tag,value,className){const n=document.createElement(tag);n.textContent=value;if(className)n.className=className;return n;}
  function openExerciseDb(){return new Promise((resolve,reject)=>{const r=indexedDB.open('nsk_exercise_files_v1',1);r.onupgradeneeded=()=>{if(!r.result.objectStoreNames.contains('files'))r.result.createObjectStore('files',{keyPath:'id'});};r.onsuccess=()=>resolve(r.result);r.onerror=()=>reject(r.error);});}
@@ -12,18 +13,18 @@
  function closePreview(){ $('drawingPreview').close();$('drawingPreviewImage').removeAttribute('src');if(previewUrl){URL.revokeObjectURL(previewUrl);previewUrl=null;} }
  function renderOwn(){
   drawingUrls.forEach(u=>URL.revokeObjectURL(u));drawingUrls=[];const root=$('drawingList');root.replaceChildren();const q=$('drawingSearch').value.trim().toLocaleLowerCase('sv'),cat=$('drawingCategory').value;
-  const files=ownFiles.filter(e=>(!q||(e.title+' '+e.description).toLocaleLowerCase('sv').includes(q))&&(!cat||e.category===cat));
+  const files=ownFiles.filter(e=>(!q||(e.title+' '+e.description).toLocaleLowerCase('sv').includes(q))&&(!cat||exerciseCategories(e).includes(cat)));
   for(const entry of files){const card=text('article','','archive-item');const img=document.createElement('img'),url=URL.createObjectURL(entry.blob);drawingUrls.push(url);img.src=url;img.alt=entry.title;img.loading='lazy';card.append(text('h3',entry.title),text('p',entry.category,'small'),img);const actions=text('div','','archive-actions');actions.append(planButton('Visa övning',()=>openPreview(entry)),planButton('Ta bort övning',async()=>{if(!confirm('Ta bort övningen från denna enhet? Kopior i sparade träningar behålls.'))return;try{await exerciseTransaction('readwrite',os=>os.delete(entry.id));await refreshAll();}catch(error){$('drawingStatus').textContent='Kunde inte ta bort: '+error.message;}}));card.append(actions);root.append(card);}
   if(!files.length)root.append(text('p',ownFiles.length?'Inga övningar matchar filtret.':'Inga ritade övningar sparade ännu. Öppna ritverktyget, ge övningen namn och kategori och spara den.','archive-empty'));
   $('drawingStatus').textContent=files.length+' egna övningar';
  }
- async function refreshAll(){const generation=++refreshGeneration;try{const files=await getFiles();if(generation!==refreshGeneration)return;ownFiles=files.sort((a,b)=>b.created-a.created);const picker=$('drawingCategory'),selected=picker.value;picker.replaceChildren(new Option('Alla kategorier',''));for(const cat of [...new Set(ownFiles.map(e=>e.category))].sort((a,b)=>a.localeCompare(b,'sv')))picker.append(new Option(cat,cat));picker.value=[...picker.options].some(o=>o.value===selected)?selected:'';renderOwn();await refreshTrainingChoices();await loadTrainingPlans();}catch(error){$('drawingStatus').textContent='Övningsarkivet kunde inte öppnas: '+error.message;}}
+ async function refreshAll(){const generation=++refreshGeneration;try{const files=await getFiles();if(generation!==refreshGeneration)return;ownFiles=files.sort((a,b)=>b.created-a.created);const picker=$('drawingCategory'),selected=picker.value;picker.replaceChildren(new Option('Alla kategorier',''));for(const cat of [...new Set(ownFiles.flatMap(exerciseCategories))].sort((a,b)=>a.localeCompare(b,'sv')))picker.append(new Option(cat,cat));picker.value=[...picker.options].some(o=>o.value===selected)?selected:'';renderOwn();await refreshTrainingChoices();await loadTrainingPlans();}catch(error){$('drawingStatus').textContent='Övningsarkivet kunde inte öppnas: '+error.message;}}
  const render=refreshAll;
   // Complete sessions are stored separately from individual exercise files.
   let trainingParts=[],trainingEditing=null,trainingChoices=[],trainingChoicesGeneration=0,trainingBusy=false;
   const selectedExercises=new Set();
   function trainingSnapshot(entry){
-    const copy={};for(const key of ['title','category','description','filename','blob','sourceUrl','searchUrl','equipment','coaching','age','minutes'])if(entry[key]!==undefined)copy[key]=entry[key];return copy;
+    const copy={};for(const key of ['title','category','categories','description','filename','blob','sourceUrl','searchUrl','equipment','coaching','age','minutes'])if(entry[key]!==undefined)copy[key]=Array.isArray(entry[key])?[...entry[key]]:entry[key];return copy;
   }
   function validateTraining(title,parts){
     if(typeof title!=='string'||!title.trim()||title.trim().length>100)throw Error('Ge träningen ett namn på högst 100 tecken.');
