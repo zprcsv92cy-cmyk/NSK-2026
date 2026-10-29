@@ -28,3 +28,13 @@ Detaljer och layout arbetas fram i prototypen. Den befintliga appens data och fu
 ## Första prototypen
 
 `prototype-v1.1/index.html` är en fristående skiss med syntetiska testdata. Ingen inloggning, nätverksanslutning eller beständig lagring används. Innehåller aktivitetsval, träning/poolspel, närvaro som kan provas i minnet, ansvariga och dialoger för planeringsskisser. Ingen checklista.
+
+## Etapp 2 – träningsplanering i prototypen
+
+- Redigera start, slut och samling samt lägga till, ändra och ta bort övningspass med minuter och beskrivning.
+- För långa pass, tomma namn och felaktiga tider avvisas. Avbryt lämnar tidigare val orörda.
+- Ändra tröjfärg per spelare eller fördela deltagande spelare jämnt med ett nytt slumpförslag. Fördelningen blir aktiv först vid Spara i prototypen.
+- Ändrad närvaro ändrar deltagarantalet i färggrupperna men bevarar samtliga spelares färgval, även vid frånvaro.
+- Sparat upplägg och färgantal visas i aktivitetsvyn. Respektive träning behåller sina egna val under den öppna sessionen.
+- Allt ligger i sidans minne och återställs vid omladdning. Ingen produktion, API-anslutning eller beständig lagring används.
+- Webbläsarprov: tidsöverskridande nekades; namn och färg kunde sparas; gult färgval behölls efter att en deltagare markerades som frånvarande. Matchplaneringen är fortfarande endast en skiss.
