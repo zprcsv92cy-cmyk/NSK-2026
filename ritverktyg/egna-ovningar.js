@@ -13,7 +13,7 @@
  function renderOwn(){
   drawingUrls.forEach(u=>URL.revokeObjectURL(u));drawingUrls=[];const root=$('drawingList');root.replaceChildren();const q=$('drawingSearch').value.trim().toLocaleLowerCase('sv'),cat=$('drawingCategory').value;
   const files=ownFiles.filter(e=>(!q||(e.title+' '+e.description).toLocaleLowerCase('sv').includes(q))&&(!cat||e.category===cat));
-  for(const entry of files){const card=text('article','','archive-item');const img=document.createElement('img'),url=URL.createObjectURL(entry.blob);drawingUrls.push(url);img.src=url;img.alt=entry.title;img.loading='lazy';card.append(text('h3',entry.title),text('p',entry.category,'small'),img);const actions=text('div','','archive-actions');actions.append(planButton('Visa övning',()=>openPreview(entry)),planButton('Lägg till i träning',()=>{addTrainingPart(entry,'file');$('trainingArchive').scrollIntoView({block:'start'});}),planButton('Ta bort övning',async()=>{if(!confirm('Ta bort övningen från denna enhet? Kopior i sparade träningar behålls.'))return;try{await exerciseTransaction('readwrite',os=>os.delete(entry.id));await refreshAll();}catch(error){$('drawingStatus').textContent='Kunde inte ta bort: '+error.message;}}));card.append(actions);root.append(card);}
+  for(const entry of files){const card=text('article','','archive-item');const img=document.createElement('img'),url=URL.createObjectURL(entry.blob);drawingUrls.push(url);img.src=url;img.alt=entry.title;img.loading='lazy';card.append(text('h3',entry.title),text('p',entry.category,'small'),img);const actions=text('div','','archive-actions');actions.append(planButton('Visa övning',()=>openPreview(entry)),planButton('Ta bort övning',async()=>{if(!confirm('Ta bort övningen från denna enhet? Kopior i sparade träningar behålls.'))return;try{await exerciseTransaction('readwrite',os=>os.delete(entry.id));await refreshAll();}catch(error){$('drawingStatus').textContent='Kunde inte ta bort: '+error.message;}}));card.append(actions);root.append(card);}
   if(!files.length)root.append(text('p',ownFiles.length?'Inga övningar matchar filtret.':'Inga ritade övningar sparade ännu. Öppna ritverktyget, ge övningen namn och kategori och spara den.','archive-empty'));
   $('drawingStatus').textContent=files.length+' egna övningar';
  }
@@ -21,6 +21,7 @@
  const render=refreshAll;
   // Complete sessions are stored separately from individual exercise files.
   let trainingParts=[],trainingEditing=null,trainingChoices=[],trainingChoicesGeneration=0,trainingBusy=false;
+  const selectedExercises=new Set();
   function trainingSnapshot(entry){
     const copy={};for(const key of ['title','category','description','filename','blob','sourceUrl','searchUrl','equipment','coaching','age','minutes'])if(entry[key]!==undefined)copy[key]=entry[key];return copy;
   }
@@ -62,15 +63,25 @@
   }
   function drawTrainingTotal(){const minutes=trainingParts.reduce((sum,p)=>sum+(Number(p.minutes)||0),0);$('trainingPlanTotal').textContent=trainingParts.length+(trainingParts.length===1?' övning · ':' övningar · ')+minutes+' minuter';}
   function addTrainingPart(entry,source,index=0){if(trainingBusy)return;if(trainingParts.length>=40){planMessage('Högst 40 övningar i en träning.');return;}trainingParts.push({id:crypto.randomUUID(),source,index,minutes:Number.isInteger(entry.minutes)&&entry.minutes>0?Math.min(entry.minutes,180):10,exercise:trainingSnapshot(entry)});drawTrainingParts();planMessage('Övningen är tillagd. Spara träningen när den är klar.');}
+  function updateSelectionCount(){
+    $('trainingSelectionCount').textContent=selectedExercises.size+' valda övningar';
+    $('trainingAddExercise').disabled=!selectedExercises.size;
+  }
   function filterTrainingChoices(){
-    const picker=$('trainingExerciseChoice'),value=picker.value,query=$('trainingExerciseSearch').value.trim().toLocaleLowerCase('sv');picker.replaceChildren(new Option('Välj övning',''));
-    for(const choice of trainingChoices)if(!query||(choice.entry.title+' '+choice.entry.category).toLocaleLowerCase('sv').includes(query))picker.append(new Option(choice.entry.title+' · '+choice.entry.category,choice.key));
-    picker.value=[...picker.options].some(o=>o.value===value)?value:'';
+    const root=$('trainingExerciseChoices'),query=$('trainingExerciseSearch').value.trim().toLocaleLowerCase('sv');root.replaceChildren();
+    const choices=trainingChoices.filter(choice=>!query||(choice.entry.title+' '+choice.entry.category).toLocaleLowerCase('sv').includes(query));
+    for(const choice of choices){
+      const label=text('label','','exercise-check'),check=document.createElement('input');check.type='checkbox';check.value=choice.key;check.checked=selectedExercises.has(choice.key);
+      check.onchange=()=>{if(check.checked)selectedExercises.add(choice.key);else selectedExercises.delete(choice.key);updateSelectionCount();};
+      label.append(check,text('span',choice.entry.title+' · '+choice.entry.category));root.append(label);
+    }
+    if(!choices.length)root.append(text('p',trainingChoices.length?'Inga övningar matchar sökningen.':'Inga övningar sparade ännu. Rita och spara en övning i Övningsarkiv först.','small'));
+    updateSelectionCount();
   }
   async function refreshTrainingChoices(){
     if(!$('trainingPlanForm'))return;const generation=++trainingChoicesGeneration;
     const base=[];
-    try{const files=await getFiles();if(generation!==trainingChoicesGeneration)return;trainingChoices=[...files.map(entry=>({key:'file:'+entry.id,entry,source:'file',index:0})),...base];filterTrainingChoices();}
+    try{const files=await getFiles();if(generation!==trainingChoicesGeneration)return;trainingChoices=[...files.map(entry=>({key:'file:'+entry.id,entry,source:'file',index:0})),...base];for(const key of selectedExercises)if(!trainingChoices.some(c=>c.key===key))selectedExercises.delete(key);filterTrainingChoices();}
     catch{if(generation!==trainingChoicesGeneration)return;trainingChoices=base;filterTrainingChoices();planMessage('Övningsarkivet kunde inte läsas in. Försök ladda om sidan.');}
   }
   function editTraining(plan){if(trainingBusy)return;trainingEditing={id:plan.id,revision:plan.revision,created:plan.created};trainingParts=plan.parts.map(p=>({...p,exercise:trainingSnapshot(p.exercise)}));$('trainingPlanTitle').value=plan.title;$('trainingPlanNotes').value=plan.notes||'';$('trainingPlanSave').textContent='Spara ändringar';drawTrainingParts();planMessage('Träningen är öppnad för redigering.');$('trainingArchive').scrollIntoView({block:'start'});}
@@ -83,11 +94,17 @@
     }if(!plans.length)root.append(text('p','Inga färdiga träningar sparade ännu.'));
     }catch{root.replaceChildren(text('p','Träningsarkivet kunde inte öppnas i den här webbläsaren.'));;}
   }
-  function resetTraining(){if(trainingBusy)return;trainingEditing=null;trainingParts=[];$('trainingPlanForm').reset();$('trainingPlanSave').textContent='Spara träning';filterTrainingChoices();drawTrainingParts();planMessage('Ny träning.');}
+  function resetTraining(){if(trainingBusy)return;trainingEditing=null;trainingParts=[];$('trainingPlanForm').reset();selectedExercises.clear();$('trainingPlanSave').textContent='Spara träning';filterTrainingChoices();drawTrainingParts();planMessage('Ny träning.');}
   function initTrainingArchive(){
     if(!$('trainingPlanForm'))return;drawTrainingParts();void refreshTrainingChoices();void loadTrainingPlans();
     $('trainingExerciseSearch').oninput=filterTrainingChoices;
-    $('trainingAddExercise').onclick=()=>{const choice=trainingChoices.find(c=>c.key===$('trainingExerciseChoice').value);if(!choice){planMessage('Välj en övning först.');return;}addTrainingPart(choice.entry,choice.source,choice.index);};
+    $('trainingAddExercise').onclick=()=>{
+      if(trainingBusy)return;const choices=trainingChoices.filter(c=>selectedExercises.has(c.key));
+      if(!choices.length){planMessage('Bocka i minst en övning först.');return;}
+      if(trainingParts.length+choices.length>40){planMessage('Högst 40 övningar i en träning. Minska ditt urval.');return;}
+      for(const choice of choices)addTrainingPart(choice.entry,choice.source,choice.index);
+      selectedExercises.clear();filterTrainingChoices();planMessage(choices.length+' övningar tillagda. Spara träningen när den är klar.');
+    };
     $('trainingPlanNew').onclick=resetTraining;
     $('trainingPlanCopy').onclick=()=>{if(trainingBusy)return;trainingEditing=null;$('trainingPlanSave').textContent='Spara träning';planMessage('Ange ett namn och tryck Spara träning för att spara upplägget som en ny träning.');$('trainingPlanTitle').focus();};
     $('trainingPlanForm').onsubmit=async event=>{
@@ -99,12 +116,21 @@
         await storeTraining(plan,existing?.revision||0);trainingEditing={id:plan.id,revision:plan.revision,created:plan.created};$('trainingPlanSave').textContent='Spara ändringar';await loadTrainingPlans();planMessage('Träningen är sparad på denna enhet.');window.NSKShellHost?.clean?.(window);
       }catch(error){planMessage('Kunde inte spara träningen: '+error.message);}finally{trainingBusy=false;$('trainingPlanForm').inert=false;$('trainingPlanSave').disabled=false;$('trainingPlanNew').disabled=false;$('trainingPlanCopy').disabled=false;}
     };
-    if(location.hash==='#trainingArchive')$('trainingArchive').scrollIntoView({block:'start'});
+
     document.addEventListener('nsk:page-show',()=>{void render();void refreshTrainingChoices();void loadTrainingPlans();});
   }
 
+ function showArchive(){
+  const training=location.hash==='#trainingArchive';
+  $('ownExercises').hidden=training;$('trainingArchive').hidden=!training;
+  $('archiveHeading').textContent=training?'Träningsarkiv':'Övningsarkiv';
+  document.querySelector('.home-hero-sub').textContent=training?'Skapa en träning med övningar från ditt arkiv':'Rita en övning och spara med namn och kategori';
+  for(const link of document.querySelectorAll('.mainmenu a[href^="#"]')){
+    if(link.hash===(training?'#trainingArchive':'#ownExercises'))link.setAttribute('aria-current','page');else link.removeAttribute('aria-current');
+  }
+ }
  document.addEventListener('DOMContentLoaded',()=>{
-  initTrainingArchive();void refreshAll();$('drawingSearch').oninput=renderOwn;$('drawingCategory').onchange=renderOwn;
+  showArchive();window.addEventListener('hashchange',showArchive);initTrainingArchive();void refreshAll();$('drawingSearch').oninput=renderOwn;$('drawingCategory').onchange=renderOwn;
   $('drawingPreviewClose').onclick=closePreview;$('drawingPreview').addEventListener('close',()=>{if(previewUrl){URL.revokeObjectURL(previewUrl);previewUrl=null;}});
   window.addEventListener('focus',()=>void refreshAll());document.addEventListener('visibilitychange',()=>{if(!document.hidden)void refreshAll();});
  });
