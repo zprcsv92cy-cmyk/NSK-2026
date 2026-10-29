@@ -13,6 +13,7 @@ function editor(stored={}){
   replaceChildren(){this.children=[];}
   addEventListener(type,fn){(this.events[type]??=[]).push(fn);}
   emit(type,event={}){for(const fn of this.events[type]||[])fn(event);}
+  focus(){this.focused=true;}
   setPointerCapture(){}
   getScreenCTM(){return {a:1,b:0,inverse:()=>({})};}
   createSVGPoint(){return {x:0,y:0,matrixTransform(){return {x:this.x,y:this.y};}};}
@@ -98,4 +99,10 @@ test('small tires stay hollow, editable and recoverable like other symbols',()=>
  f.node('rinkDuplicate').onclick();f.flush();assert.equal(f.draft().marks.length,2);
  const restored=editor(Object.fromEntries(f.storage));restored.choose('move');restored.pointer('pointerdown',140,240);assert.equal(restored.node('rinkSelectedLabel').textContent,'Däck markerad');
  restored.node('rinkDelete').onclick();restored.flush();assert.equal(restored.draft().marks.length,1);
+});
+
+test('saving a drawn exercise requires an explicit name and category before writing to the archive',async()=>{
+ const f=editor();f.choose('player');f.pointer('pointerdown',120,180);f.pointer('pointerup',120,180);
+ await f.node('rinkSave').onclick();assert.match(f.node('rinkStatus').textContent,/namn/);assert.equal(f.node('rinkSettings').open,true);assert.equal(f.node('rinkTitle').focused,true);
+ f.node('rinkTitle').value='Min övning';f.node('rinkCategory').value='';await f.node('rinkSave').onclick();assert.match(f.node('rinkStatus').textContent,/kategori/);assert.equal(f.node('rinkCategory').focused,true);assert.equal(f.storage.has(SAVED),false);
 });

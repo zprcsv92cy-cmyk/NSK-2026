@@ -171,12 +171,14 @@
  }
  async function saveDrawing(){
   if(!marks.length){announce('Rita först symboler och rörelser på rinken.');return;}
+  const title=$('rinkTitle').value.trim(),category=$('rinkCategory').value;
+  if(!title||!category){$('rinkSettings').open=true;closeMenus();announce(!title?'Ge övningen ett namn innan du sparar.':'Välj kategori innan du sparar.');$(!title?'rinkTitle':'rinkCategory').focus();return;}
   const button=$('rinkSave');button.disabled=true;closeMenus();
   try{
-   const saved={...record(),title:$('rinkTitle').value.trim()||'Min hockeyövning'};
+   const saved={...record(),title};
    localStorage.setItem(SAVED,JSON.stringify(saved));flushDraft();
    const blob=new Blob([new XMLSerializer().serializeToString(cleanSvg())],{type:'image/svg+xml'});
-   await archiveDrawing({id:uuid(),title:saved.title,description:saved.description,category:saved.category,filename:'hockeyovning.svg',blob,created:Date.now()});
+   await archiveDrawing({id:uuid(),origin:'rink-drawer',title:saved.title,description:saved.description,category:saved.category,filename:'hockeyovning.svg',blob,created:Date.now()});
    announce('Sparad i Övningsarkivet på denna enhet.');
   }catch(error){announce('Kunde inte spara i Övningsarkivet: '+(error.message||'okänt fel'));}
   finally{button.disabled=false;}
