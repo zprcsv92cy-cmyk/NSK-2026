@@ -50,12 +50,16 @@ test('printed NSK signs show first name, heading and unchanged QR with embedded 
  assert.match(f.preview.html,/grid-template-columns:repeat\(2,84mm\)/);
  assert.match(f.preview.html,/height:60mm/);assert.match(f.preview.html,/repeat\(4,43\.50000mm\)/);assert.match(f.preview.html,/size:A4 portrait/);
  const card=f.preview.sheet.children[0].children[0].children[0];
- assert.equal(card.children[0].className,'qr-sign-arena');assert.match(card.children[0].src,/^data:image\/jpeg;base64,/);assert.match(f.preview.html,/left:3mm;top:11mm/);assert.match(f.preview.html,/left:46mm;top:24mm/);
+ assert.equal(card.children[0].className,'qr-sign-arena');assert.match(card.children[0].src,/^data:image\/jpeg;base64,/);assert.match(f.preview.html,/left:3mm;top:11mm/);assert.match(f.preview.html,/width:42mm;height:42mm/);assert.match(f.preview.html,/left:46mm;top:24mm/);
  assert.match(card.children[2].children[0].src,/^data:image\/png;base64,/);
  assert.equal(card.children[3].textContent,'Slipning');
  assert.equal(card.children[4].textContent,'Synthetic');
  assert.equal(card.children[5].className,'qr-sign-code');
  assert.match(card.children[5].src,/^data:image\/svg/);
+ const svg=decodeURIComponent(card.children[5].src.split(',')[1]);
+ assert.doesNotMatch(svg,/<image|width="0\.45"/);
+ assert.match(svg,/<rect x="4" y="4" width="1" height="1" fill="#000"/);
+ assert.match(svg,/<rect width="65" height="65" fill="white"/);
  assert(f.calls.every(c=>c.options.method==='GET'));f.dispose();
 });
 
