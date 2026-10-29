@@ -1,0 +1,42 @@
+import assert from 'node:assert/strict';
+import {randomBytes,randomUUID,createHash} from 'node:crypto';
+import {readFileSync} from 'node:fs';
+import {trainingSnapshot} from '../concurrency-merge.mjs';
+const account='262a0356b18defd22b05df6949c409bf',db='b94c8dba-34be-4cff-a4e9-892caf4e3ddd';
+const worker='nsk-api-isolated-preview',base='https://'+worker+'.peter-hasselberg.workers.dev';
+assert.equal(process.env.NSK_LIVE_TEST_CONFIRMATION,'ISOLATED_MULTIUSER_LIVE');
+assert.equal(process.env.CLOUDFLARE_ACCOUNT_ID,account);
+const secret=process.env.CLOUDFLARE_API_TOKEN;assert(secret,'Isolated environment credentials required');
+async function cf(path,{method='GET',body}={}){const r=await fetch('https://api.cloudflare.com/client/v4/accounts/'+account+path,{method,headers:{Authorization:'Bearer '+secret,...(body?{'Content-Type':'application/json'}:{})},...(body?{body:JSON.stringify(body)}:{}),redirect:'error',signal:AbortSignal.timeout(20000)});const d=await r.json();assert(r.ok&&d.success,'Isolated control-plane operation failed: HTTP '+r.status);return d.result;}
+async function query(sql,params=[]){const d=await cf('/d1/database/'+db+'/query',{method:'POST',body:{sql,params}});assert(d[0]?.success,'Isolated database query failed');return d[0];}
+async function preflight(multiuser){const s=await cf('/workers/scripts/'+worker+'/settings'),b=s.bindings||[],binding=n=>b.find(x=>x.name===n);assert.equal(binding('NSK_ISOLATED_MODE')?.text,'true');assert.equal(binding('BASEROW_DATABASE_ID')?.text,'599495');assert.equal(binding('AUTH_DB')?.id||binding('AUTH_DB')?.database_id,db);assert.equal(binding('NSK_TRAINERS')?.namespace_id,'e8772468a0004f0ea78b02a5251eadf7');assert.equal(binding('ADMIN_KV')?.namespace_id,'8b079c75ed6c4d4695476f1de24089fd');const ids=JSON.parse(binding('BASEROW_TABLE_IDS')?.text||'{}');assert.equal(ids.lag,1273707);assert.equal(ids.poolspel,1273721);if(multiuser)assert.equal(binding('NSK_MULTIUSER_ENABLED')?.text,'true');const deployments=await cf('/workers/scripts/'+worker+'/deployments');assert.equal(deployments.deployments[0].versions.length,1);assert.equal(deployments.deployments[0].versions[0].percentage,100);return deployments.deployments[0].versions[0].version_id;}
+if(process.argv.includes('--prepare')){await preflight(false);const cols=(await query('PRAGMA table_info(training_sessions)')).results.map(x=>x.name);assert(cols.includes('revision'),'Training schema required');if(!cols.includes('hall'))await query("ALTER TABLE training_sessions ADD COLUMN hall TEXT NOT NULL DEFAULT ''");if(!cols.includes('shirt_color_count'))await query('ALTER TABLE training_sessions ADD COLUMN shirt_color_count INTEGER NOT NULL DEFAULT 3');await query(readFileSync(new URL('../migrations/20261023_training_calendar_imports.sql',import.meta.url),'utf8'));console.log('Isolated training schema ready; production resources excluded.');process.exit(0);}
+const version=await preflight(true),run=randomUUID(),users=[],timings=[],statuses={};let teamId,ownsTraining=false;const date='2099-12-30';
+async function api(user,path,{method='GET',body}={}){const start=performance.now();const r=await fetch(base+path,{method,headers:{Authorization:'Bearer '+user.token,...(body?{'Content-Type':'application/json'}:{})},...(body?{body:JSON.stringify(body)}:{}),redirect:'error',signal:AbortSignal.timeout(25000)});const data=await r.json();timings.push(performance.now()-start);statuses[r.status]=(statuses[r.status]||0)+1;return {status:r.status,data};}
+const path=()=>'/api/training?team_id='+teamId+'&date='+date;
+const empty={selected:[],selectedCoaches:[],goalies:[],goalieCount:0,allocation:[[],[],[]],shirtColorCount:3,hall:'Lilla Hallen'};
+let summary;
+try{
+ for(let i=0;i<6;i++){const id='nsk-live-load-'+run+'-'+i,token=randomBytes(48).toString('base64url');users.push({id,token});await query('INSERT INTO auth_users(id,email,display_name,password_hash,disabled) VALUES(?,?,?,?,0)',[id,id+'@example.invalid','Synthetic load '+i,'NO_PASSWORD_LOGIN']);await query('INSERT INTO auth_team_memberships(user_id,team_id,role) VALUES(?,?,?)',[id,'NSK Team 18','coach']);for(const permission of ['read','lineup:edit'])await query('INSERT INTO auth_user_permissions(user_id,permission) VALUES(?,?)',[id,permission]);await query("INSERT INTO auth_sessions(token_hash,user_id,expires_at) VALUES(?,?,datetime('now','+15 minutes'))",[createHash('sha256').update(token).digest('hex'),id]);}
+ const teams=await api(users[0],'/api/lag');assert.equal(teams.status,200,'Personal isolated team read');const team=teams.data.results.find(t=>t.Namn==='NSK Team 18'&&String(t['Säsong'])==='2026');assert(team,'Isolated team required');teamId=String(team.id);assert(Number.isSafeInteger(Number(teamId))&&Number(teamId)>0,'Invalid isolated team ID');
+ assert.equal((await query('SELECT COUNT(*) n FROM training_sessions WHERE team_id=? AND training_date=?',[teamId,date])).results[0].n,0,'Test date must be unused');
+ ownsTraining=true;const initial=await api(users[0],path(),{method:'PUT',body:{...empty,revision:0}});assert.equal(initial.status,200,'Create isolated training');
+ // All six independent sessions add a different synthetic attendance ID from one shared base.
+ let current=await api(users[0],path());assert.equal(current.status,200);const shared=trainingSnapshot(current.data.session);
+ const merged=await Promise.all(users.map((u,i)=>api(u,path(),{method:'PUT',body:{...shared,selected:[String(900001+i)],revision:current.data.session.revision,base:{session:shared}}})));
+ for(let i=0;i<merged.length;i++){assert([200,409].includes(merged[i].status),'Unexpected concurrent merge response');if(merged[i].status===409){const fresh=await api(users[i],path());assert.equal(fresh.status,200);const retry=await api(users[i],path(),{method:'PUT',body:{...shared,selected:[String(900001+i)],revision:fresh.data.session.revision,base:{session:shared}}});assert.equal(retry.status,200,'Explicit retry must preserve all attendance');}}
+ current=await api(users[0],path());assert.equal(current.status,200);assert.deepEqual([...current.data.session.selected].sort(),users.map((_,i)=>String(900001+i)).sort());
+ // Reusing exactly the same revision without a merge base must allow one writer only.
+ const revision=current.data.session.revision;const conflict=await Promise.all(users.map(u=>api(u,path(),{method:'PUT',body:{...trainingSnapshot(current.data.session),revision,hall:'Stora hallen'}})));assert.equal(conflict.filter(x=>x.status===200).length,1);assert.equal(conflict.filter(x=>x.status===409).length,5);
+ const reads=await Promise.all(users.map(async u=>{for(let i=0;i<5;i++)assert.equal((await api(u,path())).status,200);}));assert.equal(reads.length,6);
+ await query("UPDATE auth_sessions SET revoked_at=datetime('now') WHERE user_id=?",[users[5].id]);assert.equal((await api(users[5],path())).status,401,'Revoked session denied');
+ await query("DELETE FROM auth_user_permissions WHERE user_id=? AND permission='lineup:edit'",[users[4].id]);const fresh=await api(users[0],path());assert.equal((await api(users[4],path(),{method:'PUT',body:{...trainingSnapshot(fresh.data.session),revision:fresh.data.session.revision}})).status,403,'Removed write grant denied');
+ assert.equal(await preflight(true),version,'Isolated version changed during test');timings.sort((a,b)=>a-b);summary={isolatedVersion:version,users:6,requests:timings.length,statuses,attendanceRetained:6,staleWritersDenied:5,revocationDenied:true,removedGrantDenied:true,p50Ms:Math.round(timings[Math.floor(timings.length*.5)]),p95Ms:Math.round(timings[Math.ceil(timings.length*.95)-1]),scope:'isolated live training HTTP only; not production capacity'};
+}finally{
+ if(ownsTraining)await query('DELETE FROM training_sessions WHERE team_id=? AND training_date=? AND updated_by LIKE ?',[teamId,date,'nsk-live-load-'+run+'-%']);
+ for(const u of users){for(const table of ['auth_sessions','auth_user_permissions','auth_team_memberships'])await query('DELETE FROM '+table+' WHERE user_id=?',[u.id]);await query('DELETE FROM auth_users WHERE id=?',[u.id]);}
+ assert.equal((await query('SELECT COUNT(*) n FROM auth_users WHERE id LIKE ?',['nsk-live-load-'+run+'-%'])).results[0].n,0,'Test user cleanup incomplete');
+ if(ownsTraining)assert.equal((await query('SELECT COUNT(*) n FROM training_sessions WHERE team_id=? AND training_date=?',[teamId,date])).results[0].n,0,'Test training cleanup incomplete');
+ console.log('Synthetic sessions, users and training cleaned up.');
+}
+console.log(JSON.stringify(summary,null,2));

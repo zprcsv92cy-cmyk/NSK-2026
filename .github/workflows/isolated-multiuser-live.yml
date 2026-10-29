@@ -1,0 +1,53 @@
+name: Isolated multiuser live test
+on:
+  push:
+    branches: ['test/isolated-multiuser-20261029']
+  workflow_dispatch:
+    inputs:
+      confirmation:
+        description: Type ISOLATED_MULTIUSER_LIVE to update the isolated Worker and run disposable tests
+        required: true
+        type: string
+permissions:
+  contents: read
+concurrency:
+  group: nsk-dedicated-isolated-worker
+  cancel-in-progress: false
+jobs:
+  isolated-live:
+    if: ${{ github.ref == 'refs/heads/test/isolated-multiuser-20261029' || (github.event_name == 'workflow_dispatch' && inputs.confirmation == 'ISOLATED_MULTIUSER_LIVE') }}
+    runs-on: ubuntu-latest
+    environment: isolated-preview
+    timeout-minutes: 12
+    env:
+      CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+      CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+      NSK_LIVE_TEST_CONFIRMATION: ISOLATED_MULTIUSER_LIVE
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Check isolation and test syntax
+        run: |
+          node scripts/calendar-isolated-worker-gate.mjs
+          node --check scripts/isolated-multiuser-live.mjs
+      - name: Prepare isolated training schema only
+        run: node scripts/isolated-multiuser-live.mjs --prepare
+      - name: Prepare isolated multiuser configuration
+        run: |
+          node --input-type=module <<'JS'
+          import fs from 'node:fs';
+          let config=fs.readFileSync('wrangler.api.isolated-worker.toml','utf8');
+          config=config.replace('[vars]','[vars]\nNSK_MULTIUSER_ENABLED = "true"');
+          config+='\n[exports.ShiftLock]\ntype = "durable-object"\nstorage = "sqlite"\n';
+          fs.writeFileSync('.nsk-isolated-load.toml',config);
+          JS
+      - name: Validate isolated bundle
+        run: npx --yes wrangler@4.155.0 deploy --dry-run --config .nsk-isolated-load.toml
+      - name: Update dedicated isolated Worker only
+        run: npx --yes wrangler@4.155.0 deploy --keep-vars --config .nsk-isolated-load.toml
+      - name: Six independent sessions, concurrency and revocation
+        run: node scripts/isolated-multiuser-live.mjs
