@@ -11,3 +11,26 @@ test('same day different venues remain distinct, unknown venue enriches only uni
 test('sync is bounded, disabled by default and preserves last good cache on malformed/empty response',async t=>{const f=await fixture(t);await f.db.prepare(fs.readFileSync(new URL('../migrations/20261026_swehockey_schedule.sql',import.meta.url),'utf8')).run();const env={...f.env,NSK_ENABLE_SWEHOCKEY_SYNC:'true'},now=new Date('2026-10-26T12:00:00Z');assert.deepEqual(await syncSweHockey({},now,()=>{throw Error('No fetch')}),{skipped:'disabled'});await syncSweHockey(env,now,async()=>new Response(sample));const before=await f.db.prepare('SELECT items_json FROM swehockey_schedule_cache').first();await assert.rejects(syncSweHockey(env,now,async()=>new Response('<html>Blocked</html>')));assert.deepEqual(await f.db.prepare('SELECT items_json FROM swehockey_schedule_cache').first(),before);await assert.rejects(syncSweHockey(env,now,async()=>new Response(sample,{headers:{'Content-Length':'2000000'}})));});
 test('API keeps original authorization boundary; reads cached source without fetching or writing',async t=>{const f=await fixture(t);await f.db.prepare(fs.readFileSync(new URL('../migrations/20261026_swehockey_schedule.sql',import.meta.url),'utf8')).run();await f.db.prepare('INSERT INTO swehockey_schedule_cache VALUES(?,?,?)').bind('NSK Team 18',JSON.stringify(parseSweHockeySchedule(sample,'2026-10-26')),'2026-10-26T12:00:00Z').run();const env={...f.env,NSK_ENABLE_SWEHOCKEY_SYNC:'true'};const denied=withSweHockey(async()=>Response.json({ok:false},{status:403}));assert.equal((await denied(new Request('https://api/api/training?action=svenskalag-saved'),env)).status,403);const good=withSweHockey(async()=>Response.json({ok:true,items:[]}));const r=await good(new Request('https://api/api/training?action=svenskalag-saved'),env);assert.equal((await r.json()).items.length,1);});
 test('tentative cancellation notice is visible and never treated as a rink name',()=>{const pool=parseSweHockeySchedule(sample,'2026-10-26')[0];const merged=mergeHockeyCalendar([{type:'pool',date:pool.date,place:'EV inställd'}],[{...pool,place:'',hall:''}]);assert.equal(merged.length,1);assert.equal(merged[0].place,'');assert.match(merged[0].notice,/EV inställd/);});
+
+test('multiple groups at one venue retain calendar times independent of source group order',()=>{
+ const date='2026-11-08',place='Smehallen B';
+ const items=[{type:'pool',date,place,fixtureOverview:true},{type:'match',date,place,opponent:'Järna SK Röd',startTime:'12:00'},{type:'match',date,place,opponent:'Other group',startTime:'11:00'}];
+ const first={type:'pool',date,place,matches:[{opponent:'Other group',startTime:'11:00'}]};
+ const second={type:'pool',date,place,matches:[{opponent:'Järna SK Röd',startTime:''}]};
+ for(const groups of [[first,second],[second,first]]){
+  const output=mergeHockeyCalendar(items,groups),pools=output.filter(x=>x.type==='pool');
+  assert.equal(pools.length,2);assert.equal(pools.find(p=>p.matches.some(m=>m.opponent==='Järna SK Röd')).matches[0].startTime,'12:00');
+  assert.equal(output.filter(x=>x.type==='match').length,0);
+ }
+ assert.equal(items[0].matches,undefined);
+});
+test('unrepresented standalone matches are not removed by another source group',()=>{
+ const date='2026-11-08',place='Smehallen';
+ const output=mergeHockeyCalendar([{type:'match',date,place,opponent:'Unmatched',startTime:'14:00'}],[{type:'pool',date,place,matches:[{opponent:'Matched',startTime:'12:00'}]}]);
+ assert.equal(output.filter(x=>x.type==='match').length,1);
+});
+test('fixture-derived overview cannot be consumed by an unrelated group at the same rink',()=>{
+ const date='2026-11-08',place='Smehallen B';
+ const output=mergeHockeyCalendar([{type:'pool',date,place,fixtureOverview:true},{type:'match',date,place,opponent:'Red fixture',startTime:'12:00'}],[{type:'pool',date,place,matches:[{opponent:'Black fixture',startTime:'11:00'}]}]);
+ assert.equal(output.filter(x=>x.type==='pool').length,2);assert.equal(output.find(x=>x.fixtureOverview).matches,undefined);
+});

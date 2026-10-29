@@ -185,3 +185,10 @@ test('explicit U9 pool fixtures create one pool per date and venue without losin
  const items=parseSvenskalagIcal(ical(events),'2026-10-25');
  assert.equal(items.filter(x=>x.type==='match').length,2);assert.equal(items.filter(x=>x.type==='pool').length,1);
 });
+
+test('fixture overview provenance is explicit and never replaces an independently listed pool',()=>{
+ const match=['SUMMARY:Match: Järna SK Röd - Nyköpings Sportklubb Röd (U9 P Poolspel) // U9 Team 18 - Nyköpings Sportklubb','DTSTART:20261108T120000','LOCATION:Smehallen B'];
+ const explicit=['SUMMARY:Poolspel','DTSTART:20261108T120000','LOCATION:Smehallen B'];
+ const derived=parseSvenskalagIcal(ical([match]),'2026-10-29').find(x=>x.type==='pool');assert.equal(derived.fixtureOverview,true);
+ for(const events of [[match,explicit],[explicit,match]]){const pool=parseSvenskalagIcal(ical(events),'2026-10-29').filter(x=>x.type==='pool');assert.equal(pool.length,1);assert.notEqual(pool[0].fixtureOverview,true);}
+});
