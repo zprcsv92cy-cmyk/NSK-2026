@@ -358,7 +358,6 @@ window.NSK2App = (() => {
         if(flowLink&&byId('lineupMatch')){
           e.preventDefault();
           if(!await flushLineupChanges())return;
-          if(byId('appError')?.textContent?.trim())return;
           (window.NSKNavigate||((url)=>{(window.location||location).href=url;}))(flowLink.href);return;
         }
         if(flowLink&&(matchvySaving||shiftToggleSaving)){e.preventDefault();setText("shiftMsg","Vänta tills bytet har sparats.");return;}
