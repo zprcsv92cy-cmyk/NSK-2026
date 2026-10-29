@@ -20,7 +20,11 @@ Beslut 2026-10-29: nuvarande publicerade app ska lämnas oförändrad medan vers
 ## Föreslagen första etapp – ännu inte implementerad
 
 1. Samlad aktivitetsvy för nästa träning och nästa poolspel.
-2. Tydlig översikt över vad som är klart och vad som saknas: ansvariga, målvakt, uppställning, tröjfärger och materialchecklista där det är relevant.
+2. Översikt över närvaro och ansvariga samt vägar vidare till träningsplanering och lag/matcher. Ingen checklista ska finnas (förtydligande från Peter 2026-10-29).
 3. Därefter tydligare sparstatus och snabbare växling mellan kalender, planering och matchvy.
 
 Detaljer och layout arbetas fram i prototypen. Den befintliga appens data och funktioner ändras inte av denna plan.
+
+## Första prototypen
+
+`prototype-v1.1/index.html` är en fristående skiss med syntetiska testdata. Ingen inloggning, nätverksanslutning eller beständig lagring används. Innehåller aktivitetsval, träning/poolspel, närvaro som kan provas i minnet, ansvariga och dialoger för planeringsskisser. Ingen checklista.
