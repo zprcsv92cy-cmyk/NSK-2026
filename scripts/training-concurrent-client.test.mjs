@@ -38,3 +38,7 @@ test('a timed out save retains attendance and colors, releases the button and re
  assert.equal(f.run.blocked(),true);assert.deepEqual([...f.run.current().selected],['1','2']);assert.equal(f.run.current().shirtColorCount,3);
  assert.equal(f.node('trainingSaveColors').disabled,false);assert.match(f.node('trainingColorStatus').textContent,/Dina val finns kvar/);assert.doesNotMatch(f.node('trainingColorStatus').textContent,/Tröjfärger sparade/);assert.equal(f.saves(),1);assert(f.created.find(n=>n.id==='trainingSaveRecovery'));
 });
+
+test('saving is blocked until the selected training date is loaded',()=>{
+ const f=fixture(base());f.node('trainingDate').value='2026-11-02';f.run.add('2');assert.equal(f.run.persist(),undefined);assert.equal(f.saves(),0);assert.match(f.node('trainingStatus').textContent,/Vänta tills träningen/);assert.deepEqual([...f.run.current().selected],['1','2']);
+});
