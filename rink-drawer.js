@@ -144,6 +144,7 @@
   const aliases={'Skridskoteknik':'Skridskoåkning','Passningar':'Passningar och mottagningar','Skott':'Skott och avslut','Målvakter':'Målvaktsträning','Spelsituationer':'Spelförståelse'},categories=(value.categories||[value.category]).map(c=>aliases[c]||c);
   for(const option of $('rinkCategory').options)option.selected=categories.includes(option.value);
   if(!$('rinkCategory').selectedOptions&&categories.length===1)$('rinkCategory').value=categories[0];
+  for(const check of document.querySelectorAll('[data-rink-category]'))check.checked=categories.includes(check.value);
   $('rinkSettingsSummary').textContent=$('rinkTitle').value.trim()||'Övningens uppgifter';render();
  }
  function restore(){const draft=readStored(DRAFT),saved=draft||readStored(SAVED);if(saved){applyRecord(saved);$('rinkDraftStatus').textContent=draft?'Utkast återställt från denna enhet.':'Senaste sparade övningen öppnad.';}else render();}
@@ -175,7 +176,7 @@
  async function saveDrawing(){
   if(!marks.length){announce('Rita först symboler och rörelser på rinken.');return;}
   const title=$('rinkTitle').value.trim(),category=selectedCategories().join(', ');
-  if(!title||!category){$('rinkSettings').open=true;closeMenus();announce(!title?'Ge övningen ett namn innan du sparar.':'Välj kategori innan du sparar.');$(!title?'rinkTitle':'rinkCategory').focus();return;}
+  if(!title||!category){$('rinkSettings').open=true;closeMenus();announce(!title?'Ge övningen ett namn innan du sparar.':'Välj kategori innan du sparar.');(!title?$('rinkTitle'):(document.querySelectorAll('[data-rink-category]')[0]||$('rinkCategory'))).focus();return;}
   const button=$('rinkSave');button.disabled=true;closeMenus();
   try{
    const saved={...record(),title};
@@ -209,6 +210,7 @@
   $('rinkNumber').onblur=()=>{numberEditId=null;};
   for(const id of ['rinkTitle','rinkDescription'])$(id).addEventListener('input',saveDraft);
   $('rinkCategory').addEventListener('change',saveDraft);
+  for(const check of document.querySelectorAll('[data-rink-category]'))check.addEventListener('change',()=>{for(const option of $('rinkCategory').options)if(option.value===check.value)option.selected=check.checked;saveDraft();});
   $('rinkSave').onclick=saveDrawing;
   $('rinkLoad').onclick=()=>{const saved=readStored(SAVED);if(!saved){announce('Ingen sparad övning finns på denna enhet.');return;}if(marks.length&&JSON.stringify(record())!==JSON.stringify(saved)&&!confirm('Ersätt utkastet med senaste sparade övningen?'))return;applyRecord(saved);saveDraft();closeMenus();announce('Senaste sparade övningen öppnad.');};
   $('rinkExport').onclick=exportImage;$('rinkFromText').onclick=drawFromText;
