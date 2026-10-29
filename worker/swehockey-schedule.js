@@ -36,7 +36,7 @@ export function mergeHockeyCalendar(items,pools){
   const exact=sameDate.filter(x=>hockeyVenue(x.place||x.hall)&&hockeyVenue(x.place||x.hall)===hockeyVenue(pool.place||pool.hall));
   const target=exact.length===1?exact[0]:(!pool.place&&sameDate.length===1?sameDate[0]:null);
   const merged=target||{...pool};if(target&&/inställ|inställd|cancelled|okänd|ej bestämd/iu.test(target.place||'')){merged.notice='SvenskaLag anger '+target.place+'. Kontrollera med arrangören före start.';merged.place=pool.place||'';merged.hall=pool.hall||'';}const oldMatches=originalMatches.filter(x=>atVenue(x,merged));
-  const matches=pool.matches.map(m=>{const found=oldMatches.filter(o=>hockeyVenue(o.opponent)===hockeyVenue(m.opponent));return {...m,startTime:m.startTime|| (found.length===1?found[0].startTime||'':''),place:merged.place||pool.place};});
+  const matches=pool.matches.map(m=>{const found=oldMatches.filter(o=>hockeyVenue(o.opponent)===hockeyVenue(m.opponent));const times=[...new Set(found.map(o=>o.startTime).filter(t=>/^(?:[01]\d|2[0-3]):[0-5]\d$/.test(t||'')&&t!=='00:00'))];return {...m,startTime:m.startTime|| (times.length===1?times[0]:''),place:merged.place||pool.place};});
   Object.assign(merged,{matches,source:target?'SvenskaLag + SweHockey':'SweHockey',sourceUrl:SWEHOCKEY_SCHEDULE_URL});
   // Remove only represented fixtures; later groups still read the immutable source snapshot.
   for(let i=output.length-1;i>=0;i--)if(oldMatches.includes(output[i])&&belongs(output[i],pool))output.splice(i,1);

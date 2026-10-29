@@ -11,7 +11,7 @@ let newIcal=oldIcal;
 for(const [before,after] of [
  ['items.push({ type: "pool", date, place, hall: "" });','items.push({ type: "pool", date, place, hall: "", fixtureOverview: true });'],
  ['else if (!older) unique.set(key, item);','else if (!older || (item.type === "pool" && older.fixtureOverview === true && item.fixtureOverview !== true)) unique.set(key, item);']
-]){unique(newIcal,before);newIcal=newIcal.replace(before,after);}
+]){if(newIcal.includes(after))unique(newIcal,after);else{unique(newIcal,before);newIcal=newIcal.replace(before,after);}}
 const hs=unique(baseline,'// BEGIN NSK SWEHOCKEY'),he=unique(baseline,'// END NSK SWEHOCKEY')+'// END NSK SWEHOCKEY'.length;
 const oldHockey=baseline.slice(hs,he);
 const newHockey='// BEGIN NSK SWEHOCKEY\n'+fs.readFileSync(new URL('../worker/swehockey-schedule.js',import.meta.url),'utf8').replace(/^export /gm,'')+'\n// END NSK SWEHOCKEY';
