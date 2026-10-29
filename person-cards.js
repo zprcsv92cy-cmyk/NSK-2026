@@ -6,12 +6,27 @@
  const concurrency=()=>import(new URL('concurrency-merge.mjs?v='+encodeURIComponent(window.NSK_VERSION||'1'),mergeRoot));
  async function request(path,team,payload){
   const expectedToken=Auth.getToken();
-  const response=await fetch(base()+path+(path.includes('?')?'&':'?')+'team_id='+encodeURIComponent(team),{method:payload?'PUT':'GET',headers:{Authorization:'Bearer '+expectedToken,...(payload?{'Content-Type':'application/json'}:{})},body:payload?JSON.stringify(payload):undefined,cache:'no-store'});
-  const data=await response.json().catch(()=>({}));
-  if(Auth.getToken()!==expectedToken)throw Error('Inloggningen ändrades. Öppna kortet igen.');
-  if(!response.ok||!data.ok){const error=Error(data.error||'Kortet kunde inte hämtas eller sparas.');error.status=response.status;throw error;}
-  if(payload){window.NSKViewCache?.clear();try{sessionStorage.removeItem('nsk_view_cache_v1');}catch{}}
-  return data;
+  try{
+   const signal=typeof AbortSignal!=='undefined'&&typeof AbortSignal.timeout==='function'?AbortSignal.timeout(15000):undefined;
+   const response=await fetch(base()+path+(path.includes('?')?'&':'?')+'team_id='+encodeURIComponent(team),{method:payload?'PUT':'GET',headers:{Authorization:'Bearer '+expectedToken,...(payload?{'Content-Type':'application/json'}:{})},body:payload?JSON.stringify(payload):undefined,cache:'no-store',...(signal?{signal}:{})});
+   let data;
+   try{data=await response.json();}
+   catch(error){
+    if(['AbortError','TimeoutError'].includes(error.name))throw error;
+    if(response.ok)throw Error('Svaret kunde inte läsas. Åtgärden kan inte bekräftas. Läs om kortet innan du försöker igen.');
+    data={};
+   }
+   if(Auth.getToken()!==expectedToken)throw Error('Inloggningen ändrades. Öppna kortet igen.');
+   if(!response.ok){const error=Error(data?.error||'Kortet kunde inte hämtas eller sparas.');error.status=response.status;throw error;}
+   const cardResponse=path.startsWith('/api/person-card?');
+   if(data?.ok!==true||!Number.isSafeInteger(data.revision)||data.revision<(payload?1:0)||cardResponse&&(!data.card||typeof data.card!=='object'||Array.isArray(data.card)))throw Error('Åtgärden kan inte bekräftas. Läs om kortet innan du försöker igen.');
+   if(payload){window.NSKViewCache?.clear();try{sessionStorage.removeItem('nsk_view_cache_v1');}catch{}}
+   return data;
+  }catch(error){
+   if(['AbortError','TimeoutError'].includes(error.name))error=Error('Anropet tog för lång tid. Läs om kortet innan du försöker igen.');
+   if(payload&&!error.status)error.uncertain=true;
+   throw error;
+  }
  }
  const path=(kind,id)=>'/api/person-card?kind='+encodeURIComponent(kind)+'&person_id='+encodeURIComponent(id);
  const summaries=new Map();
@@ -133,7 +148,7 @@
  recovery.onclick=()=>void recoverConflict();
  async function perform(action){
   if(!current||pending||conflicted)return;pending=true;controls();
-  try{await action();}catch(error){if(error.status===409){conflicted=true;status(error.message+' Läs om kortet med knappen nedan.');}else status(error.message+' Ändringen har inte bekräftats som sparad.');}
+  try{await action();}catch(error){if(error.status===409||error.uncertain){conflicted=true;status(error.message+' Läs om kortet med knappen nedan.');}else status(error.message+' Ändringen har inte bekräftats som sparad.');}
   finally{pending=false;controls();}
  }
  form.onsubmit=event=>{event.preventDefault();void perform(async()=>{
