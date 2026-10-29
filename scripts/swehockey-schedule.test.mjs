@@ -34,3 +34,14 @@ test('fixture-derived overview cannot be consumed by an unrelated group at the s
  const output=mergeHockeyCalendar([{type:'pool',date,place,fixtureOverview:true},{type:'match',date,place,opponent:'Red fixture',startTime:'12:00'}],[{type:'pool',date,place,matches:[{opponent:'Black fixture',startTime:'11:00'}]}]);
  assert.equal(output.filter(x=>x.type==='pool').length,2);assert.equal(output.find(x=>x.fixtureOverview).matches,undefined);
 });
+
+test('legacy midnight and repeated matching rows do not hide one unambiguous calendar time',()=>{
+ const date='2026-11-08',place='Smehallen';
+ const pool={type:'pool',date,place,matches:[{opponent:'Järna SK Röd',startTime:''}]};
+ for(const times of [['00:00','12:00'],['12:00','12:00'],['','12:00']]){
+  const result=mergeHockeyCalendar(times.map(startTime=>({type:'match',date,place,opponent:'Järna SK Röd',startTime})),[pool]);
+  assert.equal(result.find(x=>x.type==='pool').matches[0].startTime,'12:00');
+ }
+ const conflict=mergeHockeyCalendar(['12:00','12:40'].map(startTime=>({type:'match',date,place,opponent:'Järna SK Röd',startTime})),[pool]);
+ assert.equal(conflict.find(x=>x.type==='pool').matches[0].startTime,'');
+});
