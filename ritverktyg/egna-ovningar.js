@@ -2,6 +2,7 @@
 (() => {
  'use strict';
  const $=id=>document.getElementById(id);
+ const standardCategories=["Skridskoåkning", "Puckkontroll", "Passningar och mottagningar", "Skott och avslut", "Anfallsspel", "Försvarsspel", "Spelförståelse", "Närkamper", "Smålagsspel", "Målvaktsträning", "Lekar och stafetter", "Uppvärmning"];
  const exerciseCategories=entry=>Array.isArray(entry.categories)&&entry.categories.length?entry.categories:[entry.category].filter(Boolean);
  const isDrawing=entry=>entry?.origin==='rink-drawer'||entry?.filename==='hockeyovning.svg';
  function text(tag,value,className){const n=document.createElement(tag);n.textContent=value;if(className)n.className=className;return n;}
@@ -18,7 +19,7 @@
   if(!files.length)root.append(text('p',ownFiles.length?'Inga övningar matchar filtret.':'Inga ritade övningar sparade ännu. Öppna ritverktyget, ge övningen namn och kategori och spara den.','archive-empty'));
   $('drawingStatus').textContent=files.length+' egna övningar';
  }
- async function refreshAll(){const generation=++refreshGeneration;try{const files=await getFiles();if(generation!==refreshGeneration)return;ownFiles=files.sort((a,b)=>b.created-a.created);const picker=$('drawingCategory'),selected=picker.value;picker.replaceChildren(new Option('Alla kategorier',''));for(const cat of [...new Set(ownFiles.flatMap(exerciseCategories))].sort((a,b)=>a.localeCompare(b,'sv')))picker.append(new Option(cat,cat));picker.value=[...picker.options].some(o=>o.value===selected)?selected:'';renderOwn();await refreshTrainingChoices();await loadTrainingPlans();}catch(error){$('drawingStatus').textContent='Övningsarkivet kunde inte öppnas: '+error.message;}}
+ async function refreshAll(){const generation=++refreshGeneration;try{const files=await getFiles();if(generation!==refreshGeneration)return;ownFiles=files.sort((a,b)=>b.created-a.created);const picker=$('drawingCategory'),selected=picker.value;picker.replaceChildren(new Option('Alla kategorier',''));for(const cat of [...new Set([...standardCategories,...ownFiles.flatMap(exerciseCategories)])].sort((a,b)=>a.localeCompare(b,'sv')))picker.append(new Option(cat,cat));picker.value=[...picker.options].some(o=>o.value===selected)?selected:'';renderOwn();await refreshTrainingChoices();await loadTrainingPlans();}catch(error){$('drawingStatus').textContent='Övningsarkivet kunde inte öppnas: '+error.message;}}
  const render=refreshAll;
   // Complete sessions are stored separately from individual exercise files.
   let trainingParts=[],trainingEditing=null,trainingChoices=[],trainingChoicesGeneration=0,trainingBusy=false;
