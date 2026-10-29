@@ -69,3 +69,12 @@ test('zoom and pan change only the view, not saved drawing coordinates or undo h
  f.node('rinkZoomIn').onclick();assert.equal(f.node('rinkZoomLabel').textContent,'150%');f.choose('pan');f.pointer('pointerdown',200,300);f.pointer('pointermove',160,250);f.pointer('pointerup',160,250);assert.equal(f.node('rinkSvg').attrs.viewBox.split(' ')[0],'120');assert.equal(f.storage.get(DRAFT),before);
  f.node('rinkZoomReset').onclick();assert.equal(f.node('rinkSvg').attrs.viewBox,'0 0 480 860');f.node('rinkUndo').onclick();f.flush();assert.equal(f.draft().marks.length,0);
 });
+
+test('the NSK template is embedded below editable marks without changing their coordinates',()=>{
+ const f=editor();const svg=f.node('rinkSvg'),background=svg.children[0];
+ assert.equal(background.tagName,'image');assert.match(background.attrs.href,/^data:image\/png;base64,/);
+ assert.equal(background.attrs['pointer-events'],'none');assert.equal(background.attrs.width,464);assert.equal(background.attrs.height,848);
+ f.choose('player');f.pointer('pointerdown',240,430);f.pointer('pointerup',240,430);f.flush();
+ assert.equal(f.draft().marks[0].x,240);assert.equal(f.draft().marks[0].y,430);
+ assert.equal(f.node('rinkSvg').children[0].attrs['data-rink-background'],'nsk');
+});
