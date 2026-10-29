@@ -5,11 +5,30 @@
  let pageLimit=10,selectedRequests=new Set(),activePane='slips';
  const status=message=>{$('equipmentStatus').textContent=message;};
  function lock(){for(const control of document.querySelectorAll('form input,form select,form textarea,form button,.equipment-row input,.equipment-row button,.equipment-actions button,.equipment-select,#equipmentCompleteSelected,#checklistCreateButton'))control.disabled=busy||!canWrite;$('equipmentReload').disabled=busy;}
+ async function fetchJson(url,options){
+  try{
+   const signal=typeof AbortSignal!=='undefined'&&typeof AbortSignal.timeout==='function'?AbortSignal.timeout(15000):undefined;
+   const response=await fetch(url,{...options,...(signal?{signal}:{})});
+   let data;
+   try{data=await response.json();}
+   catch(error){
+    if(['AbortError','TimeoutError'].includes(error.name))throw error;
+    if(response.ok)throw Error('Svaret kunde inte läsas. Åtgärden kan inte bekräftas. Ladda om materialuppgifterna innan du försöker igen.');
+    data={};
+   }
+   return {response,data};
+  }catch(error){
+   if(['AbortError','TimeoutError'].includes(error.name))throw Error('Anropet tog för lång tid. Ladda om materialuppgifterna innan du försöker igen.');
+   throw error;
+  }
+ }
  async function request(payload){
   if(Auth.activeTeam()!==teamName)throw Error('Laget har ändrats. Ladda om sidan.');
-  const response=await fetch(base()+'/api/equipment?team_id='+encodeURIComponent(team),{method:payload?'PUT':'GET',headers:{Authorization:'Bearer '+Auth.getToken(),...(payload?{'Content-Type':'application/json'}:{})},body:payload?JSON.stringify(payload):undefined,cache:'no-store'});
-  const data=await response.json().catch(()=>({}));
-  if(!response.ok||!data.ok){if(response.status===409)canWrite=false;throw Object.assign(Error(data.error||'Materialuppgifterna kunde inte hämtas eller sparas.'),{status:response.status});}
+  const expectedToken=Auth.getToken(),expectedTeam=teamName;
+  const {response,data}=await fetchJson(base()+'/api/equipment?team_id='+encodeURIComponent(team),{method:payload?'PUT':'GET',headers:{Authorization:'Bearer '+expectedToken,...(payload?{'Content-Type':'application/json'}:{})},body:payload?JSON.stringify(payload):undefined,cache:'no-store'});
+  if(Auth.getToken()!==expectedToken||Auth.activeTeam()!==expectedTeam)throw Object.assign(Error('Inloggningen eller laget ändrades. Ladda om sidan.'),{sessionChanged:true});
+  if(!response.ok){if(response.status===409)canWrite=false;throw Object.assign(Error(data?.error||'Materialuppgifterna kunde inte hämtas eller sparas.'),{status:response.status});}
+  if(data?.ok!==true||!Number.isSafeInteger(data.revision)||data.revision<(payload?1:0)||!Array.isArray(data.requests)||!Array.isArray(data.checklists))throw Error('Åtgärden kan inte bekräftas. Ladda om materialuppgifterna innan du försöker igen.');
   return data;
  }
  function denyBoard(){linkCleanup?.();linkCleanup=null;linksReady=false;$('sharpeningLinksBox').hidden=true;window.NSKViewCache?.clear();board=null;people=[];canWrite=false;$('sharpeningList').replaceChildren();$('equipmentChecklists').replaceChildren();for(const id of ['sharpeningCreate','sharpeningForm','checklistCreateButton','checklistForm'])$(id).hidden=true;lock();}
@@ -20,7 +39,7 @@
   if(busy||!canWrite)return;const expectedToken=Auth.getToken(),expectedTeam=teamName;changeVersion++;busy=true;lock();status('Sparar…');
   const before=board;
   try{const next=structuredClone(board);update(next);if(optimistic){board=next;render();}const result=await request({...next,base:{requests:before.requests,checklists:before.checklists}});if(Auth.getToken()!==expectedToken||Auth.activeTeam()!==expectedTeam){canWrite=false;denyBoard();return false;}next.revision=result.revision;next.requests=result.requests;next.checklists=result.checklists;board=next;window.NSKViewCache?.clear();void rememberBoard();status('Sparat · '+new Date().toLocaleTimeString('sv-SE',{hour:'2-digit',minute:'2-digit'}));render();return true;}
-  catch(error){board=before;status(error.message+' Ändringen har inte bekräftats som sparad.');render();return false;}
+  catch(error){if(error.sessionChanged||Auth.getToken()!==expectedToken||Auth.activeTeam()!==expectedTeam){denyBoard();status('Inloggningen eller laget ändrades. Ladda om sidan.');return false;}board=before;status(error.message+' Ändringen har inte bekräftats som sparad.');render();return false;}
   finally{busy=false;lock();}
  }
  function row(label,done,toggle,remove){
@@ -98,9 +117,10 @@
    const view=window.NSKViewCache?await NSKViewCache.open('equipment'):null;
    if(!board&&view?.data){team=view.data.team;board=view.data.board;render();status('Visar senast hämtade uppgifter.');}
    $('equipmentTeam').textContent=teamName;
-   const response=await fetch(base()+'/api/lag',{headers:{Authorization:'Bearer '+Auth.getToken()},cache:'no-store'});
+   const {response,data}=await fetchJson(base()+'/api/lag',{headers:{Authorization:'Bearer '+expectedToken},cache:'no-store'});
+   if(Auth.getToken()!==expectedToken||Auth.activeTeam()!==expectedTeam)throw Object.assign(Error('Inloggningen eller laget ändrades. Ladda om sidan.'),{sessionChanged:true});
    if(!response.ok)throw Object.assign(Error('Laget kunde inte hämtas.'),{status:response.status});
-   const data=await response.json(),teams=(data.results||[]).filter(t=>t.Namn===teamName&&String(t['Säsong'])==='2026');
+   const teams=(data?.results||[]).filter(t=>t.Namn===teamName&&String(t['Säsong'])==='2026');
    if(teams.length!==1)throw Error('Lagkopplingen kunde inte verifieras.');team=String(teams[0].id);
    const saved=await request();if(Auth.getToken()!==expectedToken||Auth.activeTeam()!==expectedTeam)return;board={revision:saved.revision,requests:saved.requests,checklists:saved.checklists};
    if(saved.canWrite){
@@ -112,7 +132,7 @@
    if(Auth.getToken()!==expectedToken||Auth.activeTeam()!==expectedTeam)return;
    linksReady=!!saved.canWrite&&!!window.SharpeningLinks?.allowed();$('equipmentTabLinks').hidden=!linksReady;if(linksReady)linkCleanup=SharpeningLinks.bulk($('equipmentQrBulk'),{team,people});
    canWrite=saved.canWrite;void rememberBoard();render();status('Uppdaterat '+new Date().toLocaleTimeString('sv-SE',{hour:'2-digit',minute:'2-digit'})+(canWrite?'':' · Läsbehörighet'));
-  }catch(error){canWrite=false;if(window.NSKViewCache?.denied(error)){denyBoard();}status(error.message);if(board)render();}
+  }catch(error){canWrite=false;if(error.sessionChanged||window.NSKViewCache?.denied(error)){denyBoard();}status(error.message);if(board)render();}
   finally{busy=false;lock();}
  }
 
@@ -159,7 +179,7 @@
    if(busy||generation!==changeVersion||team!==expectedTeam||Auth.getToken()!==expectedToken)return;
    const changed=data.revision!==board.revision||data.canWrite!==canWrite||JSON.stringify(data.requests)!==JSON.stringify(board.requests);
    if(changed){board={revision:data.revision,requests:data.requests,checklists:data.checklists};canWrite=data.canWrite;render();status('Uppdaterat från lagets personkort och checklistor.');}void rememberBoard();
-  }catch(error){if(!busy&&generation===changeVersion){if(window.NSKViewCache?.denied(error))denyBoard();status('Automatisk uppdatering misslyckades. '+error.message);}}
+  }catch(error){if(!busy&&generation===changeVersion){if(error.sessionChanged||window.NSKViewCache?.denied(error))denyBoard();status('Automatisk uppdatering misslyckades. '+error.message);}}
   finally{refreshing=false;}
  }
  window.addEventListener('focus',()=>void refresh());
