@@ -10,3 +10,18 @@ workers_dev = true
 binding = "AUTH_DB"
 database_name = "nsk-auth-production"
 database_id = "9f937bcb-b0c0-4129-af5b-775cf284dfcb"
+
+# Persist automatic request status/timing logs with query strings removed.
+# Never add credential, request-body or unredacted-header console logging.
+[observability]
+enabled = true
+head_sampling_rate = 1
+redact_query_string = true
+
+[observability.logs]
+enabled = true
+invocation_logs = true
+persist = true
+
+[observability.traces]
+enabled = false
