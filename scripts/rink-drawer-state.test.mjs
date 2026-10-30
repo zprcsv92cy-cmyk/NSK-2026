@@ -211,3 +211,10 @@ test('interpreted pass-and-round route keeps exact geometry through undo and rec
  const path=f.node('rinkSvg').children.find(n=>n.attrs['data-mark']==='r').children[0];assert.doesNotMatch(path.attrs.d,/ Q /);f.node('rinkUndo').onclick();f.flush();assert.deepEqual(f.draft().marks,before);f.node('rinkRedo').onclick();f.flush();
  const restored=editor(Object.fromEntries(f.storage));restored.node('rinkTitle').emit('input');restored.flush();assert.equal(restored.draft().marks[0].routeStyle,'planned');assert.deepEqual(restored.draft().marks[0].points,route.points);
 });
+
+test('near-route actions snap origin, aim shots at moved goals and accept explicit targets',()=>{
+ const marks=[{id:'r',type:'skate',x:100,y:200,x2:300,y2:200,color:'#15803d'},{id:'g',type:'goal',x:350,y:90,angle:90,color:'#b11226'}],f=editor({[DRAFT]:JSON.stringify({marks})});
+ f.pointer('pointerdown',180,210);f.pointer('pointerup',180,210);f.node('rinkAddShot').onclick();f.flush();let shot=f.draft().marks.at(-1);assert.equal(shot.type,'shot');assert.equal(shot.x,180);assert.equal(shot.y,200);assert.equal(shot.x2,350);assert.equal(shot.y2,90);
+ f.node('rinkChooseTarget').onclick();f.pointer('pointerdown',400,300);f.pointer('pointerup',400,300);f.flush();shot=f.draft().marks.at(-1);assert.equal(shot.x2,400);assert.equal(shot.y2,300);
+ f.pointer('pointerdown',230,210);f.pointer('pointerup',230,210);f.node('rinkAddPass').onclick();f.pointer('pointerdown',60,500);f.pointer('pointerup',60,500);f.flush();const pass=f.draft().marks.at(-1);assert.equal(pass.type,'pass');assert.equal(pass.x,230);assert.equal(pass.y,200);assert.equal(pass.x2,60);assert.equal(pass.y2,500);
+});
