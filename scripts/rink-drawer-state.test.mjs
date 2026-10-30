@@ -212,9 +212,12 @@ test('interpreted pass-and-round route keeps exact geometry through undo and rec
  const restored=editor(Object.fromEntries(f.storage));restored.node('rinkTitle').emit('input');restored.flush();assert.equal(restored.draft().marks[0].routeStyle,'planned');assert.deepEqual(restored.draft().marks[0].points,route.points);
 });
 
-test('near-route actions snap origin, aim shots at moved goals and accept explicit targets',()=>{
- const marks=[{id:'r',type:'skate',x:100,y:200,x2:300,y2:200,color:'#15803d'},{id:'g',type:'goal',x:350,y:90,angle:90,color:'#b11226'}],f=editor({[DRAFT]:JSON.stringify({marks})});
- f.pointer('pointerdown',180,210);f.pointer('pointerup',180,210);f.node('rinkAddShot').onclick();f.flush();let shot=f.draft().marks.at(-1);assert.equal(shot.type,'shot');assert.equal(shot.x,180);assert.equal(shot.y,200);assert.equal(shot.x2,350);assert.equal(shot.y2,90);
- f.node('rinkChooseTarget').onclick();f.pointer('pointerdown',400,300);f.pointer('pointerup',400,300);f.flush();shot=f.draft().marks.at(-1);assert.equal(shot.x2,400);assert.equal(shot.y2,300);
+test('shot ending belongs to route, aims at goal and survives reload without a separate arrow',()=>{
+ const marks=[{id:'r',type:'skate',x:100,y:200,x2:300,y2:200,color:'#111827'},{id:'g',type:'goal',x:350,y:90,angle:90,color:'#b11226'}],f=editor({[DRAFT]:JSON.stringify({marks})});
+ f.pointer('pointerdown',180,210);f.pointer('pointerup',180,210);f.node('rinkAddShot').onclick();f.flush();let route=f.draft().marks[0];assert.equal(f.draft().marks.length,2);assert.equal(route.x2,300);assert.equal(route.shotEnd.goalId,'g');assert.equal(route.shotEnd.x,350);
+ const group=f.node('rinkSvg').children.find(n=>n.attrs['data-mark']==='r');assert.equal(group.children[0].attrs['marker-end'],'');assert.equal(group.children.filter(n=>n.attrs['data-shot-ending']==='true').length,2);
+ f.node('rinkChooseTarget').onclick();f.pointer('pointerdown',400,300);f.pointer('pointerup',400,300);f.flush();route=f.draft().marks[0];assert.equal(route.x2,300);assert.equal(route.shotEnd.x,400);assert.equal(route.shotEnd.y,300);
+ const restored=editor(Object.fromEntries(f.storage));restored.leave();assert.deepEqual(restored.draft().marks[0].shotEnd,route.shotEnd);
+ f.node('rinkUndo').onclick();f.flush();assert.equal(f.draft().marks[0].shotEnd.goalId,'g');f.node('rinkUndo').onclick();f.flush();assert.equal(f.draft().marks[0].shotEnd,undefined);
  f.pointer('pointerdown',230,210);f.pointer('pointerup',230,210);f.node('rinkAddPass').onclick();f.pointer('pointerdown',60,500);f.pointer('pointerup',60,500);f.flush();const pass=f.draft().marks.at(-1);assert.equal(pass.type,'pass');assert.equal(pass.x,230);assert.equal(pass.y,200);assert.equal(pass.x2,60);assert.equal(pass.y2,500);
 });
