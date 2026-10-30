@@ -60,5 +60,5 @@ test('imperative instructions support turning, rounding and shooting',()=>{
 });
 
 test('text-generated skating uses direction colors while passes and shots retain their own styles',()=>{
- const r=parse('En spelare i mittcirkeln. Åk framåt. Åk bakåt. Passning från mittpunkten till övre blålinjen. Skott från slottet i anfallszon till övre målet.');assert.equal(r.warnings.length,0);assert.equal(r.marks[1].color,'#15803d');assert.equal(r.marks[2].color,'#7c3aed');assert.equal(r.marks[3].color,'#2563eb');assert.equal(r.marks[4].type,'shot');assert.equal(r.marks[4].color,'#b11226');
+ const r=parse('En spelare i mittcirkeln. Åk framåt. Åk bakåt. Passning från mittpunkten till övre blålinjen. Skott från slottet i anfallszon till övre målet.');assert.equal(r.warnings.length,0);assert.equal(r.marks[1].color,'#111827');assert.equal(r.marks[2].color,'#7c3aed');assert.equal(r.marks[3].color,'#2563eb');assert.equal(r.marks[4].type,'shot');assert.equal(r.marks[4].color,'#b11226');
 });

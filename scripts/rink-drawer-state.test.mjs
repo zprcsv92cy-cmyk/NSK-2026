@@ -152,7 +152,7 @@ test('old divider lengths normalize around their midpoint on reload',()=>{
  const f=editor({[DRAFT]:JSON.stringify({marks:[{id:'d',type:'divider-blue',x:80,y:200,x2:400,y2:200,color:'#2563eb'}]})});f.node('rinkTitle').emit('input');f.flush();const m=f.draft().marks[0];assert.ok(Math.abs((m.x+m.x2)/2-240)<1e-9);assert.ok(Math.abs((m.x2-m.x)/(436/30)-2.5)<1e-9);
 });
 test('skating direction controls green forward and purple backward with undo and recovery',()=>{
- const f=editor();f.choose('skate');f.pointer('pointerdown',200,300);f.pointer('pointermove',200,500);f.pointer('pointerup',200,500);f.flush();assert.equal(f.draft().marks[0].color,'#15803d');assert.equal(f.draft().marks[0].motion,'forward');
+ const f=editor();f.choose('skate');f.pointer('pointerdown',200,300);f.pointer('pointermove',200,500);f.pointer('pointerup',200,500);f.flush();assert.equal(f.draft().marks[0].color,'#111827');assert.equal(f.draft().marks[0].motion,'forward');
  f.node('rinkSelectedDirection').value='backward';f.node('rinkSelectedDirection').onchange();f.flush();assert.equal(f.draft().marks[0].color,'#7c3aed');assert.equal(f.draft().marks[0].motion,'backward');
  f.node('rinkUndo').onclick();f.flush();assert.equal(f.draft().marks[0].motion,'forward');f.node('rinkRedo').onclick();f.flush();
  const restored=editor(Object.fromEntries(f.storage));restored.leave();assert.equal(restored.draft().marks[0].color,'#7c3aed');
@@ -202,7 +202,7 @@ test('exercise metadata is opened explicitly and remains reachable from fullscre
 });
 test('backward routes retain their color and line pattern without repeated direction captions',()=>{
  const f=editor({[DRAFT]:JSON.stringify({marks:[{id:'b',type:'skate',x:100,y:200,x2:200,y2:300,color:'#7c3aed',motion:'backward'}]})});
- const group=f.node('rinkSvg').children.find(n=>n.attrs['data-mark']==='b');assert.equal(group.children[0].attrs.stroke,'#7c3aed');assert.equal(group.children[0].attrs['stroke-dasharray'],'4 6');assert.equal(group.children.filter(n=>n.tagName==='text').length,0);
+ const group=f.node('rinkSvg').children.find(n=>n.attrs['data-mark']==='b');assert.equal(group.children[0].attrs.stroke,'#7c3aed');assert.equal(group.children[0].attrs['stroke-dasharray'],undefined);assert.match(group.children[0].attrs.d,/ Q /);assert.equal(group.children.filter(n=>n.tagName==='text').length,0);
 });
 
 test('interpreted pass-and-round route keeps exact geometry through undo and recovery',()=>{
