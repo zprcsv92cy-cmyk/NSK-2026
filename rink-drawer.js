@@ -198,6 +198,7 @@
   m.x+=sx;m.x2+=sx;m.y+=sy;m.y2+=sy;
   return m;
  }
+ let routePoint=null,targetEdit=null;
  let fullscreenOn=false,fullscreenView=null;
  function syncFullscreenViewport(){
   if(!fullscreenOn)return;const style=document.documentElement?.style;if(!style)return;
@@ -232,6 +233,9 @@
  function updateControls(){
   $('rinkUndo').disabled=!history.length;$('rinkRedo').disabled=!future.length;
   const m=selected();$('rinkSelectionPanel').hidden=!m;if(!m)return;
+  $('rinkRouteActions').hidden=!['skate','curve','pass','shot'].includes(m.type);
+  $('rinkAddPass').hidden=$('rinkAddShot').hidden=!['skate','curve'].includes(m.type);
+  $('rinkChooseTarget').hidden=!['pass','shot'].includes(m.type);
   $('rinkSelectedLabel').textContent=names[m.type]+(m.number?' '+m.number:'')+' markerad';
   $('rinkGoalRotationField').hidden=m.type!=='goal';if(m.type==='goal')$('rinkGoalRotation').value=String(m.angle||0);
   $('rinkDividerSettings').hidden=!isDivider(m);if(isDivider(m)){if(document.activeElement!==$('rinkDividerLength'))$('rinkDividerLength').value=dividerLength(m).toFixed(1);if(document.activeElement!==$('rinkDividerAngle'))$('rinkDividerAngle').value=String(Math.round(dividerAngle(m))%360);}
@@ -301,11 +305,21 @@
   const matrix=$('rinkSvg').getScreenCTM(),scale=matrix?Math.hypot(matrix.a,matrix.b):1;
   let best=null,bestDistance=Infinity;
   for(let i=marks.length-1;i>=0;i--){const m=marks[i];let distance;
-   if(geometry(m).length>1){const pts=geometry(m);distance=Infinity;for(let j=1;j<pts.length;j++){const a=pts[j-1],b=pts[j],dx=b.x-a.x,dy=b.y-a.y,k=clamp(((p.x-a.x)*dx+(p.y-a.y)*dy)/(dx*dx+dy*dy||1),0,1);distance=Math.min(distance,Math.hypot(a.x+k*dx-p.x,a.y+k*dy-p.y));}}
+   if(geometry(m).length>1){const pts=m.type==='curve'?renderedRoute(m):geometry(m);distance=Infinity;for(let j=1;j<pts.length;j++){const a=pts[j-1],b=pts[j],dx=b.x-a.x,dy=b.y-a.y,k=clamp(((p.x-a.x)*dx+(p.y-a.y)*dy)/(dx*dx+dy*dy||1),0,1);distance=Math.min(distance,Math.hypot(a.x+k*dx-p.x,a.y+k*dy-p.y));}}
    else distance=Math.hypot(m.x-p.x,m.y-p.y);
    const tolerance=Math.max(m.type==='goal'?35:m.x2!==undefined?16:23,22/(scale||1));
    if(distance<=tolerance&&distance<bestDistance){best=m;bestDistance=distance;}
   }return best;
+ }
+ function nearestRoutePoint(m,p){
+  const pts=m.type==='curve'?renderedRoute(m):geometry(m);let best=null,d=Infinity;
+  for(let i=1;i<pts.length;i++){const a=pts[i-1],b=pts[i],dx=b.x-a.x,dy=b.y-a.y,t=clamp(((p.x-a.x)*dx+(p.y-a.y)*dy)/(dx*dx+dy*dy||1),0,1),q={x:a.x+t*dx,y:a.y+t*dy},n=Math.hypot(q.x-p.x,q.y-p.y);if(n<d){d=n;best=q;}}return best;
+ }
+ function addRouteArrow(type){
+  const source=selected();if(!source||!['skate','curve'].includes(source.type)||marks.length>=250)return;
+  const p=routePoint||geometry(source).at(-1),goals=marks.filter(m=>m.type==='goal').sort((a,b)=>Math.hypot(a.x-p.x,a.y-p.y)-Math.hypot(b.x-p.x,b.y-p.y)),goal=type==='shot'?goals[0]:null;
+  remember();const m={id:uuid(),type,x:p.x,y:p.y,x2:goal?goal.x:clamp(p.x+70,22,W-22),y2:goal?goal.y:p.y,color:type==='shot'?'#b11226':'#2563eb'};marks.push(m);selectedId=m.id;setTool('move');render();saveDraft();
+  if(!goal){targetEdit=m.id;announce('Peka på målpunkten på rinken.');}
  }
  function translate(m,dx,dy){
   const pts=geometry(m),xs=pts.map(p=>p.x),ys=pts.map(p=>p.y);
@@ -317,6 +331,7 @@
   s.addEventListener('pointerdown',e=>{
    if(drag||!e.isPrimary||(e.pointerType==='mouse'&&e.button!==0))return;
    const p=pos(e);if(!p)return;closeMenus();numberEditId=null;
+   if(targetEdit){const m=marks.find(m=>m.id===targetEdit);targetEdit=null;if(m){remember();m.x2=p.x;m.y2=p.y;render();saveDraft();announce('Målpunkt ändrad.');}return;}
    if(tool==='pan'){drag={id:e.pointerId,pan:true,startX:e.clientX,startY:e.clientY,x:viewX,y:viewY,scale:Math.hypot(s.getScreenCTM().a,s.getScreenCTM().b)};s.setPointerCapture(e.pointerId);return;}
    if(tool==='erase'){const m=hit(p);if(m){remember();marks=marks.filter(a=>a!==m);selectedId=null;render();saveDraft();}return;}
    if(tool==='move'){
@@ -325,7 +340,7 @@
      const ends=geometry(current),tolerance=Math.min(18,Math.hypot(current.x2-current.x,current.y2-current.y)*.35),index=ends.map((q,i)=>({i,d:Math.hypot(q.x-p.x,q.y-p.y)})).sort((a,b)=>a.d-b.d)[0];
      if(index.d<=tolerance){drag={id:e.pointerId,m:current,p,startX:e.clientX,startY:e.clientY,changed:false,before:snapshot(),history:history.slice(),future:future.slice(),resize:index.i,anchor:{...ends[1-index.i]}};s.setPointerCapture(e.pointerId);return;}
     }
-    const m=hit(p);selectedId=m?.id||null;render();if(!m)return;
+    const m=hit(p);selectedId=m?.id||null;routePoint=m&&['skate','curve'].includes(m.type)?nearestRoutePoint(m,p):null;render();if(!m)return;
     drag={id:e.pointerId,m,p,startX:e.clientX,startY:e.clientY,changed:false,before:snapshot(),history:history.slice(),future:future.slice(),moving:true};s.setPointerCapture(e.pointerId);return;
    }
    if(marks.length>=250){announce('Högst 250 objekt per övning.');return;}
@@ -454,6 +469,8 @@
   $('rinkDividerLength').onchange=updateDividerSettings;$('rinkDividerAngle').onchange=updateDividerSettings;
   $('rinkSelectedDirection').onchange=()=>{const m=selected(),motion=$('rinkSelectedDirection').value;if(!m||!['skate','curve'].includes(m.type)||!['forward','backward'].includes(motion)||m.motion===motion)return;remember();m.motion=motion;m.color=skatingColor(m);render();saveDraft();};
   $('rinkGoalRotation').onchange=()=>{const m=selected(),angle=Number($('rinkGoalRotation').value);if(!m||m.type!=='goal'||![0,90,180,270].includes(angle)||m.angle===angle)return;remember();m.angle=angle;render();saveDraft();};
+  $('rinkAddPass').onclick=()=>addRouteArrow('pass');$('rinkAddShot').onclick=()=>addRouteArrow('shot');
+  $('rinkChooseTarget').onclick=()=>{targetEdit=selectedId;announce('Peka på målpunkten på rinken.');};
   $('rinkSelectedMove').onclick=()=>setTool('move');
   $('rinkDuplicate').onclick=()=>{const m=selected();if(!m)return;if(marks.length>=250){announce('Högst 250 objekt per övning.');return;}remember();const copy={...JSON.parse(JSON.stringify(m)),id:uuid()};translate(copy,25,25);marks.push(copy);selectedId=copy.id;render();saveDraft();};
   $('rinkDelete').onclick=()=>{if(!selected())return;remember();marks=marks.filter(m=>m.id!==selectedId);selectedId=null;render();saveDraft();};
