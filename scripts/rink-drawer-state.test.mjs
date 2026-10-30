@@ -195,3 +195,11 @@ test('fullscreen fits the screen, hides controls initially, and restores zoom wi
  f.context.window.innerWidth=390;f.context.window.innerHeight=844;f.windowEvent('resize');assert.equal(f.context.document.documentElement.style.getPropertyValue('--rink-full-width'),'390px');assert.equal(f.context.document.documentElement.style.getPropertyValue('--rink-full-height'),'844px');
  f.windowEvent('keydown',{key:'Escape'});assert.equal(f.context.document.body.classList.contains('rink-fullscreen'),false);assert.equal(f.node('rinkZoomLabel').textContent,'150%');assert.equal(f.node('rinkFullControls').hidden,true);assert.deepEqual(hostCalls,[true,false]);assert.equal(f.storage.get(DRAFT),before);
 });
+
+test('exercise metadata is opened explicitly and remains reachable from fullscreen',()=>{
+ const f=editor();f.node('rinkFullscreen').onclick();f.node('rinkShowSettings').onclick();assert.equal(f.context.document.body.classList.contains('rink-fullscreen'),false);assert.equal(f.node('rinkSettings').hidden,false);assert.equal(f.node('rinkSettings').open,true);f.node('rinkCloseSettings').onclick();assert.equal(f.node('rinkSettings').hidden,true);
+});
+test('backward routes retain their color and line pattern without repeated direction captions',()=>{
+ const f=editor({[DRAFT]:JSON.stringify({marks:[{id:'b',type:'skate',x:100,y:200,x2:200,y2:300,color:'#7c3aed',motion:'backward'}]})});
+ const group=f.node('rinkSvg').children.find(n=>n.attrs['data-mark']==='b');assert.equal(group.children[0].attrs.stroke,'#7c3aed');assert.equal(group.children[0].attrs['stroke-dasharray'],'4 6');assert.equal(group.children.filter(n=>n.tagName==='text').length,0);
+});

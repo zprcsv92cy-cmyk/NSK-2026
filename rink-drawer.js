@@ -19,7 +19,7 @@
  }
  function labelBase(m){
   if(m.type==='goal')return {x:clamp(m.x+34,45,435),y:m.y-8};
-  if(m.motion==='backward'||m.movementLabel){
+  if(m.movementLabel){
    const points=geometry(m),length=points.slice(1).reduce((n,p,i)=>n+Math.hypot(p.x-points[i].x,p.y-points[i].y),0);let remaining=length/2,p=points[0];
    for(let i=1;i<points.length;i++){const a=points[i-1],b=points[i],d=Math.hypot(b.x-a.x,b.y-a.y);if(remaining<=d){const f=d?remaining/d:0;p={x:a.x+(b.x-a.x)*f,y:a.y+(b.y-a.y)*f};break;}remaining-=d;}
    return {x:p.x,y:p.y-10};
@@ -46,6 +46,50 @@
   }
   return output.length<=500?output:original.map(p=>({...p}));
  }
+ // Compare the geometry that SVG actually draws, including its quadratic corners.
+ function renderedRoute(m){
+  if(m.type!=='curve')return geometry(m).map(p=>({...p}));
+  const pts=m.points,out=[{...pts[0]}];let start=pts[0];
+  for(let i=1;i<pts.length-1;i++){
+   const control=pts[i],end={x:(control.x+pts[i+1].x)/2,y:(control.y+pts[i+1].y)/2},steps=Math.max(4,Math.min(64,Math.ceil((Math.hypot(control.x-start.x,control.y-start.y)+Math.hypot(end.x-control.x,end.y-control.y))/3)));
+   for(let k=1;k<=steps;k++){const t=k/steps,u=1-t;out.push({x:u*u*start.x+2*u*t*control.x+t*t*end.x,y:u*u*start.y+2*u*t*control.y+t*t*end.y});}start=end;
+  }
+  out.push({...pts.at(-1)});return out;
+ }
+ function routeDistance(points,p){let distance=Infinity;for(let i=1;i<points.length;i++)distance=Math.min(distance,segmentDistance(p,points[i-1],points[i]));return distance;}
+ function resampleRoute(points,count){
+  const lengths=[0];for(let i=1;i<points.length;i++)lengths.push(lengths.at(-1)+Math.hypot(points[i].x-points[i-1].x,points[i].y-points[i-1].y));
+  const out=[];let index=1;for(let k=0;k<count;k++){const target=lengths.at(-1)*k/(count-1);while(index<points.length-1&&lengths[index]<target)index++;const a=points[index-1],b=points[index],d=lengths[index]-lengths[index-1],f=d?(target-lengths[index-1])/d:0;out.push({x:a.x+(b.x-a.x)*f,y:a.y+(b.y-a.y)*f});}return out;
+ }
+ function angularRange(points,center){let previous=Math.atan2(points[0].y-center.y,points[0].x-center.x),angle=0,low=0,high=0;for(const p of points.slice(1)){const next=Math.atan2(p.y-center.y,p.x-center.x);angle+=Math.atan2(Math.sin(next-previous),Math.cos(next-previous));previous=next;low=Math.min(low,angle);high=Math.max(high,angle);}return high-low;}
+ function originInTriangle(a,b,c){
+  const cross=(p,q)=>p.x*q.y-p.y*q.x,area=cross({x:b.x-a.x,y:b.y-a.y},{x:c.x-a.x,y:c.y-a.y});if(Math.abs(area)<1e-7)return false;
+  const values=[cross(a,b),cross(b,c),cross(c,a)];return values.every(v=>v>=-1e-7)||values.every(v=>v<=1e-7);
+ }
+ function sweptTriangleClear(a,b,c,radius){
+  const origin={x:0,y:0};return !originInTriangle(a,b,c)&&[segmentDistance(origin,a,b),segmentDistance(origin,b,c),segmentDistance(origin,c,a)].every(d=>d>radius);
+ }
+ function preservesObstacleSide(before,after,obstacles,updatedObstacles=obstacles){
+  const obstacleUpdates=new Map(updatedObstacles.map(o=>[o.id,o]));
+  if(JSON.stringify(geometry(before))===JSON.stringify(geometry(after))&&obstacles.every(o=>{const q=obstacleUpdates.get(o.id)||o;return q.x===o.x&&q.y===o.y;}))return true;
+  const original=renderedRoute(before),candidate=renderedRoute(after),pathLength=ps=>ps.slice(1).reduce((n,p,i)=>n+Math.hypot(p.x-ps[i].x,p.y-ps[i].y),0),count=Math.min(300,Math.max(24,Math.ceil(Math.max(pathLength(original),pathLength(candidate))/3)));
+  const oldSamples=resampleRoute(original,count),newSamples=resampleRoute(candidate,count);
+  for(const obstacle of obstacles){
+   const updated=obstacleUpdates.get(obstacle.id)||obstacle;
+   const radius=obstacle.type==='tire'?16:obstacle.type==='cone'?17:32;
+   // A route may intentionally start/end at a symbol; that is an attachment, not a rounding.
+   if(Math.hypot(original[0].x-obstacle.x,original[0].y-obstacle.y)<radius||Math.hypot(original.at(-1).x-obstacle.x,original.at(-1).y-obstacle.y)<radius)continue;
+   const clearance=routeDistance(original,obstacle);if(clearance<.5)continue;
+   const keepClearance=Math.min(radius,clearance-.25);
+   if(routeDistance(candidate,updated)<=keepClearance)return false;
+   for(let i=1;i<count;i++){
+    const oldRelative=p=>({x:p.x-obstacle.x,y:p.y-obstacle.y}),newRelative=p=>({x:p.x-updated.x,y:p.y-updated.y}),a=oldRelative(oldSamples[i-1]),b=oldRelative(oldSamples[i]),c=newRelative(newSamples[i]),d=newRelative(newSamples[i-1]);
+    // Swept triangles prohibit crossing the obstacle even if the final path looks clear on its other side.
+    if(!sweptTriangleClear(a,b,c,keepClearance)||!sweptTriangleClear(a,c,d,keepClearance))return false;
+   }
+  }
+  return true;
+ }
  function tidyLayout(input){
   const result=JSON.parse(JSON.stringify(input));
   const symbols=input.filter(m=>['player','goalie','puck','cone','tire','goal'].includes(m.type));
@@ -59,6 +103,17 @@
     }
    }
   }
+  const obstacles=symbols.filter(m=>['cone','tire','goal'].includes(m.type));
+  let protectedSmoothing=false;
+  for(let i=0;i<result.length;i++)if(['skate','pass','shot','curve'].includes(result[i].type)&&!preservesObstacleSide(input[i],result[i],obstacles)){result[i]=JSON.parse(JSON.stringify(input[i]));protectedSmoothing=true;}
+  const protectedEquipment=new Set();
+  for(const obstacle of obstacles){
+   if(obstacle.type==='goal')continue;
+   for(const route of input.filter(m=>m.type==='curve')){const ps=renderedRoute(route),radius=obstacle.type==='tire'?16:17;
+    if(Math.hypot(ps[0].x-obstacle.x,ps[0].y-obstacle.y)>radius&&Math.hypot(ps.at(-1).x-obstacle.x,ps.at(-1).y-obstacle.y)>radius&&routeDistance(ps,obstacle)<radius+65&&angularRange(ps,obstacle)>1.3){protectedEquipment.add(obstacle.id);break;}
+   }
+  }
+  const smoothedOnly=JSON.parse(JSON.stringify(result));
   // Align recognisable rows. Equipment spacing is regularized within the original row span.
   const moved=new Set();
   for(const axis of ['x','y']){
@@ -69,7 +124,7 @@
    for(const group of groups){
     const rows=[];for(const m of group.sort((a,b)=>a[axis]-b[axis])){let row=rows.at(-1);if(!row||m[axis]-row.at(-1)[axis]>(m.type==='player'?120:180)){row=[];rows.push(row);}row.push(m);}
     for(const row of rows){
-     if(row.length<2||row.some(m=>moved.has(m.id)))continue;const first=row[0],last=row.at(-1),step=(last[axis]-first[axis])/(row.length-1),baseline=row.reduce((n,m)=>n+m[cross],0)/row.length;
+     if(row.length<2||row.some(m=>moved.has(m.id)||protectedEquipment.has(m.id)))continue;const first=row[0],last=row.at(-1),step=(last[axis]-first[axis])/(row.length-1),baseline=row.reduce((n,m)=>n+m[cross],0)/row.length;
      if(step<24||step>(first.type==='player'?110:150))continue;
      const proposals=row.map((m,i)=>({m,p:{[axis]:first[axis]+step*i,[cross]:baseline}}));
      if(proposals.some(({m,p})=>Math.hypot(p.x-m.x,p.y-m.y)>(m.type==='player'?20:60)||symbols.some(s=>s.id!==m.id&&!row.some(r=>r.id===s.id)&&Math.hypot(s.x-p.x,s.y-p.y)<22&&Math.hypot(s.x-m.x,s.y-m.y)>=22)))continue;
@@ -87,11 +142,20 @@
     m.points=points.map((p,i)=>{if(i)distance+=Math.hypot(p.x-points[i-1].x,p.y-points[i-1].y);const f=total?distance/total:0;return {x:clamp(p.x+start.x*(1-f)+end.x*f,22,458),y:clamp(p.y+start.y*(1-f)+end.y*f,20,840)};});m.x=m.points[0].x;m.y=m.points[0].y;if(m.x2!==undefined){m.x2=m.points.at(-1).x;m.y2=m.points.at(-1).y;}
    }else{m.x+=start.x;m.y+=start.y;m.x2+=end.x;m.y2+=end.y;}
   }
+  // If following a moved endpoint would alter a rounding, keep placements and use only safe smoothing.
+  const updatedObstacles=result.filter(o=>['cone','tire','goal'].includes(o.type));
+  const unsafePassage=result.some((m,i)=>{return ['skate','pass','shot','curve'].includes(m.type)&&!preservesObstacleSide(input[i],m,obstacles,updatedObstacles);});
+  if(unsafePassage){
+   for(let i=0;i<result.length;i++){
+    const candidate=smoothedOnly[i],old=input[i];
+    result[i]=JSON.parse(JSON.stringify(['skate','pass','shot','curve'].includes(old.type)&&preservesObstacleSide(old,candidate,obstacles)?candidate:old));
+   }
+  }
   // Move only generated captions; player numbers stay inside the player symbols.
   const placed=[];
   for(const m of result){
    const base=labelBase(m);if(!base)continue;
-   const width=m.type==='goal'?38:Math.max(40,([m.motion==='backward'?'Bakåt':'',m.movementLabel||''].filter(Boolean).join(' · ').length)*7);
+   const width=m.type==='goal'?38:Math.max(40,((m.movementLabel||'').length)*7);
    const blocked=p=>{
     const box={left:p.x-(m.type==='goal'?0:width/2),right:p.x+(m.type==='goal'?width:width/2),top:p.y-13,bottom:p.y+3};
     if(box.left<22||box.right>458||box.top<20||box.bottom>840)return true;
@@ -102,16 +166,17 @@
    if(blocked(current)){const offset=options.find(o=>!blocked({x:base.x+o.x,y:base.y+o.y}));if(offset)m.labelOffset={...offset};}
    const p=labelPoint(m);placed.push({left:p.x-(m.type==='goal'?0:width/2),right:p.x+(m.type==='goal'?width:width/2),top:p.y-13,bottom:p.y+3});
   }
+  Object.defineProperty(result,'keptPassages',{value:protectedSmoothing||unsafePassage||protectedEquipment.size>0});
   return result;
  }
  function tidyDrawing(){
   closeMenus();const next=tidyLayout(marks),counts={routes:0,symbols:0,equipment:0,labels:0};
   for(let i=0;i<next.length;i++){const a=marks[i],b=next[i];if(JSON.stringify(geometry(a))!==JSON.stringify(geometry(b))){if(['skate','pass','shot','curve'].includes(b.type))counts.routes++;else if(['cone','tire'].includes(b.type))counts.equipment++;else counts.symbols++;}if(JSON.stringify(a.labelOffset)!==JSON.stringify(b.labelOffset))counts.labels++;}
   const report=$('rinkTidyReport');report.hidden=false;
-  if(JSON.stringify(next)===snapshot()){const message='Ingen förändring: inga skakiga åkvägar, sneda rader eller överlappande etiketter kunde förbättras.';report.textContent=message;announce(message);return;}
+  if(JSON.stringify(next)===snapshot()){const message=next.keptPassages?'Passagen runt däck/kon behölls. Inga andra justeringar behövdes.':'Ingen förändring: inga skakiga åkvägar, sneda rader eller överlappande etiketter kunde förbättras.';report.textContent=message;announce(message);return;}
   remember();marks=next;selectedId=null;render();saveDraft();
   const details=[counts.routes?counts.routes+' linjer/åkvägar förbättrade':'',counts.symbols?counts.symbols+' spelare justerade':'',counts.equipment?counts.equipment+' koner/däck jämnt fördelade':'',counts.labels?counts.labels+' etiketter flyttade':''].filter(Boolean).join(' · ');
-  report.textContent=details+'. Ångra återställer originalet.';announce(report.textContent);
+  report.textContent=details+(next.keptPassages?' · Passager runt utrustning bevarade':'')+'. Ångra återställer originalet.';announce(report.textContent);
  }
  const skatingColor=m=>m.motion==='backward'?'#7c3aed':'#15803d';
  const isDivider=m=>['divider','divider-yellow','divider-blue'].includes(m.type);
@@ -158,7 +223,7 @@
  function flushDraft(){
   clearTimeout(draftTimer);draftTimer=0;if(!draftDirty)return;
   try{localStorage.setItem(DRAFT,JSON.stringify({...record(),updated:Date.now()}));draftDirty=false;$('rinkDraftStatus').textContent='Utkast sparat på denna enhet.';}
-  catch{$('rinkDraftStatus').textContent='Utkastet kunde inte sparas på denna enhet.';}
+  catch{$('rinkDraftStatus').hidden=false;$('rinkDraftStatus').textContent='Utkastet kunde inte sparas på denna enhet.';}
  }
  function saveDraft(){draftDirty=true;$('rinkDraftStatus').textContent='Sparar utkast…';clearTimeout(draftTimer);draftTimer=setTimeout(flushDraft,250);$('rinkSettingsSummary').textContent=$('rinkTitle').value.trim()||'Övningens uppgifter';}
  function updateControls(){
@@ -174,7 +239,7 @@
   if(document.activeElement!==$('rinkNumber'))$('rinkNumber').value=m.number||'';
  }
  function closeMenus(){document.querySelectorAll('[data-tool-menu]').forEach(d=>{d.open=false;});}
- function setTool(next){tool=next;closeMenus();document.querySelectorAll('[data-tool]').forEach(b=>b.setAttribute('aria-pressed',String(b.dataset.tool===tool)));announce(tool==='pan'?'Dra för att flytta den inzoomade rinken.':tool==='curve'?'Böjd åkväg: dra med fingret längs hela vägen.':tool==='move'?'Tryck för att markera. Dra för att flytta.':tool==='erase'?'Tryck på objektet som ska tas bort.':names[tool]+': '+(['skate','pass','shot','divider','divider-yellow','divider-blue'].includes(tool)?'dra en linje på rinken.':'tryck på rinken.'));}
+ function setTool(next){tool=next;closeMenus();document.querySelectorAll('[data-tool]').forEach(b=>b.setAttribute('aria-pressed',String(b.dataset.tool===tool)));announce('');}
  function rink(){
   const s=$('rinkSvg');s.replaceChildren();
   // Embedded IHS rink template with NSK crest; editor coordinates remain 480 × 860.
@@ -215,7 +280,7 @@
    if(m.type==='shot'){el('line',{...props,'stroke-width':9},group);el('line',{...props,stroke:'white','stroke-width':3,'marker-end':''},group);}
    else el('line',props,group);
   }
-  if(m.motion==='backward'||m.movementLabel){const p=labelPoint(m);const label=el('text',{x:p.x,y:p.y,fill:m.color,stroke:'white','stroke-width':3,'paint-order':'stroke','font-size':13,'font-weight':700,'text-anchor':'middle','pointer-events':'none'},group);label.textContent=[m.motion==='backward'?'Bakåt':'',m.movementLabel||''].filter(Boolean).join(' · ');}
+  if(m.movementLabel){const p=labelPoint(m);const label=el('text',{x:p.x,y:p.y,fill:m.color,stroke:'white','stroke-width':3,'paint-order':'stroke','font-size':13,'font-weight':700,'text-anchor':'middle','pointer-events':'none'},group);label.textContent=(m.movementLabel||'');}
  }
  function selectionOutline(){
   const m=selected();if(!m)return;
@@ -325,7 +390,7 @@
   const parser=window.NskRinkTextParser;if(!parser){announce('Texttolkningen kunde inte laddas. Uppdatera sidan.');return;}
   const result=parser.parse(text,$('rinkColor').value,{goals:marks.filter(m=>m.type==='goal')});if(!result.marks.length){announce('Ingen ritning skapades. Prova: 2 röda spelare vid nedre vänstra hörnet.');return;}
   if(marks.some(m=>m.type!=='goal')&&!confirm('Ersätt ritningen med övningen från beskrivningen?'))return;
-  remember();if(!result.marks.some(m=>m.type==='goal'))result.marks.unshift(...marks.filter(m=>m.type==='goal'));marks=safeMarks(result.marks.map(m=>({...m,id:uuid()})));selectedId=null;render();saveDraft();$('rinkSettings').open=false;
+  remember();if(!result.marks.some(m=>m.type==='goal'))result.marks.unshift(...marks.filter(m=>m.type==='goal'));marks=safeMarks(result.marks.map(m=>({...m,id:uuid()})));selectedId=null;render();saveDraft();$('rinkSettings').open=false;$('rinkSettings').hidden=true;
   announce(marks.length+' objekt ritade.'+(result.warnings.length?' Förtydliga: '+result.warnings.slice(0,2).join(' / '):''));
  }
  function archiveDrawing(record){
@@ -345,10 +410,11 @@
    };
   });
  }
+ function showDrawingSettings(){if(fullscreenOn)setRinkFullscreen(false);closeMenus();$('rinkSettings').hidden=false;$('rinkSettings').open=true;}
  async function saveDrawing(){
   if(!marks.length){announce('Rita först symboler och rörelser på rinken.');return;}
   const title=$('rinkTitle').value.trim(),category=selectedCategories().join(', ');
-  if(!title||!category){$('rinkSettings').open=true;closeMenus();announce(!title?'Ge övningen ett namn innan du sparar.':'Välj kategori innan du sparar.');(!title?$('rinkTitle'):(document.querySelectorAll('[data-rink-category]')[0]||$('rinkCategory'))).focus();return;}
+  if(!title||!category){showDrawingSettings();announce(!title?'Ge övningen ett namn innan du sparar.':'Välj kategori innan du sparar.');(!title?$('rinkTitle'):(document.querySelectorAll('[data-rink-category]')[0]||$('rinkCategory'))).focus();return;}
   const button=$('rinkSave');button.disabled=true;closeMenus();
   try{
    const saved={...record(),title};
@@ -395,6 +461,8 @@
   $('rinkCategory').addEventListener('change',saveDraft);
   for(const check of document.querySelectorAll('[data-rink-category]'))check.addEventListener('change',()=>{for(const option of $('rinkCategory').options)if(option.value===check.value)option.selected=check.checked;saveDraft();});
   $('rinkSave').onclick=saveDrawing;
+  $('rinkShowSettings').onclick=()=>{showDrawingSettings();$('rinkTitle').focus();};
+  $('rinkCloseSettings').onclick=()=>{$('rinkSettings').hidden=true;$('rinkSettings').open=false;$('rinkStage').scrollIntoView?.({block:'start',behavior:'instant'});};
   $('rinkLoad').onclick=()=>{const saved=readStored(SAVED);if(!saved){announce('Ingen sparad övning finns på denna enhet.');return;}if(marks.length&&JSON.stringify(record())!==JSON.stringify(saved)&&!confirm('Ersätt utkastet med senaste sparade övningen?'))return;applyRecord(saved);saveDraft();closeMenus();announce('Senaste sparade övningen öppnad.');};
   $('rinkExport').onclick=exportImage;$('rinkFromText').onclick=drawFromText;
   $('rinkTextExample').onclick=()=>{$('rinkDescription').value='En spelare i mittcirkeln. Åk framåt. Sväng vänster. Åk bakåt. En kon vid höger tekningspunkt i anfallszon. En målvakt i varje mål. Passning från övre vänstra hörnet till slottet i anfallszon.';saveDraft();};

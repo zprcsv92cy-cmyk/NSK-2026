@@ -4,7 +4,7 @@ import fs from 'node:fs';
 import vm from 'node:vm';
 const code=fs.readFileSync(new URL('../rink-drawer.js',import.meta.url),'utf8');
 const context={document:{addEventListener(){}},window:{},Blob};
-vm.runInNewContext(code.replace(/\}\)\(\);\s*$/,'window.testLayout={tidyLayout};})();'),context);
+vm.runInNewContext(code.replace(/\}\)\(\);\s*$/,'window.testLayout={tidyLayout,preservesObstacleSide,renderedRoute,routeDistance};})();'),context);
 const tidy=marks=>JSON.parse(JSON.stringify(context.window.testLayout.tidyLayout(marks)));
 const cone=(id,x,y)=>({id,type:'cone',x,y,color:'#b11226'});
 test('straight freehand jitter is removed without changing endpoints, arrows or metadata',()=>{
@@ -36,7 +36,7 @@ test('connected lines follow adjusted row symbols while goals and goalies stay f
  const row=[cone('a',100,300),cone('b',135,313),cone('c',220,300)],line={id:'p',type:'skate',x:135,y:313,x2:135,y2:450,color:'#b11226'},goal={id:'g',type:'goal',x:240,y:78,angle:90,color:'#b11226'},goalie={id:'q',type:'goalie',x:240,y:110,color:'#2563eb'};const r=tidy([...row,line,goal,goalie]);assert.equal(r[1].x,160);assert.deepEqual([r[3].x,r[3].y],[r[1].x,r[1].y]);assert.deepEqual([r[3].x2,r[3].y2],[135,450]);assert.deepEqual(r[4],goal);assert.deepEqual(r[5],goalie);
 });
 test('overlapping generated captions move without changing the exercise symbols',()=>{
- const path={id:'p',type:'skate',x:100,y:200,x2:300,y2:200,color:'#b11226',motion:'backward'},player={id:'a',type:'player',x:200,y:180,color:'#b11226',number:'7'},r=tidy([path,player]);assert.ok(r[0].labelOffset);assert.deepEqual(r[1],player);assert.equal(r[0].x,100);assert.equal(r[0].x2,300);
+ const path={id:'p',type:'skate',x:100,y:200,x2:300,y2:200,color:'#b11226',motion:'backward',movementLabel:'Stopp'},player={id:'a',type:'player',x:200,y:180,color:'#b11226',number:'7'},r=tidy([path,player]);assert.ok(r[0].labelOffset);assert.deepEqual(r[1],player);assert.equal(r[0].x,100);assert.equal(r[0].x2,300);
 });
 test('empty and tidy drawings remain unchanged',()=>{assert.deepEqual(tidy([]),[]);const a=[cone('a',100,200),cone('b',150,200),cone('c',200,200)];assert.deepEqual(tidy(a),a);});
 
@@ -45,4 +45,33 @@ test('faster sparse hand-drawn jitter is visibly straightened rather than skippe
 });
 test('both ends of a curved route follow their adjusted equipment anchors',()=>{
  const row=[cone('a',100,300),{...cone('b',135,312),type:'tire'},cone('c',220,300)],path={id:'p',type:'curve',x:135,y:312,color:'#15803d',points:[{x:135,y:312},{x:170,y:390},{x:220,y:300}]};const r=tidy([...row,path]),route=r[3];assert.deepEqual(route.points[0],{x:r[1].x,y:r[1].y});assert.deepEqual(route.points.at(-1),{x:r[2].x,y:r[2].y});
+});
+
+test('a small detour around a tire is never straightened through it, in any orientation',()=>{
+ for(const turn of [0,1,2,3]){const rotate=p=>{let x=p.x-150,y=p.y-207;for(let k=0;k<turn;k++)[x,y]=[-y,x];return {x:x+240,y:y+430};};const points=[{x:100,y:200},{x:125,y:191},{x:150,y:190},{x:175,y:191},{x:200,y:200}].map(rotate),center=rotate({x:150,y:207}),path={id:'p',type:'curve',...points[0],color:'#15803d',points},tire={id:'t',type:'tire',...center,color:'#111827'},r=tidy([path,tire]);
+ assert.ok(r[0].points.length>2);assert.deepEqual(r[0].points[0],points[0]);assert.deepEqual(r[0].points.at(-1),points.at(-1));assert.deepEqual(r[1],tire);
+ assert.ok(context.window.testLayout.preservesObstacleSide(path,r[0],[tire]));
+ }
+});
+test('a clear final path on the opposite side is rejected by the swept-side guard',()=>{
+ const tire={id:'t',type:'tire',x:150,y:200,color:'#111827'},before={id:'p',type:'curve',x:100,y:200,color:'#15803d',points:[{x:100,y:200},{x:125,y:150},{x:175,y:150},{x:200,y:200}]},after={...before,points:before.points.map(p=>({x:p.x,y:400-p.y}))};
+ assert.equal(context.window.testLayout.preservesObstacleSide(before,after,[tire]),false);
+});
+test('equipment that a route rounds stays put even in an otherwise uneven row',()=>{
+ const tire={...cone('t',150,300),type:'tire'},row=[cone('a',100,300),tire,cone('b',240,300)],points=Array.from({length:33},(_,i)=>({x:150+30*Math.cos(i/32*Math.PI*2),y:300+30*Math.sin(i/32*Math.PI*2)})),path={id:'p',type:'curve',...points[0],color:'#15803d',points};const r=tidy([...row,path]);assert.deepEqual(r.slice(0,3),row);assert.ok(context.window.testLayout.preservesObstacleSide(path,r[3],row));
+});
+test('rounding direction cannot reverse around an obstacle',()=>{
+ const tire={...cone('t',200,300),type:'tire'},points=Array.from({length:33},(_,i)=>({x:200+40*Math.cos(i/32*Math.PI*2),y:300+40*Math.sin(i/32*Math.PI*2)})),path={id:'p',type:'curve',...points[0],color:'#15803d',points},reversed={...path,points:[...points].reverse()};assert.equal(context.window.testLayout.preservesObstacleSide(path,reversed,[tire]),false);
+});
+test('safe smoothing away from equipment still improves jitter',()=>{
+ const path={id:'p',type:'curve',x:100,y:200,color:'#15803d',points:[{x:100,y:200},{x:125,y:202},{x:150,y:198},{x:200,y:200}]};assert.equal(tidy([path,{...cone('t',400,700),type:'tire'}])[0].points.length,2);
+});
+
+test('moving an obstacle across an unchanged route is also rejected',()=>{
+ const tire={...cone('t',120,300),type:'tire'},route={id:'p',type:'skate',x:150,y:100,x2:150,y2:500,color:'#15803d'};assert.equal(context.window.testLayout.preservesObstacleSide(route,route,[tire],[{...tire,x:180}]),false);
+ const row=[cone('a',100,300),tire,cone('b',240,300)],r=tidy([...row,route]);assert.deepEqual(r.slice(0,3),row);assert.deepEqual(r[3],route);
+});
+
+test('protecting a tire detour still permits unrelated equipment spacing improvements',()=>{
+ const tire={...cone('t',150,207),type:'tire'},points=[{x:100,y:200},{x:125,y:191},{x:150,y:190},{x:175,y:191},{x:200,y:200}],path={id:'p',type:'curve',...points[0],color:'#15803d',points},row=[cone('a',100,700),cone('b',130,710),cone('c',220,700)],r=tidy([path,tire,...row]);assert.deepEqual(r[0].points,points);assert.equal(r[3].x,160);assert.ok(r.slice(2).every(m=>m.y===r[2].y));
 });
