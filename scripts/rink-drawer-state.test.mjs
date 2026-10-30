@@ -84,12 +84,12 @@ test('the NSK template is embedded below editable marks without changing their c
 test('yellow and blue rink dividers retain their endpoints and color type through copy, undo and reload',()=>{
  for(const tool of ['divider-yellow','divider-blue']){
   const f=editor();f.choose(tool);f.pointer('pointerdown',80,180);f.pointer('pointermove',320,180);f.pointer('pointerup',320,180);f.flush();
-  assert.equal(f.draft().marks[0].type,tool);assert.ok(Math.abs(f.draft().marks[0].x2-(80+440/30*2.5))<1e-9);
+  assert.equal(f.draft().marks[0].type,tool);assert.ok(Math.abs(f.draft().marks[0].x2-(80+436/30*2.5))<1e-9);
   const shape=f.node('rinkSvg').children.find(n=>n.attrs['data-mark']===f.draft().marks[0].id).children[0];assert.equal(shape.attrs.stroke,tool==='divider-yellow'?'#facc15':'#2563eb');assert.equal(shape.attrs['marker-end'],undefined);
   f.node('rinkDuplicate').onclick();f.flush();assert.equal(f.draft().marks.length,2);
   f.node('rinkUndo').onclick();f.flush();assert.equal(f.draft().marks.length,1);
   const restored=editor(Object.fromEntries(f.storage));restored.choose('move');restored.pointer('pointerdown',100,180);assert.equal(restored.node('rinkSelectedLabel').textContent,tool==='divider-yellow'?'Gul rinkavdelare markerad':'Blå rinkavdelare markerad');
-  restored.pointer('pointermove',110,200);restored.pointer('pointerup',110,200);restored.flush();assert.ok(Math.abs(restored.draft().marks[0].x2-(90+440/30*2.5))<1e-9);
+  restored.pointer('pointermove',110,200);restored.pointer('pointerup',110,200);restored.flush();assert.ok(Math.abs(restored.draft().marks[0].x2-(90+436/30*2.5))<1e-9);
  }
 });
 test('small tires stay hollow, editable and recoverable like other symbols',()=>{
@@ -139,14 +139,14 @@ test('tidying is a single undoable action and persists as a draft',()=>{
 });
 
 test('2.5 metre divider length holds for every orientation and near the rink edges',()=>{
- const length=m=>Math.hypot((m.x2-m.x)/(440/30),(m.y2-m.y)/(830/60));
+ const length=m=>Math.hypot((m.x2-m.x)/(436/30),(m.y2-m.y)/(820/60));
  for(const [start,end] of [[[240,430],[420,430]],[[240,430],[240,720]],[[240,430],[400,650]],[[450,830],[458,838]],[[30,30],[22,20]]]){
   const f=editor();f.choose('divider-yellow');f.pointer('pointerdown',...start);f.pointer('pointermove',...end);f.pointer('pointerup',...end);f.flush();const m=f.draft().marks[0];assert.ok(Math.abs(length(m)-2.5)<1e-9);assert.ok([m.x,m.x2].every(x=>x>=22&&x<=458));assert.ok([m.y,m.y2].every(y=>y>=20&&y<=840));
   f.node('rinkDuplicate').onclick();f.flush();assert.ok(Math.abs(length(f.draft().marks[1])-2.5)<1e-9);
  }
 });
 test('old divider lengths normalize around their midpoint on reload',()=>{
- const f=editor({[DRAFT]:JSON.stringify({marks:[{id:'d',type:'divider-blue',x:80,y:200,x2:400,y2:200,color:'#2563eb'}]})});f.node('rinkTitle').emit('input');f.flush();const m=f.draft().marks[0];assert.ok(Math.abs((m.x+m.x2)/2-240)<1e-9);assert.ok(Math.abs((m.x2-m.x)/(440/30)-2.5)<1e-9);
+ const f=editor({[DRAFT]:JSON.stringify({marks:[{id:'d',type:'divider-blue',x:80,y:200,x2:400,y2:200,color:'#2563eb'}]})});f.node('rinkTitle').emit('input');f.flush();const m=f.draft().marks[0];assert.ok(Math.abs((m.x+m.x2)/2-240)<1e-9);assert.ok(Math.abs((m.x2-m.x)/(436/30)-2.5)<1e-9);
 });
 test('skating direction controls green forward and purple backward with undo and recovery',()=>{
  const f=editor();f.choose('skate');f.pointer('pointerdown',200,300);f.pointer('pointermove',200,500);f.pointer('pointerup',200,500);f.flush();assert.equal(f.draft().marks[0].color,'#15803d');assert.equal(f.draft().marks[0].motion,'forward');
@@ -154,4 +154,33 @@ test('skating direction controls green forward and purple backward with undo and
  f.node('rinkUndo').onclick();f.flush();assert.equal(f.draft().marks[0].motion,'forward');f.node('rinkRedo').onclick();f.flush();
  const restored=editor(Object.fromEntries(f.storage));restored.leave();assert.equal(restored.draft().marks[0].color,'#7c3aed');
  f.node('rinkSkatingDirection').value='backward';f.choose('curve');f.pointer('pointerdown',100,100);f.pointer('pointermove',120,120);f.pointer('pointerup',150,160);f.flush();assert.equal(f.draft().marks[1].motion,'backward');assert.equal(f.draft().marks[1].color,'#7c3aed');
+});
+
+test('divider endpoint handles stretch and rotate, with undo and persistent custom length',()=>{
+ const f=editor();f.choose('divider-yellow');f.pointer('pointerdown',100,200);f.pointer('pointerup',100,200);f.flush();const initial=f.draft().marks[0];
+ f.choose('move');f.pointer('pointerdown',initial.x2,initial.y2);f.pointer('pointermove',220,340);f.pointer('pointerup',220,340);f.flush();const extended=f.draft().marks[0];assert.equal(extended.x,100);assert.equal(extended.y,200);assert.ok(Math.abs(extended.x2-220)<1e-8);assert.ok(Math.abs(extended.y2-340)<1e-8);assert.ok(extended.lengthMetres>2.5);
+ f.node('rinkUndo').onclick();f.flush();assert.ok(Math.abs(f.draft().marks[0].lengthMetres-2.5)<1e-9);f.node('rinkRedo').onclick();f.flush();
+ const restored=editor(Object.fromEntries(f.storage));restored.node('rinkTitle').emit('input');restored.flush();assert.ok(Math.abs(restored.draft().marks[0].lengthMetres-extended.lengthMetres)<1e-9);
+ f.pointer('pointerdown',(extended.x+extended.x2)/2,(extended.y+extended.y2)/2);f.pointer('pointerup',(extended.x+extended.x2)/2,(extended.y+extended.y2)/2);f.node('rinkDuplicate').onclick();f.flush();assert.equal(f.draft().marks[1].lengthMetres,extended.lengthMetres);
+});
+test('either divider end can be dragged while the other end remains anchored',()=>{
+ const f=editor();f.choose('divider-blue');f.pointer('pointerdown',100,200);f.pointer('pointerup',100,200);f.flush();const initial=f.draft().marks[0];f.choose('move');
+ f.pointer('pointerdown',initial.x,initial.y);f.pointer('pointermove',70,320);f.pointer('pointerup',70,320);f.flush();const m=f.draft().marks[0];assert.ok(Math.abs(m.x-70)<1e-8);assert.ok(Math.abs(m.y-320)<1e-8);assert.ok(Math.abs(m.x2-initial.x2)<1e-8);assert.equal(m.y2,initial.y2);
+});
+test('numeric divider length and angle work, and cancelled handle drags restore geometry',()=>{
+ const f=editor();f.choose('divider-yellow');f.pointer('pointerdown',200,300);f.pointer('pointerup',200,300);f.flush();f.node('rinkDividerLength').value='5';f.node('rinkDividerAngle').value='90';f.node('rinkDividerLength').onchange();f.flush();const before=f.draft().marks[0];assert.ok(Math.abs(before.x2-before.x)<1e-8);assert.ok(Math.abs((before.y2-before.y)/(820/60)-5)<1e-8);
+ f.choose('move');f.pointer('pointerdown',before.x2,before.y2);f.pointer('pointermove',300,500);f.pointer('pointercancel',300,500);f.flush();assert.deepEqual(f.draft().marks[0],before);
+});
+test('tidy gives a visible result count for equipment and a clear explanation when unchanged',()=>{
+ const marks=[{id:'c1',type:'cone',x:100,y:300,color:'#b11226'},{id:'t',type:'tire',x:130,y:315,color:'#b11226'},{id:'c2',type:'cone',x:220,y:300,color:'#b11226'}],f=editor({[DRAFT]:JSON.stringify({marks})});f.node('rinkTidy').onclick();f.flush();assert.equal(f.draft().marks[1].x,160);assert.equal(f.node('rinkTidyReport').hidden,false);assert.match(f.node('rinkTidyReport').textContent,/koner\/däck jämnt fördelade/);
+ f.node('rinkUndo').onclick();f.flush();assert.deepEqual(f.draft().marks,marks);assert.equal(f.node('rinkTidyReport').hidden,true);
+ const empty=editor();empty.node('rinkTidy').onclick();assert.match(empty.node('rinkTidyReport').textContent,/Ingen förändring/);assert.equal(empty.node('rinkTidyReport').hidden,false);
+});
+
+test('twelve standard dividers exactly span the thirty metre rink width',()=>{
+ const marks=Array.from({length:12},(_,i)=>({id:'d'+i,type:'divider-yellow',x:22+i*436/12,y:430,x2:22+(i+1)*436/12,y2:430,color:'#b11226',lengthMetres:2.5}));
+ const f=editor({[DRAFT]:JSON.stringify({marks})});f.node('rinkTitle').emit('input');f.flush();const ds=f.draft().marks;
+ assert.ok(Math.abs(ds[0].x-22)<1e-8);assert.ok(Math.abs(ds.at(-1).x2-458)<1e-8);
+ for(let i=1;i<ds.length;i++)assert.ok(Math.abs(ds[i-1].x2-ds[i].x)<1e-8);
+ assert.ok(Math.abs(ds.reduce((n,m)=>n+Math.hypot((m.x2-m.x)/(436/30),(m.y2-m.y)/(820/60)),0)-30)<1e-8);
 });

@@ -27,49 +27,65 @@
   return null;
  }
  function labelPoint(m){const p=labelBase(m);return p?{x:p.x+(m.labelOffset?.x||0),y:p.y+(m.labelOffset?.y||0)}:null;}
+ function smoothRoute(original){
+  if(original.length<3)return original.map(p=>({...p}));
+  const first=original[0],last=original.at(-1),length=original.slice(1).reduce((n,p,i)=>n+Math.hypot(p.x-original[i].x,p.y-original[i].y),0),chord=Math.hypot(last.x-first.x,last.y-first.y);
+  if(chord>20&&length<chord*1.3&&original.every(p=>segmentDistance(p,first,last)<=12))return [{...first},{...last}];
+  // Preserve deliberately sharp corners between long segments; smooth sampled hand jitter between them.
+  const breaks=[0];
+  for(let i=1;i<original.length-1;i++){const a=original[i-1],p=original[i],b=original[i+1],u=Math.hypot(p.x-a.x,p.y-a.y),v=Math.hypot(b.x-p.x,b.y-p.y);if(u>45&&v>45&&((p.x-a.x)*(b.x-p.x)+(p.y-a.y)*(b.y-p.y))/(u*v)<.5)breaks.push(i);}
+  breaks.push(original.length-1);const output=[];
+  for(let section=1;section<breaks.length;section++){
+   const source=original.slice(breaks[section-1],breaks[section]+1);if(source.length===2){output.push(...(output.length?source.slice(1):source).map(p=>({...p})));continue;}
+   const total=source.slice(1).reduce((n,p,i)=>n+Math.hypot(p.x-source[i].x,p.y-source[i].y),0),step=Math.max(5,total/220),sampled=[{...source[0]}];let walked=0,next=step;
+   for(let i=1;i<source.length;i++){const a=source[i-1],b=source[i],d=Math.hypot(b.x-a.x,b.y-a.y);while(d&&next<walked+d){const f=(next-walked)/d;sampled.push({x:a.x+(b.x-a.x)*f,y:a.y+(b.y-a.y)*f});next+=step;}walked+=d;}
+   sampled.push({...source.at(-1)});let points=sampled;
+   for(let pass=0;pass<3;pass++)points=points.map((p,i)=>{if(!i||i===points.length-1)return {...p};const near=points.slice(Math.max(0,i-2),Math.min(points.length,i+3));return {x:near.reduce((n,q)=>n+q.x,0)/near.length,y:near.reduce((n,q)=>n+q.y,0)/near.length};});
+   const cleaned=simplifyPath(points,2),bounded=source.every(p=>cleaned.slice(1).some((q,i)=>segmentDistance(p,cleaned[i],q)<=12));
+   const chosen=bounded?cleaned:source;output.push(...(output.length?chosen.slice(1):chosen).map(p=>({...p})));
+  }
+  return output.length<=500?output:original.map(p=>({...p}));
+ }
  function tidyLayout(input){
   const result=JSON.parse(JSON.stringify(input));
   const symbols=input.filter(m=>['player','goalie','puck','cone','tire','goal'].includes(m.type));
-  const attached=p=>input.some(m=>['skate','pass','shot','curve'].includes(m.type)&&[geometry(m)[0],geometry(m).at(-1)].some(q=>Math.hypot(p.x-q.x,p.y-q.y)<30));
   for(const m of result){
-   if(m.type==='curve'&&m.points?.length>2){
-    const original=m.points,first=original[0],last=original.at(-1),length=original.slice(1).reduce((n,p,i)=>n+Math.hypot(p.x-original[i].x,p.y-original[i].y),0),chord=Math.hypot(last.x-first.x,last.y-first.y);
-    if(chord>20&&length<chord*1.12&&original.every(p=>segmentDistance(p,first,last)<=4))m.points=[{...first},{...last}];
-    else {
-     const smoothed=original.map((p,i)=>{
-      if(!i||i===original.length-1)return {...p};const a=original[i-1],b=original[i+1];
-      if(Math.hypot(p.x-a.x,p.y-a.y)>14||Math.hypot(p.x-b.x,p.y-b.y)>14)return {...p};
-      const q={x:(a.x+2*p.x+b.x)/4,y:(a.y+2*p.y+b.y)/4};return Math.hypot(q.x-p.x,q.y-p.y)<=4?q:{...p};
-     });
-     const cleaned=simplifyPath(smoothed,1.2);
-     if(original.every(p=>cleaned.slice(1).some((q,i)=>segmentDistance(p,cleaned[i],q)<=5)))m.points=cleaned;
-    }
-   }
+   if(m.type==='curve'&&m.points?.length>2)m.points=smoothRoute(m.points);
    if(['skate','pass','shot'].includes(m.type)&&Number.isFinite(m.x2)){
     const a={x:m.x,y:m.y},b={x:m.x2,y:m.y2},nearSymbol=p=>symbols.some(s=>Math.hypot(s.x-p.x,s.y-p.y)<30);
     if(!nearSymbol(a)&&!nearSymbol(b)){
-     if(Math.abs(m.y2-m.y)<=6&&Math.abs(m.x2-m.x)>40)m.y=m.y2=(m.y+m.y2)/2;
-     else if(Math.abs(m.x2-m.x)<=6&&Math.abs(m.y2-m.y)>40)m.x=m.x2=(m.x+m.x2)/2;
+     if(Math.abs(m.y2-m.y)<=18&&Math.abs(m.x2-m.x)>50)m.y=m.y2=(m.y+m.y2)/2;
+     else if(Math.abs(m.x2-m.x)<=18&&Math.abs(m.y2-m.y)>50)m.x=m.x2=(m.x+m.x2)/2;
     }
    }
   }
-  // Only near-even rows of matching symbols qualify. Keep row endpoints and connected symbols fixed.
+  // Align recognisable rows. Equipment spacing is regularized within the original row span.
   const moved=new Set();
   for(const axis of ['x','y']){
-   const cross=axis==='x'?'y':'x',candidates=result.filter(m=>['player','cone'].includes(m.type)),groups=[];
+   const cross=axis==='x'?'y':'x',candidates=result.filter(m=>['player','cone','tire'].includes(m.type)),groups=[];
    for(const m of [...candidates].sort((a,b)=>a[cross]-b[cross])){
-    let group=groups.find(g=>g[0].type===m.type&&g[0].color===m.color&&Math.abs(g[0][cross]-m[cross])<=10);if(!group){group=[];groups.push(group);}group.push(m);
+    let group=groups.find(g=>((g[0].type==='player'&&m.type==='player'&&g[0].color===m.color)||(['cone','tire'].includes(g[0].type)&&['cone','tire'].includes(m.type)))&&Math.abs(g[0][cross]-m[cross])<=24);if(!group){group=[];groups.push(group);}group.push(m);
    }
    for(const group of groups){
-    const rows=[];for(const m of group.sort((a,b)=>a[axis]-b[axis])){let row=rows.at(-1);if(!row||m[axis]-row.at(-1)[axis]>110){row=[];rows.push(row);}row.push(m);}
+    const rows=[];for(const m of group.sort((a,b)=>a[axis]-b[axis])){let row=rows.at(-1);if(!row||m[axis]-row.at(-1)[axis]>(m.type==='player'?120:180)){row=[];rows.push(row);}row.push(m);}
     for(const row of rows){
-     if(row.length<3)continue;const first=row[0],last=row.at(-1),step=(last[axis]-first[axis])/(row.length-1);
-     if(step<24||step>100)continue;
-     const proposals=row.map((m,i)=>({m,p:{x:first.x+(last.x-first.x)*i/(row.length-1),y:first.y+(last.y-first.y)*i/(row.length-1)}}));
-     if(proposals.some(({m,p})=>Math.hypot(p.x-m.x,p.y-m.y)>8))continue;
-     for(const {m,p} of proposals.slice(1,-1))if(!moved.has(m.id)&&!attached(m)){m.x=p.x;m.y=p.y;moved.add(m.id);}
+     if(row.length<2||row.some(m=>moved.has(m.id)))continue;const first=row[0],last=row.at(-1),step=(last[axis]-first[axis])/(row.length-1),baseline=row.reduce((n,m)=>n+m[cross],0)/row.length;
+     if(step<24||step>(first.type==='player'?110:150))continue;
+     const proposals=row.map((m,i)=>({m,p:{[axis]:first[axis]+step*i,[cross]:baseline}}));
+     if(proposals.some(({m,p})=>Math.hypot(p.x-m.x,p.y-m.y)>(m.type==='player'?20:60)||symbols.some(s=>s.id!==m.id&&!row.some(r=>r.id===s.id)&&Math.hypot(s.x-p.x,s.y-p.y)<22&&Math.hypot(s.x-m.x,s.y-m.y)>=22)))continue;
+     for(const {m,p} of proposals){if(Math.hypot(p.x-m.x,p.y-m.y)>.1){m.x=p.x;m.y=p.y;moved.add(m.id);}}
     }
    }
+  }
+  // Follow the original attachment, not a newly nearby symbol. Goals never move.
+  const endpointDelta=p=>{const anchor=symbols.filter(s=>Math.hypot(s.x-p.x,s.y-p.y)<30).sort((a,b)=>Math.hypot(a.x-p.x,a.y-p.y)-Math.hypot(b.x-p.x,b.y-p.y))[0];if(!anchor)return {x:0,y:0};const next=result.find(m=>m.id===anchor.id);return next?{x:next.x-anchor.x,y:next.y-anchor.y}:{x:0,y:0};};
+  for(let i=0;i<result.length;i++){
+   const m=result[i],old=input[i];if(!['skate','pass','shot','curve'].includes(m.type))continue;
+   const oldPoints=geometry(old),start=endpointDelta(oldPoints[0]),end=endpointDelta(oldPoints.at(-1));
+   if(!start.x&&!start.y&&!end.x&&!end.y)continue;
+   if(m.points){const points=m.points,total=points.slice(1).reduce((n,p,i)=>n+Math.hypot(p.x-points[i].x,p.y-points[i].y),0);let distance=0;
+    m.points=points.map((p,i)=>{if(i)distance+=Math.hypot(p.x-points[i-1].x,p.y-points[i-1].y);const f=total?distance/total:0;return {x:clamp(p.x+start.x*(1-f)+end.x*f,22,458),y:clamp(p.y+start.y*(1-f)+end.y*f,20,840)};});m.x=m.points[0].x;m.y=m.points[0].y;if(m.x2!==undefined){m.x2=m.points.at(-1).x;m.y2=m.points.at(-1).y;}
+   }else{m.x+=start.x;m.y+=start.y;m.x2+=end.x;m.y2+=end.y;}
   }
   // Move only generated captions; player numbers stay inside the player symbols.
   const placed=[];
@@ -89,17 +105,24 @@
   return result;
  }
  function tidyDrawing(){
-  closeMenus();const next=tidyLayout(marks);
-  if(JSON.stringify(next)===snapshot()){announce('Inget behövde snyggas till.');return;}
-  remember();marks=next;selectedId=null;render();saveDraft();announce('Övningen är tillstädad. Ångra återställer hela ändringen.');
+  closeMenus();const next=tidyLayout(marks),counts={routes:0,symbols:0,equipment:0,labels:0};
+  for(let i=0;i<next.length;i++){const a=marks[i],b=next[i];if(JSON.stringify(geometry(a))!==JSON.stringify(geometry(b))){if(['skate','pass','shot','curve'].includes(b.type))counts.routes++;else if(['cone','tire'].includes(b.type))counts.equipment++;else counts.symbols++;}if(JSON.stringify(a.labelOffset)!==JSON.stringify(b.labelOffset))counts.labels++;}
+  const report=$('rinkTidyReport');report.hidden=false;
+  if(JSON.stringify(next)===snapshot()){const message='Ingen förändring: inga skakiga åkvägar, sneda rader eller överlappande etiketter kunde förbättras.';report.textContent=message;announce(message);return;}
+  remember();marks=next;selectedId=null;render();saveDraft();
+  const details=[counts.routes?counts.routes+' linjer/åkvägar förbättrade':'',counts.symbols?counts.symbols+' spelare justerade':'',counts.equipment?counts.equipment+' koner/däck jämnt fördelade':'',counts.labels?counts.labels+' etiketter flyttade':''].filter(Boolean).join(' · ');
+  report.textContent=details+'. Ångra återställer originalet.';announce(report.textContent);
  }
  const skatingColor=m=>m.motion==='backward'?'#7c3aed':'#15803d';
  const isDivider=m=>['divider','divider-yellow','divider-blue'].includes(m.type);
- // Ice inside the printed boards: x=20..460, y=15..845, represented as 30 × 60 metres.
- const rinkScale={x:440/30,y:830/60,dividerMetres:2.5};
+ // Ice inside the printed boards: x=22..458, y=20..840, represented as 30 × 60 metres.
+ const rinkScale={x:436/30,y:820/60,dividerMetres:2.5};
+ const dividerLength=m=>Math.hypot((m.x2-m.x)/rinkScale.x,(m.y2-m.y)/rinkScale.y);
+ const dividerAngle=m=>(Math.atan2((m.y2-m.y)/rinkScale.y,(m.x2-m.x)/rinkScale.x)*180/Math.PI+360)%360;
  function fitDivider(m,keepCenter=false){
   const dx=(m.x2-m.x)/rinkScale.x,dy=(m.y2-m.y)/rinkScale.y,length=Math.hypot(dx,dy),ux=length?dx/length:1,uy=length?dy/length:0;
-  const vx=ux*rinkScale.dividerMetres*rinkScale.x,vy=uy*rinkScale.dividerMetres*rinkScale.y;
+  const metres=Number.isFinite(m.lengthMetres)?clamp(m.lengthMetres,.25,60):rinkScale.dividerMetres;m.lengthMetres=metres;
+  const vx=ux*metres*rinkScale.x,vy=uy*metres*rinkScale.y;
   const cx=(m.x+m.x2)/2,cy=(m.y+m.y2)/2;
   if(keepCenter){m.x=cx-vx/2;m.y=cy-vy/2;}
   m.x2=m.x+vx;m.y2=m.y+vy;
@@ -129,6 +152,7 @@
   const m=selected();$('rinkSelectionPanel').hidden=!m;if(!m)return;
   $('rinkSelectedLabel').textContent=names[m.type]+(m.number?' '+m.number:'')+' markerad';
   $('rinkGoalRotationField').hidden=m.type!=='goal';if(m.type==='goal')$('rinkGoalRotation').value=String(m.angle||0);
+  $('rinkDividerSettings').hidden=!isDivider(m);if(isDivider(m)){if(document.activeElement!==$('rinkDividerLength'))$('rinkDividerLength').value=dividerLength(m).toFixed(1);if(document.activeElement!==$('rinkDividerAngle'))$('rinkDividerAngle').value=String(Math.round(dividerAngle(m))%360);}
   $('rinkNumberField').hidden=!['player','goalie'].includes(m.type);
   $('rinkSelectedColorField').hidden=!['player','goalie','pass','shot'].includes(m.type);
   $('rinkSkatingDirectionField').hidden=!['skate','curve'].includes(m.type);if(['skate','curve'].includes(m.type))$('rinkSelectedDirection').value=m.motion==='backward'?'backward':'forward';
@@ -186,6 +210,7 @@
   const pts=geometry(m),xs=pts.map(p=>p.x),ys=pts.map(p=>p.y);
   if(pts.length>1)el('rect',{...props,x:Math.min(...xs)-12,y:Math.min(...ys)-12,width:(Math.max(...xs)-Math.min(...xs))+24,height:(Math.max(...ys)-Math.min(...ys))+24,rx:8},group);
   else el('circle',{...props,cx:m.x,cy:m.y,r:23},group);
+  if(isDivider(m))for(const [i,p] of pts.entries())el('circle',{cx:p.x,cy:p.y,r:9,fill:'white',stroke:'#0085ff','stroke-width':3,'data-divider-handle':i},group);
  }
  function render(){rink();selectionOutline();updateControls();}
  function cleanSvg(){const svg=$('rinkSvg').cloneNode(true);svg.querySelectorAll('[data-editor-ui]').forEach(n=>n.remove());svg.setAttribute('xmlns',NS);svg.setAttribute('viewBox','0 0 '+W+' '+H);svg.setAttribute('width',String(W));svg.setAttribute('height',String(H));return svg;}
@@ -213,6 +238,11 @@
    if(tool==='pan'){drag={id:e.pointerId,pan:true,startX:e.clientX,startY:e.clientY,x:viewX,y:viewY,scale:Math.hypot(s.getScreenCTM().a,s.getScreenCTM().b)};s.setPointerCapture(e.pointerId);return;}
    if(tool==='erase'){const m=hit(p);if(m){remember();marks=marks.filter(a=>a!==m);selectedId=null;render();saveDraft();}return;}
    if(tool==='move'){
+    const current=selected();
+    if(current&&isDivider(current)){
+     const ends=geometry(current),tolerance=Math.min(18,Math.hypot(current.x2-current.x,current.y2-current.y)*.35),index=ends.map((q,i)=>({i,d:Math.hypot(q.x-p.x,q.y-p.y)})).sort((a,b)=>a.d-b.d)[0];
+     if(index.d<=tolerance){drag={id:e.pointerId,m:current,p,startX:e.clientX,startY:e.clientY,changed:false,before:snapshot(),history:history.slice(),future:future.slice(),resize:index.i,anchor:{...ends[1-index.i]}};s.setPointerCapture(e.pointerId);return;}
+    }
     const m=hit(p);selectedId=m?.id||null;render();if(!m)return;
     drag={id:e.pointerId,m,p,startX:e.clientX,startY:e.clientY,changed:false,before:snapshot(),history:history.slice(),future:future.slice(),moving:true};s.setPointerCapture(e.pointerId);return;
    }
@@ -228,18 +258,24 @@
   });
   s.addEventListener('pointermove',e=>{
    if(!drag||e.pointerId!==drag.id)return;if(drag.pan){viewX=clamp(drag.x-(e.clientX-drag.startX)/drag.scale,0,W-W/zoom);viewY=clamp(drag.y-(e.clientY-drag.startY)/drag.scale,0,H-H/zoom);viewport();return;}const p=pos(e);if(!p)return;
-   if(drag.moving){
+   if(drag.resize!==undefined){
+    if(!drag.changed&&Math.hypot(e.clientX-drag.startX,e.clientY-drag.startY)<4)return;
+    if(!drag.changed){remember();drag.changed=true;}
+    resizeDivider(drag,p);
+   }else if(drag.moving){
     if(!drag.changed&&Math.hypot(e.clientX-drag.startX,e.clientY-drag.startY)<4)return;
     if(!drag.changed){remember();drag.changed=true;}
     translate(drag.m,p.x-drag.p.x,p.y-drag.p.y);drag.p=p;
    }else if(drag.m.points){const last=drag.m.points.at(-1);if(Math.hypot(p.x-last.x,p.y-last.y)>=3&&drag.m.points.length<500)drag.m.points.push({...p});}else{if(isDivider(drag.m)){drag.m.x=drag.p.x;drag.m.y=drag.p.y;}drag.m.x2=p.x;drag.m.y2=p.y;if(isDivider(drag.m))fitDivider(drag.m);}render();
   });
+  function resizeDivider(d,p){const m=d.m;m.x=d.anchor.x;m.y=d.anchor.y;m.x2=p.x;m.y2=p.y;m.lengthMetres=clamp(dividerLength(m),.25,60);fitDivider(m);if(d.resize===0){[m.x,m.x2]=[m.x2,m.x];[m.y,m.y2]=[m.y2,m.y];}}
   const end=(e,cancelled=false)=>{
    if(!drag||e.pointerId!==drag.id)return;
    if(drag.pan){drag=null;return;}
    if(!cancelled&&drag.m.points){const p=pos(e);if(p&&drag.m.points.length<500)drag.m.points.push(p);}
    if(cancelled||(drag.m.points&&!drag.m.points.some(p=>Math.hypot(p.x-drag.m.x,p.y-drag.m.y)>=3))){marks=JSON.parse(drag.before);history=drag.history;future=drag.future;selectedId=null;}
-   if(!cancelled&&!drag.moving&&isDivider(drag.m)){const p=pos(e);if(p){drag.m.x=drag.p.x;drag.m.y=drag.p.y;drag.m.x2=p.x;drag.m.y2=p.y;fitDivider(drag.m);}}
+   if(!cancelled&&drag.resize!==undefined){const p=pos(e);if(p&&drag.changed)resizeDivider(drag,p);}
+   if(!cancelled&&drag.resize===undefined&&!drag.moving&&isDivider(drag.m)){const p=pos(e);if(p){drag.m.x=drag.p.x;drag.m.y=drag.p.y;drag.m.x2=p.x;drag.m.y2=p.y;fitDivider(drag.m);}}
    const changed=drag.changed;drag=null;render();if(changed)saveDraft();
   };
   s.addEventListener('pointerup',e=>end(e));s.addEventListener('pointercancel',e=>end(e,true));
@@ -254,7 +290,7 @@
    if(m.type==='goal')n.angle=[0,90,180,270].includes(m.angle)?m.angle:0;
    if(['skate','curve'].includes(m.type)){n.motion=m.motion==='backward'?'backward':'forward';n.color=skatingColor(n);if(['Stopp','Översteg'].includes(m.movementLabel))n.movementLabel=m.movementLabel;}
    if(['player','goalie'].includes(m.type)&&/^\d{1,2}$/.test(String(m.number??'')))n.number=String(m.number);
-   if(isDivider(n))fitDivider(n,true);
+   if(isDivider(n)){if(Number.isFinite(m.lengthMetres))n.lengthMetres=clamp(m.lengthMetres,.25,60);fitDivider(n,true);}
    return n;
   });
  }
@@ -320,10 +356,18 @@
   viewport();$('rinkZoomIn').onclick=()=>changeZoom(zoom+.5);$('rinkZoomOut').onclick=()=>changeZoom(zoom-.5);$('rinkZoomReset').onclick=()=>{zoom=1;viewX=0;viewY=0;viewport();};
   pointers();document.querySelectorAll('[data-tool]').forEach(b=>b.onclick=()=>setTool(b.dataset.tool));
   document.querySelectorAll('[data-tool-menu]').forEach(d=>d.addEventListener('toggle',()=>{if(d.open)document.querySelectorAll('[data-tool-menu]').forEach(other=>{if(other!==d)other.open=false;});}));
-  $('rinkUndo').onclick=()=>{if(!history.length)return;future.push(snapshot());marks=JSON.parse(history.pop());selectedId=null;render();saveDraft();};
-  $('rinkRedo').onclick=()=>{if(!future.length)return;history.push(snapshot());marks=JSON.parse(future.pop());selectedId=null;render();saveDraft();};
+  $('rinkUndo').onclick=()=>{if(!history.length)return;$('rinkTidyReport').hidden=true;future.push(snapshot());marks=JSON.parse(history.pop());selectedId=null;render();saveDraft();};
+  $('rinkRedo').onclick=()=>{if(!future.length)return;$('rinkTidyReport').hidden=true;history.push(snapshot());marks=JSON.parse(future.pop());selectedId=null;render();saveDraft();};
   $('rinkTidy').onclick=tidyDrawing;
   $('rinkClear').onclick=()=>{if(marks.length&&confirm('Rensa alla symboler från rinken?')){remember();marks=[];selectedId=null;render();saveDraft();}closeMenus();};
+  const updateDividerSettings=()=>{
+   const m=selected();if(!m||!isDivider(m))return;const length=Number($('rinkDividerLength').value),degrees=Number($('rinkDividerAngle').value);
+   if(!Number.isFinite(length)||length<.25||length>60||!Number.isFinite(degrees)||degrees<0||degrees>360){announce('Ange längd 0,25–60 meter och vinkel 0–360 grader.');return;}
+   if(Math.abs(length-dividerLength(m))<.001&&Math.abs((degrees%360)-dividerAngle(m))<.01)return;
+   remember();const cx=(m.x+m.x2)/2,cy=(m.y+m.y2)/2,angle=degrees*Math.PI/180,vx=Math.cos(angle)*length*rinkScale.x,vy=Math.sin(angle)*length*rinkScale.y;
+   m.x=cx-vx/2;m.y=cy-vy/2;m.x2=cx+vx/2;m.y2=cy+vy/2;m.lengthMetres=length;fitDivider(m,true);render();saveDraft();announce('Avdelaren är '+length.toLocaleString('sv-SE')+' meter.');
+  };
+  $('rinkDividerLength').onchange=updateDividerSettings;$('rinkDividerAngle').onchange=updateDividerSettings;
   $('rinkSelectedDirection').onchange=()=>{const m=selected(),motion=$('rinkSelectedDirection').value;if(!m||!['skate','curve'].includes(m.type)||!['forward','backward'].includes(motion)||m.motion===motion)return;remember();m.motion=motion;m.color=skatingColor(m);render();saveDraft();};
   $('rinkGoalRotation').onchange=()=>{const m=selected(),angle=Number($('rinkGoalRotation').value);if(!m||m.type!=='goal'||![0,90,180,270].includes(angle)||m.angle===angle)return;remember();m.angle=angle;render();saveDraft();};
   $('rinkSelectedMove').onclick=()=>setTool('move');
