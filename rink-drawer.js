@@ -181,7 +181,7 @@
   const details=[counts.routes?counts.routes+' linjer/åkvägar förbättrade':'',counts.symbols?counts.symbols+' spelare justerade':'',counts.equipment?counts.equipment+' koner/däck jämnt fördelade':'',counts.labels?counts.labels+' etiketter flyttade':''].filter(Boolean).join(' · ');
   report.textContent=details+(next.keptPassages?' · Passager runt utrustning bevarade':'')+'. Ångra återställer originalet.';announce(report.textContent);
  }
- const skatingColor=m=>m.motion==='backward'?'#7c3aed':'#15803d';
+ const skatingColor=m=>m.motion==='backward'?'#7c3aed':'#111827';
  const isDivider=m=>['divider','divider-yellow','divider-blue'].includes(m.type);
  // Ice inside the printed boards: x=22..458, y=20..840, represented as 30 × 60 metres.
  const rinkScale={x:436/30,y:820/60,dividerMetres:2.5};
@@ -260,6 +260,14 @@
   for(const c of palette){const marker=el('marker',{id:'arr-'+c.slice(1),viewBox:'0 0 10 10',refX:9,refY:5,markerWidth:4,markerHeight:4,orient:'auto-start-reverse'},defs);el('path',{d:'M 1 1 L 9 5 L 1 9',fill:'none',stroke:c,'stroke-width':2},marker);}
   for(const m of marks)draw(m,s);
  }
+ function backwardPath(m){
+  const pts=renderedRoute(m),lengths=[0];for(let i=1;i<pts.length;i++)lengths.push(lengths.at(-1)+Math.hypot(pts[i].x-pts[i-1].x,pts[i].y-pts[i-1].y));
+  const total=lengths.at(-1);if(total<1)return 'M '+m.x+' '+m.y;
+  const at=d=>{let i=1;while(i<pts.length-1&&lengths[i]<d)i++;const f=(d-lengths[i-1])/(lengths[i]-lengths[i-1]||1);return {x:pts[i-1].x+(pts[i].x-pts[i-1].x)*f,y:pts[i-1].y+(pts[i].y-pts[i-1].y)*f};};
+  const n=Math.max(1,Math.ceil(total/18));let d='M '+pts[0].x+' '+pts[0].y;
+  for(let i=0;i<n;i++){const a=at(total*i/n),b=at(total*(i+1)/n),mid=at(total*(i+.5)/n),len=Math.hypot(b.x-a.x,b.y-a.y)||1,h=Math.min(10,total/n*.6);d+=' Q '+(mid.x-(b.y-a.y)/len*h)+' '+(mid.y+(b.x-a.x)/len*h)+' '+b.x+' '+b.y;}
+  return d;
+ }
  function draw(m,s){
   if(['skate','curve'].includes(m.type))m={...m,color:skatingColor(m)};
   const group=el('g',{'data-mark':m.id},s);
@@ -274,15 +282,17 @@
    el('circle',{cx:m.x,cy:m.y,r:m.type==='goalie'?17:13,fill:m.color,stroke:'white','stroke-width':3},group);
    if(m.type==='goalie'&&!m.number)el('circle',{cx:m.x,cy:m.y,r:7,fill:'white'},group);
    if(m.number){const text=el('text',{x:m.x,y:m.y+4,'text-anchor':'middle',fill:'white','font-size':12,'font-weight':750,'font-family':'system-ui,sans-serif','pointer-events':'none'},group);text.textContent=m.number;}
+  }else if(['skate','curve'].includes(m.type)&&m.motion==='backward'){
+   el('path',{d:backwardPath(m),fill:'none',stroke:m.color,'stroke-width':3,'stroke-linecap':'round','stroke-linejoin':'round','marker-end':'url(#arr-'+m.color.slice(1)+')'},group);
   }else if(m.type==='curve'){
    const pts=m.points;let d='M '+pts[0].x+' '+pts[0].y;if(m.routeStyle==='planned'){for(const p of pts.slice(1))d+=' L '+p.x+' '+p.y;}else{for(let i=1;i<pts.length-1;i++)d+=' Q '+pts[i].x+' '+pts[i].y+' '+((pts[i].x+pts[i+1].x)/2)+' '+((pts[i].y+pts[i+1].y)/2);const last=pts[pts.length-1];d+=' L '+last.x+' '+last.y;}
-   el('path',{d,fill:'none',stroke:m.color,'stroke-width':4,'stroke-linecap':'round','stroke-linejoin':'round',...(m.motion==='backward'?{'stroke-dasharray':'4 6'}:{}),'marker-end':'url(#arr-'+m.color.slice(1)+')'},group);
+   el('path',{d,fill:'none',stroke:m.color,'stroke-width':4,'stroke-linecap':'round','stroke-linejoin':'round','marker-end':'url(#arr-'+m.color.slice(1)+')'},group);
   }else if(m.type==='puck')el('ellipse',{cx:m.x,cy:m.y,rx:9,ry:6,fill:'#171717',stroke:'white','stroke-width':1},group);
   else if(m.type==='tire'){el('circle',{cx:m.x,cy:m.y,r:10,fill:'none',stroke:'#20242b','stroke-width':6},group);el('circle',{cx:m.x,cy:m.y,r:13,fill:'none',stroke:'#747b85','stroke-width':1},group);}
   else if(m.type==='cone')el('polygon',{points:m.x+','+(m.y-14)+' '+(m.x-12)+','+(m.y+10)+' '+(m.x+12)+','+(m.y+10),fill:'#ef8a18',stroke:'#9a5208','stroke-width':2},group);
   else{
    const props={x1:m.x,y1:m.y,x2:m.x2,y2:m.y2,stroke:m.type==='divider'?'#e67717':m.type==='divider-yellow'?'#facc15':m.type==='divider-blue'?'#2563eb':m.color,'stroke-width':isDivider(m)?12:4,'stroke-linecap':isDivider(m)?'butt':'round'};
-   if(m.type==='pass')props['stroke-dasharray']='10 9';else if(m.motion==='backward')props['stroke-dasharray']='4 6';
+   if(m.type==='pass')props['stroke-dasharray']='10 9';
    if(!['divider','divider-yellow','divider-blue'].includes(m.type))props['marker-end']='url(#arr-'+m.color.slice(1)+')';
    if(m.type==='shot'){el('line',{...props,'stroke-width':9},group);el('line',{...props,stroke:'white','stroke-width':3,'marker-end':''},group);}
    else el('line',props,group);
