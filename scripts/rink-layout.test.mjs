@@ -4,6 +4,7 @@ import fs from 'node:fs';
 import vm from 'node:vm';
 const code=fs.readFileSync(new URL('../rink-drawer.js',import.meta.url),'utf8');
 const context={document:{addEventListener(){}},window:{},Blob};
+vm.runInNewContext(fs.readFileSync(new URL('../rink-route-planner.js',import.meta.url),'utf8'),context);
 vm.runInNewContext(code.replace(/\}\)\(\);\s*$/,'window.testLayout={tidyLayout,preservesObstacleSide,renderedRoute,routeDistance};})();'),context);
 const tidy=marks=>JSON.parse(JSON.stringify(context.window.testLayout.tidyLayout(marks)));
 const cone=(id,x,y)=>({id,type:'cone',x,y,color:'#b11226'});
