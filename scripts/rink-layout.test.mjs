@@ -20,15 +20,29 @@ test('near-horizontal unattached passes straighten while connected arrows stay f
  const anchored=tidy([pass,cone('a',100,200)]);assert.deepEqual(anchored[0],pass);
  const diagonal={...pass,y2:260};assert.deepEqual(tidy([diagonal])[0],diagonal);
 });
-test('only slightly uneven rows of matching symbols align, with endpoints kept fixed',()=>{
- const row=[cone('a',100,300),cone('b',146,303),cone('c',200,300)],r=tidy(row);assert.deepEqual(r[0],row[0]);assert.deepEqual(r[2],row[2]);assert.deepEqual([r[1].x,r[1].y],[150,300]);
- const deliberate=[cone('a',100,300),cone('b',125,303),cone('c',200,300)];assert.deepEqual(tidy(deliberate),deliberate);
- const different=[row[0],{...row[1],color:'#2563eb'},row[2]];assert.deepEqual(tidy(different),different);
+test('equipment rows receive even distances within the original span',()=>{
+ const row=[cone('a',100,300),cone('b',125,313),cone('c',220,300)],r=tidy(row);
+ assert.equal(r[0].x,100);assert.equal(r[2].x,220);assert.equal(r[1].x,160);assert.ok(r.every(m=>m.y===r[0].y));
+ const differentColors=[row[0],{...row[1],color:'#2563eb'},row[2]];assert.equal(tidy(differentColors)[1].x,160);
 });
-test('connected row symbols, goals and goalie positions are never rearranged',()=>{
- const row=[cone('a',100,300),cone('b',146,303),cone('c',200,300)],line={id:'p',type:'skate',x:146,y:303,x2:146,y2:450,color:'#b11226'},goal={id:'g',type:'goal',x:240,y:78,angle:90,color:'#b11226'},goalie={id:'q',type:'goalie',x:240,y:110,color:'#2563eb'};const r=tidy([...row,line,goal,goalie]);assert.deepEqual(r[1],row[1]);assert.deepEqual(r[3],line);assert.deepEqual(r[4],goal);assert.deepEqual(r[5],goalie);
+test('mixed cones and tires are evenly spaced in horizontal and vertical rows',()=>{
+ const mixed=[cone('a',100,300),{...cone('b',135,312),type:'tire'},cone('c',220,300)];const horizontal=tidy(mixed);assert.equal(horizontal[1].x,160);assert.ok(horizontal.every(m=>m.y===horizontal[0].y));assert.equal(horizontal[1].type,'tire');
+ const vertical=tidy(mixed.map(m=>({...m,x:m.y,y:m.x})));assert.equal(vertical[1].y,160);assert.ok(vertical.every(m=>m.x===vertical[0].x));
+});
+test('intentional non-row arrangements and equipment order remain intact',()=>{
+ const triangle=[cone('a',100,300),{...cone('b',150,370),type:'tire'},cone('c',220,300)];const r=tidy(triangle);assert.deepEqual(r.map(m=>m.id),triangle.map(m=>m.id));assert.deepEqual(r,triangle);
+});
+test('connected lines follow adjusted row symbols while goals and goalies stay fixed',()=>{
+ const row=[cone('a',100,300),cone('b',135,313),cone('c',220,300)],line={id:'p',type:'skate',x:135,y:313,x2:135,y2:450,color:'#b11226'},goal={id:'g',type:'goal',x:240,y:78,angle:90,color:'#b11226'},goalie={id:'q',type:'goalie',x:240,y:110,color:'#2563eb'};const r=tidy([...row,line,goal,goalie]);assert.equal(r[1].x,160);assert.deepEqual([r[3].x,r[3].y],[r[1].x,r[1].y]);assert.deepEqual([r[3].x2,r[3].y2],[135,450]);assert.deepEqual(r[4],goal);assert.deepEqual(r[5],goalie);
 });
 test('overlapping generated captions move without changing the exercise symbols',()=>{
  const path={id:'p',type:'skate',x:100,y:200,x2:300,y2:200,color:'#b11226',motion:'backward'},player={id:'a',type:'player',x:200,y:180,color:'#b11226',number:'7'},r=tidy([path,player]);assert.ok(r[0].labelOffset);assert.deepEqual(r[1],player);assert.equal(r[0].x,100);assert.equal(r[0].x2,300);
 });
 test('empty and tidy drawings remain unchanged',()=>{assert.deepEqual(tidy([]),[]);const a=[cone('a',100,200),cone('b',150,200),cone('c',200,200)];assert.deepEqual(tidy(a),a);});
+
+test('faster sparse hand-drawn jitter is visibly straightened rather than skipped',()=>{
+ const path={id:'p',type:'curve',x:80,y:400,color:'#15803d',points:[{x:80,y:400},{x:125,y:410},{x:170,y:392},{x:215,y:409},{x:270,y:400}]};const r=tidy([path])[0];assert.equal(r.points.length,2);assert.deepEqual(r.points[0],path.points[0]);assert.deepEqual(r.points.at(-1),path.points.at(-1));
+});
+test('both ends of a curved route follow their adjusted equipment anchors',()=>{
+ const row=[cone('a',100,300),{...cone('b',135,312),type:'tire'},cone('c',220,300)],path={id:'p',type:'curve',x:135,y:312,color:'#15803d',points:[{x:135,y:312},{x:170,y:390},{x:220,y:300}]};const r=tidy([...row,path]),route=r[3];assert.deepEqual(route.points[0],{x:r[1].x,y:r[1].y});assert.deepEqual(route.points.at(-1),{x:r[2].x,y:r[2].y});
+});
