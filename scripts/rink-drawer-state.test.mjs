@@ -128,3 +128,12 @@ test('backwards skating and movement labels survive loading, copying and draft r
  f.choose('move');f.pointer('pointerdown',240,490);f.pointer('pointerup',240,490);f.node('rinkDuplicate').onclick();f.flush();
  assert.equal(f.draft().marks[1].motion,'backward');assert.equal(f.draft().marks[1].movementLabel,'Stopp');
 });
+
+test('tidying is a single undoable action and persists as a draft',()=>{
+ const original=[{id:'j',type:'curve',x:100,y:100,color:'#b11226',points:[{x:100,y:100},{x:120,y:102},{x:140,y:99},{x:160,y:101},{x:180,y:100}],motion:'backward'}];
+ const f=editor({[DRAFT]:JSON.stringify({title:'Städa',marks:original})});f.node('rinkTidy').onclick();f.flush();
+ assert.equal(f.draft().marks[0].points.length,2);assert.equal(f.draft().marks[0].motion,'backward');
+ f.node('rinkUndo').onclick();f.flush();assert.deepEqual(f.draft().marks,original);
+ f.node('rinkRedo').onclick();f.flush();assert.equal(f.draft().marks[0].points.length,2);
+ const restored=editor(Object.fromEntries(f.storage));restored.leave();assert.equal(restored.draft().marks[0].points.length,2);
+});
