@@ -8,6 +8,10 @@ vm.runInNewContext(fs.readFileSync(new URL('../rink-route-planner.js',import.met
 vm.runInNewContext(code.replace(/\}\)\(\);\s*$/,'window.testLayout={tidyLayout,preservesObstacleSide,renderedRoute,routeDistance};})();'),context);
 const tidy=marks=>JSON.parse(JSON.stringify(context.window.testLayout.tidyLayout(marks)));
 const cone=(id,x,y)=>({id,type:'cone',x,y,color:'#b11226'});
+test('passing points attached to a drawn route remain fixed during interpretation',()=>{
+ const pass={id:'pass',type:'pass',x:100,y:480,x2:40,y2:482,color:'#2563eb'},points=[{x:80,y:600},{x:100,y:480},{x:150,y:300}],route={id:'r',type:'curve',...points[0],points,color:'#15803d'},result=tidy([route,pass]);
+ assert.deepEqual(result[1],pass);assert.ok(result[0].points.some(p=>p.x===100&&p.y===480));
+});
 test('straight freehand jitter is removed without changing endpoints, arrows or metadata',()=>{
  const path={id:'p',type:'curve',x:100,y:200,x2:200,y2:200,color:'#2563eb',motion:'backward',movementLabel:'Stopp',points:[{x:100,y:200},{x:125,y:202},{x:150,y:198},{x:175,y:201},{x:200,y:200}]};const original=structuredClone(path),r=tidy([path])[0];
  assert.deepEqual(r.points,[{x:100,y:200},{x:200,y:200}]);assert.equal(r.motion,'backward');assert.equal(r.movementLabel,'Stopp');assert.equal(r.x2,200);assert.deepEqual(path,original);

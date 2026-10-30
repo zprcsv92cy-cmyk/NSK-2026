@@ -99,7 +99,8 @@
    if(m.type==='curve'&&m.points?.length>2){const planned=routePlans.get(m.id);if(planned)Object.assign(m,planned);else if(m.routeStyle!=='planned')m.points=smoothRoute(m.points);}
    if(['skate','pass','shot'].includes(m.type)&&Number.isFinite(m.x2)){
     const a={x:m.x,y:m.y},b={x:m.x2,y:m.y2},nearSymbol=p=>symbols.some(s=>Math.hypot(s.x-p.x,s.y-p.y)<30);
-    if(!nearSymbol(a)&&!nearSymbol(b)){
+    const attachedPass=m.type==='pass'&&input.some(r=>r.type==='curve'&&[a,b].some(p=>routeDistance(renderedRoute(r),p)<=16));
+    if(!attachedPass&&!nearSymbol(a)&&!nearSymbol(b)){
      if(Math.abs(m.y2-m.y)<=18&&Math.abs(m.x2-m.x)>50)m.y=m.y2=(m.y+m.y2)/2;
      else if(Math.abs(m.x2-m.x)<=18&&Math.abs(m.y2-m.y)>50)m.x=m.x2=(m.x+m.x2)/2;
     }
