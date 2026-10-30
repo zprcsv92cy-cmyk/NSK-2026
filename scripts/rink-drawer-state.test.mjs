@@ -84,12 +84,12 @@ test('the NSK template is embedded below editable marks without changing their c
 test('yellow and blue rink dividers retain their endpoints and color type through copy, undo and reload',()=>{
  for(const tool of ['divider-yellow','divider-blue']){
   const f=editor();f.choose(tool);f.pointer('pointerdown',80,180);f.pointer('pointermove',320,180);f.pointer('pointerup',320,180);f.flush();
-  assert.equal(f.draft().marks[0].type,tool);assert.equal(f.draft().marks[0].x2,320);
+  assert.equal(f.draft().marks[0].type,tool);assert.ok(Math.abs(f.draft().marks[0].x2-(80+440/30*2.5))<1e-9);
   const shape=f.node('rinkSvg').children.find(n=>n.attrs['data-mark']===f.draft().marks[0].id).children[0];assert.equal(shape.attrs.stroke,tool==='divider-yellow'?'#facc15':'#2563eb');assert.equal(shape.attrs['marker-end'],undefined);
   f.node('rinkDuplicate').onclick();f.flush();assert.equal(f.draft().marks.length,2);
   f.node('rinkUndo').onclick();f.flush();assert.equal(f.draft().marks.length,1);
-  const restored=editor(Object.fromEntries(f.storage));restored.choose('move');restored.pointer('pointerdown',150,180);assert.equal(restored.node('rinkSelectedLabel').textContent,tool==='divider-yellow'?'Gul rinkavdelare markerad':'Blå rinkavdelare markerad');
-  restored.pointer('pointermove',160,200);restored.pointer('pointerup',160,200);restored.flush();assert.equal(restored.draft().marks[0].x2,330);
+  const restored=editor(Object.fromEntries(f.storage));restored.choose('move');restored.pointer('pointerdown',100,180);assert.equal(restored.node('rinkSelectedLabel').textContent,tool==='divider-yellow'?'Gul rinkavdelare markerad':'Blå rinkavdelare markerad');
+  restored.pointer('pointermove',110,200);restored.pointer('pointerup',110,200);restored.flush();assert.ok(Math.abs(restored.draft().marks[0].x2-(90+440/30*2.5))<1e-9);
  }
 });
 test('small tires stay hollow, editable and recoverable like other symbols',()=>{
@@ -130,10 +130,28 @@ test('backwards skating and movement labels survive loading, copying and draft r
 });
 
 test('tidying is a single undoable action and persists as a draft',()=>{
- const original=[{id:'j',type:'curve',x:100,y:100,color:'#b11226',points:[{x:100,y:100},{x:120,y:102},{x:140,y:99},{x:160,y:101},{x:180,y:100}],motion:'backward'}];
+ const original=[{id:'j',type:'curve',x:100,y:100,color:'#7c3aed',points:[{x:100,y:100},{x:120,y:102},{x:140,y:99},{x:160,y:101},{x:180,y:100}],motion:'backward'}];
  const f=editor({[DRAFT]:JSON.stringify({title:'Städa',marks:original})});f.node('rinkTidy').onclick();f.flush();
  assert.equal(f.draft().marks[0].points.length,2);assert.equal(f.draft().marks[0].motion,'backward');
  f.node('rinkUndo').onclick();f.flush();assert.deepEqual(f.draft().marks,original);
  f.node('rinkRedo').onclick();f.flush();assert.equal(f.draft().marks[0].points.length,2);
  const restored=editor(Object.fromEntries(f.storage));restored.leave();assert.equal(restored.draft().marks[0].points.length,2);
+});
+
+test('2.5 metre divider length holds for every orientation and near the rink edges',()=>{
+ const length=m=>Math.hypot((m.x2-m.x)/(440/30),(m.y2-m.y)/(830/60));
+ for(const [start,end] of [[[240,430],[420,430]],[[240,430],[240,720]],[[240,430],[400,650]],[[450,830],[458,838]],[[30,30],[22,20]]]){
+  const f=editor();f.choose('divider-yellow');f.pointer('pointerdown',...start);f.pointer('pointermove',...end);f.pointer('pointerup',...end);f.flush();const m=f.draft().marks[0];assert.ok(Math.abs(length(m)-2.5)<1e-9);assert.ok([m.x,m.x2].every(x=>x>=22&&x<=458));assert.ok([m.y,m.y2].every(y=>y>=20&&y<=840));
+  f.node('rinkDuplicate').onclick();f.flush();assert.ok(Math.abs(length(f.draft().marks[1])-2.5)<1e-9);
+ }
+});
+test('old divider lengths normalize around their midpoint on reload',()=>{
+ const f=editor({[DRAFT]:JSON.stringify({marks:[{id:'d',type:'divider-blue',x:80,y:200,x2:400,y2:200,color:'#2563eb'}]})});f.node('rinkTitle').emit('input');f.flush();const m=f.draft().marks[0];assert.ok(Math.abs((m.x+m.x2)/2-240)<1e-9);assert.ok(Math.abs((m.x2-m.x)/(440/30)-2.5)<1e-9);
+});
+test('skating direction controls green forward and purple backward with undo and recovery',()=>{
+ const f=editor();f.choose('skate');f.pointer('pointerdown',200,300);f.pointer('pointermove',200,500);f.pointer('pointerup',200,500);f.flush();assert.equal(f.draft().marks[0].color,'#15803d');assert.equal(f.draft().marks[0].motion,'forward');
+ f.node('rinkSelectedDirection').value='backward';f.node('rinkSelectedDirection').onchange();f.flush();assert.equal(f.draft().marks[0].color,'#7c3aed');assert.equal(f.draft().marks[0].motion,'backward');
+ f.node('rinkUndo').onclick();f.flush();assert.equal(f.draft().marks[0].motion,'forward');f.node('rinkRedo').onclick();f.flush();
+ const restored=editor(Object.fromEntries(f.storage));restored.leave();assert.equal(restored.draft().marks[0].color,'#7c3aed');
+ f.node('rinkSkatingDirection').value='backward';f.choose('curve');f.pointer('pointerdown',100,100);f.pointer('pointermove',120,120);f.pointer('pointerup',150,160);f.flush();assert.equal(f.draft().marks[1].motion,'backward');assert.equal(f.draft().marks[1].color,'#7c3aed');
 });
