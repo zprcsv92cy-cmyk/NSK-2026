@@ -204,7 +204,7 @@
   const width=Math.round(window.visualViewport?.width||window.innerWidth||W),height=Math.round(window.visualViewport?.height||window.innerHeight||H);
   style.setProperty('--rink-full-width',width+'px');style.setProperty('--rink-full-height',height+'px');
  }
- function fullscreenTools(on){document.body.classList.toggle('rink-fullscreen-tools',on);$('rinkFullTools').setAttribute('aria-expanded',String(on));$('rinkFullTools').textContent=on?'Dölj verktyg':'Verktyg';if(!on)closeMenus();}
+ function fullscreenTools(on){document.body.classList.toggle('rink-fullscreen-tools',on);$('rinkFullTools').setAttribute('aria-expanded',String(on));$('rinkFullTools').textContent=on?'Dölj verktyg':'Verktyg';if(!on)setTool('move');}
  function setRinkFullscreen(on){
   if(on===fullscreenOn)return;closeMenus();fullscreenOn=on;document.body.classList.toggle('rink-fullscreen',on);fullscreenTools(false);$('rinkFullControls').hidden=!on;$('rinkFullscreen').textContent=on?'Avsluta helskärm':'Helskärm';
   if(on){fullscreenView={zoom,viewX,viewY};zoom=1;viewX=0;viewY=0;syncFullscreenViewport();}
