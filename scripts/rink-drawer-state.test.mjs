@@ -2,6 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import vm from 'node:vm';
+const plannerCode=fs.readFileSync(new URL('../rink-route-planner.js',import.meta.url),'utf8');
 const code=fs.readFileSync(new URL('../rink-drawer.js',import.meta.url),'utf8');
 const DRAFT='nsk_rink_draft_v2',SAVED='nsk_rink_drawing_v1';
 function editor(stored={},movableGoals=false){
@@ -26,7 +27,7 @@ function editor(stored={},movableGoals=false){
  const bodyClasses=new Set(),rootStyles=new Map();
  const document={documentElement:{style:{setProperty:(k,v)=>rootStyles.set(k,v),getPropertyValue:k=>rootStyles.get(k)||''}},activeElement:null,hidden:false,getElementById:node,createElementNS:(_ns,tag)=>new Node(tag),querySelectorAll:selector=>selector==='[data-tool]'?tools:[],addEventListener:(type,fn)=>{documentEvents[type]=fn;},body:{classList:{toggle:(name,on)=>{const enabled=on===undefined?!bodyClasses.has(name):on;if(enabled)bodyClasses.add(name);else bodyClasses.delete(name);return enabled;},contains:name=>bodyClasses.has(name)}}};
  const context={confirm:()=>true,document,window:{innerWidth:1200,innerHeight:700,requestAnimationFrame:fn=>fn(),addEventListener:(type,fn)=>windowEvents[type]=fn},crypto:{randomUUID:()=>String(++nextId)},localStorage:{getItem:key=>storage.get(key)??null,setItem:(key,value)=>{if(quota)throw Error('Quota exceeded');storage.set(key,value);}},setTimeout:fn=>{const id=++nextId;timers.set(id,fn);return id;},clearTimeout:id=>timers.delete(id),Blob};
- vm.runInNewContext(code,context);documentEvents.DOMContentLoaded();
+ vm.runInNewContext(plannerCode,context);vm.runInNewContext(code,context);documentEvents.DOMContentLoaded();
  const flush=()=>{for(const [id,fn] of [...timers]){timers.delete(id);fn();}};
  const pointer=(type,x,y)=>node('rinkSvg').emit(type,{clientX:x,clientY:y,pointerId:1,isPrimary:true,pointerType:'touch',button:0});
  const choose=tool=>tools.find(t=>t.dataset.tool===tool).onclick();
@@ -202,4 +203,11 @@ test('exercise metadata is opened explicitly and remains reachable from fullscre
 test('backward routes retain their color and line pattern without repeated direction captions',()=>{
  const f=editor({[DRAFT]:JSON.stringify({marks:[{id:'b',type:'skate',x:100,y:200,x2:200,y2:300,color:'#7c3aed',motion:'backward'}]})});
  const group=f.node('rinkSvg').children.find(n=>n.attrs['data-mark']==='b');assert.equal(group.children[0].attrs.stroke,'#7c3aed');assert.equal(group.children[0].attrs['stroke-dasharray'],'4 6');assert.equal(group.children.filter(n=>n.tagName==='text').length,0);
+});
+
+test('interpreted pass-and-round route keeps exact geometry through undo and recovery',()=>{
+ const tire={id:'t',type:'tire',x:240,y:300,color:'#111827'},arc=Array.from({length:21},(_,i)=>{const a=Math.PI+i/20*Math.PI,r=50+Math.sin(i*1.7)*4;return {x:240+r*Math.cos(a),y:300+r*Math.sin(a)};}),points=[{x:80,y:600},{x:90,y:540},{x:100,y:480},{x:160,y:380},...arc,{x:320,y:380},{x:350,y:450},{x:380,y:500}],marks=[{id:'r',type:'curve',x:80,y:600,points,color:'#15803d',motion:'forward'},tire,{id:'pass',type:'pass',x:100,y:480,x2:40,y2:480,color:'#2563eb'}],f=editor({[DRAFT]:JSON.stringify({marks})});
+ f.node('rinkTitle').emit('input');f.flush();const before=f.draft().marks;f.node('rinkTidy').onclick();f.flush();const route=f.draft().marks[0];assert.equal(route.routeStyle,'planned');assert.ok(route.points.some(p=>p.x===100&&p.y===480));
+ const path=f.node('rinkSvg').children.find(n=>n.attrs['data-mark']==='r').children[0];assert.doesNotMatch(path.attrs.d,/ Q /);f.node('rinkUndo').onclick();f.flush();assert.deepEqual(f.draft().marks,before);f.node('rinkRedo').onclick();f.flush();
+ const restored=editor(Object.fromEntries(f.storage));restored.node('rinkTitle').emit('input');restored.flush();assert.equal(restored.draft().marks[0].routeStyle,'planned');assert.deepEqual(restored.draft().marks[0].points,route.points);
 });

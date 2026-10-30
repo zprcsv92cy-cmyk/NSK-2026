@@ -49,6 +49,7 @@
  // Compare the geometry that SVG actually draws, including its quadratic corners.
  function renderedRoute(m){
   if(m.type!=='curve')return geometry(m).map(p=>({...p}));
+  if(m.routeStyle==='planned')return m.points.map(p=>({...p}));
   const pts=m.points,out=[{...pts[0]}];let start=pts[0];
   for(let i=1;i<pts.length-1;i++){
    const control=pts[i],end={x:(control.x+pts[i+1].x)/2,y:(control.y+pts[i+1].y)/2},steps=Math.max(4,Math.min(64,Math.ceil((Math.hypot(control.x-start.x,control.y-start.y)+Math.hypot(end.x-control.x,end.y-control.y))/3)));
@@ -93,11 +94,13 @@
  function tidyLayout(input){
   const result=JSON.parse(JSON.stringify(input));
   const symbols=input.filter(m=>['player','goalie','puck','cone','tire','goal'].includes(m.type));
+  const routePlans=window.NskRoutePlanner?.plan(input).plans||new Map();
   for(const m of result){
-   if(m.type==='curve'&&m.points?.length>2)m.points=smoothRoute(m.points);
+   if(m.type==='curve'&&m.points?.length>2){const planned=routePlans.get(m.id);if(planned)Object.assign(m,planned);else if(m.routeStyle!=='planned')m.points=smoothRoute(m.points);}
    if(['skate','pass','shot'].includes(m.type)&&Number.isFinite(m.x2)){
     const a={x:m.x,y:m.y},b={x:m.x2,y:m.y2},nearSymbol=p=>symbols.some(s=>Math.hypot(s.x-p.x,s.y-p.y)<30);
-    if(!nearSymbol(a)&&!nearSymbol(b)){
+    const attachedPass=m.type==='pass'&&input.some(r=>r.type==='curve'&&[a,b].some(p=>routeDistance(renderedRoute(r),p)<=16));
+    if(!attachedPass&&!nearSymbol(a)&&!nearSymbol(b)){
      if(Math.abs(m.y2-m.y)<=18&&Math.abs(m.x2-m.x)>50)m.y=m.y2=(m.y+m.y2)/2;
      else if(Math.abs(m.x2-m.x)<=18&&Math.abs(m.y2-m.y)>50)m.x=m.x2=(m.x+m.x2)/2;
     }
@@ -268,7 +271,7 @@
    if(m.type==='goalie'&&!m.number)el('circle',{cx:m.x,cy:m.y,r:7,fill:'white'},group);
    if(m.number){const text=el('text',{x:m.x,y:m.y+4,'text-anchor':'middle',fill:'white','font-size':12,'font-weight':750,'font-family':'system-ui,sans-serif','pointer-events':'none'},group);text.textContent=m.number;}
   }else if(m.type==='curve'){
-   const pts=m.points;let d='M '+pts[0].x+' '+pts[0].y;for(let i=1;i<pts.length-1;i++)d+=' Q '+pts[i].x+' '+pts[i].y+' '+((pts[i].x+pts[i+1].x)/2)+' '+((pts[i].y+pts[i+1].y)/2);const last=pts[pts.length-1];d+=' L '+last.x+' '+last.y;
+   const pts=m.points;let d='M '+pts[0].x+' '+pts[0].y;if(m.routeStyle==='planned'){for(const p of pts.slice(1))d+=' L '+p.x+' '+p.y;}else{for(let i=1;i<pts.length-1;i++)d+=' Q '+pts[i].x+' '+pts[i].y+' '+((pts[i].x+pts[i+1].x)/2)+' '+((pts[i].y+pts[i+1].y)/2);const last=pts[pts.length-1];d+=' L '+last.x+' '+last.y;}
    el('path',{d,fill:'none',stroke:m.color,'stroke-width':4,'stroke-linecap':'round','stroke-linejoin':'round',...(m.motion==='backward'?{'stroke-dasharray':'4 6'}:{}),'marker-end':'url(#arr-'+m.color.slice(1)+')'},group);
   }else if(m.type==='puck')el('ellipse',{cx:m.x,cy:m.y,rx:9,ry:6,fill:'#171717',stroke:'white','stroke-width':1},group);
   else if(m.type==='tire'){el('circle',{cx:m.x,cy:m.y,r:10,fill:'none',stroke:'#20242b','stroke-width':6},group);el('circle',{cx:m.x,cy:m.y,r:13,fill:'none',stroke:'#747b85','stroke-width':1},group);}
@@ -363,6 +366,7 @@
  function safeMarks(input){
   const ids=new Set();return input.filter(m=>m&&types.includes(m.type)&&[m.x,m.y].every(Number.isFinite)&&palette.includes(m.color)&&(m.type!=='curve'||(Array.isArray(m.points)&&m.points.length>=2&&m.points.length<=500&&m.points.every(p=>p&&Number.isFinite(p.x)&&Number.isFinite(p.y))))&&(m.x2===undefined?!['skate','pass','shot','divider','divider-yellow','divider-blue'].includes(m.type):[m.x2,m.y2].every(Number.isFinite))).slice(0,250).map(m=>{
    const n={id:typeof m.id==='string'&&!ids.has(m.id)?m.id:uuid(),type:m.type,x:clamp(m.x,22,W-22),y:clamp(m.y,20,H-20),color:m.color};ids.add(n.id);
+   if(m.type==='curve'&&m.routeStyle==='planned')n.routeStyle='planned';
    if(m.type==='curve'){n.points=m.points.map(p=>({x:clamp(p.x,22,W-22),y:clamp(p.y,20,H-20)}));n.x=n.points[0].x;n.y=n.points[0].y;}
    if(m.x2!==undefined){n.x2=clamp(m.x2,22,W-22);n.y2=clamp(m.y2,20,H-20);}
    if(m.labelOffset&&Number.isFinite(m.labelOffset.x)&&Number.isFinite(m.labelOffset.y)&&Math.abs(m.labelOffset.x)<=60&&Math.abs(m.labelOffset.y)<=60)n.labelOffset={x:m.labelOffset.x,y:m.labelOffset.y};
