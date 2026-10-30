@@ -67,6 +67,7 @@
    if(marks.length>=150)return null;
    const m={type,x:clamp(p.x,22,458),y:clamp(p.y,22,838),color,...extra};
    if(end){m.x2=clamp(end.x,22,458);m.y2=clamp(end.y,22,838);}
+   if(['skate','curve'].includes(type)){m.motion=m.motion==='backward'?'backward':'forward';m.color=m.motion==='backward'?'#7c3aed':'#15803d';}
    if(m.points)m.points=m.points.map(p=>point(clamp(p.x,22,458),clamp(p.y,22,838)));
    marks.push(m);return m;
   };
