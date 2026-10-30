@@ -130,6 +130,20 @@
   m.x+=sx;m.x2+=sx;m.y+=sy;m.y2+=sy;
   return m;
  }
+ let fullscreenOn=false,fullscreenView=null;
+ function syncFullscreenViewport(){
+  if(!fullscreenOn)return;const style=document.documentElement?.style;if(!style)return;
+  const width=Math.round(window.visualViewport?.width||window.innerWidth||W),height=Math.round(window.visualViewport?.height||window.innerHeight||H);
+  style.setProperty('--rink-full-width',width+'px');style.setProperty('--rink-full-height',height+'px');
+ }
+ function fullscreenTools(on){document.body.classList.toggle('rink-fullscreen-tools',on);$('rinkFullTools').setAttribute('aria-expanded',String(on));$('rinkFullTools').textContent=on?'Dölj verktyg':'Verktyg';if(!on)closeMenus();}
+ function setRinkFullscreen(on){
+  if(on===fullscreenOn)return;closeMenus();fullscreenOn=on;document.body.classList.toggle('rink-fullscreen',on);fullscreenTools(false);$('rinkFullControls').hidden=!on;$('rinkFullscreen').textContent=on?'Avsluta helskärm':'Helskärm';
+  if(on){fullscreenView={zoom,viewX,viewY};zoom=1;viewX=0;viewY=0;syncFullscreenViewport();}
+  else if(fullscreenView){({zoom,viewX,viewY}=fullscreenView);fullscreenView=null;}
+  viewport();window.NSKShellHost?.fullscreen?.(window,on);
+  if(on)window.requestAnimationFrame?.(syncFullscreenViewport);
+ }
  function viewport(){$('rinkSvg').setAttribute('viewBox',[viewX,viewY,W/zoom,H/zoom].join(' '));$('rinkZoomLabel').textContent=Math.round(zoom*100)+'%';$('rinkZoomOut').disabled=zoom===1;$('rinkZoomIn').disabled=zoom===3;}
  function changeZoom(next){const cx=viewX+W/zoom/2,cy=viewY+H/zoom/2;zoom=clamp(next,1,3);viewX=clamp(cx-W/zoom/2,0,W-W/zoom);viewY=clamp(cy-H/zoom/2,0,H-H/zoom);viewport();}
  const el=(tag,props={},parent)=>{const n=document.createElementNS(NS,tag);for(const [k,v] of Object.entries(props))n.setAttribute(k,v);if(parent)parent.append(n);return n;};
@@ -384,7 +398,9 @@
   $('rinkLoad').onclick=()=>{const saved=readStored(SAVED);if(!saved){announce('Ingen sparad övning finns på denna enhet.');return;}if(marks.length&&JSON.stringify(record())!==JSON.stringify(saved)&&!confirm('Ersätt utkastet med senaste sparade övningen?'))return;applyRecord(saved);saveDraft();closeMenus();announce('Senaste sparade övningen öppnad.');};
   $('rinkExport').onclick=exportImage;$('rinkFromText').onclick=drawFromText;
   $('rinkTextExample').onclick=()=>{$('rinkDescription').value='En spelare i mittcirkeln. Åk framåt. Sväng vänster. Åk bakåt. En kon vid höger tekningspunkt i anfallszon. En målvakt i varje mål. Passning från övre vänstra hörnet till slottet i anfallszon.';saveDraft();};
-  $('rinkFullscreen').onclick=()=>{closeMenus();const on=document.body.classList.toggle('rink-fullscreen');$('rinkFullscreen').textContent=on?'Avsluta helskärm':'Helskärm';};
+  $('rinkFullscreen').onclick=()=>setRinkFullscreen(!fullscreenOn);$('rinkFullExit').onclick=()=>setRinkFullscreen(false);$('rinkFullTools').onclick=()=>fullscreenTools($('rinkFullTools').getAttribute('aria-expanded')!=='true');
+  for(const event of ['resize','orientationchange'])window.addEventListener(event,syncFullscreenViewport);window.visualViewport?.addEventListener('resize',syncFullscreenViewport);
+  window.addEventListener('keydown',event=>{if(event.key==='Escape'&&fullscreenOn){setRinkFullscreen(false);$('rinkFullscreen').focus();}});
   const saveOnLeave=()=>{if(drag?.changed)draftDirty=true;flushDraft();};window.addEventListener('pagehide',saveOnLeave);window.addEventListener('nsk:page-hide',saveOnLeave);document.addEventListener('visibilitychange',()=>{if(document.hidden)saveOnLeave();});
   restore();
  });

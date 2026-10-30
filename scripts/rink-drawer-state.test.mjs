@@ -9,6 +9,7 @@ function editor(stored={},movableGoals=false){
  class Node{
   constructor(tag='div'){this.tagName=tag;this.children=[];this.attrs={};this.events={};this.value='';this.dataset={};this.hidden=false;this.open=false;this.options=[];this.textContent='';}
   setAttribute(k,v){this.attrs[k]=v;}
+  getAttribute(k){return this.attrs[k]??null;}
   append(n){this.children.push(n);}
   replaceChildren(){this.children=[];}
   addEventListener(type,fn){(this.events[type]??=[]).push(fn);}
@@ -22,13 +23,14 @@ function editor(stored={},movableGoals=false){
  const tools=['move','goal','player','goalie','puck','cone','skate','pass','shot','divider','divider-yellow','divider-blue','tire','erase','curve','pan'].map(tool=>{const n=new Node('button');n.dataset.tool=tool;return n;});
  if(movableGoals)node('rinkSvg').dataset.goalTemplate='movable';
  node('rinkColor').value='#b11226';node('rinkCategory').value='Passningar';node('rinkCategory').options=[{value:'Passningar'},{value:'Skott'}];
- const document={activeElement:null,hidden:false,getElementById:node,createElementNS:(_ns,tag)=>new Node(tag),querySelectorAll:selector=>selector==='[data-tool]'?tools:[],addEventListener:(type,fn)=>{documentEvents[type]=fn;},body:{classList:{toggle:()=>true}}};
- const context={confirm:()=>true,document,window:{addEventListener:(type,fn)=>windowEvents[type]=fn},crypto:{randomUUID:()=>String(++nextId)},localStorage:{getItem:key=>storage.get(key)??null,setItem:(key,value)=>{if(quota)throw Error('Quota exceeded');storage.set(key,value);}},setTimeout:fn=>{const id=++nextId;timers.set(id,fn);return id;},clearTimeout:id=>timers.delete(id),Blob};
+ const bodyClasses=new Set(),rootStyles=new Map();
+ const document={documentElement:{style:{setProperty:(k,v)=>rootStyles.set(k,v),getPropertyValue:k=>rootStyles.get(k)||''}},activeElement:null,hidden:false,getElementById:node,createElementNS:(_ns,tag)=>new Node(tag),querySelectorAll:selector=>selector==='[data-tool]'?tools:[],addEventListener:(type,fn)=>{documentEvents[type]=fn;},body:{classList:{toggle:(name,on)=>{const enabled=on===undefined?!bodyClasses.has(name):on;if(enabled)bodyClasses.add(name);else bodyClasses.delete(name);return enabled;},contains:name=>bodyClasses.has(name)}}};
+ const context={confirm:()=>true,document,window:{innerWidth:1200,innerHeight:700,requestAnimationFrame:fn=>fn(),addEventListener:(type,fn)=>windowEvents[type]=fn},crypto:{randomUUID:()=>String(++nextId)},localStorage:{getItem:key=>storage.get(key)??null,setItem:(key,value)=>{if(quota)throw Error('Quota exceeded');storage.set(key,value);}},setTimeout:fn=>{const id=++nextId;timers.set(id,fn);return id;},clearTimeout:id=>timers.delete(id),Blob};
  vm.runInNewContext(code,context);documentEvents.DOMContentLoaded();
  const flush=()=>{for(const [id,fn] of [...timers]){timers.delete(id);fn();}};
  const pointer=(type,x,y)=>node('rinkSvg').emit(type,{clientX:x,clientY:y,pointerId:1,isPrimary:true,pointerType:'touch',button:0});
  const choose=tool=>tools.find(t=>t.dataset.tool===tool).onclick();
- return {node,choose,pointer,flush,storage,context,draft:()=>JSON.parse(storage.get(DRAFT)),quota:()=>{quota=true;},leave:()=>windowEvents.pagehide()};
+ return {node,choose,pointer,flush,storage,context,windowEvent:(name,event={})=>windowEvents[name]?.(event),draft:()=>JSON.parse(storage.get(DRAFT)),quota:()=>{quota=true;},leave:()=>windowEvents.pagehide()};
 }
 test('rink drafts preserve symbol changes, numbers, duplication and undo/redo without replacing manual saves',()=>{
  const f=editor({[SAVED]:JSON.stringify({title:'Arkiv',category:'Passningar',description:'',marks:[]})});
@@ -183,4 +185,13 @@ test('twelve standard dividers exactly span the thirty metre rink width',()=>{
  assert.ok(Math.abs(ds[0].x-22)<1e-8);assert.ok(Math.abs(ds.at(-1).x2-458)<1e-8);
  for(let i=1;i<ds.length;i++)assert.ok(Math.abs(ds[i-1].x2-ds[i].x)<1e-8);
  assert.ok(Math.abs(ds.reduce((n,m)=>n+Math.hypot((m.x2-m.x)/(436/30),(m.y2-m.y)/(820/60)),0)-30)<1e-8);
+});
+
+test('fullscreen fits the screen, hides controls initially, and restores zoom without editing marks',()=>{
+ const f=editor();f.choose('player');f.pointer('pointerdown',100,200);f.pointer('pointerup',100,200);f.flush();const before=f.storage.get(DRAFT),hostCalls=[];f.context.window.NSKShellHost={fullscreen:(_source,on)=>hostCalls.push(on)};
+ f.node('rinkZoomIn').onclick();assert.equal(f.node('rinkZoomLabel').textContent,'150%');f.node('rinkFullscreen').onclick();assert.equal(f.context.document.body.classList.contains('rink-fullscreen'),true);assert.equal(f.node('rinkZoomLabel').textContent,'100%');assert.equal(f.node('rinkFullControls').hidden,false);assert.equal(f.node('rinkFullTools').getAttribute('aria-expanded'),'false');
+ assert.equal(f.context.document.documentElement.style.getPropertyValue('--rink-full-width'),'1200px');assert.equal(f.context.document.documentElement.style.getPropertyValue('--rink-full-height'),'700px');
+ f.node('rinkFullTools').onclick();assert.equal(f.context.document.body.classList.contains('rink-fullscreen-tools'),true);f.node('rinkFullTools').onclick();assert.equal(f.context.document.body.classList.contains('rink-fullscreen-tools'),false);
+ f.context.window.innerWidth=390;f.context.window.innerHeight=844;f.windowEvent('resize');assert.equal(f.context.document.documentElement.style.getPropertyValue('--rink-full-width'),'390px');assert.equal(f.context.document.documentElement.style.getPropertyValue('--rink-full-height'),'844px');
+ f.windowEvent('keydown',{key:'Escape'});assert.equal(f.context.document.body.classList.contains('rink-fullscreen'),false);assert.equal(f.node('rinkZoomLabel').textContent,'150%');assert.equal(f.node('rinkFullControls').hidden,true);assert.deepEqual(hostCalls,[true,false]);assert.equal(f.storage.get(DRAFT),before);
 });
