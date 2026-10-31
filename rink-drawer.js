@@ -119,7 +119,7 @@
     // A direction boundary pins the endpoints, not every sampled point between them.
     // Keep split routes as polylines so smoothing cannot shift the actual turn point.
     const protectedShape=window.NskRoutePlanner?.hasRouteFeatures?.(m.directionBoundary?{...m,directionBoundary:false}:m);
-    if(m.directionBoundary&&protectedShape)m.points=smoothBoundarySections(m);
+    if(protectedShape)m.points=smoothBoundarySections(m);
     else if(!protectedShape){const planned=routePlans.get(m.id);if(planned)Object.assign(m,planned);else if(m.routeStyle!=='planned'||m.directionBoundary)m.points=smoothRoute(m.points);}
    }
    if(['skate','pass','shot'].includes(m.type)&&Number.isFinite(m.x2)){

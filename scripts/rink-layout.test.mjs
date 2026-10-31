@@ -22,7 +22,7 @@ test('a direction boundary still protects an intentional return and crossing',()
 });
 test('jitter is removed on both sides of a pinned return after a direction change',()=>{
  const points=[{x:80,y:400},{x:120,y:405},{x:160,y:395},{x:200,y:400},{x:160,y:420},{x:120,y:414},{x:80,y:420}],route={id:'return',type:'curve',routeStyle:'planned',directionBoundary:true,motion:'backward',color:'#7c3aed',...points[0],points};
- const result=tidy([route])[0];assert.ok(result.points.length<points.length);assert.deepEqual(result.points[0],points[0]);assert.deepEqual(result.points.at(-1),points.at(-1));assert.ok(result.points.some(p=>p.x===200&&p.y===400));assert.equal(result.motion,'backward');
+ for(const directionBoundary of [true,false]){const result=tidy([{...route,directionBoundary}])[0];assert.ok(result.points.length<points.length);assert.deepEqual(result.points[0],points[0]);assert.deepEqual(result.points.at(-1),points.at(-1));assert.ok(result.points.some(p=>p.x===200&&p.y===400));assert.equal(result.motion,'backward');}
 });
 test('passing points attached to a drawn route remain fixed during interpretation',()=>{
  const pass={id:'pass',type:'pass',x:100,y:480,x2:40,y2:482,color:'#2563eb'},points=[{x:80,y:600},{x:100,y:480},{x:150,y:300}],route={id:'r',type:'curve',...points[0],points,color:'#15803d'},result=tidy([route,pass]);
