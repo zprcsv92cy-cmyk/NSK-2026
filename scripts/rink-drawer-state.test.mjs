@@ -39,6 +39,41 @@ function viewTransform(f,rotated=false){
  svg.createSVGPoint=()=>({x:0,y:0,matrixTransform(m){return m.rotated?{x:m.x+this.y/m.scale,y:m.y+(860-this.x)/m.scale}:{x:m.x+this.x/m.scale,y:m.y+this.y/m.scale};}});
  return ()=>svg.attrs.viewBox.split(' ').map(Number);
 }
+test('building blocks create coherent groups with undo and persistent grouping',()=>{
+ for(const [button,type,count] of [['rinkSlalom','tire',4],['rinkTriangle','cone',3],['rinkPlayers','player',5]]){
+  const f=editor();f.node(button).onclick();f.flush();const group=f.draft().marks;assert.equal(group.length,count);assert.ok(group.every(m=>m.type===type&&m.patternId===group[0].patternId&&m.patternCount===count));assert.equal(new Set(group.map(m=>m.id)).size,count);
+  if(type==='player'){assert.deepEqual(group.map(m=>m.number),['1','2','3','4','5']);assert.ok(group[1].y-group[0].y>30);}
+  if(type==='cone'){const distances=group.map((p,i)=>{const q=group[(i+1)%3];return Math.hypot((p.x-q.x)/(436/30),(p.y-q.y)/(820/60));});assert.ok(distances.every(d=>Math.abs(d-5)<1e-6));assert.equal(f.node('rinkPatternCount').disabled,true);}
+  f.node('rinkUndo').onclick();f.flush();assert.equal(f.draft().marks.length,0);f.node('rinkRedo').onclick();f.flush();assert.deepEqual(f.draft().marks,group);
+  const restored=editor(Object.fromEntries(f.storage));restored.node('rinkTitle').emit('input');restored.flush();assert.deepEqual(restored.draft().marks,group);
+ }
+});
+test('slalom count, step and width change together and invalid dimensions leave the group intact',()=>{
+ const f=editor();f.node('rinkSlalom').onclick();f.flush();const original=f.draft().marks;f.node('rinkPatternCount').value='6';f.node('rinkPatternSpacing').value='3';f.node('rinkPatternWidth').value='5';f.node('rinkPatternCount').onchange();f.flush();const updated=f.draft().marks;assert.equal(updated.length,6);assert.deepEqual(updated.slice(0,4).map(m=>m.id),original.map(m=>m.id));assert.ok(updated.every(m=>m.patternId===original[0].patternId));
+ for(let i=1;i<6;i++){assert.ok(Math.abs((updated[i].y-updated[i-1].y)/(820/60)-3)<1e-6);assert.ok(Math.abs(Math.abs(updated[i].x-updated[i-1].x)/(436/30)-5)<1e-6);}
+ f.node('rinkPatternCount').value='8';f.node('rinkPatternSpacing').value='12';f.node('rinkPatternCount').onchange();f.flush();assert.deepEqual(f.draft().marks,updated);f.node('rinkUndo').onclick();f.flush();assert.deepEqual(f.draft().marks,original);
+});
+test('moving, copying and deleting a building block operates on the whole group',()=>{
+ const f=editor();f.node('rinkSlalom').onclick();f.flush();const before=f.draft().marks,p=before[0];f.pointer('pointerdown',p.x,p.y);f.pointer('pointermove',p.x+20,p.y+30);f.pointer('pointerup',p.x+20,p.y+30);f.flush();const moved=f.draft().marks;for(let i=0;i<4;i++){assert.equal(moved[i].x,before[i].x+20);assert.equal(moved[i].y,before[i].y+30);}
+ f.node('rinkDuplicate').onclick();f.flush();const copies=f.draft().marks;assert.equal(copies.length,8);assert.notEqual(copies[4].patternId,copies[0].patternId);assert.equal(new Set(copies.map(m=>m.id)).size,8);assert.deepEqual(copies.slice(0,4),moved);
+ f.node('rinkDelete').onclick();f.flush();assert.deepEqual(f.draft().marks,moved);f.node('rinkUndo').onclick();f.flush();assert.deepEqual(f.draft().marks,copies);
+});
+test('groups stop at rink boundaries without distorting their spacing',()=>{
+ const f=editor();f.node('rinkTriangle').onclick();f.flush();const original=f.draft().marks,p=original[0];f.pointer('pointerdown',p.x,p.y);f.pointer('pointermove',900,900);f.pointer('pointerup',900,900);f.flush();const moved=f.draft().marks;assert.ok(moved.every(m=>m.x>=22&&m.x<=458&&m.y>=20&&m.y<=840));const dx=moved[0].x-original[0].x,dy=moved[0].y-original[0].y;assert.ok(moved.every((m,i)=>Math.abs(m.x-original[i].x-dx)<1e-6&&Math.abs(m.y-original[i].y-dy)<1e-6));
+});
+test('player group colors apply together and ungrouping enables individual edits',()=>{
+ const f=editor();f.node('rinkPlayers').onclick();f.node('rinkSelectedColor').value='#2563eb';f.node('rinkSelectedColor').onchange();f.flush();assert.ok(f.draft().marks.every(m=>m.color==='#2563eb'));assert.equal(f.node('rinkNumberField').hidden,true);
+ f.node('rinkUngroup').onclick();f.flush();assert.ok(f.draft().marks.every(m=>!m.patternId));assert.equal(f.node('rinkNumberField').hidden,false);f.node('rinkNumber').value='99';f.node('rinkNumber').oninput();f.flush();assert.deepEqual(f.draft().marks.map(m=>m.number),['99','2','3','4','5']);
+});
+test('partial or inconsistent stored groups degrade to editable individual symbols',()=>{
+ const f=editor();f.node('rinkSlalom').onclick();f.flush();const original=f.draft().marks;
+ for(const marks of [original.slice(0,3),original.map((m,i)=>i===2?{...m,patternIndex:0}:m),original.map(m=>({...m,patternCount:100000}))]){
+  const restored=editor({[DRAFT]:JSON.stringify({marks})});restored.node('rinkTitle').emit('input');restored.flush();assert.equal(restored.draft().marks.length,marks.length);assert.ok(restored.draft().marks.every(m=>!m.patternId));
+ }
+});
+test('tidying and pinching preserve explicit group settings and history',()=>{
+ const f=editor();f.node('rinkSlalom').onclick();f.flush();const original=f.draft().marks;f.node('rinkTidy').onclick();f.flush();assert.deepEqual(f.draft().marks,original);const p=original[0];f.pointer('pointerdown',p.x,p.y);f.pointer('pointermove',p.x+20,p.y+30);f.pointer('pointerdown',300,300,{pointerId:2,isPrimary:false});f.pointer('pointerup',300,300,{pointerId:2,isPrimary:false});f.pointer('pointerup',p.x+20,p.y+30);f.flush();assert.deepEqual(f.draft().marks,original);f.node('rinkUndo').onclick();f.flush();assert.equal(f.draft().marks.length,0);
+});
 test('pinch zoom keeps the point between both fingers anchored and never edits marks',()=>{
  const mark={id:'a',type:'player',x:120,y:200,color:'#b11226'},f=editor({[DRAFT]:JSON.stringify({marks:[mark]})}),view=viewTransform(f);f.node('rinkTitle').emit('input');f.flush();
  f.pointer('pointerdown',100,300);f.pointer('pointerdown',300,300,{pointerId:2,isPrimary:false});f.pointer('pointermove',400,300,{pointerId:2,isPrimary:false});
