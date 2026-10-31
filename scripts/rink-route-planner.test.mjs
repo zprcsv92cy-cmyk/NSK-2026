@@ -33,3 +33,7 @@ test('planned circular geometry survives a fresh interpretation without losing i
 test('separate circles around cones and tires use the same shared clearance',()=>{
  const a={id:'a',type:'tire',x:110,y:300},b={id:'b',type:'cone',x:330,y:600};const pa=arc(a,35,0,Math.PI*2,40),pb=arc(b,55,0,-Math.PI*2,40);pa[pa.length-1]={...pa[0]};pb[pb.length-1]={...pb[0]};const result=api.plan([route('ra',pa),route('rb',pb),a,b]),ra=result.plans.get('ra'),rb=result.plans.get('rb');assert.ok(ra&&rb);assert.ok(Math.abs((dist(ra.points[5],a)-13)-(dist(rb.points[5],b)-14))<1e-6);
 });
+
+test('an open rounding remains an arc, never completed to a full circle',()=>{
+ const r=route('partial',[{x:100,y:400},...arc(tire,50,Math.PI,2*Math.PI),{x:380,y:400}]),fit=api.plan([r,tire]).plans.get(r.id);assert.ok(fit);assert.deepEqual(plain(fit.points[0]),r.points[0]);assert.deepEqual(plain(fit.points.at(-1)),r.points.at(-1));assert.ok(dist(fit.points[0],fit.points.at(-1))>200);
+});

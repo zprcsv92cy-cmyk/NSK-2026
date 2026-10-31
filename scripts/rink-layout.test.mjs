@@ -80,3 +80,8 @@ test('moving an obstacle across an unchanged route is also rejected',()=>{
 test('protecting a tire detour still permits unrelated equipment spacing improvements',()=>{
  const tire={...cone('t',150,207),type:'tire'},points=[{x:100,y:200},{x:125,y:191},{x:150,y:190},{x:175,y:191},{x:200,y:200}],path={id:'p',type:'curve',...points[0],color:'#15803d',points},row=[cone('a',100,700),cone('b',130,710),cone('c',220,700)],r=tidy([path,tire,...row]);assert.deepEqual(r[0].points,points);assert.equal(r[3].x,160);assert.ok(r.slice(2).every(m=>m.y===r[2].y));
 });
+
+test('tidy preserves a figure-eight crossing and a deliberate return point exactly',()=>{
+ const eight={id:'e',type:'curve',routeStyle:'planned',x:100,y:300,color:'#111827',points:[{x:100,y:300},{x:200,y:400},{x:300,y:300},{x:300,y:400},{x:200,y:300},{x:100,y:400}]},reverse={id:'r',type:'curve',routeStyle:'planned',x:100,y:600,color:'#111827',points:[{x:100,y:600},{x:300,y:600},{x:102,y:605}]};
+ assert.deepEqual(tidy([eight,reverse]),[eight,reverse]);
+});
