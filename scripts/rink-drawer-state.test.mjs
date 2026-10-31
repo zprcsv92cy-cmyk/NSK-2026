@@ -85,7 +85,7 @@ test('equipment pattern cleanup is one undoable action and survives draft recove
 test('selection tools start compact, expand on demand and clear when choosing a drawing tool',()=>{
  const marks=[{id:'a',type:'player',x:100,y:200,color:'#b11226'},{id:'b',type:'player',x:300,y:300,color:'#2563eb'}],f=editor({[DRAFT]:JSON.stringify({marks})});
  f.pointer('pointerdown',100,200);f.pointer('pointerup',100,200);assert.equal(f.node('rinkSelectionPanel').getAttribute('data-expanded'),'false');f.node('rinkSelectionMore').onclick();assert.equal(f.node('rinkSelectionMore').getAttribute('aria-expanded'),'true');
- f.choose('curve');assert.equal(f.node('rinkSelectionPanel').hidden,true);assert.equal(f.node('rinkLineSummary').textContent,'Åkväg');
+ f.choose('curve');assert.equal(f.node('rinkSelectionPanel').hidden,true);assert.equal(f.node('rinkLineSummary').textContent,'Åkväg');assert.equal(f.node('rinkSvg').children.some(n=>n.attrs['data-editor-ui']==='selection'),false);
  f.choose('move');f.pointer('pointerdown',300,300);f.pointer('pointerup',300,300);assert.equal(f.node('rinkSelectionPanel').hidden,false);assert.equal(f.node('rinkSelectionPanel').getAttribute('data-expanded'),'false');assert.equal(f.node('rinkSelectionMore').textContent,'Fler val');
 });
 test('small finger jitter selects without moving equipment or adding an undo step',()=>{
