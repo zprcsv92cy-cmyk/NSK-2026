@@ -72,6 +72,10 @@ test('leaving during a pinch clears held fingers so drawing works on return',()=
  const f=editor();viewTransform(f);f.choose('curve');f.pointer('pointerdown',100,300);f.pointer('pointermove',150,350);f.pointer('pointerdown',300,300,{pointerId:2,isPrimary:false});f.leave();assert.deepEqual(f.draft().marks,[]);assert.equal(f.context.document.body.classList.contains('rink-gesturing'),false);
  f.choose('cone');f.pointer('pointerdown',200,400);f.pointer('pointerup',200,400);f.flush();assert.equal(f.draft().marks.length,1);assert.equal(f.draft().marks[0].type,'cone');
 });
+test('pinching cancels a provisional pass target and lets target editing continue afterward',()=>{
+ const pass={id:'p',type:'pass',x:100,y:200,x2:250,y2:200,color:'#2563eb'},f=editor({[DRAFT]:JSON.stringify({marks:[pass]})});viewTransform(f);f.pointer('pointerdown',170,200);f.pointer('pointerup',170,200);f.node('rinkChooseTarget').onclick();f.pointer('pointerdown',100,300);f.pointer('pointerdown',300,300,{pointerId:2,isPrimary:false});f.pointer('pointerup',300,300,{pointerId:2,isPrimary:false});f.pointer('pointerup',100,300);f.node('rinkTitle').emit('input');f.flush();assert.deepEqual(f.draft().marks,[pass]);
+ f.pointer('pointerdown',300,400);f.pointer('pointerup',300,400);f.flush();assert.equal(f.draft().marks[0].x2,300);assert.equal(f.draft().marks[0].y2,400);f.node('rinkUndo').onclick();f.flush();assert.deepEqual(f.draft().marks,[pass]);
+});
 test('rink drafts preserve symbol changes, numbers, duplication and undo/redo without replacing manual saves',()=>{
  const f=editor({[SAVED]:JSON.stringify({title:'Arkiv',category:'Passningar',description:'',marks:[]})});
  f.choose('player');f.pointer('pointerdown',100,100);f.pointer('pointerup',100,100);f.flush();assert.equal(f.draft().marks.length,1);
