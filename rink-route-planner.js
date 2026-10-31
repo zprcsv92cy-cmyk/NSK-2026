@@ -65,7 +65,11 @@
   return {route,points,anchors,events:chosen.sort((a,b)=>a.index-b.index)};
  }
  function pointConnection(point,arc,incoming){
-  const d=distance(point,arc.center);if(d<=arc.fitRadius+.1)return null;
+  const d=distance(point,arc.center);
+  // A stroke can begin/end on the rounding itself, without a separate approach.
+  // Keep that endpoint and join the fitted arc locally rather than rejecting it.
+  if((incoming?arc.start<=1:arc.endsRoute)&&Math.abs(d-arc.fitRadius)<=12){const angle=Math.atan2(point.y-arc.center.y,point.x-arc.center.x);return {angle,at:circlePoint(arc.center,arc.fitRadius,angle)};}
+  if(d<=arc.fitRadius+.1)return null;
   const bearing=Math.atan2(point.y-arc.center.y,point.x-arc.center.x),offset=Math.acos(arc.fitRadius/d),candidates=[];
   for(const angle of [bearing+offset,bearing-offset]){
    const at=circlePoint(arc.center,arc.fitRadius,angle),travel=incoming?{x:at.x-point.x,y:at.y-point.y}:{x:point.x-at.x,y:point.y-at.y},len=Math.hypot(travel.x,travel.y),t=tangent(angle,arc.dir);
@@ -88,7 +92,7 @@
  }
  function build(analysis,clearance){
   const {route,points,anchors}=analysis;if(!analysis.events.length&&!anchors.length)return null;
-  const arcs=analysis.events.map(e=>({...e,fitRadius:e.targetRadius??e.footprint+clearance}));
+  const arcs=analysis.events.map(e=>({...e,fitRadius:e.targetRadius??e.footprint+clearance,endsRoute:e.end>=points.length-2}));
   // A full circle can use one exact radius without moving an attached start/pass point.
   if(arcs.length===1&&arcs[0].closed&&!anchors.length){
    const arc=arcs[0];if(analysis.startPinned)arc.fitRadius=distance(points[0],arc.center);const entry=arc.oldEntry,steps=Math.max(72,Math.ceil(arc.sweep/(Math.PI/36))),ps=Array.from({length:steps+1},(_,i)=>circlePoint(arc.center,arc.fitRadius,entry+arc.dir*arc.sweep*i/steps));ps[ps.length-1]=copy(ps[0]);if(ps.some(p=>p.x<22||p.x>458||p.y<20||p.y>840))return null;
