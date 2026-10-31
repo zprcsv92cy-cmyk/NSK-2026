@@ -329,7 +329,7 @@
  }
  function closeMenus(){document.querySelectorAll('[data-tool-menu]').forEach(d=>{d.open=false;});}
  function setTool(next){
-  tool=next;closeMenus();$('rinkSelectionPanel').setAttribute('data-expanded','false');$('rinkSelectionMore').setAttribute('aria-expanded','false');$('rinkSelectionMore').textContent='Fler val';if(next!=='move'){selectedId=null;selectionPanelId=null;updateControls();}
+  tool=next;closeMenus();$('rinkSelectionPanel').setAttribute('data-expanded','false');$('rinkSelectionMore').setAttribute('aria-expanded','false');$('rinkSelectionMore').textContent='Fler val';if(next!=='move'){selectedId=null;selectionPanelId=null;render();}
   document.querySelectorAll('[data-tool]').forEach(b=>b.setAttribute('aria-pressed',String(b.dataset.tool===tool)));
   $('rinkSymbolSummary').textContent=['player','goal','goalie','puck','cone','tire'].includes(next)?names[next]:'Symboler';
   $('rinkLineSummary').textContent=({curve:'Åkväg',skate:'Rak linje',pass:'Passning',shot:'Skott','divider-yellow':'Avdelare','divider-blue':'Avdelare'})[next]||'Linjer';announce('');
