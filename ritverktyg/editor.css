@@ -27,6 +27,7 @@ body.rink-gesturing .draw-selection,body.rink-gesturing .draw-status{visibility:
 .draw-selection p{display:none;margin:3px 4px 8px;font-size:.85rem;font-weight:600}
 .draw-selection-actions{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:6px;align-items:center}
 .draw-selection:not([data-expanded=true]) .draw-selection-actions>:not(#rinkSelectedMove):not(#rinkSelectionMore):not(#rinkDeselect){display:none}
+.draw-selection[data-expanded=true]{position:relative;bottom:auto;max-height:min(260px,38dvh);margin:0 auto 6px;max-width:760px;box-shadow:none}
 .draw-selection[data-expanded=true] p{display:block}
 .draw-selection[data-expanded=true] .draw-selection-actions{grid-template-columns:repeat(4,minmax(0,1fr))}
 #rinkSelectedMove{order:0}#rinkSelectionMore{order:1}#rinkDeselect{order:2}#rinkDuplicate{order:3}#rinkDelete{order:4}
@@ -37,7 +38,8 @@ body.rink-gesturing .draw-selection,body.rink-gesturing .draw-status{visibility:
 .draw-selection input{width:66px}
 #rinkDividerSettings{grid-column:1/-1;flex-wrap:wrap}
 #rinkPatternSettings{grid-column:1/-1;order:7;display:flex;flex-wrap:wrap;gap:10px;margin:0;padding:8px;border:1px solid #516171;border-radius:8px}
-#rinkPatternSettings label{flex:1 1 130px;display:flex;justify-content:space-between}
+#rinkPatternSettings label{flex:1 1 150px;display:flex;justify-content:space-between;gap:8px}
+#rinkPatternSettings label input{flex:none}
 #rinkPatternSettings input{width:76px}
 #rinkUngroup{order:8;grid-column:span 2}
 .draw-status{position:absolute;bottom:calc(68px + env(safe-area-inset-bottom,0px));left:8px;right:8px;max-width:600px;margin:auto;z-index:3;pointer-events:none;font-size:.8rem;color:var(--text);background:#172330ed;border-radius:8px}
