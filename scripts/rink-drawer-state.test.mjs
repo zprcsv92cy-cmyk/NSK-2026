@@ -339,3 +339,24 @@ test('new building blocks find separate visible spaces and placement remains und
  const a=box(first),b=box(second);assert.ok(a.right<=b.left||b.right<=a.left||a.bottom<=b.top||b.bottom<=a.top);assert.ok(b.left>=0&&b.right<=480&&b.top>=0&&b.bottom<=860);
  f.node('rinkUndo').onclick();f.flush();assert.deepEqual(f.draft().marks,first);
 });
+
+test('group rotation preserves physical distances and survives edits, undo and recovery',()=>{
+ for(const button of ['rinkSlalom','rinkTriangle','rinkPlayers']){
+  const f=editor();f.node(button).onclick();f.flush();const before=f.draft().marks;
+  f.node('rinkPatternAngle').value='90';f.node('rinkPatternAngle').onchange();f.flush();const turned=f.draft().marks;assert.ok(turned.every(m=>m.patternAngle===90));assert.deepEqual(turned.map(m=>m.id),before.map(m=>m.id));
+  const d=(a,b)=>Math.hypot((a.x-b.x)/(436/30),(a.y-b.y)/(820/60));for(let i=1;i<turned.length;i++)assert.ok(Math.abs(d(turned[i],turned[0])-d(before[i],before[0]))<1e-6);
+  f.node('rinkPatternSpacing').value='3';f.node('rinkPatternSpacing').onchange();f.flush();assert.ok(f.draft().marks.every(m=>m.patternAngle===90));
+  const restored=editor(Object.fromEntries(f.storage));restored.node('rinkTitle').emit('input');restored.flush();assert.deepEqual(restored.draft().marks,f.draft().marks);
+  f.node('rinkUndo').onclick();f.flush();assert.deepEqual(f.draft().marks,turned);f.node('rinkUndo').onclick();f.flush();assert.deepEqual(f.draft().marks,before);
+ }
+});
+test('legacy groups default to zero rotation and malformed rotation degrades safely',()=>{
+ const f=editor();f.node('rinkPlayers').onclick();f.flush();const original=f.draft().marks;
+ const legacy=original.map(({patternAngle,...m})=>m);const r=editor({[DRAFT]:JSON.stringify({marks:legacy})});r.node('rinkTitle').emit('input');r.flush();assert.ok(r.draft().marks.every(m=>m.patternId&&m.patternAngle===0));
+ const bad=editor({[DRAFT]:JSON.stringify({marks:original.map(m=>({...m,patternAngle:45}))})});bad.node('rinkTitle').emit('input');bad.flush();assert.ok(bad.draft().marks.every(m=>!m.patternId));
+});
+
+test('rotating an odd slalom preserves its center away from the boards',()=>{
+ const f=editor();f.node('rinkSlalom').onclick();f.node('rinkPatternCount').value='5';f.node('rinkPatternCount').onchange();f.flush();const mean=items=>({x:items.reduce((s,m)=>s+m.x,0)/items.length,y:items.reduce((s,m)=>s+m.y,0)/items.length}),before=mean(f.draft().marks);
+ for(const angle of ['90','180','270','0']){f.node('rinkPatternAngle').value=angle;f.node('rinkPatternAngle').onchange();f.flush();const after=mean(f.draft().marks);assert.ok(Math.hypot(after.x-before.x,after.y-before.y)<1e-6);}
+});
