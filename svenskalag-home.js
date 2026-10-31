@@ -14,6 +14,11 @@
   const known=value=>normalized(value)&&!/inställ|inställd|cancelled|okänd|ej angiven/iu.test(normalized(value));
   const savedHall=normalized(p.hall),importedHall=normalized(item.hall||item.place);
   if(known(savedHall)&&known(importedHall)&&savedHall===importedHall){
+   const stored=poolMatchContext.summaries?.get(String(p.id))||[];
+   const incoming=Array.isArray(item.matches)?item.matches:[];
+   const opponent=m=>normalized(m.opponent||m.motstandare);
+   // Never hide a genuinely different schedule. Partial overlapping fixture lists are duplicates.
+   if(stored.length&&incoming.length&&!stored.some(a=>incoming.some(b=>opponent(a)&&opponent(a)===opponent(b))))return false;
    return pools.filter(other=>other.pool_date===p.pool_date&&normalized(other.hall)===savedHall).length===1;
   }
   // A different identified rink is a different event, even on the same day.
