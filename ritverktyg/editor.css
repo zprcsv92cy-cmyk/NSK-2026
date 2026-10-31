@@ -79,3 +79,24 @@ body.rink-fullscreen .arena-scroll{padding:0!important;overflow:hidden!important
 @media(max-width:580px){.draw-tools button,.draw-tools summary{font-size:.77rem}.draw-selection[data-expanded=true] .draw-selection-actions{grid-template-columns:repeat(2,minmax(0,1fr))}}
 @media(min-width:900px){.draw-stage:has(.draw-selection[data-expanded=true]:not([hidden])) .rink-container{padding-right:342px}.draw-selection[data-expanded=true]{position:absolute;left:auto;right:6px;bottom:calc(100% + 6px);width:320px;max-width:calc(100% - 12px);max-height:calc(var(--nsk-app-height,100dvh) - 100px);margin:0;box-sizing:border-box}.draw-selection[data-expanded=true] .draw-selection-actions{grid-template-columns:repeat(2,minmax(0,1fr))}.draw-selection[data-expanded=true] label{grid-column:1/-1}.draw-selection[data-expanded=true] #rinkPatternSettings label{flex-basis:100%}body.rink-fullscreen .draw-stage:has(.draw-selection[data-expanded=true]:not([hidden])) .rink-container{right:342px;padding-right:0}}
 @media print{.rink-full-controls,.draw-tools,.draw-selection,.draw-settings,.draw-status{display:none!important}.draw-stage{height:90vh;border:0}}
+
+/* Recognizable equipment, short labels and consistent touch targets. */
+.rink-icon{display:block;width:42px;height:42px;flex:none;margin:auto;color:#f4f5f7;pointer-events:none}
+.draw-mode-row{grid-template-columns:repeat(6,minmax(0,1fr))}
+.draw-mode-row>button,.draw-mode-row>details>summary{display:flex;flex-direction:column;justify-content:center;align-items:center;gap:3px;min-height:60px}
+.draw-mode-row .rink-icon{width:25px;height:25px;margin:0}
+.draw-tools .rink-symbol-picker{grid-template-columns:repeat(3,minmax(0,1fr));max-width:520px;max-height:min(430px,65dvh)}
+.rink-symbol-picker>button,.draw-tool-menu>div>button:has(>.rink-icon){display:flex;align-items:center;justify-content:center;gap:6px;min-height:70px;padding:6px}
+.draw-tool-menu>div>button>.rink-icon{width:42px;height:42px;margin:0}
+.rink-symbol-picker>button{flex-direction:column}
+.rink-picker-heading{grid-column:1/-1;display:flex;align-items:center;justify-content:space-between;margin:0;font-size:.8rem;color:#c5d0de}
+.rink-picker-heading button{min-width:44px;min-height:44px;padding:0;font-size:1.5rem}
+.draw-tools #rinkTidy{grid-column:auto;background:#202b39}
+.draw-tool-menu>div:has(>.rink-symbol-picker){padding:8px}
+
+.draw-tools:has(.draw-tool-menu[open]) .draw-selection{display:none}
+.draw-stage:has(#rinkSymbolsMenu[open]) .rink-container{padding-bottom:calc(min(350px,48dvh) + 12px)}
+.draw-tools .rink-symbol-picker{max-height:min(350px,48dvh)}
+.rink-symbol-picker>button[aria-pressed=true]{position:relative}
+.rink-symbol-picker>button[aria-pressed=true]::after{content:'✓';position:absolute;right:5px;top:3px;font-weight:700}
+@media(min-width:900px){.draw-tools .rink-symbol-picker{left:auto;right:6px;width:320px;box-sizing:border-box;max-height:calc(var(--nsk-app-height,100dvh) - 110px)}.draw-stage:has(#rinkSymbolsMenu[open]) .rink-container{padding-bottom:2px;padding-right:342px}body.rink-fullscreen .draw-stage:has(#rinkSymbolsMenu[open]) .rink-container{right:342px;padding-right:0}}
