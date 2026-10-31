@@ -127,3 +127,8 @@ test('an existing slalom route follows moved tires without changing sides or end
  const route={id:'slalom',type:'curve',...points[0],points,color:'#111827',motion:'forward'},input=[route,...tires],result=tidy(input);
  assert.ok(result[1].y>=589);assert.equal(result[1].x,result[3].x);assert.equal(result[2].x,result[4].x);assert.deepEqual(result[0].points[0],points[0]);assert.deepEqual(result[0].points.at(-1),points.at(-1));assert.ok(context.window.testLayout.preservesObstacleSide(route,result[0],tires,result.slice(1)));
 });
+test('row alignment never merges an identified tire slalom with a nearby cone triangle',()=>{
+ const tires=[[240,559],[128,633.125],[240.5,698],[156,789]].map(([x,y],i)=>({...cone('t'+i,x,y),type:'tire'})),cones=[cone('a',353,654.75),cone('b',296.5,742),cone('c',380.5,745)],result=tidy([...tires,...cones]);
+ const step=result[1].y-result[0].y;for(let i=2;i<4;i++)assert.ok(Math.abs(result[i].y-result[i-1].y-step)<1e-6);
+ const triangle=result.slice(4),sides=triangle.map((p,i)=>Math.hypot(p.x-triangle[(i+1)%3].x,p.y-triangle[(i+1)%3].y));assert.ok(Math.max(...sides)-Math.min(...sides)<1e-6);assert.ok(Math.abs(triangle.reduce((n,p)=>n+p.x,0)/3-353)<1e-6);assert.ok(Math.abs(triangle.reduce((n,p)=>n+p.y,0)/3-698)<1e-6);assert.deepEqual(tidy(result),result);
+});
