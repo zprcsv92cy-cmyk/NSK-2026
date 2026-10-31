@@ -347,7 +347,10 @@ window.NSK2App = (() => {
           const ok = window.confirm("Ta bort poolspelet permanent? Detta kan inte ångras.");
           if (!ok) return;
           t.disabled=true;
-          try{await DB.deletePool(t.dataset.deletePool);}finally{t.disabled=false;}
+          let restoreCalendar;
+          try{restoreCalendar=await window.NSKCalendarPools?.hideSavedPool(t.dataset.deletePool);await DB.deletePool(t.dataset.deletePool);}
+          catch(error){if(restoreCalendar)await restoreCalendar();throw error;}
+          finally{t.disabled=false;}
           for(const key of ["nsk2_pool_id","nsk2_edit_pool_id"])if(sessionStorage.getItem(key)===t.dataset.deletePool)sessionStorage.removeItem(key);
           (window.NSKNavigate?window.NSKNavigate(location.href,{reload:true,replace:true}):window.location.reload());
           return;

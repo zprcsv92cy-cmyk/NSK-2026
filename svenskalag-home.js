@@ -6,7 +6,8 @@
  const poolLocation=item=>{const hall=String(item.place||item.hall||'').trim();const key=hall.normalize('NFKC').toLocaleLowerCase('sv-SE');return {hall,city:arenaCity.get(key)||extraArenaCities.get(key)||extendedArenaCities.get(key)||String(item.city||item.stad||'').trim()||hall};};
  let poolMatchContext={pools:[],items:[],links:new Map(),summaries:new Map()};
  const samePool=(p,item,pools=poolMatchContext.pools,items=poolMatchContext.items)=>{
-  if(p.pool_date!==item.date)return false;
+  const day=value=>String(value||'').slice(0,10);
+  if(day(p.pool_date)!==day(item.date))return false;
   const linked=poolMatchContext.links?.get(item);if(linked)return String(p.id)===linked;
   // The saved card is authoritative when exactly one saved pool has the same date and rink.
   // Do not display a second imported card merely because its fixture list is incomplete.
@@ -19,7 +20,7 @@
    const opponent=m=>normalized(m.opponent||m.motstandare);
    // Never hide a genuinely different schedule. Partial overlapping fixture lists are duplicates.
    if(stored.length&&incoming.length&&!stored.some(a=>incoming.some(b=>opponent(a)&&opponent(a)===opponent(b))))return false;
-   return pools.filter(other=>other.pool_date===p.pool_date&&normalized(other.hall)===savedHall).length===1;
+   return true;
   }
   // A different identified rink is a different event, even on the same day.
   if(known(savedHall)&&known(importedHall))return false;
@@ -27,11 +28,11 @@
   if(item.matches?.length&&poolMatchContext.summaries?.get(String(p.id))?.length)return false;
   const text=value=>String(value||'').normalize('NFKC').replace(/\s+/g,' ').trim().toLocaleLowerCase('sv-SE');
   const location=poolLocation(item),place=text(p.place),hall=text(p.hall);
-  if(place&&place===text(location.city)&&(hall?hall===text(location.hall):items.filter(other=>other.type==='pool'&&other.date===item.date&&text(poolLocation(other).city)===place).length<=1))return true;
+  if(place&&place===text(location.city)&&(hall?hall===text(location.hall):items.filter(other=>other.type==='pool'&&day(other.date)===day(item.date)&&text(poolLocation(other).city)===place).length<=1))return true;
   const unknown=value=>!text(value)||/inställ|inställd|cancelled|okänd|ej angiven/iu.test(text(value));
   if(!unknown(item.place||item.hall)&&!unknown(p.hall||p.place))return false;
   // Missing venue is only safe to reconcile when both sides have one pool that day.
-  return pools.filter(other=>other.pool_date===p.pool_date).length===1&&items.filter(other=>other.type==='pool'&&other.date===item.date).length===1;
+  return pools.filter(other=>day(other.pool_date)===day(p.pool_date)).length===1&&items.filter(other=>other.type==='pool'&&day(other.date)===day(item.date)).length===1;
  };
  const esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
  const calendarDate=value=>String(value||'').slice(0,10);
@@ -68,17 +69,14 @@
    }
  }
  let latestCalendarPools=null;
- window.addEventListener('nsk:saved-pools-rendered',()=>{
-  if(latestCalendarPools)renderUpcomingCalendarPools(...latestCalendarPools);
-  if(latestCompletionItems)renderCompletionButtons(...latestCompletionItems);
- });
+ window.addEventListener('nsk:saved-pools-rendered',()=>{show();});
  function renderUpcomingCalendarPools(items,calendarMatches=[]){
   latestCalendarPools=[items,calendarMatches];
   const box=document.getElementById('savedPoolsList');
   if(!box)return;
   const section=box.querySelector('.pool-overview-section');
   if(!section)return;
-  (document.getElementById('activityList')||section).querySelectorAll('[data-svenskalag-pool]').forEach(node=>node.remove());
+  document.querySelectorAll('[data-svenskalag-pool]').forEach(node=>node.remove());
   const title=section.querySelector('h2');
   if(!title)return;
   const existing=Array.from(section.querySelectorAll(':scope > details.nsk-pool-row')).length;
@@ -179,6 +177,13 @@
     const button=document.createElement('button');button.type='button';button.className='row-btn nsk-action nsk-action--'+cls;button.textContent=label;
     button.addEventListener('click',()=>openCalendarPool(action,button));secondary.append(button);
    }
+   const remove=document.createElement('button');remove.type='button';remove.className='row-btn nsk-action nsk-action--delete';remove.textContent='Ta bort';
+   remove.addEventListener('click',async()=>{
+    if(!confirm('Ta bort det importerade poolspelet från lagets kalender? Det kan ångras.'))return;
+    remove.disabled=true;
+    try{await changeCalendarVisibility(item,true);await show();const message=document.createElement('p');message.textContent='Poolspelet har tagits bort. ';const undo=document.createElement('button');undo.type='button';undo.textContent='Ångra';undo.onclick=async()=>{undo.disabled=true;try{await changeCalendarVisibility(item,false);message.remove();await show();}catch(error){undo.disabled=false;alert(error.message);}};message.append(undo);section.append(message);}
+    catch(error){remove.disabled=false;alert(error.message||'Poolspelet kunde inte tas bort.');}
+   });secondary.append(remove);
    actions.append(secondary);
    content.append(actions);
    row.append(summary,content);
@@ -191,7 +196,17 @@
   rows.sort((a,b)=>poolDate(a).localeCompare(poolDate(b)));
   rows.forEach(row=>section.append(row));
  }
+ async function changeCalendarVisibility(item,hidden){
+  const base=String(window.APP_CONFIG?.API_URL||'https://nsk-api.peter-hasselberg.workers.dev').replace(/\/$/,''),token=Auth.getToken();
+  if(!token||!poolMatchContext.teamId)throw Error('Logga in igen och ladda om kalendern.');
+  const keys=[...new Set([...(item.sourceKeys||[]),item.key].filter(Boolean))];if(!keys.length)throw Error('Kalenderkopplingen saknas. Ladda om sidan.');
+  const response=await fetch(base+'/api/training?team_id='+encodeURIComponent(poolMatchContext.teamId)+'&action=calendar-pool-visibility',{method:'POST',headers:{Authorization:'Bearer '+token,'Content-Type':'application/json'},body:JSON.stringify({keys,hidden})});
+  if(!response.ok)throw Error(response.status===403?'Du saknar behörighet att ta bort poolspel.':'Poolspelet kunde inte uppdateras. Ladda om och försök igen.');
+ }
+ let calendarReady=false;
+ let showGeneration=0;
  async function show(){
+  const generation=++showGeneration;calendarReady=false;
   const root=document.getElementById('svenskalagSavedEvents');
   if(!root)return;
   try{
@@ -220,12 +235,14 @@
    }
    let links=new Map(),summaries=new Map();
    try{
-    const relevant=existingPools.filter(p=>items.some(item=>item.type==='pool'&&item.date===p.pool_date));
+    const relevant=existingPools.filter(p=>items.some(item=>item.type==='pool'&&calendarDate(item.date)===calendarDate(p.pool_date)));
     summaries=typeof DB.listPoolMatchSummaries==='function'&&relevant.length?await DB.listPoolMatchSummaries(relevant.map(p=>p.id)):new Map();
     const {reconcileCalendarPools}=await import(new URL('calendar-pool-reconcile.mjs?v='+encodeURIComponent(window.NSK_VERSION||'1'),nskVersionRoot()).href);
     const reconciled=reconcileCalendarPools(items,existingPools,summaries);items=reconciled.items;links=reconciled.links;
    }catch(error){console.warn('Kalenderkopplingen kunde inte kontrolleras',error);}
-   poolMatchContext={pools:existingPools,items,links,summaries};
+   if(generation!==showGeneration)return;
+   calendarReady=true;
+   poolMatchContext={pools:existingPools,items,links,summaries,teamId:matched[0].id};
    for(const hall of document.querySelectorAll('[data-pool-hall-id]')){
     if(hall.dataset.gathering)continue;
     const pool=existingPools.find(pool=>String(pool.id)===hall.dataset.poolHallId);
@@ -317,5 +334,13 @@
    }
   }catch(error){root.textContent='Kunde inte visa SvenskaLag-kalendern: '+(error.message||String(error));}
  }
+ window.NSKCalendarPools={async hideSavedPool(id){
+  await show();if(!calendarReady)throw Error('Kalenderkopplingen kunde inte kontrolleras. Försök igen.');
+  const pool=poolMatchContext.pools.find(p=>String(p.id)===String(id));if(!pool)return;
+  const items=poolMatchContext.items.filter(item=>item.type==='pool'&&samePool(pool,item));
+  const sourceKeys=[...new Set(items.flatMap(item=>[...(item.sourceKeys||[]),item.key]).filter(Boolean))];
+  if(!sourceKeys.length)return;
+  const item={sourceKeys};await changeCalendarVisibility(item,true);return ()=>changeCalendarVisibility(item,false);
+ }};
  if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',show,{once:true});else show();
 })();

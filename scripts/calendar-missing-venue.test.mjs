@@ -15,3 +15,17 @@ test('a known different fixture list cannot fall back to the same date and venue
  helpers.set({pools:[pool],items:[item],links:new Map([[item,'36']]),summaries:new Map([['36',[{opponent:'Linden Gul'}]]])});
  assert.equal(helpers.same(pool,item),true);
 });
+
+test('saved timestamps match calendar days even when multiple saved cards exist at the same rink',()=>{
+ const pool={id:1,pool_date:'2026-11-07T00:00:00Z',hall:'Smehallen'};
+ const item={type:'pool',date:'2026-11-07',hall:'Smehallen B'};
+ assert.equal(same(pool,item,[pool,{...pool,id:2}],[item]),true);
+});
+
+test('refresh removes earlier imported cards from both calendar containers',()=>{
+ const a=source.indexOf(' function renderUpcomingCalendarPools('),b=source.indexOf('  const title=',a);const prefix=source.slice(a,b);
+ const removed=[];const section={},box={querySelector:()=>section};
+ const document={getElementById:id=>id==='savedPoolsList'?box:null,querySelectorAll:selector=>{assert.equal(selector,'[data-svenskalag-pool]');return ['activityList','poolSection'].map(name=>({remove:()=>removed.push(name)}));}};
+ Function('document','let latestCalendarPools;'+prefix+'};renderUpcomingCalendarPools([]);')(document);
+ assert.deepEqual(removed,['activityList','poolSection']);
+});

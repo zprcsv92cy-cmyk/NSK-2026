@@ -26,7 +26,7 @@ export function planCalendarReconciliation(incoming,existing){
     seen.add(key);
     const previous=byKey.get(key);
     if(!previous){create.push({key,item});continue;}
-    if(previous.source!=='svenskalag'||previous.manuallyEdited===true){
+    if(previous.source!=='svenskalag'||(previous.manuallyEdited===true||previous.manuallyEdited===1)){
       preserve.push({key,reason:'manual'});continue;
     }
     update.push({key,item});
