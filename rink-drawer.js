@@ -7,7 +7,7 @@
  const names={goal:'Mål',player:'Spelare',goalie:'Målvakt',puck:'Puck',cone:'Kon',tire:'Däck',divider:'Avdelare','divider-yellow':'Gul rinkavdelare','divider-blue':'Blå rinkavdelare',skate:'Åkväg',pass:'Passning',shot:'Skott',curve:'Böjd åkväg'};
  const DRAFT='nsk_rink_draft_v2',SAVED='nsk_rink_drawing_v1';
  let marks=[],history=[],future=[],tool='move',drag=null,selectedId=null,draftTimer=0,draftDirty=false,numberEditId=null;
- let zoom=1,viewX=0,viewY=0;
+ let zoom=1,viewX=0,viewY=0,selectionPanelId=null;
  const geometry=m=>m.points||[{x:m.x,y:m.y},...(m.x2===undefined?[]:[{x:m.x2,y:m.y2}])];
  // Conservative local cleanup. Endpoints, goals and exercise metadata are preserved.
  function segmentDistance(p,a,b){const dx=b.x-a.x,dy=b.y-a.y,k=clamp(((p.x-a.x)*dx+(p.y-a.y)*dy)/(dx*dx+dy*dy||1),0,1);return Math.hypot(p.x-a.x-k*dx,p.y-a.y-k*dy);}
@@ -313,7 +313,8 @@
  function saveDraft(){draftDirty=true;$('rinkDraftStatus').textContent='Sparar utkast…';clearTimeout(draftTimer);draftTimer=setTimeout(flushDraft,250);$('rinkSettingsSummary').textContent=$('rinkTitle').value.trim()||'Övningens uppgifter';}
  function updateControls(){
   $('rinkUndo').disabled=!history.length;$('rinkRedo').disabled=!future.length;
-  const m=selected();$('rinkSelectionPanel').hidden=!m;if(!m)return;
+  const m=selected();$('rinkSelectionPanel').hidden=!m||Boolean(drag?.changed);if(!m){selectionPanelId=null;return;}
+  if(selectionPanelId!==m.id){selectionPanelId=m.id;$('rinkSelectionPanel').setAttribute('data-expanded','false');$('rinkSelectionMore').setAttribute('aria-expanded','false');$('rinkSelectionMore').textContent='Fler val';}
   $('rinkRouteActions').hidden=!['skate','curve','pass','shot'].includes(m.type);
   $('rinkAddPass').hidden=$('rinkAddShot').hidden=!['skate','curve'].includes(m.type);
   $('rinkChooseTarget').hidden=!['pass','shot'].includes(m.type)&&!m.shotEnd;
@@ -327,7 +328,12 @@
   if(document.activeElement!==$('rinkNumber'))$('rinkNumber').value=m.number||'';
  }
  function closeMenus(){document.querySelectorAll('[data-tool-menu]').forEach(d=>{d.open=false;});}
- function setTool(next){tool=next;closeMenus();document.querySelectorAll('[data-tool]').forEach(b=>b.setAttribute('aria-pressed',String(b.dataset.tool===tool)));announce('');}
+ function setTool(next){
+  tool=next;closeMenus();$('rinkSelectionPanel').setAttribute('data-expanded','false');$('rinkSelectionMore').setAttribute('aria-expanded','false');$('rinkSelectionMore').textContent='Fler val';if(next!=='move'){selectedId=null;selectionPanelId=null;updateControls();}
+  document.querySelectorAll('[data-tool]').forEach(b=>b.setAttribute('aria-pressed',String(b.dataset.tool===tool)));
+  $('rinkSymbolSummary').textContent=['player','goal','goalie','puck','cone','tire'].includes(next)?names[next]:'Symboler';
+  $('rinkLineSummary').textContent=({curve:'Åkväg',skate:'Rak linje',pass:'Passning',shot:'Skott','divider-yellow':'Avdelare','divider-blue':'Avdelare'})[next]||'Linjer';announce('');
+ }
  function rink(){
   const s=$('rinkSvg');s.replaceChildren();
   // Embedded IHS rink template with NSK crest; editor coordinates remain 480 × 860.
@@ -440,7 +446,7 @@
   const s=$('rinkSvg');
   s.addEventListener('pointerdown',e=>{
    if(drag||!e.isPrimary||(e.pointerType==='mouse'&&e.button!==0))return;
-   const p=pos(e);if(!p)return;closeMenus();numberEditId=null;
+   const p=pos(e);if(!p)return;closeMenus();numberEditId=null;$('rinkTidyReport').hidden=true;announce('');
    if(targetEdit){const m=marks.find(m=>m.id===targetEdit);targetEdit=null;if(m){remember();if(m.shotEnd)m.shotEnd={x:p.x,y:p.y};else{m.x2=p.x;m.y2=p.y;}render();saveDraft();announce('Målpunkt ändrad.');}return;}
    if(tool==='pan'){drag={id:e.pointerId,pan:true,startX:e.clientX,startY:e.clientY,x:viewX,y:viewY,scale:Math.hypot(s.getScreenCTM().a,s.getScreenCTM().b)};s.setPointerCapture(e.pointerId);return;}
    if(tool==='erase'){const m=hit(p);if(m){remember();marks=marks.filter(a=>a!==m);selectedId=null;render();saveDraft();}return;}
@@ -448,10 +454,10 @@
     const current=selected();
     if(current&&isDivider(current)){
      const ends=geometry(current),tolerance=Math.min(18,Math.hypot(current.x2-current.x,current.y2-current.y)*.35),index=ends.map((q,i)=>({i,d:Math.hypot(q.x-p.x,q.y-p.y)})).sort((a,b)=>a.d-b.d)[0];
-     if(index.d<=tolerance){drag={id:e.pointerId,m:current,p,startX:e.clientX,startY:e.clientY,changed:false,before:snapshot(),history:history.slice(),future:future.slice(),resize:index.i,anchor:{...ends[1-index.i]}};s.setPointerCapture(e.pointerId);return;}
+     if(index.d<=tolerance){drag={id:e.pointerId,m:current,p,startX:e.clientX,startY:e.clientY,threshold:e.pointerType==='touch'?10:4,changed:false,before:snapshot(),history:history.slice(),future:future.slice(),resize:index.i,anchor:{...ends[1-index.i]}};s.setPointerCapture(e.pointerId);return;}
     }
     const m=hit(p);selectedId=m?.id||null;routePoint=m&&['skate','curve'].includes(m.type)?nearestRoutePoint(m,p):null;render();if(!m)return;
-    drag={id:e.pointerId,m,p,startX:e.clientX,startY:e.clientY,changed:false,before:snapshot(),history:history.slice(),future:future.slice(),moving:true};s.setPointerCapture(e.pointerId);return;
+    drag={id:e.pointerId,m,p,startX:e.clientX,startY:e.clientY,threshold:e.pointerType==='touch'?10:4,changed:false,before:snapshot(),history:history.slice(),future:future.slice(),moving:true};s.setPointerCapture(e.pointerId);return;
    }
    if(marks.length>=250){announce('Högst 250 objekt per övning.');return;}
    const before=snapshot(),oldHistory=history.slice(),oldFuture=future.slice();remember();
@@ -466,11 +472,11 @@
   s.addEventListener('pointermove',e=>{
    if(!drag||e.pointerId!==drag.id)return;if(drag.pan){viewX=clamp(drag.x-(e.clientX-drag.startX)/drag.scale,0,W-W/zoom);viewY=clamp(drag.y-(e.clientY-drag.startY)/drag.scale,0,H-H/zoom);viewport();return;}const p=pos(e);if(!p)return;
    if(drag.resize!==undefined){
-    if(!drag.changed&&Math.hypot(e.clientX-drag.startX,e.clientY-drag.startY)<4)return;
+    if(!drag.changed&&Math.hypot(e.clientX-drag.startX,e.clientY-drag.startY)<drag.threshold)return;
     if(!drag.changed){remember();drag.changed=true;}
     resizeDivider(drag,p);
    }else if(drag.moving){
-    if(!drag.changed&&Math.hypot(e.clientX-drag.startX,e.clientY-drag.startY)<4)return;
+    if(!drag.changed&&Math.hypot(e.clientX-drag.startX,e.clientY-drag.startY)<drag.threshold)return;
     if(!drag.changed){remember();drag.changed=true;}
     translate(drag.m,p.x-drag.p.x,p.y-drag.p.y);drag.p=p;routePoint=null;
    }else if(drag.m.points){const last=drag.m.points.at(-1);if(Math.hypot(p.x-last.x,p.y-last.y)>=3&&drag.m.points.length<500)drag.m.points.push({...p});}else{if(isDivider(drag.m)){drag.m.x=drag.p.x;drag.m.y=drag.p.y;}drag.m.x2=p.x;drag.m.y2=p.y;if(isDivider(drag.m))fitDivider(drag.m);}render();
@@ -567,8 +573,8 @@
   viewport();$('rinkZoomIn').onclick=()=>changeZoom(zoom+.5);$('rinkZoomOut').onclick=()=>changeZoom(zoom-.5);$('rinkZoomReset').onclick=()=>{zoom=1;viewX=0;viewY=0;viewport();};
   pointers();document.querySelectorAll('[data-tool]').forEach(b=>b.onclick=()=>setTool(b.dataset.tool));
   document.querySelectorAll('[data-tool-menu]').forEach(d=>d.addEventListener('toggle',()=>{if(d.open)document.querySelectorAll('[data-tool-menu]').forEach(other=>{if(other!==d)other.open=false;});}));
-  $('rinkUndo').onclick=()=>{if(!history.length)return;$('rinkTidyReport').hidden=true;future.push(snapshot());marks=JSON.parse(history.pop());selectedId=null;render();saveDraft();};
-  $('rinkRedo').onclick=()=>{if(!future.length)return;$('rinkTidyReport').hidden=true;history.push(snapshot());marks=JSON.parse(future.pop());selectedId=null;render();saveDraft();};
+  $('rinkUndo').onclick=()=>{if(!history.length)return;closeMenus();$('rinkTidyReport').hidden=true;future.push(snapshot());marks=JSON.parse(history.pop());selectedId=null;render();saveDraft();};
+  $('rinkRedo').onclick=()=>{if(!future.length)return;closeMenus();$('rinkTidyReport').hidden=true;history.push(snapshot());marks=JSON.parse(future.pop());selectedId=null;render();saveDraft();};
   $('rinkTidy').onclick=tidyDrawing;
   $('rinkClear').onclick=()=>{if(marks.length&&confirm('Rensa alla symboler från rinken?')){remember();marks=[];selectedId=null;render();saveDraft();}closeMenus();};
   const updateDividerSettings=()=>{
@@ -584,6 +590,7 @@
   $('rinkAddPass').onclick=()=>addRouteArrow('pass');$('rinkAddShot').onclick=()=>addRouteArrow('shot');
   $('rinkChooseTarget').onclick=()=>{targetEdit=selectedId;announce('Peka på målpunkten på rinken.');};
   $('rinkSelectedMove').onclick=()=>setTool('move');
+  $('rinkSelectionMore').onclick=()=>{const expanded=$('rinkSelectionPanel').getAttribute('data-expanded')!=='true';$('rinkSelectionPanel').setAttribute('data-expanded',String(expanded));$('rinkSelectionMore').setAttribute('aria-expanded',String(expanded));$('rinkSelectionMore').textContent=expanded?'Färre val':'Fler val';};
   $('rinkDuplicate').onclick=()=>{const m=selected();if(!m)return;if(marks.length>=250){announce('Högst 250 objekt per övning.');return;}remember();const copy={...JSON.parse(JSON.stringify(m)),id:uuid()};translate(copy,25,25);marks.push(copy);selectedId=copy.id;render();saveDraft();};
   $('rinkDelete').onclick=()=>{if(!selected())return;remember();marks=marks.filter(m=>m.id!==selectedId);selectedId=null;render();saveDraft();};
   $('rinkDeselect').onclick=()=>{selectedId=null;numberEditId=null;render();};
