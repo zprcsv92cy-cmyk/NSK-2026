@@ -91,6 +91,25 @@
   }
   return true;
  }
+ function smoothBoundarySections(route){
+  const points=route.points,pins=new Set([0,points.length-1]);
+  const cross=(a,b,c)=>(b.x-a.x)*(c.y-a.y)-(b.y-a.y)*(c.x-a.x);
+  // Freeze every segment participating in a crossing, plus shared vertices.
+  // Only the independent stretches between them may be simplified.
+  for(let i=1;i<points.length;i++)for(let j=i+2;j<points.length;j++){
+   const a=points[i-1],b=points[i],c=points[j-1],d=points[j];
+   if(cross(a,b,c)*cross(a,b,d)<-1e-6&&cross(c,d,a)*cross(c,d,b)<-1e-6)[i-1,i,j-1,j].forEach(k=>pins.add(k));
+   if(Math.hypot(b.x-d.x,b.y-d.y)<2){pins.add(i);pins.add(j);}
+  }
+  // Pin sharp return points even when they came from dense touch samples.
+  for(let i=1;i<points.length-1;i++){
+   const a=points[i-1],b=points[i],c=points[i+1],u=Math.hypot(b.x-a.x,b.y-a.y),v=Math.hypot(c.x-b.x,c.y-b.y);
+   if(u&&v&&((b.x-a.x)*(c.x-b.x)+(b.y-a.y)*(c.y-b.y))/(u*v)<-.75)pins.add(i);
+  }
+  const indices=[...pins].sort((a,b)=>a-b),out=[];
+  for(let k=1;k<indices.length;k++){const part=smoothRoute(points.slice(indices[k-1],indices[k]+1));out.push(...(out.length?part.slice(1):part));}
+  return out.length<=500?out:points;
+ }
  function tidyLayout(input){
   const result=JSON.parse(JSON.stringify(input));
   const symbols=input.filter(m=>['player','goalie','puck','cone','tire','goal'].includes(m.type));
@@ -100,7 +119,8 @@
     // A direction boundary pins the endpoints, not every sampled point between them.
     // Keep split routes as polylines so smoothing cannot shift the actual turn point.
     const protectedShape=window.NskRoutePlanner?.hasRouteFeatures?.(m.directionBoundary?{...m,directionBoundary:false}:m);
-    if(!protectedShape){const planned=routePlans.get(m.id);if(planned)Object.assign(m,planned);else if(m.routeStyle!=='planned'||m.directionBoundary)m.points=smoothRoute(m.points);}
+    if(m.directionBoundary&&protectedShape)m.points=smoothBoundarySections(m);
+    else if(!protectedShape){const planned=routePlans.get(m.id);if(planned)Object.assign(m,planned);else if(m.routeStyle!=='planned'||m.directionBoundary)m.points=smoothRoute(m.points);}
    }
    if(['skate','pass','shot'].includes(m.type)&&Number.isFinite(m.x2)){
     const a={x:m.x,y:m.y},b={x:m.x2,y:m.y2},nearSymbol=p=>symbols.some(s=>Math.hypot(s.x-p.x,s.y-p.y)<30);
