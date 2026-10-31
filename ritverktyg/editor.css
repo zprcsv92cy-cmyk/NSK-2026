@@ -15,6 +15,7 @@ body.rink-gesturing .draw-selection,body.rink-gesturing .draw-status{visibility:
 .draw-tool-menu>summary::-webkit-details-marker{display:none}
 .draw-tool-menu>div{position:absolute;left:6px;right:6px;bottom:calc(100% + 6px);display:grid;grid-template-columns:repeat(auto-fit,minmax(125px,1fr));gap:7px;max-height:min(360px,55dvh);overflow:auto;overscroll-behavior:contain;padding:10px;border:1px solid #516171;border-radius:12px;background:#172330;box-shadow:0 -6px 20px #0006;z-index:10}
 .draw-tool-menu:not([open])>div{display:none}
+.draw-tool-menu>div{max-width:640px;margin:0 auto}
 .draw-tools a{display:grid;place-items:center}
 .draw-tools label{display:flex;align-items:center;justify-content:space-between;gap:8px;grid-column:1/-1;font-size:.85rem}
 .draw-tools select{width:auto;min-width:100px;min-height:44px;margin:0;padding:8px}
@@ -35,6 +36,10 @@ body.rink-gesturing .draw-selection,body.rink-gesturing .draw-status{visibility:
 .draw-selection input,.draw-selection select{width:auto;min-width:0;min-height:44px;margin:0;padding:8px}
 .draw-selection input{width:66px}
 #rinkDividerSettings{grid-column:1/-1;flex-wrap:wrap}
+#rinkPatternSettings{grid-column:1/-1;order:7;display:flex;flex-wrap:wrap;gap:10px;margin:0;padding:8px;border:1px solid #516171;border-radius:8px}
+#rinkPatternSettings label{flex:1 1 130px;display:flex;justify-content:space-between}
+#rinkPatternSettings input{width:76px}
+#rinkUngroup{order:8;grid-column:span 2}
 .draw-status{position:absolute;bottom:calc(68px + env(safe-area-inset-bottom,0px));left:8px;right:8px;max-width:600px;margin:auto;z-index:3;pointer-events:none;font-size:.8rem;color:var(--text);background:#172330ed;border-radius:8px}
 .draw-status p{margin:0;padding:8px}
 .draw-status:has(>#rinkTidyReport:not([hidden])) #rinkStatus{display:none}
