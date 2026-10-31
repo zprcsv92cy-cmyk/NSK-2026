@@ -108,3 +108,22 @@ test('the complete tidy action keeps all three normalized photo roundings instea
 test('tidy recognizes the printed rink circles and dots without adding equipment',()=>{
  for(const center of context.window.NskRoutePlanner.rinkLandmarks){const radius=center.circleRadius||35,points=Array.from({length:49},(_,i)=>{const angle=i/48*Math.PI*2,r=radius+Math.sin(i*1.7)*4;return {x:center.x+r*Math.cos(angle),y:center.y+r*Math.sin(angle)};});points[points.length-1]={...points[0]};const route={id:'rink-route',type:'curve',...points[0],points,color:'#111827',motion:'forward'},result=tidy([route]);assert.equal(result.length,1);assert.equal(result[0].routeStyle,'planned');const radii=result[0].points.map(p=>Math.hypot(p.x-center.x,p.y-center.y));assert.ok(Math.max(...radii)-Math.min(...radii)<1e-6);}
 });
+test('lower-zone slalom tires keep their alternating order with equal vertical steps',()=>{
+ const marks=[[210,559],[110,635],[195,710],[100,770]].map(([x,y],i)=>({...cone('t'+i,x,y),type:'tire'})),before=structuredClone(marks),result=tidy(marks);
+ assert.equal(result[0].x,result[2].x);assert.equal(result[1].x,result[3].x);assert.ok(result[0].x>result[1].x);assert.ok(result[0].y>=589);assert.ok(result[3].y<=800);
+ const step=result[1].y-result[0].y;for(let i=2;i<4;i++)assert.ok(Math.abs(result[i].y-result[i-1].y-step)<1e-6);assert.deepEqual(marks,before);assert.deepEqual(tidy(result),result);
+});
+test('three cones around a faceoff point become a centered equilateral triangle',()=>{
+ const center={x:353,y:698},marks=[cone('a',353,650),cone('b',302,725),cone('c',410,733)],result=tidy(marks),dist=(a,b)=>Math.hypot(a.x-b.x,a.y-b.y),radii=result.map(p=>dist(p,center)),sides=result.map((p,i)=>dist(p,result[(i+1)%3]));
+ assert.ok(Math.max(...radii)-Math.min(...radii)<1e-6);assert.ok(Math.max(...sides)-Math.min(...sides)<1e-6);assert.ok(Math.abs(result[0].x-center.x)<1e-6);assert.ok(Math.abs(result[1].y-result[2].y)<1e-6);assert.deepEqual(tidy(result),result);
+});
+test('slalom spacing and cone triangles remain separate from other stations',()=>{
+ const upper=[{...cone('u1',128,140),type:'tire'},{...cone('u2',100,190),type:'tire'},{...cone('u3',160,190),type:'tire'}],lower=[[210,559],[110,635],[195,710],[100,770]].map(([x,y],i)=>({...cone('t'+i,x,y),type:'tire'})),cones=[cone('a',353,650),cone('b',302,725),cone('c',410,733)],result=tidy([...upper,...lower,...cones]);
+ assert.deepEqual(result.slice(0,3),upper);assert.equal(result[3].x,result[5].x);assert.equal(result[4].x,result[6].x);assert.ok(Math.abs(result[7].x-353)<1e-6);
+});
+test('an existing slalom route follows moved tires without changing sides or endpoints',()=>{
+ const tires=[[210,559],[110,635],[195,710],[100,770]].map(([x,y],i)=>({...cone('t'+i,x,y),type:'tire'})),points=[{x:240,y:510}];
+ for(let k=0;k<tires.length;k++)for(let i=0;i<=24;i++){const angle=-Math.PI/2+(k%2?-1:1)*Math.PI*i/24;points.push({x:tires[k].x+32*Math.cos(angle),y:tires[k].y+32*Math.sin(angle)});}points.push({x:140,y:815});
+ const route={id:'slalom',type:'curve',...points[0],points,color:'#111827',motion:'forward'},input=[route,...tires],result=tidy(input);
+ assert.ok(result[1].y>=589);assert.equal(result[1].x,result[3].x);assert.equal(result[2].x,result[4].x);assert.deepEqual(result[0].points[0],points[0]);assert.deepEqual(result[0].points.at(-1),points.at(-1));assert.ok(context.window.testLayout.preservesObstacleSide(route,result[0],tires,result.slice(1)));
+});
