@@ -42,7 +42,7 @@ function viewTransform(f,rotated=false){
 test('building blocks create coherent groups with undo and persistent grouping',()=>{
  for(const [button,type,count] of [['rinkSlalom','tire',4],['rinkTriangle','cone',3],['rinkPlayers','player',5]]){
   const f=editor();f.node(button).onclick();f.flush();const group=f.draft().marks;assert.equal(group.length,count);assert.ok(group.every(m=>m.type===type&&m.patternId===group[0].patternId&&m.patternCount===count));assert.equal(new Set(group.map(m=>m.id)).size,count);
-  if(type==='player')assert.deepEqual(group.map(m=>m.number),['1','2','3','4','5']);
+  if(type==='player'){assert.deepEqual(group.map(m=>m.number),['1','2','3','4','5']);assert.ok(group[1].y-group[0].y>30);}
   if(type==='cone'){const distances=group.map((p,i)=>{const q=group[(i+1)%3];return Math.hypot((p.x-q.x)/(436/30),(p.y-q.y)/(820/60));});assert.ok(distances.every(d=>Math.abs(d-5)<1e-6));assert.equal(f.node('rinkPatternCount').disabled,true);}
   f.node('rinkUndo').onclick();f.flush();assert.equal(f.draft().marks.length,0);f.node('rinkRedo').onclick();f.flush();assert.deepEqual(f.draft().marks,group);
   const restored=editor(Object.fromEntries(f.storage));restored.node('rinkTitle').emit('input');restored.flush();assert.deepEqual(restored.draft().marks,group);
