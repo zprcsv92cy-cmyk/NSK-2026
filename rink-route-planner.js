@@ -111,12 +111,23 @@
   if(out.length<2||out.length>500||out.some(p=>p.x<22||p.x>458||p.y<20||p.y>840))return null;
   return {...route,x:out[0].x,y:out[0].y,...(route.x2!==undefined?{x2:out.at(-1).x,y2:out.at(-1).y}:{}),points:out,routeStyle:'planned'};
  }
+ // Preserve explicit reversals and figure-eight crossings instead of guessing a shortcut.
+ function hasRouteFeatures(route){
+  const raw=rendered(route),ps=raw.length>450?sample(raw):raw;if(route.directionBoundary)return true;
+  const significant=[ps[0]];for(const p of ps.slice(1))if(distance(p,significant.at(-1))>=8)significant.push(p);
+  for(let i=1;i<significant.length-1;i++){const a=significant[i-1],b=significant[i],c=significant[i+1],u=distance(a,b),v=distance(b,c);if(u&&v&&((b.x-a.x)*(c.x-b.x)+(b.y-a.y)*(c.y-b.y))/(u*v)<-.75)return true;}
+  const walked=[0];for(let i=1;i<ps.length;i++)walked.push(walked.at(-1)+distance(ps[i-1],ps[i]));
+  for(let i=0;i<ps.length;i++)for(let j=i+3;j<ps.length;j++){const span=walked[j]-walked[i];if(span>50&&walked.at(-1)-span>30&&distance(ps[i],ps[j])<2)return true;}
+  const cross=(a,b,c)=>(b.x-a.x)*(c.y-a.y)-(b.y-a.y)*(c.x-a.x);
+  for(let i=1;i<ps.length;i++)for(let j=i+2;j<ps.length;j++){const a=ps[i-1],b=ps[i],c=ps[j-1],d=ps[j];if(cross(a,b,c)*cross(a,b,d)<-1e-6&&cross(c,d,a)*cross(c,d,b)<-1e-6)return true;}
+  return false;
+ }
  function plan(marks){
   const equipment=marks.filter(m=>['tire','cone'].includes(m.type)),passes=marks.filter(m=>m.type==='pass'),analyses=marks.filter(m=>m.type==='curve'&&m.points?.length>=3).map(m=>analyze(m,equipment,passes));
   for(const analysis of analyses)analysis.startPinned=marks.some(m=>['player','goalie','puck'].includes(m.type)&&distance(m,analysis.points[0])<24)||passes.some(p=>distance(p,analysis.points[0])<16||distance({x:p.x2,y:p.y2},analysis.points[0])<16);
   const gaps=analyses.flatMap(a=>a.events.map(e=>e.radius-e.footprint)).sort((a,b)=>a-b),clearance=gaps.length?clamp(gaps[Math.floor(gaps.length/2)],18,65):24,plans=new Map();
-  for(const analysis of analyses){const candidate=build(analysis,clearance);if(candidate)plans.set(analysis.route.id,candidate);}
+  for(const analysis of analyses){if(hasRouteFeatures(analysis.route))continue;const candidate=build(analysis,clearance);if(candidate)plans.set(analysis.route.id,candidate);}
   return {plans,clearance};
  }
- root.NskRoutePlanner=Object.freeze({plan,analyze,rendered});
+ root.NskRoutePlanner=Object.freeze({plan,analyze,rendered,hasRouteFeatures});
 })(typeof window!=='undefined'?window:globalThis);

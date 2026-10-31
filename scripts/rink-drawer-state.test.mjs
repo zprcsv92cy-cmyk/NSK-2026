@@ -221,3 +221,12 @@ test('shot ending belongs to route, aims at goal and survives reload without a s
  f.node('rinkUndo').onclick();f.flush();assert.equal(f.draft().marks[0].shotEnd.goalId,'g');f.node('rinkUndo').onclick();f.flush();assert.equal(f.draft().marks[0].shotEnd,undefined);
  f.pointer('pointerdown',230,210);f.pointer('pointerup',230,210);f.node('rinkAddPass').onclick();f.pointer('pointerdown',60,500);f.pointer('pointerup',60,500);f.flush();const pass=f.draft().marks.at(-1);assert.equal(pass.type,'pass');assert.equal(pass.x,230);assert.equal(pass.y,200);assert.equal(pass.x2,60);assert.equal(pass.y2,500);
 });
+
+test('direction changes start at a touched route point, preserve the shot ending and survive tidy and recovery',()=>{
+ const route={id:'r',type:'skate',x:100,y:300,x2:400,y2:300,color:'#111827',motion:'forward',shotEnd:{x:240,y:78}},f=editor({[DRAFT]:JSON.stringify({marks:[route]})});
+ f.pointer('pointerdown',220,310);f.pointer('pointerup',220,310);f.node('rinkSelectedDirection').value='backward';f.node('rinkSelectedDirection').onchange();f.flush();
+ let ms=f.draft().marks;assert.equal(ms.length,2);assert.equal(ms[0].motion,'forward');assert.equal(ms[1].motion,'backward');assert.deepEqual(ms[0].points.at(-1),{x:220,y:300});assert.deepEqual(ms[1].points[0],{x:220,y:300});assert.equal(ms[0].shotEnd,undefined);assert.deepEqual(ms[1].shotEnd,route.shotEnd);
+ const before=structuredClone(ms);f.node('rinkTidy').onclick();f.flush();assert.deepEqual(f.draft().marks,before);
+ const restored=editor(Object.fromEntries(f.storage));restored.leave();assert.deepEqual(restored.draft().marks,before);
+ f.node('rinkUndo').onclick();f.flush();assert.equal(f.draft().marks.length,1);assert.equal(f.draft().marks[0].type,'skate');
+});

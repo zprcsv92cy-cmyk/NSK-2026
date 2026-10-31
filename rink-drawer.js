@@ -96,7 +96,7 @@
   const symbols=input.filter(m=>['player','goalie','puck','cone','tire','goal'].includes(m.type));
   const routePlans=window.NskRoutePlanner?.plan(input).plans||new Map();
   for(const m of result){
-   if(m.type==='curve'&&m.points?.length>2){const planned=routePlans.get(m.id);if(planned)Object.assign(m,planned);else if(m.routeStyle!=='planned')m.points=smoothRoute(m.points);}
+   if(m.type==='curve'&&m.points?.length>2&&!window.NskRoutePlanner?.hasRouteFeatures?.(m)){const planned=routePlans.get(m.id);if(planned)Object.assign(m,planned);else if(m.routeStyle!=='planned')m.points=smoothRoute(m.points);}
    if(['skate','pass','shot'].includes(m.type)&&Number.isFinite(m.x2)){
     const a={x:m.x,y:m.y},b={x:m.x2,y:m.y2},nearSymbol=p=>symbols.some(s=>Math.hypot(s.x-p.x,s.y-p.y)<30);
     const attachedPass=m.type==='pass'&&input.some(r=>r.type==='curve'&&[a,b].some(p=>routeDistance(renderedRoute(r),p)<=16));
@@ -329,7 +329,19 @@
  }
  function nearestRoutePoint(m,p){
   const pts=m.type==='curve'?renderedRoute(m):geometry(m);let best=null,d=Infinity;
-  for(let i=1;i<pts.length;i++){const a=pts[i-1],b=pts[i],dx=b.x-a.x,dy=b.y-a.y,t=clamp(((p.x-a.x)*dx+(p.y-a.y)*dy)/(dx*dx+dy*dy||1),0,1),q={x:a.x+t*dx,y:a.y+t*dy},n=Math.hypot(q.x-p.x,q.y-p.y);if(n<d){d=n;best=q;}}return best;
+  for(let i=1;i<pts.length;i++){const a=pts[i-1],b=pts[i],dx=b.x-a.x,dy=b.y-a.y,t=clamp(((p.x-a.x)*dx+(p.y-a.y)*dy)/(dx*dx+dy*dy||1),0,1),q={x:a.x+t*dx,y:a.y+t*dy},n=Math.hypot(q.x-p.x,q.y-p.y);if(n<d){d=n;best={...q,index:i};}}return best;
+ }
+ function changeRouteDirection(){
+  const m=selected(),motion=$('rinkSelectedDirection').value;if(!m||!['skate','curve'].includes(m.type)||!['forward','backward'].includes(motion)||m.motion===motion)return;
+  const ps=renderedRoute(m),q=routePoint;
+  if(q&&q.index>0&&q.index<ps.length&&Math.hypot(q.x-ps[0].x,q.y-ps[0].y)>8&&Math.hypot(q.x-ps.at(-1).x,q.y-ps.at(-1).y)>8){
+   if(marks.length>=250){announce('Högst 250 objekt per övning.');return;}
+   const point={x:q.x,y:q.y},before=simplifyPath([...ps.slice(0,q.index),point],.1),after=simplifyPath([point,...ps.slice(q.index)],.1);
+   if(before.length>500||after.length>500){announce('Åkvägen är för detaljerad för att delas här.');return;}
+   remember();const next={...JSON.parse(JSON.stringify(m)),id:uuid(),type:'curve',routeStyle:'planned',directionBoundary:true,points:after,x:point.x,y:point.y,motion};next.color=skatingColor(next);delete next.x2;delete next.y2;
+   Object.assign(m,{type:'curve',routeStyle:'planned',directionBoundary:true,points:before});delete m.x2;delete m.y2;delete m.shotEnd;marks.splice(marks.indexOf(m)+1,0,next);selectedId=next.id;routePoint=null;
+  }else{remember();m.motion=motion;m.color=skatingColor(m);}
+  render();saveDraft();announce('Åkriktningen är ändrad från vald punkt.');
  }
  function addRouteArrow(type){
   const source=selected();if(!source||!['skate','curve'].includes(source.type)||marks.length>=250)return;
@@ -379,7 +391,7 @@
    }else if(drag.moving){
     if(!drag.changed&&Math.hypot(e.clientX-drag.startX,e.clientY-drag.startY)<4)return;
     if(!drag.changed){remember();drag.changed=true;}
-    translate(drag.m,p.x-drag.p.x,p.y-drag.p.y);drag.p=p;
+    translate(drag.m,p.x-drag.p.x,p.y-drag.p.y);drag.p=p;routePoint=null;
    }else if(drag.m.points){const last=drag.m.points.at(-1);if(Math.hypot(p.x-last.x,p.y-last.y)>=3&&drag.m.points.length<500)drag.m.points.push({...p});}else{if(isDivider(drag.m)){drag.m.x=drag.p.x;drag.m.y=drag.p.y;}drag.m.x2=p.x;drag.m.y2=p.y;if(isDivider(drag.m))fitDivider(drag.m);}render();
   });
   function resizeDivider(d,p){const m=d.m;m.x=d.anchor.x;m.y=d.anchor.y;m.x2=p.x;m.y2=p.y;m.lengthMetres=clamp(dividerLength(m),.25,60);fitDivider(m);if(d.resize===0){[m.x,m.x2]=[m.x2,m.x];[m.y,m.y2]=[m.y2,m.y];}}
@@ -399,6 +411,7 @@
   const ids=new Set();return input.filter(m=>m&&types.includes(m.type)&&[m.x,m.y].every(Number.isFinite)&&palette.includes(m.color)&&(m.type!=='curve'||(Array.isArray(m.points)&&m.points.length>=2&&m.points.length<=500&&m.points.every(p=>p&&Number.isFinite(p.x)&&Number.isFinite(p.y))))&&(m.x2===undefined?!['skate','pass','shot','divider','divider-yellow','divider-blue'].includes(m.type):[m.x2,m.y2].every(Number.isFinite))).slice(0,250).map(m=>{
    const n={id:typeof m.id==='string'&&!ids.has(m.id)?m.id:uuid(),type:m.type,x:clamp(m.x,22,W-22),y:clamp(m.y,20,H-20),color:m.color};ids.add(n.id);
    if(['skate','curve'].includes(m.type)&&m.shotEnd&&[m.shotEnd.x,m.shotEnd.y].every(Number.isFinite))n.shotEnd={x:clamp(m.shotEnd.x,22,W-22),y:clamp(m.shotEnd.y,20,H-20),...(typeof m.shotEnd.goalId==='string'?{goalId:m.shotEnd.goalId}:{})};
+   if(m.directionBoundary&&['skate','curve'].includes(m.type))n.directionBoundary=true;
    if(m.type==='curve'&&m.routeStyle==='planned')n.routeStyle='planned';
    if(m.type==='curve'){n.points=m.points.map(p=>({x:clamp(p.x,22,W-22),y:clamp(p.y,20,H-20)}));n.x=n.points[0].x;n.y=n.points[0].y;}
    if(m.x2!==undefined){n.x2=clamp(m.x2,22,W-22);n.y2=clamp(m.y2,20,H-20);}
@@ -485,7 +498,7 @@
    m.x=cx-vx/2;m.y=cy-vy/2;m.x2=cx+vx/2;m.y2=cy+vy/2;m.lengthMetres=length;fitDivider(m,true);render();saveDraft();announce('Avdelaren är '+length.toLocaleString('sv-SE')+' meter.');
   };
   $('rinkDividerLength').onchange=updateDividerSettings;$('rinkDividerAngle').onchange=updateDividerSettings;
-  $('rinkSelectedDirection').onchange=()=>{const m=selected(),motion=$('rinkSelectedDirection').value;if(!m||!['skate','curve'].includes(m.type)||!['forward','backward'].includes(motion)||m.motion===motion)return;remember();m.motion=motion;m.color=skatingColor(m);render();saveDraft();};
+  $('rinkSelectedDirection').onchange=changeRouteDirection;
   $('rinkGoalRotation').onchange=()=>{const m=selected(),angle=Number($('rinkGoalRotation').value);if(!m||m.type!=='goal'||![0,90,180,270].includes(angle)||m.angle===angle)return;remember();m.angle=angle;render();saveDraft();};
   $('rinkAddPass').onclick=()=>addRouteArrow('pass');$('rinkAddShot').onclick=()=>addRouteArrow('shot');
   $('rinkChooseTarget').onclick=()=>{targetEdit=selectedId;announce('Peka på målpunkten på rinken.');};
