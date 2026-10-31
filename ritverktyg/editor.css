@@ -3,6 +3,8 @@
 .draw-stage{display:flex;flex-direction:column;position:relative;isolation:isolate;height:calc(var(--nsk-app-height,100dvh) - 20px);min-height:340px;border:1px solid var(--line);border-radius:12px;background:#101923}
 .rink-container{display:flex;align-items:center;justify-content:center;flex:1;min-height:0;padding:2px;overflow:hidden}
 #rinkSvg{display:block;width:100%;height:100%;touch-action:none;user-select:none;-webkit-user-select:none}
+body.rink-gesturing .draw-selection,body.rink-gesturing .draw-status{visibility:hidden}
+.draw-tool-note{grid-column:1/-1;margin:0;padding:4px;font-size:.8rem;color:#d0d9e4}
 .draw-tools{position:relative;flex:none;padding:6px 6px max(6px,env(safe-area-inset-bottom,0px));background:#101923;border-top:1px solid #455263;border-radius:0 0 12px 12px;z-index:4}
 .draw-mode-row{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:4px}
 .draw-tools button,.draw-tools summary,.draw-tools a,.draw-selection button{box-sizing:border-box;min-height:48px;margin:0;padding:8px 5px;border:1px solid #455263;border-radius:8px;background:#202b39;color:#f4f5f7;font:inherit;font-size:.82rem;text-align:center;text-decoration:none;cursor:pointer}
