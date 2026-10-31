@@ -1,0 +1,32 @@
+name: Private profile photos
+on:
+  pull_request:
+    paths:
+      - '*photo*'
+      - 'person-cards.js'
+      - 'roster-view.js'
+      - 'account-users.js'
+      - 'auth.js'
+      - 'truppen/**'
+      - 'worker/**'
+      - 'migrations/**'
+      - 'scripts/person-photo*'
+      - 'scripts/fixtures/*photo*'
+      - '.github/workflows/profile-photos.yml'
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  photos:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Verify private image storage, revision conflicts and independent permissions
+        run: node --test scripts/person-photos*.test.mjs scripts/person-cards*.test.mjs worker/browser-auth-permissions.test.mjs worker/team-authorization-policy.test.mjs
+      - name: Install isolated DOM test dependency
+        run: npm install --prefix "$RUNNER_TEMP/photo-dom" jsdom@26 --no-audit --no-fund
+      - name: Verify player and coach card controls without a browser or production connection
+        run: NSK_JSDOM_MODULE="$RUNNER_TEMP/photo-dom/node_modules/jsdom/lib/api.js" node scripts/person-photos-dom-check.mjs

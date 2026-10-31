@@ -1,6 +1,6 @@
 (()=>{
  const $=id=>document.getElementById(id),base=String(window.APP_CONFIG?.AUTH_URL||'').replace(/\/$/,'');
- const permissionNames={'read':'Läsbehörighet','pool:create':'Skapa poolspel','lineup:edit':'Ändra laguppställning','shifts:check':'Checka byten','match:manage':'Hantera matchvy','pool:finish':'Avsluta poolspel','pool:reopen':'Återöppna poolspel','roster:manage':'Hantera truppen','users:manage':'Hantera användare'};
+ const permissionNames={'read':'Läsbehörighet','pool:create':'Skapa poolspel','lineup:edit':'Ändra laguppställning','shifts:check':'Checka byten','match:manage':'Hantera matchvy','pool:finish':'Avsluta poolspel','pool:reopen':'Återöppna poolspel','roster:manage':'Hantera truppen','photos:manage':'Ändra profilbilder','users:manage':'Hantera användare'};
  const roles={viewer:'Läsare',coach:'Tränare',team_admin:'Administratör',team_manager:'Lagledare',fitness:'Fysansvarig',equipment:'Materialförvaltare',player:'Spelare'};
  let actor=null,users=[],memberships=[],emailDelivery=false;
  const message=text=>{$('status').textContent=text;};

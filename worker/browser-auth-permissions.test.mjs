@@ -98,3 +98,8 @@ test('UI decisions match the shared API policy for every feature and delegated r
     assert.equal(auth.can('roster','foreign'),false);assert.equal(auth.can('unexpected','team-18'),false);
   }
 });
+
+test('photo changes are a separate personal grant from roster editing',async()=>{
+ const photo=await makeAuth({user:{id:'photo-user'},memberships:[{team_id:'team-18',role:'coach'}],permissions:['read','photos:manage']});assert.equal(photo.can('photos','team-18'),true);assert.equal(photo.can('roster','team-18'),false);
+ const roster=await makeAuth({user:{id:'roster-user'},memberships:[{team_id:'team-18',role:'coach'}],permissions:['read','roster:manage']});assert.equal(roster.can('photos','team-18'),false);
+});
