@@ -96,7 +96,12 @@
   const symbols=input.filter(m=>['player','goalie','puck','cone','tire','goal'].includes(m.type));
   const routePlans=window.NskRoutePlanner?.plan(input).plans||new Map();
   for(const m of result){
-   if(m.type==='curve'&&m.points?.length>2&&!window.NskRoutePlanner?.hasRouteFeatures?.(m)){const planned=routePlans.get(m.id);if(planned)Object.assign(m,planned);else if(m.routeStyle!=='planned')m.points=smoothRoute(m.points);}
+   if(m.type==='curve'&&m.points?.length>2){
+    // A direction boundary pins the endpoints, not every sampled point between them.
+    // Keep split routes as polylines so smoothing cannot shift the actual turn point.
+    const protectedShape=window.NskRoutePlanner?.hasRouteFeatures?.(m.directionBoundary?{...m,directionBoundary:false}:m);
+    if(!protectedShape){const planned=routePlans.get(m.id);if(planned)Object.assign(m,planned);else if(m.routeStyle!=='planned'||m.directionBoundary)m.points=smoothRoute(m.points);}
+   }
    if(['skate','pass','shot'].includes(m.type)&&Number.isFinite(m.x2)){
     const a={x:m.x,y:m.y},b={x:m.x2,y:m.y2},nearSymbol=p=>symbols.some(s=>Math.hypot(s.x-p.x,s.y-p.y)<30);
     const attachedPass=m.type==='pass'&&input.some(r=>r.type==='curve'&&[a,b].some(p=>routeDistance(renderedRoute(r),p)<=16));
