@@ -116,6 +116,8 @@
   const raw=rendered(route),ps=raw.length>450?sample(raw):raw;if(route.directionBoundary)return true;
   const significant=[ps[0]];for(const p of ps.slice(1))if(distance(p,significant.at(-1))>=8)significant.push(p);
   for(let i=1;i<significant.length-1;i++){const a=significant[i-1],b=significant[i],c=significant[i+1],u=distance(a,b),v=distance(b,c);if(u&&v&&((b.x-a.x)*(c.x-b.x)+(b.y-a.y)*(c.y-b.y))/(u*v)<-.75)return true;}
+  const walked=[0];for(let i=1;i<ps.length;i++)walked.push(walked.at(-1)+distance(ps[i-1],ps[i]));
+  for(let i=0;i<ps.length;i++)for(let j=i+3;j<ps.length;j++){const span=walked[j]-walked[i];if(span>50&&walked.at(-1)-span>30&&distance(ps[i],ps[j])<2)return true;}
   const cross=(a,b,c)=>(b.x-a.x)*(c.y-a.y)-(b.y-a.y)*(c.x-a.x);
   for(let i=1;i<ps.length;i++)for(let j=i+2;j<ps.length;j++){const a=ps[i-1],b=ps[i],c=ps[j-1],d=ps[j];if(cross(a,b,c)*cross(a,b,d)<-1e-6&&cross(c,d,a)*cross(c,d,b)<-1e-6)return true;}
   return false;

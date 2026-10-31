@@ -37,3 +37,7 @@ test('separate circles around cones and tires use the same shared clearance',()=
 test('an open rounding remains an arc, never completed to a full circle',()=>{
  const r=route('partial',[{x:100,y:400},...arc(tire,50,Math.PI,2*Math.PI),{x:380,y:400}]),fit=api.plan([r,tire]).plans.get(r.id);assert.ok(fit);assert.deepEqual(plain(fit.points[0]),r.points[0]);assert.deepEqual(plain(fit.points.at(-1)),r.points.at(-1));assert.ok(dist(fit.points[0],fit.points.at(-1))>200);
 });
+
+test('a figure eight touching the exact same crossing vertex is protected',()=>{
+ const r={...route('8',[{x:200,y:400},{x:100,y:300},{x:100,y:500},{x:200,y:400},{x:300,y:300},{x:300,y:500},{x:200,y:400}]),routeStyle:'planned'};assert.equal(api.hasRouteFeatures(r),true);assert.equal(api.plan([r,tire]).plans.size,0);
+});
