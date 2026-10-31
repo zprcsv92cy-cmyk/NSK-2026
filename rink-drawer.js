@@ -9,6 +9,32 @@
  let marks=[],history=[],future=[],tool='move',drag=null,selectedId=null,draftTimer=0,draftDirty=false,numberEditId=null;
  let zoom=1,viewX=0,viewY=0,selectionPanelId=null;
  let resetTouchGesture=()=>{};
+ const patternTypes={slalom:{label:'Däckslalom',type:'tire',count:4,min:3,max:8,spacing:4,width:6},triangle:{label:'Kontriangel',type:'cone',count:3,min:3,max:3,spacing:5,width:0},players:{label:'Spelarled',type:'player',count:5,min:2,max:12,spacing:1.5,width:0}};
+ const patternFields=['patternId','patternType','patternIndex','patternCount','patternSpacing','patternWidth'];
+ const patternMembers=m=>m?.patternId?marks.filter(p=>p.patternId===m.patternId):m?[m]:[];
+ function patternMarks(type,count,spacing,width,center,patternId,color){
+  const spec=patternTypes[type];if(!spec||!Number.isInteger(count)||count<spec.min||count>spec.max||!Number.isFinite(spacing)||spacing<.5||spacing>12||!Number.isFinite(width)||(type==='slalom'&&(width<1||width>15)))return null;
+  const points=Array.from({length:count},(_,i)=>type==='triangle'?{x:Math.cos(-Math.PI/2+i*Math.PI*2/3)*spacing/Math.sqrt(3),y:Math.sin(-Math.PI/2+i*Math.PI*2/3)*spacing/Math.sqrt(3)}:{x:type==='slalom'?(i%2?-.5:.5)*width:0,y:(i-(count-1)/2)*spacing});
+  const meanX=points.reduce((n,p)=>n+p.x,0)/count;points.forEach(p=>{p.x=(p.x-meanX)*rinkScale.x;p.y*=rinkScale.y;});
+  const xs=points.map(p=>p.x),ys=points.map(p=>p.y),left=Math.min(...xs),right=Math.max(...xs),top=Math.min(...ys),bottom=Math.max(...ys);if(right-left>400||bottom-top>780)return null;
+  const x=clamp(center.x,40-left,440-right),y=clamp(center.y,40-top,820-bottom);
+  return points.map((p,i)=>({id:uuid(),type:spec.type,x:x+p.x,y:y+p.y,color,patternId,patternType:type,patternIndex:i,patternCount:count,patternSpacing:spacing,patternWidth:type==='slalom'?width:0,...(type==='players'?{number:String(i+1)}:{})}));
+ }
+ function createPattern(type){
+  const spec=patternTypes[type];if(!spec)return;if(marks.length+spec.count>250){announce('Högst 250 objekt per övning.');return;}
+  const group=patternMarks(type,spec.count,spec.spacing,spec.width,{x:viewX+W/zoom/2,y:viewY+H/zoom/2},uuid(),$('rinkColor').value);if(!group)return;
+  remember();marks.push(...group);setTool('move');selectedId=group[0].id;render();saveDraft();announce(spec.label+' tillagd. Flytta gruppen eller öppna Fler val.');
+ }
+ function changePattern(){
+  const m=selected(),spec=patternTypes[m?.patternType];if(!m?.patternId||!spec)return;
+  const count=Number($('rinkPatternCount').value),spacing=Number($('rinkPatternSpacing').value),width=m.patternType==='slalom'?Number($('rinkPatternWidth').value):0,group=patternMembers(m);
+  if(count===m.patternCount&&spacing===m.patternSpacing&&width===m.patternWidth)return;
+  if(marks.length-group.length+count>250){announce('Högst 250 objekt per övning.');return;}
+  const center={x:group.reduce((n,p)=>n+p.x,0)/group.length,y:group.reduce((n,p)=>n+p.y,0)/group.length},next=patternMarks(m.patternType,count,spacing,width,center,m.patternId,m.color);
+  if(!next){announce('Gruppen får inte plats eller har ett ogiltigt antal/avstånd.');return;}
+  const old=new Map(group.map(p=>[p.patternIndex,p]));next.forEach(p=>{if(old.has(p.patternIndex))p.id=old.get(p.patternIndex).id;});
+  remember();const first=marks.findIndex(p=>p.patternId===m.patternId);marks=marks.filter(p=>p.patternId!==m.patternId);marks.splice(first,0,...next);selectedId=next.find(p=>p.id===m.id)?.id||next[0].id;selectionPanelId=selectedId;render();saveDraft();announce(spec.label+' uppdaterad.');
+ }
  const geometry=m=>m.points||[{x:m.x,y:m.y},...(m.x2===undefined?[]:[{x:m.x2,y:m.y2}])];
  // Conservative local cleanup. Endpoints, goals and exercise metadata are preserved.
  function segmentDistance(p,a,b){const dx=b.x-a.x,dy=b.y-a.y,k=clamp(((p.x-a.x)*dx+(p.y-a.y)*dy)/(dx*dx+dy*dy||1),0,1);return Math.hypot(p.x-a.x-k*dx,p.y-a.y-k*dy);}
@@ -115,7 +141,7 @@
   const proposals=[],used=new Set(),wrap=a=>Math.atan2(Math.sin(a),Math.cos(a));
   // Separate stations at the blue lines before looking for alternating columns.
   for(const zone of [{min:20,max:301,from:20,to:286},{min:301,max:559,from:286,to:544},{min:559,max:840,from:544,to:841}]){
-   const remaining=new Set(input.filter(m=>m.type==='tire'&&m.y>=zone.from&&m.y<zone.to));
+   const remaining=new Set(input.filter(m=>m.type==='tire'&&!m.patternId&&m.y>=zone.from&&m.y<zone.to));
    while(remaining.size){const group=[remaining.values().next().value];remaining.delete(group[0]);for(let i=0;i<group.length;i++)for(const m of [...remaining])if(Math.hypot(m.x-group[i].x,m.y-group[i].y)<145){group.push(m);remaining.delete(m);}
     group.sort((a,b)=>a.y-b.y);if(group.length<4||group.length>8)continue;
     const columns=[0,1].map(parity=>{const members=group.filter((_,i)=>i%2===parity);return members.reduce((n,m)=>n+m.x,0)/members.length;});
@@ -126,7 +152,7 @@
   }
   // A clear three-cone triangle belongs to the nearby printed faceoff/centre point.
   for(const center of window.NskRoutePlanner?.rinkLandmarks||[]){
-   const group=input.filter(m=>m.type==='cone'&&!used.has(m.id)&&Math.hypot(m.x-center.x,m.y-center.y)<100);if(group.length!==3)continue;
+   const group=input.filter(m=>m.type==='cone'&&!m.patternId&&!used.has(m.id)&&Math.hypot(m.x-center.x,m.y-center.y)<100);if(group.length!==3)continue;
    const angles=group.map(m=>Math.atan2(m.y-center.y,m.x-center.x)),sorted=[...angles].sort((a,b)=>a-b),gaps=sorted.map((a,i)=>(sorted[(i+1)%3]-a+Math.PI*2)%(Math.PI*2)),radii=group.map(m=>Math.hypot(m.x-center.x,m.y-center.y));
    if(gaps.some(g=>g<1.3||g>2.9)||Math.min(...radii)<25||Math.max(...radii)>Math.min(...radii)*1.8)continue;
    let rotation=Math.atan2(angles.reduce((n,a)=>n+Math.sin(3*a),0),angles.reduce((n,a)=>n+Math.cos(3*a),0))/3;
@@ -159,7 +185,7 @@
  }
  function tidyLayout(input,patterns=true,patternLocks=new Set()){
   if(patterns){
-   let current=input;const locks=new Set();
+   let current=input;const locks=new Set(input.filter(m=>m.patternId).map(m=>m.id));
    for(const proposal of equipmentPatternProposals(input)){
     proposal.forEach(p=>locks.add(p.id));
     const moved=moveEquipmentPattern(current,proposal);if(!moved)continue;
@@ -316,13 +342,16 @@
   $('rinkUndo').disabled=!history.length;$('rinkRedo').disabled=!future.length;
   const m=selected();$('rinkSelectionPanel').hidden=!m||Boolean(drag?.changed);if(!m){selectionPanelId=null;return;}
   if(selectionPanelId!==m.id){selectionPanelId=m.id;$('rinkSelectionPanel').setAttribute('data-expanded','false');$('rinkSelectionMore').setAttribute('aria-expanded','false');$('rinkSelectionMore').textContent='Fler val';}
+  const pattern=m.patternId&&patternTypes[m.patternType];$('rinkPatternSettings').hidden=!pattern;$('rinkUngroup').hidden=!pattern;
+  $('rinkDuplicate').textContent=pattern?'Kopiera grupp':'Kopiera';$('rinkDelete').textContent=pattern?'Ta bort grupp':'Ta bort';
+  if(pattern){$('rinkPatternCount').value=String(m.patternCount);$('rinkPatternCount').min=String(pattern.min);$('rinkPatternCount').max=String(pattern.max);$('rinkPatternCount').disabled=pattern.min===pattern.max;$('rinkPatternCountField').hidden=pattern.min===pattern.max;$('rinkPatternSpacing').value=String(m.patternSpacing);$('rinkPatternWidth').value=String(m.patternWidth);$('rinkPatternWidthField').hidden=m.patternType!=='slalom';$('rinkPatternSpacingLabel').textContent=m.patternType==='triangle'?'Sidlängd (m)':m.patternType==='slalom'?'Steg (m)':'Avstånd (m)';}
   $('rinkRouteActions').hidden=!['skate','curve','pass','shot'].includes(m.type);
   $('rinkAddPass').hidden=$('rinkAddShot').hidden=!['skate','curve'].includes(m.type);
   $('rinkChooseTarget').hidden=!['pass','shot'].includes(m.type)&&!m.shotEnd;
-  $('rinkSelectedLabel').textContent=names[m.type]+(m.number?' '+m.number:'')+' markerad';
+  $('rinkSelectedLabel').textContent=pattern?pattern.label+' · '+m.patternCount+' symboler':names[m.type]+(m.number?' '+m.number:'')+' markerad';
   $('rinkGoalRotationField').hidden=m.type!=='goal';if(m.type==='goal')$('rinkGoalRotation').value=String(m.angle||0);
   $('rinkDividerSettings').hidden=!isDivider(m);if(isDivider(m)){if(document.activeElement!==$('rinkDividerLength'))$('rinkDividerLength').value=dividerLength(m).toFixed(1);if(document.activeElement!==$('rinkDividerAngle'))$('rinkDividerAngle').value=String(Math.round(dividerAngle(m))%360);}
-  $('rinkNumberField').hidden=!['player','goalie'].includes(m.type);
+  $('rinkNumberField').hidden=Boolean(pattern)||!['player','goalie'].includes(m.type);
   $('rinkSelectedColorField').hidden=!['player','goalie','pass','shot'].includes(m.type);
   $('rinkSkatingDirectionField').hidden=!['skate','curve'].includes(m.type);if(['skate','curve'].includes(m.type))$('rinkSelectedDirection').value=m.motion==='backward'?'backward':'forward';
   $('rinkSelectedColor').value=m.color;
@@ -397,7 +426,7 @@
   const m=selected();if(!m)return;
   const group=el('g',{'data-editor-ui':'selection','pointer-events':'none'},$('rinkSvg'));
   const props={fill:'none',stroke:'#0085ff','stroke-width':2,'stroke-dasharray':'5 4'};
-  const pts=geometry(m),xs=pts.map(p=>p.x),ys=pts.map(p=>p.y);
+  const pts=patternMembers(m).flatMap(geometry),xs=pts.map(p=>p.x),ys=pts.map(p=>p.y);
   if(pts.length>1)el('rect',{...props,x:Math.min(...xs)-12,y:Math.min(...ys)-12,width:(Math.max(...xs)-Math.min(...xs))+24,height:(Math.max(...ys)-Math.min(...ys))+24,rx:8},group);
   else el('circle',{...props,cx:m.x,cy:m.y,r:23},group);
   if(isDivider(m))for(const [i,p] of pts.entries())el('circle',{cx:p.x,cy:p.y,r:9,fill:'white',stroke:'#0085ff','stroke-width':3,'data-divider-handle':i},group);
@@ -443,6 +472,9 @@
   dx=clamp(dx,22-Math.min(...xs),W-22-Math.max(...xs));dy=clamp(dy,20-Math.min(...ys),H-20-Math.max(...ys));
   m.x+=dx;m.y+=dy;if(m.points)m.points=m.points.map(p=>({x:p.x+dx,y:p.y+dy}));if(m.x2!==undefined){m.x2+=dx;m.y2+=dy;}
  }
+ function moveMarks(items,dx,dy){
+  const points=items.flatMap(geometry),xs=points.map(p=>p.x),ys=points.map(p=>p.y),margin=items.length>1?40:22;dx=clamp(dx,margin-Math.min(...xs),W-margin-Math.max(...xs));dy=clamp(dy,(items.length>1?40:20)-Math.min(...ys),(items.length>1?820:H-20)-Math.max(...ys));items.forEach(m=>translate(m,dx,dy));
+ }
  function pointers(){
   const s=$('rinkSvg'),touches=new Map();let touchStart=null,pinch=null,touchBlocked=false;
   resetTouchGesture=()=>{touches.clear();touchStart=null;pinch=null;touchBlocked=false;drag=null;document.body.classList.toggle('rink-gesturing',false);render();};
@@ -475,7 +507,7 @@
    const p=pos(e);if(!p)return;closeMenus();numberEditId=null;$('rinkTidyReport').hidden=true;announce('');
    if(targetEdit){const m=marks.find(m=>m.id===targetEdit);targetEdit=null;if(m){remember();if(m.shotEnd)m.shotEnd={x:p.x,y:p.y};else{m.x2=p.x;m.y2=p.y;}render();saveDraft();announce('Målpunkt ändrad.');}return;}
    if(tool==='pan'){drag={id:e.pointerId,pan:true,startX:e.clientX,startY:e.clientY,x:viewX,y:viewY,scale:Math.hypot(s.getScreenCTM().a,s.getScreenCTM().b)};s.setPointerCapture(e.pointerId);return;}
-   if(tool==='erase'){const m=hit(p);if(m){remember();marks=marks.filter(a=>a!==m);selectedId=null;render();saveDraft();}return;}
+   if(tool==='erase'){const m=hit(p);if(m){remember();const ids=new Set(patternMembers(m).map(p=>p.id));marks=marks.filter(a=>!ids.has(a.id));selectedId=null;render();saveDraft();}return;}
    if(tool==='move'){
     const current=selected();
     if(current&&isDivider(current)){
@@ -505,7 +537,7 @@
    }else if(drag.moving){
     if(!drag.changed&&Math.hypot(e.clientX-drag.startX,e.clientY-drag.startY)<drag.threshold)return;
     if(!drag.changed){remember();drag.changed=true;}
-    translate(drag.m,p.x-drag.p.x,p.y-drag.p.y);drag.p=p;routePoint=null;
+    moveMarks(patternMembers(drag.m),p.x-drag.p.x,p.y-drag.p.y);drag.p=p;routePoint=null;
    }else if(drag.m.points){const last=drag.m.points.at(-1);if(Math.hypot(p.x-last.x,p.y-last.y)>=3&&drag.m.points.length<500)drag.m.points.push({...p});}else{if(isDivider(drag.m)){drag.m.x=drag.p.x;drag.m.y=drag.p.y;}drag.m.x2=p.x;drag.m.y2=p.y;if(isDivider(drag.m))fitDivider(drag.m);}render();
   });
   function resizeDivider(d,p){const m=d.m;m.x=d.anchor.x;m.y=d.anchor.y;m.x2=p.x;m.y2=p.y;m.lengthMetres=clamp(dividerLength(m),.25,60);fitDivider(m);if(d.resize===0){[m.x,m.x2]=[m.x2,m.x];[m.y,m.y2]=[m.y2,m.y];}}
@@ -522,7 +554,7 @@
   s.addEventListener('lostpointercapture',e=>{if(!finishTouch(e)&&drag&&e.pointerId===drag.id)end(e,true);});
  }
  function safeMarks(input){
-  const ids=new Set();return input.filter(m=>m&&types.includes(m.type)&&[m.x,m.y].every(Number.isFinite)&&palette.includes(m.color)&&(m.type!=='curve'||(Array.isArray(m.points)&&m.points.length>=2&&m.points.length<=500&&m.points.every(p=>p&&Number.isFinite(p.x)&&Number.isFinite(p.y))))&&(m.x2===undefined?!['skate','pass','shot','divider','divider-yellow','divider-blue'].includes(m.type):[m.x2,m.y2].every(Number.isFinite))).slice(0,250).map(m=>{
+  const ids=new Set();const clean=input.filter(m=>m&&types.includes(m.type)&&[m.x,m.y].every(Number.isFinite)&&palette.includes(m.color)&&(m.type!=='curve'||(Array.isArray(m.points)&&m.points.length>=2&&m.points.length<=500&&m.points.every(p=>p&&Number.isFinite(p.x)&&Number.isFinite(p.y))))&&(m.x2===undefined?!['skate','pass','shot','divider','divider-yellow','divider-blue'].includes(m.type):[m.x2,m.y2].every(Number.isFinite))).slice(0,250).map(m=>{
    const n={id:typeof m.id==='string'&&!ids.has(m.id)?m.id:uuid(),type:m.type,x:clamp(m.x,22,W-22),y:clamp(m.y,20,H-20),color:m.color};ids.add(n.id);
    if(['skate','curve'].includes(m.type)&&m.shotEnd&&[m.shotEnd.x,m.shotEnd.y].every(Number.isFinite))n.shotEnd={x:clamp(m.shotEnd.x,22,W-22),y:clamp(m.shotEnd.y,20,H-20),...(typeof m.shotEnd.goalId==='string'?{goalId:m.shotEnd.goalId}:{})};
    if(m.directionBoundary&&['skate','curve'].includes(m.type))n.directionBoundary=true;
@@ -534,8 +566,12 @@
    if(['skate','curve'].includes(m.type)){n.motion=m.motion==='backward'?'backward':'forward';n.color=skatingColor(n);if(['Stopp','Översteg'].includes(m.movementLabel))n.movementLabel=m.movementLabel;}
    if(['player','goalie'].includes(m.type)&&/^\d{1,2}$/.test(String(m.number??'')))n.number=String(m.number);
    if(isDivider(n)){if(Number.isFinite(m.lengthMetres))n.lengthMetres=clamp(m.lengthMetres,.25,60);fitDivider(n,true);}
+   const spec=typeof m.patternType==='string'&&Object.hasOwn(patternTypes,m.patternType)?patternTypes[m.patternType]:null;
+   if(spec&&m.type===spec.type&&typeof m.patternId==='string'&&m.patternId.length>0&&m.patternId.length<=80&&Number.isInteger(m.patternCount)&&m.patternCount>=spec.min&&m.patternCount<=spec.max&&Number.isInteger(m.patternIndex)&&m.patternIndex>=0&&m.patternIndex<m.patternCount&&Number.isFinite(m.patternSpacing)&&m.patternSpacing>=.5&&m.patternSpacing<=12&&Number.isFinite(m.patternWidth)&&(m.patternType==='slalom'?m.patternWidth>=1&&m.patternWidth<=15:m.patternWidth===0))for(const key of patternFields)n[key]=m[key];
    return n;
   });
+  for(const id of new Set(clean.filter(m=>m.patternId).map(m=>m.patternId))){const group=clean.filter(m=>m.patternId===id),first=group[0];if(group.length!==first.patternCount||new Set(group.map(m=>m.patternIndex)).size!==group.length||group.some(m=>m.patternType!==first.patternType||m.patternCount!==first.patternCount||m.patternSpacing!==first.patternSpacing||m.patternWidth!==first.patternWidth))for(const m of group)for(const key of patternFields)delete m[key];}
+  return clean;
  }
  function readStored(key){try{const value=JSON.parse(localStorage.getItem(key)||'null');return value&&Array.isArray(value.marks)?value:null;}catch{return null;}}
  function defaultGoals(){return $('rinkSvg').dataset.goalTemplate==='movable'?[{id:uuid(),type:'goal',x:240,y:78,color:'#b11226',angle:0},{id:uuid(),type:'goal',x:240,y:786,color:'#b11226',angle:180}]:[];}
@@ -618,10 +654,13 @@
   $('rinkChooseTarget').onclick=()=>{targetEdit=selectedId;announce('Peka på målpunkten på rinken.');};
   $('rinkSelectedMove').onclick=()=>setTool('move');
   $('rinkSelectionMore').onclick=()=>{const expanded=$('rinkSelectionPanel').getAttribute('data-expanded')!=='true';$('rinkSelectionPanel').setAttribute('data-expanded',String(expanded));$('rinkSelectionMore').setAttribute('aria-expanded',String(expanded));$('rinkSelectionMore').textContent=expanded?'Färre val':'Fler val';};
-  $('rinkDuplicate').onclick=()=>{const m=selected();if(!m)return;if(marks.length>=250){announce('Högst 250 objekt per övning.');return;}remember();const copy={...JSON.parse(JSON.stringify(m)),id:uuid()};translate(copy,25,25);marks.push(copy);selectedId=copy.id;render();saveDraft();};
-  $('rinkDelete').onclick=()=>{if(!selected())return;remember();marks=marks.filter(m=>m.id!==selectedId);selectedId=null;render();saveDraft();};
+  $('rinkDuplicate').onclick=()=>{const m=selected();if(!m)return;const group=patternMembers(m);if(marks.length+group.length>250){announce('Högst 250 objekt per övning.');return;}remember();const patternId=m.patternId?uuid():null,copies=group.map(p=>({...JSON.parse(JSON.stringify(p)),id:uuid(),...(patternId?{patternId}:{})}));moveMarks(copies,25,25);marks.push(...copies);selectedId=copies[0].id;render();saveDraft();};
+  $('rinkDelete').onclick=()=>{const m=selected();if(!m)return;remember();const ids=new Set(patternMembers(m).map(p=>p.id));marks=marks.filter(m=>!ids.has(m.id));selectedId=null;render();saveDraft();};
   $('rinkDeselect').onclick=()=>{selectedId=null;numberEditId=null;render();};
-  $('rinkSelectedColor').onchange=()=>{const m=selected();if(!m||m.color===$('rinkSelectedColor').value)return;remember();m.color=$('rinkSelectedColor').value;$('rinkColor').value=m.color;render();saveDraft();};
+  $('rinkSelectedColor').onchange=()=>{const m=selected();if(!m||m.color===$('rinkSelectedColor').value)return;remember();for(const member of patternMembers(m))member.color=$('rinkSelectedColor').value;$('rinkColor').value=m.color;render();saveDraft();};
+  $('rinkSlalom').onclick=()=>createPattern('slalom');$('rinkTriangle').onclick=()=>createPattern('triangle');$('rinkPlayers').onclick=()=>createPattern('players');
+  for(const id of ['rinkPatternCount','rinkPatternSpacing','rinkPatternWidth'])$(id).onchange=changePattern;
+  $('rinkUngroup').onclick=()=>{const m=selected();if(!m?.patternId)return;remember();for(const member of patternMembers(m))for(const key of patternFields)delete member[key];render();saveDraft();announce('Gruppen är uppdelad i enskilda symboler.');};
   $('rinkNumber').oninput=()=>{const m=selected();if(!m)return;const number=$('rinkNumber').value.replace(/\D/g,'').slice(0,2);$('rinkNumber').value=number;if((m.number||'')===number)return;if(numberEditId!==m.id){remember();numberEditId=m.id;}if(number)m.number=number;else delete m.number;render();saveDraft();};
   $('rinkNumber').onblur=()=>{numberEditId=null;};
   for(const id of ['rinkTitle','rinkDescription'])$(id).addEventListener('input',saveDraft);
