@@ -82,6 +82,16 @@ test('equipment pattern cleanup is one undoable action and survives draft recove
  f.node('rinkUndo').onclick();f.flush();assert.deepEqual(f.draft().marks,marks);f.node('rinkRedo').onclick();f.flush();assert.deepEqual(f.draft().marks,cleaned);
  const restored=editor(Object.fromEntries(f.storage));restored.node('rinkTitle').emit('input');restored.flush();assert.deepEqual(restored.draft().marks,cleaned);
 });
+test('selection tools start compact, expand on demand and clear when choosing a drawing tool',()=>{
+ const marks=[{id:'a',type:'player',x:100,y:200,color:'#b11226'},{id:'b',type:'player',x:300,y:300,color:'#2563eb'}],f=editor({[DRAFT]:JSON.stringify({marks})});
+ f.pointer('pointerdown',100,200);f.pointer('pointerup',100,200);assert.equal(f.node('rinkSelectionPanel').getAttribute('data-expanded'),'false');f.node('rinkSelectionMore').onclick();assert.equal(f.node('rinkSelectionMore').getAttribute('aria-expanded'),'true');
+ f.choose('curve');assert.equal(f.node('rinkSelectionPanel').hidden,true);assert.equal(f.node('rinkLineSummary').textContent,'Åkväg');
+ f.choose('move');f.pointer('pointerdown',300,300);f.pointer('pointerup',300,300);assert.equal(f.node('rinkSelectionPanel').hidden,false);assert.equal(f.node('rinkSelectionPanel').getAttribute('data-expanded'),'false');assert.equal(f.node('rinkSelectionMore').textContent,'Fler val');
+});
+test('small finger jitter selects without moving equipment or adding an undo step',()=>{
+ const mark={id:'a',type:'tire',x:120,y:300,color:'#111827'},f=editor({[DRAFT]:JSON.stringify({marks:[mark]})});f.pointer('pointerdown',120,300);f.pointer('pointermove',125,303);f.pointer('pointerup',125,303);f.node('rinkTitle').emit('input');f.flush();assert.deepEqual(f.draft().marks,[mark]);assert.equal(f.node('rinkUndo').disabled,true);
+ f.pointer('pointerdown',120,300);f.pointer('pointermove',140,320);assert.equal(f.node('rinkSelectionPanel').hidden,true);f.pointer('pointerup',140,320);f.flush();assert.equal(f.draft().marks[0].x,140);assert.equal(f.node('rinkSelectionPanel').hidden,false);f.node('rinkUndo').onclick();f.flush();assert.deepEqual(f.draft().marks,[mark]);
+});
 test('zoom and pan change only the view, not saved drawing coordinates or undo history',()=>{
  const f=editor();f.choose('player');f.pointer('pointerdown',100,200);f.pointer('pointerup',100,200);f.flush();const before=f.storage.get(DRAFT);
  f.node('rinkZoomIn').onclick();assert.equal(f.node('rinkZoomLabel').textContent,'150%');f.choose('pan');f.pointer('pointerdown',200,300);f.pointer('pointermove',160,250);f.pointer('pointerup',160,250);assert.equal(f.node('rinkSvg').attrs.viewBox.split(' ')[0],'120');assert.equal(f.storage.get(DRAFT),before);
