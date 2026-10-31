@@ -113,7 +113,7 @@
  }
  // Preserve explicit reversals and figure-eight crossings instead of guessing a shortcut.
  function hasRouteFeatures(route){
-  const ps=rendered(route);if(route.directionBoundary)return true;
+  const raw=rendered(route),ps=raw.length>450?sample(raw):raw;if(route.directionBoundary)return true;
   const significant=[ps[0]];for(const p of ps.slice(1))if(distance(p,significant.at(-1))>=8)significant.push(p);
   for(let i=1;i<significant.length-1;i++){const a=significant[i-1],b=significant[i],c=significant[i+1],u=distance(a,b),v=distance(b,c);if(u&&v&&((b.x-a.x)*(c.x-b.x)+(b.y-a.y)*(c.y-b.y))/(u*v)<-.75)return true;}
   const cross=(a,b,c)=>(b.x-a.x)*(c.y-a.y)-(b.y-a.y)*(c.x-a.x);

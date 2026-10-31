@@ -96,7 +96,7 @@
   const symbols=input.filter(m=>['player','goalie','puck','cone','tire','goal'].includes(m.type));
   const routePlans=window.NskRoutePlanner?.plan(input).plans||new Map();
   for(const m of result){
-   if(m.type==='curve'&&m.points?.length>2&&!window.NskRoutePlanner?.hasRouteFeatures(m)){const planned=routePlans.get(m.id);if(planned)Object.assign(m,planned);else if(m.routeStyle!=='planned')m.points=smoothRoute(m.points);}
+   if(m.type==='curve'&&m.points?.length>2&&!window.NskRoutePlanner?.hasRouteFeatures?.(m)){const planned=routePlans.get(m.id);if(planned)Object.assign(m,planned);else if(m.routeStyle!=='planned')m.points=smoothRoute(m.points);}
    if(['skate','pass','shot'].includes(m.type)&&Number.isFinite(m.x2)){
     const a={x:m.x,y:m.y},b={x:m.x2,y:m.y2},nearSymbol=p=>symbols.some(s=>Math.hypot(s.x-p.x,s.y-p.y)<30);
     const attachedPass=m.type==='pass'&&input.some(r=>r.type==='curve'&&[a,b].some(p=>routeDistance(renderedRoute(r),p)<=16));
@@ -391,7 +391,7 @@
    }else if(drag.moving){
     if(!drag.changed&&Math.hypot(e.clientX-drag.startX,e.clientY-drag.startY)<4)return;
     if(!drag.changed){remember();drag.changed=true;}
-    translate(drag.m,p.x-drag.p.x,p.y-drag.p.y);drag.p=p;
+    translate(drag.m,p.x-drag.p.x,p.y-drag.p.y);drag.p=p;routePoint=null;
    }else if(drag.m.points){const last=drag.m.points.at(-1);if(Math.hypot(p.x-last.x,p.y-last.y)>=3&&drag.m.points.length<500)drag.m.points.push({...p});}else{if(isDivider(drag.m)){drag.m.x=drag.p.x;drag.m.y=drag.p.y;}drag.m.x2=p.x;drag.m.y2=p.y;if(isDivider(drag.m))fitDivider(drag.m);}render();
   });
   function resizeDivider(d,p){const m=d.m;m.x=d.anchor.x;m.y=d.anchor.y;m.x2=p.x;m.y2=p.y;m.lengthMetres=clamp(dividerLength(m),.25,60);fitDivider(m);if(d.resize===0){[m.x,m.x2]=[m.x2,m.x];[m.y,m.y2]=[m.y2,m.y];}}
