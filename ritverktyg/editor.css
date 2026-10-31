@@ -103,3 +103,7 @@ body.rink-fullscreen .arena-scroll{padding:0!important;overflow:hidden!important
 
 #rinkPatternBoard{width:22px;min-height:22px;height:22px;flex:none;accent-color:#b11226}
 #rinkPatternBoardField{justify-content:flex-start;min-height:44px}
+
+#rinkGoalTurns,#rinkDividerTurns{display:flex;gap:6px;flex-wrap:wrap;grid-column:1/-1;order:5}
+#rinkGoalTurns button,#rinkDividerTurns button{flex:1}
+#rinkPlaySelected{order:3;grid-column:1/-1}
