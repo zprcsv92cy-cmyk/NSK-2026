@@ -1,3 +1,4 @@
+import {ensureSweHockeyPoolKeys} from './swehockey-pool-state.js';
 // A soft removal in the calendar cache; scheduled sync preserves manually edited rows.
 export async function changeCalendarPoolVisibility(db,request){
  const reader=request.body?.getReader();let raw='',size=0;const decoder=new TextDecoder();
@@ -5,6 +6,7 @@ export async function changeCalendarPoolVisibility(db,request){
  let body;try{body=JSON.parse(raw);}catch{return Response.json({ok:false,error:'Invalid JSON'},{status:400});}
  const keys=body?.keys,hidden=body?.hidden!==false;
  if(!Array.isArray(keys)||!keys.length||keys.length>64||keys.some(k=>typeof k!=='string'||!k||k.length>500)||new Set(keys).size!==keys.length)return Response.json({ok:false,error:'Invalid calendar keys'},{status:400});
+ if(!await ensureSweHockeyPoolKeys(db,keys))return Response.json({ok:false,error:'SweHockey pool changed or missing'},{status:409});
  const permanent=body.permanent===true;
  const placeholders=keys.map(()=>'?').join(',');
  const {results=[]}=await db.prepare(`SELECT event_key,event_type,event_date,event_json FROM svenskalag_calendar_events WHERE team_id=? AND event_key IN (${placeholders})`).bind('NSK Team 18',...keys).all();

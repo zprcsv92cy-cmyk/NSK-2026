@@ -202,7 +202,9 @@
  async function changeCalendarVisibility(item,hidden,permanent=false){
   const base=String(window.APP_CONFIG?.API_URL||'https://nsk-api.peter-hasselberg.workers.dev').replace(/\/$/,''),token=Auth.getToken();
   if(!token||!poolMatchContext.teamId)throw Error('Logga in igen och ladda om kalendern.');
-  const keys=[...new Set([...(item.sourceKeys||[]),item.key].filter(Boolean))];if(!keys.length)throw Error('Kalenderkopplingen saknas. Ladda om sidan.');
+  let keys=[...new Set([...(item.sourceKeys||[]),item.key].filter(Boolean))];
+  if(!keys.length&&item.activityId){await show();const fresh=poolMatchContext.items.find(p=>p.type==='pool'&&p.activityId===item.activityId&&calendarDate(p.date)===calendarDate(item.date));if(fresh)keys=[...new Set([...(fresh.sourceKeys||[]),fresh.key].filter(Boolean))];}
+  if(!keys.length)throw Error('Kalenderkopplingen saknas. Ladda om sidan.');
   const response=await fetch(base+'/api/training?team_id='+encodeURIComponent(poolMatchContext.teamId)+'&action=calendar-pool-visibility',{method:'POST',headers:{Authorization:'Bearer '+token,'Content-Type':'application/json'},body:JSON.stringify({keys,hidden,permanent})});
   if(!response.ok)throw Error(response.status===403?'Du saknar behörighet att ta bort poolspel.':'Poolspelet kunde inte uppdateras. Ladda om och försök igen.');
  }
