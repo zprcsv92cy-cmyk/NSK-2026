@@ -1204,3 +1204,12 @@ button.shift-check.done{background:#167747;border-color:#39bb7c}button.shift-che
 @media(max-width:600px){.training-page .training-player>span{white-space:normal;overflow-wrap:anywhere;font-size:.9rem;line-height:1.35}}
 
 .nsk-pool-match-heading{display:flex;align-items:center;justify-content:space-between;gap:10px}.nsk-schedule-edit-button{min-height:32px!important;padding:4px 10px!important;font-size:.78rem!important;margin:0!important}.nsk-schedule-editor{box-sizing:border-box;width:min(96vw,720px);max-height:90dvh;overflow:auto;border:1px solid var(--line,#46505f);border-radius:14px;background:var(--card,#151d28);color:var(--text,#fff);padding:18px}.nsk-schedule-editor::backdrop{background:#000b}.nsk-schedule-editor form{display:grid;gap:12px}.nsk-schedule-editor h2{margin:0}.nsk-schedule-editor label{display:grid;gap:5px;min-width:0}.nsk-schedule-editor input,.nsk-schedule-editor select{box-sizing:border-box;width:100%;min-height:44px;margin:0}.nsk-schedule-editor fieldset{display:grid;grid-template-columns:110px minmax(0,1fr);gap:10px;border:1px solid var(--line,#46505f);border-radius:8px;margin:12px 0;padding:10px}.nsk-schedule-editor legend{font-weight:650}.nsk-schedule-actions{display:flex;justify-content:flex-end;gap:10px}.nsk-schedule-editor [data-status]{margin:0}@media(max-width:400px){.nsk-schedule-editor fieldset{grid-template-columns:1fr}}
+
+/* Keep native iOS date/time controls within their form columns. */
+.pool-setting{min-width:0}
+#poolDate,.nsk-schedule-editor input,.nsk-schedule-editor select{box-sizing:border-box;min-width:0;min-inline-size:0;max-width:100%}
+#poolDate{display:block;width:100%;min-height:48px}
+#poolDate::-webkit-date-and-time-value,.nsk-schedule-editor input[type=time]::-webkit-date-and-time-value{min-width:0;text-align:left}
+.nsk-schedule-editor form,.nsk-schedule-editor [data-rows],.nsk-schedule-editor fieldset{min-width:0;min-inline-size:0;max-width:100%}
+.nsk-schedule-editor fieldset{box-sizing:border-box}
+@media(max-width:600px){.nsk-schedule-editor fieldset{grid-template-columns:minmax(0,1fr)}}
