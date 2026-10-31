@@ -580,7 +580,7 @@ window.NSK2App = (() => {
         return `
           <details class="nsk-pool-row" data-view-key="pool:${poolId}" data-view-revision="${esc(JSON.stringify([p,matchSummaries.get(String(p.id))]))}" data-pool-date="${esc(poolDay(p))}" data-pool-finished="${isArchived(p)}">
             <summary class="nsk-pool-summary">
-              <span class="nsk-pool-name">${esc([nskPoolWeekday(poolDay(p)),p.place || "Ort",p.pool_date || "Datum"].filter(Boolean).join(" • "))}${p.removed?'<small class="small" data-pool-removed>Borttagen</small>':''}</span>
+              <span class="nsk-pool-name">${esc([nskPoolWeekday(poolDay(p)),p.place || "Ort",p.pool_date || "Datum"].filter(Boolean).join(" • "))}${p.removed?'<small class="small" data-pool-removed> · Borttagen</small>':''}</span>
               <span class="nsk-pool-hall" data-pool-hall-id="${poolId}" data-gathering="${esc(gathering)}">${esc([p.hall,gathering].filter(Boolean).join(" • "))}</span>
               <span class="nsk-pool-chevron" aria-hidden="true">⌄</span>
             </summary>

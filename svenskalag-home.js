@@ -183,7 +183,7 @@
    remove.addEventListener('click',async()=>{
     if(!confirm(item.calendarHidden?'Ta bort poolspelet permanent? Detta kan inte ångras.':'Flytta poolspelet till Avslutade och markera det som Borttagen?'))return;
     remove.disabled=true;
-    try{await changeCalendarVisibility(item,true,!!item.calendarHidden);await show();if(item.calendarHidden)return;const message=document.createElement('p');message.textContent='Poolspelet har tagits bort. ';const undo=document.createElement('button');undo.type='button';undo.textContent='Ångra';undo.onclick=async()=>{undo.disabled=true;try{await changeCalendarVisibility(item,false);message.remove();await show();}catch(error){undo.disabled=false;alert(error.message);}};message.append(undo);section.append(message);}
+    try{if(item.calendarHidden)await changeCalendarVisibility(item,true);await changeCalendarVisibility(item,true,!!item.calendarHidden);await show();if(item.calendarHidden)return;const message=document.createElement('p');message.textContent='Poolspelet har tagits bort. ';const undo=document.createElement('button');undo.type='button';undo.textContent='Ångra';undo.onclick=async()=>{undo.disabled=true;try{await changeCalendarVisibility(item,false);message.remove();await show();}catch(error){undo.disabled=false;alert(error.message);}};message.append(undo);section.append(message);}
     catch(error){remove.disabled=false;alert(error.message||'Poolspelet kunde inte tas bort.');}
    });secondary.append(remove);
    if(item.calendarHidden){const restore=document.createElement('button');restore.type='button';restore.className='row-btn nsk-action';restore.textContent='Återställ';restore.onclick=async()=>{restore.disabled=true;try{await changeCalendarVisibility(item,false);await show();}catch(error){restore.disabled=false;alert(error.message);}};secondary.append(restore);}
@@ -352,7 +352,7 @@
   try{if(item.sourceKeys.length)await changeCalendarVisibility(item,removed);}
   catch(error){await savedPoolState(pool,!!pool.removed);throw error;}
  },async preparePermanentSavedPool(pool){
-  const item=await linkedPoolSources(pool);if(!pool.removed){await savedPoolState(pool,true);if(item.sourceKeys.length)await changeCalendarVisibility(item,true);}
+  const item=await linkedPoolSources(pool);if(!pool.removed)await savedPoolState(pool,true);if(item.sourceKeys.length)await changeCalendarVisibility(item,true);
   return async()=>{if(item.sourceKeys.length)await changeCalendarVisibility(item,true,true);await savedPoolState(pool,true,true);};
  }};
  if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',show,{once:true});else show();
