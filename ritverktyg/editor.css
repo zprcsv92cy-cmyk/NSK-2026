@@ -100,3 +100,6 @@ body.rink-fullscreen .arena-scroll{padding:0!important;overflow:hidden!important
 .rink-symbol-picker>button[aria-pressed=true]{position:relative}
 .rink-symbol-picker>button[aria-pressed=true]::after{content:'✓';position:absolute;right:5px;top:3px;font-weight:700}
 @media(min-width:900px){.draw-tools .rink-symbol-picker{left:auto;right:6px;width:320px;box-sizing:border-box;max-height:calc(var(--nsk-app-height,100dvh) - 110px)}.draw-stage:has(#rinkSymbolsMenu[open]) .rink-container{padding-bottom:2px;padding-right:342px}body.rink-fullscreen .draw-stage:has(#rinkSymbolsMenu[open]) .rink-container{right:342px;padding-right:0}}
+
+#rinkPatternBoard{width:22px;min-height:22px;height:22px;flex:none;accent-color:#b11226}
+#rinkPatternBoardField{justify-content:flex-start;min-height:44px}
