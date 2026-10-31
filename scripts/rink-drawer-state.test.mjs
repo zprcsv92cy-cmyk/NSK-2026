@@ -353,7 +353,7 @@ test('group rotation preserves physical distances and survives edits, undo and r
 test('legacy groups default to zero rotation and malformed rotation degrades safely',()=>{
  const f=editor();f.node('rinkPlayers').onclick();f.flush();const original=f.draft().marks;
  const legacy=original.map(({patternAngle,...m})=>m);const r=editor({[DRAFT]:JSON.stringify({marks:legacy})});r.node('rinkTitle').emit('input');r.flush();assert.ok(r.draft().marks.every(m=>m.patternId&&m.patternAngle===0));
- const bad=editor({[DRAFT]:JSON.stringify({marks:original.map(m=>({...m,patternAngle:45}))})});bad.node('rinkTitle').emit('input');bad.flush();assert.ok(bad.draft().marks.every(m=>!m.patternId));
+ const bad=editor({[DRAFT]:JSON.stringify({marks:original.map(m=>({...m,patternAngle:30}))})});bad.node('rinkTitle').emit('input');bad.flush();assert.ok(bad.draft().marks.every(m=>!m.patternId));
 });
 
 test('rotating an odd slalom preserves its center away from the boards',()=>{
@@ -370,7 +370,7 @@ test('player queues follow the boards through a corner with stable spacing and r
  f.pointer('pointerdown',first.x,first.y);f.pointer('pointermove',90,90);f.pointer('pointerup',90,90);f.flush();const corner=f.draft().marks;assert.ok(new Set(corner.map(m=>Math.round(m.x))).size>2);assert.ok(new Set(corner.map(m=>Math.round(m.y))).size>2);
  for(let i=1;i<corner.length;i++){const a=corner[i-1],b=corner[i],d=Math.hypot((a.x-b.x)/(436/30),(a.y-b.y)/(820/60));assert.ok(d>2.4&&d<=2.51);}
  assert.deepEqual(corner.map(m=>m.number),['1','2','3','4','5']);const restored=editor(Object.fromEntries(f.storage));restored.leave();assert.deepEqual(restored.draft().marks,corner);f.node('rinkUndo').onclick();f.flush();assert.deepEqual(f.draft().marks,before);
- f.pointer('pointerdown',first.x,first.y);f.pointer('pointerup',first.x,first.y);f.node('rinkPatternBoard').checked=false;f.node('rinkPatternBoard').onchange();f.flush();const straight=f.draft().marks;assert.ok(straight.every(m=>!m.patternBoard));assert.equal(new Set(straight.map(m=>m.x)).size,1);
+ f.pointer('pointerdown',first.x,first.y);f.pointer('pointerup',first.x,first.y);f.node('rinkPatternBoard').value='free';f.node('rinkPatternBoard').onchange();f.flush();const straight=f.draft().marks;assert.ok(straight.every(m=>!m.patternBoard));assert.equal(new Set(straight.map(m=>m.x)).size,1);
 });
 test('slalom width handles stretch and tighten across either orientation in one undoable drag',()=>{
  for(const angle of [0,90]){const f=editor();f.node('rinkSlalom').onclick();if(angle){f.node('rinkPatternAngle').value=String(angle);f.node('rinkPatternAngle').onchange();}f.flush();const before=f.draft().marks,center={x:before.reduce((s,m)=>s+m.x,0)/4,y:before.reduce((s,m)=>s+m.y,0)/4},ux=angle?0:436/30,uy=angle?820/60:0;
@@ -396,4 +396,14 @@ test('goal quick turns compose to a full turn, while 360 keeps orientation and u
 });
 test('playback reveals route and shot in sequence without modifying the drawing or undo history',()=>{
  const marks=[{id:'r',type:'curve',x:100,y:300,points:[{x:100,y:300},{x:150,y:250},{x:200,y:300}],shotEnd:{x:240,y:78},color:'#111827'}],f=editor({[DRAFT]:JSON.stringify({marks})});f.node('rinkTitle').emit('input');f.flush();const before=f.draft();f.node('rinkPlay').onclick();const playback=f.node('rinkSvg').children.find(n=>n.attrs['data-editor-ui']==='playback');assert.ok(playback);const groups=playback.children.filter(n=>n.tagName==='g');assert.equal(groups.length,2);assert.match(groups[0].children[0].attrs.mask,/play-mask/);const animation=playback.children.filter(n=>n.tagName==='mask')[1].children[0].children.find(n=>n.tagName==='animate');assert.ok(parseFloat(animation.attrs.begin)>0);assert.equal(f.node('rinkPlay').textContent,'■ Stoppa');assert.deepEqual(f.draft(),before);f.node('rinkPlay').onclick();assert.ok(!f.node('rinkSvg').children.some(n=>n.attrs['data-editor-ui']==='playback'));assert.deepEqual(f.draft(),before);assert.equal(f.node('rinkUndo').disabled,true);
+});
+
+test('goals snap their opening to either goal line with inward orientation and exact undo',()=>{
+ for(const [y,expectedY,angle] of [[83,78,0],[779,786,180]]){const initial={id:'g',type:'goal',x:240,y:430,angle:90,color:'#b11226'},f=editor({[DRAFT]:JSON.stringify({marks:[initial]})});f.pointer('pointerdown',240,430);f.pointer('pointermove',200,y);f.pointer('pointerup',200,y);f.flush();assert.equal(f.draft().marks[0].y,expectedY);assert.equal(f.draft().marks[0].angle,angle);f.node('rinkUndo').onclick();f.flush();assert.deepEqual(f.draft().marks,[initial]);}
+});
+test('goals face into the rink when dropped at side boards, end boards or a rounded corner',()=>{
+ for(const [x,y,angle] of [[25,430,270],[455,430,90],[240,25,0],[240,835,180],[35,35,null]]){const f=editor({[DRAFT]:JSON.stringify({marks:[{id:'g',type:'goal',x:240,y:430,angle:180,color:'#b11226'}]})});f.pointer('pointerdown',240,430);f.pointer('pointermove',x,y);f.pointer('pointerup',x,y);f.flush();const goal=f.draft().marks[0];if(angle!==null)assert.equal(goal.angle,angle);else assert.ok(goal.angle>270&&goal.angle<360);assert.ok(goal.x>=22&&goal.x<=458&&goal.y>=20&&goal.y<=840);const radians=goal.angle*Math.PI/180;assert.ok(-Math.sin(radians)*(240-goal.x)+Math.cos(radians)*(430-goal.y)>0);const r=editor(Object.fromEntries(f.storage));r.leave();assert.deepEqual(r.draft().marks,f.draft().marks);}
+});
+test('tight player queues sit next to the boards and can switch to a free diagonal formation',()=>{
+ const f=editor();f.node('rinkPlayers').onclick();f.flush();const board=f.draft().marks;assert.ok(board.every(m=>m.x<40||m.x>440));f.node('rinkPatternBoard').value='free';f.node('rinkPatternAngle').value='45';f.node('rinkPatternBoard').onchange();f.flush();const diagonal=f.draft().marks;assert.ok(diagonal.every(m=>!m.patternBoard&&m.patternAngle===45));assert.ok(Math.abs(diagonal[1].x-diagonal[0].x)>15);assert.ok(Math.abs(diagonal[1].y-diagonal[0].y)>15);f.pointer('pointerdown',diagonal[0].x,diagonal[0].y);f.pointer('pointermove',200,430);f.pointer('pointerup',200,430);f.flush();assert.ok(f.draft().marks.every(m=>m.x>80&&m.x<400));
 });

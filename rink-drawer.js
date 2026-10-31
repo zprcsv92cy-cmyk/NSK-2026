@@ -12,16 +12,16 @@
  const patternTypes={slalom:{label:'Däckslalom',type:'tire',count:4,min:3,max:8,minSpacing:1,spacing:4,width:6},triangle:{label:'Kontriangel',type:'cone',count:3,min:3,max:3,minSpacing:2.5,spacing:5,width:0},players:{label:'Spelarled',type:'player',count:5,min:2,max:12,minSpacing:2.5,spacing:2.5,width:0}};
  const patternFields=['patternId','patternType','patternIndex','patternCount','patternSpacing','patternWidth','patternAngle','patternBoard','patternOffset'];
  const patternMembers=m=>m?.patternId?marks.filter(p=>p.patternId===m.patternId):m?[m]:[];
- const boardLength=124+10*Math.PI;
+ const boardLength=136+8.8*Math.PI;
  function boardPoint(offset){
   let d=((offset%boardLength)+boardLength)%boardLength;
-  const sections=[{l:16,x:7,y:2,dx:1,dy:0},{l:Math.PI*2.5,cx:23,cy:7,a:-Math.PI/2},{l:46,x:28,y:7,dx:0,dy:1},{l:Math.PI*2.5,cx:23,cy:53,a:0},{l:16,x:23,y:58,dx:-1,dy:0},{l:Math.PI*2.5,cx:7,cy:53,a:Math.PI/2},{l:46,x:2,y:53,dx:0,dy:-1},{l:Math.PI*2.5,cx:7,cy:7,a:Math.PI}];
-  for(const part of sections){if(d<=part.l){const x=part.cx===undefined?part.x+part.dx*d:part.cx+5*Math.cos(part.a+d/5),y=part.cy===undefined?part.y+part.dy*d:part.cy+5*Math.sin(part.a+d/5);return {x:22+x*rinkScale.x,y:20+y*rinkScale.y};}d-=part.l;}
+  const sections=[{l:19,x:5.5,y:1.1,dx:1,dy:0},{l:Math.PI*2.2,cx:24.5,cy:5.5,a:-Math.PI/2},{l:49,x:28.9,y:5.5,dx:0,dy:1},{l:Math.PI*2.2,cx:24.5,cy:54.5,a:0},{l:19,x:24.5,y:58.9,dx:-1,dy:0},{l:Math.PI*2.2,cx:5.5,cy:54.5,a:Math.PI/2},{l:49,x:1.1,y:54.5,dx:0,dy:-1},{l:Math.PI*2.2,cx:5.5,cy:5.5,a:Math.PI}];
+  for(const part of sections){if(d<=part.l){const x=part.cx===undefined?part.x+part.dx*d:part.cx+4.4*Math.cos(part.a+d/4.4),y=part.cy===undefined?part.y+part.dy*d:part.cy+4.4*Math.sin(part.a+d/4.4);return {x:22+x*rinkScale.x,y:20+y*rinkScale.y};}d-=part.l;}
  }
  let boardSamples=null;
  function nearestBoardOffset(p){boardSamples||=Array.from({length:Math.ceil(boardLength*10)},(_,i)=>({d:i/10,...boardPoint(i/10)}));let best=0,distance=Infinity;for(const q of boardSamples){const delta=((q.x-p.x)/rinkScale.x)**2+((q.y-p.y)/rinkScale.y)**2;if(delta<distance){distance=delta;best=q.d;}}return best;}
  function patternMarks(type,count,spacing,width,center,patternId,color,angle=0,followBoard=false,boardOffset=null){
-  const spec=patternTypes[type];if(!spec||![0,90,180,270].includes(angle)||!Number.isInteger(count)||count<spec.min||count>spec.max||!Number.isFinite(spacing)||spacing<spec.minSpacing||spacing>12||!Number.isFinite(width)||(type==='slalom'&&(width<1||width>15)))return null;
+  const spec=patternTypes[type];if(!spec||![0,45,90,135,180,225,270,315].includes(angle)||!Number.isInteger(count)||count<spec.min||count>spec.max||!Number.isFinite(spacing)||spacing<spec.minSpacing||spacing>12||!Number.isFinite(width)||(type==='slalom'&&(width<1||width>15)))return null;
   if(type==='players'&&followBoard){const offset=boardOffset??nearestBoardOffset(center),direction=angle===180||angle===270?-1:1;if((count-1)*spacing>boardLength-4)return null;return Array.from({length:count},(_,i)=>({id:uuid(),type:'player',...boardPoint(offset+(i-(count-1)/2)*spacing*direction),color,number:String(i+1),patternId,patternType:type,patternIndex:i,patternCount:count,patternSpacing:spacing,patternWidth:0,patternAngle:angle,patternBoard:true,patternOffset:offset}));}
   const points=Array.from({length:count},(_,i)=>type==='triangle'?{x:Math.cos(-Math.PI/2+i*Math.PI*2/3)*spacing/Math.sqrt(3),y:Math.sin(-Math.PI/2+i*Math.PI*2/3)*spacing/Math.sqrt(3)}:{x:type==='slalom'?(i%2?-.5:.5)*width:0,y:(i-(count-1)/2)*spacing});
   const radians=angle*Math.PI/180;for(const p of points){const x=p.x,y=p.y;p.x=x*Math.cos(radians)-y*Math.sin(radians);p.y=x*Math.sin(radians)+y*Math.cos(radians);}
@@ -47,7 +47,7 @@
  }
  function changePattern(){
   const m=selected(),spec=patternTypes[m?.patternType];if(!m?.patternId||!spec)return;
-  const followBoard=m.patternType==='players'&&$('rinkPatternBoard').checked,angle=Number($('rinkPatternAngle').value),count=Number($('rinkPatternCount').value),spacing=Number($('rinkPatternSpacing').value),width=m.patternType==='slalom'?Number($('rinkPatternWidth').value):0,group=patternMembers(m);
+  const followBoard=m.patternType==='players'&&$('rinkPatternBoard').value==='board',angle=Number($('rinkPatternAngle').value),count=Number($('rinkPatternCount').value),spacing=Number($('rinkPatternSpacing').value),width=m.patternType==='slalom'?Number($('rinkPatternWidth').value):0,group=patternMembers(m);
   if(followBoard===Boolean(m.patternBoard)&&angle===(m.patternAngle||0)&&count===m.patternCount&&spacing===m.patternSpacing&&width===m.patternWidth)return;
   if(marks.length-group.length+count>250){announce('Högst 250 objekt per övning.');return;}
   const center={x:group.reduce((n,p)=>n+p.x,0)/group.length,y:group.reduce((n,p)=>n+p.y,0)/group.length},next=patternMarks(m.patternType,count,spacing,width,center,m.patternId,m.color,angle,followBoard,followBoard&&m.patternBoard?m.patternOffset:null);
@@ -373,7 +373,7 @@
   if(selectionPanelId!==m.id){selectionPanelId=m.id;$('rinkSelectionPanel').setAttribute('data-expanded','false');$('rinkSelectionMore').setAttribute('aria-expanded','false');$('rinkSelectionMore').textContent='Fler val';}
   const pattern=m.patternId&&patternTypes[m.patternType];$('rinkPatternSettings').hidden=!pattern;$('rinkUngroup').hidden=!pattern;
   $('rinkDuplicate').textContent=pattern?'Kopiera grupp':'Kopiera';$('rinkDelete').textContent=pattern?'Ta bort grupp':'Ta bort';
-  if(pattern){$('rinkPatternBoardField').hidden=m.patternType!=='players';$('rinkPatternBoard').checked=Boolean(m.patternBoard);$('rinkPatternAngleField').hidden=Boolean(m.patternBoard);$('rinkPatternAngle').value=String(m.patternAngle||0);$('rinkPatternCount').value=String(m.patternCount);$('rinkPatternCount').min=String(pattern.min);$('rinkPatternCount').max=String(pattern.max);$('rinkPatternCount').disabled=pattern.min===pattern.max;$('rinkPatternCountField').hidden=pattern.min===pattern.max;$('rinkPatternSpacing').value=String(m.patternSpacing);$('rinkPatternSpacing').min=String(pattern.minSpacing);$('rinkPatternWidth').value=String(m.patternWidth);$('rinkPatternWidthField').hidden=m.patternType!=='slalom';$('rinkPatternSpacingLabel').textContent=m.patternType==='triangle'?'Sidlängd (m)':m.patternType==='slalom'?'Steg (m)':'Avstånd (m)';}
+  if(pattern){$('rinkPatternBoardField').hidden=m.patternType!=='players';$('rinkPatternBoard').value=m.patternBoard?'board':'free';$('rinkPatternAngleField').hidden=Boolean(m.patternBoard);$('rinkPatternAngle').value=String(m.patternAngle||0);$('rinkPatternCount').value=String(m.patternCount);$('rinkPatternCount').min=String(pattern.min);$('rinkPatternCount').max=String(pattern.max);$('rinkPatternCount').disabled=pattern.min===pattern.max;$('rinkPatternCountField').hidden=pattern.min===pattern.max;$('rinkPatternSpacing').value=String(m.patternSpacing);$('rinkPatternSpacing').min=String(pattern.minSpacing);$('rinkPatternWidth').value=String(m.patternWidth);$('rinkPatternWidthField').hidden=m.patternType!=='slalom';$('rinkPatternSpacingLabel').textContent=m.patternType==='triangle'?'Sidlängd (m)':m.patternType==='slalom'?'Steg (m)':'Avstånd (m)';}
   $('rinkPlaySelected').hidden=!['skate','curve','pass','shot'].includes(m.type);$('rinkGoalTurns').hidden=m.type!=='goal';$('rinkDividerTurns').hidden=!isDivider(m);
   $('rinkRouteActions').hidden=!['skate','curve','pass','shot'].includes(m.type);
   $('rinkAddPass').hidden=$('rinkAddShot').hidden=!['skate','curve'].includes(m.type);
@@ -524,6 +524,16 @@
 
   const points=items.flatMap(geometry),xs=points.map(p=>p.x),ys=points.map(p=>p.y),margin=items.length>1?40:22;dx=clamp(dx,margin-Math.min(...xs),W-margin-Math.max(...xs));dy=clamp(dy,(items.length>1?40:20)-Math.min(...ys),(items.length>1?820:H-20)-Math.max(...ys));items.forEach(m=>translate(m,dx,dy));
  }
+ function alignGoal(m){
+  if(m.type!=='goal')return;
+  const goalLine=[78,786].sort((a,b)=>Math.abs(m.y-a)-Math.abs(m.y-b))[0];
+  if(m.x>=80&&m.x<=400&&Math.abs(m.y-goalLine)<=18){m.y=goalLine;m.angle=goalLine===78?0:180;return;}
+  const x=(m.x-22)/rinkScale.x,y=(m.y-20)/rinkScale.y,r=5.5,cx=clamp(x,r,30-r),cy=clamp(y,r,60-r);let q,n;
+  if(x!==cx&&y!==cy){const dx=x-cx,dy=y-cy,length=Math.hypot(dx,dy);q={x:cx+r*dx/length,y:cy+r*dy/length};n={x:dx/rinkScale.x,y:dy/rinkScale.y};}
+  else{const edges=[{distance:Math.abs(x),q:{x:0,y:clamp(y,r,60-r)},n:{x:-1,y:0}},{distance:Math.abs(30-x),q:{x:30,y:clamp(y,r,60-r)},n:{x:1,y:0}},{distance:Math.abs(y),q:{x:clamp(x,r,30-r),y:0},n:{x:0,y:-1}},{distance:Math.abs(60-y),q:{x:clamp(x,r,30-r),y:60},n:{x:0,y:1}}].sort((a,b)=>a.distance-b.distance);({q,n}=edges[0]);}
+  const boundary={x:22+q.x*rinkScale.x,y:20+q.y*rinkScale.y};if(Math.hypot(m.x-boundary.x,m.y-boundary.y)>48)return;
+  const length=Math.hypot(n.x,n.y);n={x:n.x/length,y:n.y/length};m.x=boundary.x-n.x*26;m.y=boundary.y-n.y*26;m.angle=(Math.round(Math.atan2(n.x,-n.y)*180/Math.PI)+360)%360;
+ }
  function snapDivider(m){const others=marks.filter(o=>o.id!==m.id&&isDivider(o));let best=null;for(const p of geometry(m))for(const other of others)for(const q of geometry(other)){const d=Math.hypot(p.x-q.x,p.y-q.y);if(d<=18&&(!best||d<best.d))best={d,dx:q.x-p.x,dy:q.y-p.y};}if(best&&geometry(m).every(p=>p.x+best.dx>=22&&p.x+best.dx<=458&&p.y+best.dy>=20&&p.y+best.dy<=840))translate(m,best.dx,best.dy);}
  function pointers(){
   const s=$('rinkSvg'),touches=new Map();let touchStart=null,pinch=null,touchBlocked=false;
@@ -575,7 +585,7 @@
    if(tool==='curve'){m.points=[{...p}];drag={id:e.pointerId,m,p,changed:true,before,history:oldHistory,future:oldFuture,moving:false};}
    if(['skate','pass','shot','divider','divider-yellow','divider-blue'].includes(tool)){m.x2=p.x;m.y2=p.y;drag={id:e.pointerId,m,p,changed:true,before,history:oldHistory,future:oldFuture,moving:false};}
    if(isDivider(m))fitDivider(m);
-   marks.push(m);selectedId=m.id;render();s.setPointerCapture(e.pointerId);
+   if(m.type==='goal')alignGoal(m);marks.push(m);selectedId=m.id;render();s.setPointerCapture(e.pointerId);
    if(!drag)saveDraft();
   });
   s.addEventListener('pointermove',e=>{
@@ -602,7 +612,7 @@
    if(cancelled||(drag.m.points&&!drag.m.points.some(p=>Math.hypot(p.x-drag.m.x,p.y-drag.m.y)>=3))){marks=JSON.parse(drag.before);history=drag.history;future=drag.future;selectedId=null;}
    if(!cancelled&&drag.resize!==undefined){const p=pos(e);if(p&&drag.changed)resizeDivider(drag,p);}
    if(!cancelled&&drag.resize===undefined&&!drag.moving&&isDivider(drag.m)){const p=pos(e);if(p){drag.m.x=drag.p.x;drag.m.y=drag.p.y;drag.m.x2=p.x;drag.m.y2=p.y;fitDivider(drag.m);}}
-   if(!cancelled&&drag.changed&&isDivider(drag.m))snapDivider(drag.m);const changed=drag.changed;drag=null;render();if(changed)saveDraft();
+   if(!cancelled&&drag.changed&&drag.m.type==='goal')alignGoal(drag.m);if(!cancelled&&drag.changed&&isDivider(drag.m))snapDivider(drag.m);const changed=drag.changed;drag=null;render();if(changed)saveDraft();
   };
   s.addEventListener('pointerup',e=>{if(!finishTouch(e))end(e);});s.addEventListener('pointercancel',e=>{if(!finishTouch(e))end(e,true);});
   s.addEventListener('lostpointercapture',e=>{if(!finishTouch(e)&&drag&&e.pointerId===drag.id)end(e,true);});
@@ -616,15 +626,16 @@
    if(m.type==='curve'){n.points=m.points.map(p=>({x:clamp(p.x,22,W-22),y:clamp(p.y,20,H-20)}));n.x=n.points[0].x;n.y=n.points[0].y;}
    if(m.x2!==undefined){n.x2=clamp(m.x2,22,W-22);n.y2=clamp(m.y2,20,H-20);}
    if(m.labelOffset&&Number.isFinite(m.labelOffset.x)&&Number.isFinite(m.labelOffset.y)&&Math.abs(m.labelOffset.x)<=60&&Math.abs(m.labelOffset.y)<=60)n.labelOffset={x:m.labelOffset.x,y:m.labelOffset.y};
-   if(m.type==='goal')n.angle=[0,90,180,270].includes(m.angle)?m.angle:0;
+   if(m.type==='goal')n.angle=Number.isFinite(m.angle)&&m.angle>=0&&m.angle<=360?m.angle%360:0;
    if(['skate','curve'].includes(m.type)){n.motion=m.motion==='backward'?'backward':'forward';n.color=skatingColor(n);if(['Stopp','Översteg'].includes(m.movementLabel))n.movementLabel=m.movementLabel;}
    if(['player','goalie'].includes(m.type)&&/^\d{1,2}$/.test(String(m.number??'')))n.number=String(m.number);
    if(isDivider(n)){if(Number.isFinite(m.lengthMetres))n.lengthMetres=clamp(m.lengthMetres,.25,60);fitDivider(n,true);}
    const spec=typeof m.patternType==='string'&&Object.hasOwn(patternTypes,m.patternType)?patternTypes[m.patternType]:null;
-   if(spec&&m.type===spec.type&&typeof m.patternId==='string'&&m.patternId.length>0&&m.patternId.length<=80&&Number.isInteger(m.patternCount)&&m.patternCount>=spec.min&&m.patternCount<=spec.max&&Number.isInteger(m.patternIndex)&&m.patternIndex>=0&&m.patternIndex<m.patternCount&&Number.isFinite(m.patternSpacing)&&m.patternSpacing>=spec.minSpacing&&m.patternSpacing<=12&&Number.isFinite(m.patternWidth)&&(m.patternType==='slalom'?m.patternWidth>=1&&m.patternWidth<=15:m.patternWidth===0)&&[0,90,180,270].includes(m.patternAngle??0)){for(const key of patternFields)n[key]=m[key];n.patternAngle=m.patternAngle??0;n.patternBoard=m.patternType==='players'&&m.patternBoard===true;n.patternOffset=n.patternBoard&&Number.isFinite(m.patternOffset)?(m.patternOffset>=0&&m.patternOffset<boardLength?m.patternOffset:((m.patternOffset%boardLength)+boardLength)%boardLength):0;}
+   if(spec&&m.type===spec.type&&typeof m.patternId==='string'&&m.patternId.length>0&&m.patternId.length<=80&&Number.isInteger(m.patternCount)&&m.patternCount>=spec.min&&m.patternCount<=spec.max&&Number.isInteger(m.patternIndex)&&m.patternIndex>=0&&m.patternIndex<m.patternCount&&Number.isFinite(m.patternSpacing)&&m.patternSpacing>=spec.minSpacing&&m.patternSpacing<=12&&Number.isFinite(m.patternWidth)&&(m.patternType==='slalom'?m.patternWidth>=1&&m.patternWidth<=15:m.patternWidth===0)&&[0,45,90,135,180,225,270,315].includes(m.patternAngle??0)){for(const key of patternFields)n[key]=m[key];n.patternAngle=m.patternAngle??0;n.patternBoard=m.patternType==='players'&&m.patternBoard===true;n.patternOffset=n.patternBoard&&Number.isFinite(m.patternOffset)?(m.patternOffset>=0&&m.patternOffset<boardLength?m.patternOffset:((m.patternOffset%boardLength)+boardLength)%boardLength):0;}
    return n;
   });
   for(const id of new Set(clean.filter(m=>m.patternId).map(m=>m.patternId))){const group=clean.filter(m=>m.patternId===id),first=group[0];if(group.length!==first.patternCount||new Set(group.map(m=>m.patternIndex)).size!==group.length||group.some(m=>m.patternType!==first.patternType||m.patternCount!==first.patternCount||m.patternSpacing!==first.patternSpacing||m.patternWidth!==first.patternWidth||m.patternAngle!==first.patternAngle||m.patternBoard!==first.patternBoard||m.patternOffset!==first.patternOffset))for(const m of group)for(const key of patternFields)delete m[key];}
+  for(const id of new Set(clean.filter(m=>m.patternBoard).map(m=>m.patternId))){const group=clean.filter(m=>m.patternId===id),first=group.find(m=>m.patternIndex===0)||group[0];if(!group.some(m=>{const q=boardPoint(nearestBoardOffset(m));return Math.hypot(m.x-q.x,m.y-q.y)>1;}))continue;const direction=first.patternAngle===180||first.patternAngle===270?-1:1,offset=(nearestBoardOffset(first)+(group.length-1)*first.patternSpacing*direction/2+boardLength)%boardLength;for(const m of group){Object.assign(m,boardPoint(offset+(m.patternIndex-(group.length-1)/2)*m.patternSpacing*direction));m.patternOffset=offset;}}
   return clean;
  }
  function readStored(key){try{const value=JSON.parse(localStorage.getItem(key)||'null');return value&&Array.isArray(value.marks)?value:null;}catch{return null;}}
@@ -709,7 +720,7 @@
   $('rinkGoal90').onclick=()=>turnGoal(90);$('rinkGoal180').onclick=()=>turnGoal(180);$('rinkGoal360').onclick=()=>turnGoal(360);
   $('rinkDividerLength').onchange=updateDividerSettings;$('rinkDividerAngle').onchange=updateDividerSettings;
   $('rinkSelectedDirection').onchange=changeRouteDirection;
-  $('rinkGoalRotation').onchange=()=>{const m=selected(),angle=Number($('rinkGoalRotation').value);if(!m||m.type!=='goal'||![0,90,180,270].includes(angle)||m.angle===angle)return;remember();m.angle=angle;render();saveDraft();};
+  $('rinkGoalRotation').onchange=()=>{const m=selected(),angle=Number($('rinkGoalRotation').value);if(!m||m.type!=='goal'||!Number.isFinite(angle)||angle<0||angle>360||m.angle===angle%360)return;remember();m.angle=angle%360;render();saveDraft();};
   $('rinkAddPass').onclick=()=>addRouteArrow('pass');$('rinkAddShot').onclick=()=>addRouteArrow('shot');
   $('rinkChooseTarget').onclick=()=>{targetEdit=selectedId;announce('Peka på målpunkten på rinken.');};
   $('rinkSelectedMove').onclick=()=>setTool('move');
