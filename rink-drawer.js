@@ -128,6 +128,15 @@
   }
   return true;
  }
+ function safelySmoothPassage(route,obstacles,passes){
+  if(route.type!=='curve'||route.routeStyle==='planned'||route.points.length<12||window.NskRoutePlanner?.hasRouteFeatures(route))return route;
+  const original=renderedRoute(route),points=resampleRoute(original,Math.min(300,Math.max(24,Math.ceil(original.length/2)))),pins=new Set([0,points.length-1]);
+  for(const pass of passes)for(const anchor of geometry(pass)){let nearest=0;for(let i=1;i<points.length;i++)if(Math.hypot(points[i].x-anchor.x,points[i].y-anchor.y)<Math.hypot(points[nearest].x-anchor.x,points[nearest].y-anchor.y))nearest=i;if(Math.hypot(points[nearest].x-anchor.x,points[nearest].y-anchor.y)<18)for(let j=Math.max(0,nearest-2);j<=Math.min(points.length-1,nearest+2);j++)pins.add(j);}
+  for(const strength of [.75,.4,.2]){let smoothed=points;for(let pass=0;pass<3;pass++)smoothed=smoothed.map((p,i)=>pins.has(i)?p:{x:p.x*(1-strength)+(smoothed[i-1].x+smoothed[i+1].x)*strength/2,y:p.y*(1-strength)+(smoothed[i-1].y+smoothed[i+1].y)*strength/2});
+   const candidate={...route,points:smoothed,routeStyle:'planned'};if(preservesObstacleSide(route,candidate,obstacles))return candidate;
+  }
+  return route;
+ }
  function smoothBoundarySections(route){
   const points=route.points,pins=new Set([0,points.length-1]);
   const cross=(a,b,c)=>(b.x-a.x)*(c.y-a.y)-(b.y-a.y)*(c.x-a.x);
@@ -226,7 +235,7 @@
   }
   const obstacles=symbols.filter(m=>['cone','tire','goal'].includes(m.type));
   let protectedSmoothing=false;
-  for(let i=0;i<result.length;i++)if(['skate','pass','shot','curve'].includes(result[i].type)&&!preservesObstacleSide(input[i],result[i],obstacles)){result[i]=JSON.parse(JSON.stringify(input[i]));protectedSmoothing=true;}
+  for(let i=0;i<result.length;i++)if(['skate','pass','shot','curve'].includes(result[i].type)&&!preservesObstacleSide(input[i],result[i],obstacles)){result[i]=JSON.parse(JSON.stringify(safelySmoothPassage(input[i],obstacles,input.filter(m=>m.type==='pass'))));protectedSmoothing=true;}
   const protectedEquipment=new Set();
   for(const obstacle of obstacles){
    if(obstacle.type==='goal')continue;
@@ -371,8 +380,9 @@
  function setTool(next){
   tool=next;closeMenus();$('rinkSelectionPanel').setAttribute('data-expanded','false');$('rinkSelectionMore').setAttribute('aria-expanded','false');$('rinkSelectionMore').textContent='Fler val';if(next!=='move'){selectedId=null;selectionPanelId=null;render();}
   document.querySelectorAll('[data-tool]').forEach(b=>b.setAttribute('aria-pressed',String(b.dataset.tool===tool)));
-  $('rinkSymbolSummary').textContent=['player','goal','goalie','puck','cone','tire'].includes(next)?names[next]:'Symboler';
-  $('rinkLineSummary').textContent=({curve:'Åkväg',skate:'Rak åkväg',pass:'Passning',shot:'Skott','divider-yellow':'Avdelare','divider-blue':'Avdelare'})[next]||'Linjer';announce('');
+  const symbolIcon=$('rinkSymbolSummary').querySelector?.('.rink-icon'),chosenIcon=[...document.querySelectorAll('[data-tool]')].find(b=>b.dataset.tool===next)?.querySelector?.('.rink-icon');if(symbolIcon&&chosenIcon&&['player','goal','goalie','puck','cone','tire'].includes(next))symbolIcon.replaceWith(chosenIcon.cloneNode(true));
+  ($('rinkSymbolSummary').querySelector?.('span')||$('rinkSymbolSummary')).textContent=['player','goal','goalie','puck','cone','tire'].includes(next)?names[next]:'Symboler';
+  ($('rinkLineSummary').querySelector?.('span')||$('rinkLineSummary')).textContent=({curve:'Åkväg',skate:'Rak åkväg',pass:'Passning',shot:'Skott','divider-yellow':'Avdelare','divider-blue':'Avdelare'})[next]||'Linjer';announce('');
  }
  function rink(){
   const s=$('rinkSvg');s.replaceChildren();
@@ -407,7 +417,7 @@
    const goalLabel=el('text',{x:labelPoint(m).x,y:labelPoint(m).y,fill:'#b11226',stroke:'white','stroke-width':2,'paint-order':'stroke','font-size':11,'font-weight':700,'pointer-events':'none'},group);goalLabel.textContent='Mål '+(marks.filter(g=>g.type==='goal').indexOf(m)+1);
   }else if(m.type==='player'||m.type==='goalie'){
    el('circle',{cx:m.x,cy:m.y,r:m.type==='goalie'?17:13,fill:m.color,stroke:'white','stroke-width':3},group);
-   if(m.type==='goalie'&&!m.number)el('circle',{cx:m.x,cy:m.y,r:7,fill:'white'},group);
+   if(m.type==='goalie'&&!m.number){const text=el('text',{x:m.x,y:m.y+5,'text-anchor':'middle',fill:'white','font-size':15,'font-weight':750,'pointer-events':'none'},group);text.textContent='M';}
    if(m.number){const text=el('text',{x:m.x,y:m.y+4,'text-anchor':'middle',fill:'white','font-size':12,'font-weight':750,'font-family':'system-ui,sans-serif','pointer-events':'none'},group);text.textContent=m.number;}
   }else if(['skate','curve'].includes(m.type)&&m.motion==='backward'){
    el('path',{d:backwardPath(m),fill:'none',stroke:m.color,'stroke-width':3,'stroke-linecap':'round','stroke-linejoin':'round','marker-end':'url(#arr-'+m.color.slice(1)+')'},group);
@@ -416,7 +426,7 @@
    el('path',{d,fill:'none',stroke:m.color,'stroke-width':4,'stroke-linecap':'round','stroke-linejoin':'round','marker-end':'url(#arr-'+m.color.slice(1)+')'},group);
   }else if(m.type==='puck')el('ellipse',{cx:m.x,cy:m.y,rx:9,ry:6,fill:'#171717',stroke:'white','stroke-width':1},group);
   else if(m.type==='tire'){el('circle',{cx:m.x,cy:m.y,r:10,fill:'none',stroke:'#20242b','stroke-width':6},group);el('circle',{cx:m.x,cy:m.y,r:13,fill:'none',stroke:'#747b85','stroke-width':1},group);}
-  else if(m.type==='cone')el('polygon',{points:m.x+','+(m.y-14)+' '+(m.x-12)+','+(m.y+10)+' '+(m.x+12)+','+(m.y+10),fill:'#ef8a18',stroke:'#9a5208','stroke-width':2},group);
+  else if(m.type==='cone'){el('polygon',{points:(m.x-13)+','+(m.y+8)+' '+m.x+','+(m.y+4)+' '+(m.x+13)+','+(m.y+8)+' '+(m.x+13)+','+(m.y+12)+' '+m.x+','+(m.y+15)+' '+(m.x-13)+','+(m.y+12),fill:'#f97316',stroke:'#9a5208','stroke-width':1.5},group);el('path',{d:'M '+(m.x-8)+' '+(m.y+7)+' L '+(m.x-3)+' '+(m.y-13)+' Q '+m.x+' '+(m.y-16)+' '+(m.x+3)+' '+(m.y-13)+' L '+(m.x+8)+' '+(m.y+7)+' Q '+m.x+' '+(m.y+12)+' '+(m.x-8)+' '+(m.y+7),fill:'#f97316',stroke:'#9a5208','stroke-width':1.5},group);el('path',{d:'M '+(m.x-2)+' '+(m.y-10)+' L '+(m.x-5)+' '+(m.y+5),fill:'none',stroke:'#ffd09a','stroke-width':2,'pointer-events':'none'},group);}
   else{
    const props={x1:m.x,y1:m.y,x2:m.x2,y2:m.y2,stroke:m.type==='divider'?'#e67717':m.type==='divider-yellow'?'#facc15':m.type==='divider-blue'?'#2563eb':m.color,'stroke-width':isDivider(m)?12:4,'stroke-linecap':isDivider(m)?'butt':'round'};
    if(m.type==='pass')props['stroke-dasharray']='10 9';
@@ -668,6 +678,7 @@
   $('rinkDelete').onclick=()=>{const m=selected();if(!m)return;remember();const ids=new Set(patternMembers(m).map(p=>p.id));marks=marks.filter(m=>!ids.has(m.id));selectedId=null;render();saveDraft();};
   $('rinkDeselect').onclick=()=>{selectedId=null;numberEditId=null;render();};
   $('rinkSelectedColor').onchange=()=>{const m=selected();if(!m||m.color===$('rinkSelectedColor').value)return;remember();for(const member of patternMembers(m))member.color=$('rinkSelectedColor').value;$('rinkColor').value=m.color;render();saveDraft();};
+  for(const close of document.querySelectorAll('[data-close-tools]'))close.onclick=closeMenus;
   $('rinkSlalom').onclick=()=>createPattern('slalom');$('rinkTriangle').onclick=()=>createPattern('triangle');$('rinkPlayers').onclick=()=>createPattern('players');
   for(const id of ['rinkPatternCount','rinkPatternSpacing','rinkPatternWidth','rinkPatternAngle'])$(id).onchange=changePattern;
   $('rinkUngroup').onclick=()=>{const m=selected();if(!m?.patternId)return;remember();for(const member of patternMembers(m))for(const key of patternFields)delete member[key];render();saveDraft();announce('Gruppen är uppdelad i enskilda symboler.');};
