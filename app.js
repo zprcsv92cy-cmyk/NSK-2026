@@ -2909,18 +2909,49 @@ window.NSK2App = (() => {
       });
     }
 
-    if(window.NSKViewCache){
-      const view=await NSKViewCache.open('roster');
-      const paint=async data=>{rosterCache.players=data.players;rosterCache.coaches=data.coaches;await Promise.all([renderPlayers(),renderCoaches()]);};
-      if(view.data)await paint(view.data);
+    let loading=false,loaded=false;
+    const status=byId('truppenMsg');
+    const retry=document.createElement('button');retry.type='button';retry.textContent='Försök igen';retry.hidden=true;
+    status?.after(retry);
+    async function loadRoster(){
+      if(loading)return;loading=true;retry.hidden=true;
+      document.body.dataset.rosterLoading='true';
+      window.dispatchEvent(new CustomEvent('nsk:roster-loading'));
+      setText('truppenMsg',loaded?'Uppdaterar truppen…':'Hämtar spelare och tränare…');
       try{
-        const [players,coaches]=await Promise.all([DB.listPlayers(),DB.listCoaches()]);
-        if(view.current()){const data={players,coaches};view.save(data);if(JSON.stringify(view.data)!==JSON.stringify(data))await paint(data);}
-      }catch(error){if(view.current()){
-        if(NSKViewCache.denied(error)){NSKViewCache.clear();clearRosterCache();byId('playersList')?.replaceChildren();byId('coachesList')?.replaceChildren();}
-        setText('truppenMsg',view.data&&!NSKViewCache.denied(error)?'Visar senast hämtade trupp. Kunde inte uppdatera.':error.message);
-      }}
-    }else await Promise.all([renderPlayers(), renderCoaches()]);
+        const paint=async data=>{rosterCache.players=data.players;rosterCache.coaches=data.coaches;await Promise.all([renderPlayers(),renderCoaches()]);loaded=true;};
+        if(window.NSKViewCache){
+          for(let attempt=0;attempt<3;attempt++){
+            // Identity/permissions can refresh while this read is in flight. A discarded
+            // snapshot must start a fresh authorized read instead of leaving empty lists.
+            if(attempt)await window.Auth?.init?.();
+            const view=await NSKViewCache.open('roster');
+            if(view.data&&view.current())await paint(view.data);
+            try{
+              const [players,coaches]=await Promise.all([DB.listPlayers(),DB.listCoaches()]);
+              if(!view.current())continue;
+              const data={players,coaches};view.save(data);await paint(data);
+              setText('truppenMsg','');return;
+            }catch(error){
+              if(!view.current())continue;
+              if(NSKViewCache.denied(error)){NSKViewCache.clear();clearRosterCache();byId('playersList')?.replaceChildren();byId('coachesList')?.replaceChildren();loaded=false;}
+              throw error;
+            }
+          }
+          throw new Error('Inloggningen ändrades medan truppen hämtades. Försök igen.');
+        }
+        await Promise.all([renderPlayers(),renderCoaches()]);loaded=true;setText('truppenMsg','');
+      }catch(error){
+        retry.hidden=false;
+        setText('truppenMsg',(loaded?'Visar senast hämtade trupp. ':'')+'Kunde inte hämta spelare och tränare. '+(error.message||'Försök igen.'));
+      }finally{
+        loading=false;document.body.dataset.rosterLoading='false';
+        window.dispatchEvent(new CustomEvent('nsk:roster-loading'));
+      }
+    }
+    retry.addEventListener('click',loadRoster);
+    window.addEventListener('focus',()=>{if(!loaded)loadRoster();});
+    await loadRoster();
 
     if (!truppenRealtime && typeof DB?.subscribeTruppen === "function") {
       truppenRealtime = await DB.subscribeTruppen(async (type) => {
