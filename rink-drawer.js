@@ -9,11 +9,11 @@
  let marks=[],history=[],future=[],tool='move',drag=null,selectedId=null,draftTimer=0,draftDirty=false,numberEditId=null;
  let zoom=1,viewX=0,viewY=0,selectionPanelId=null;
  let resetTouchGesture=()=>{};
- const patternTypes={slalom:{label:'Däckslalom',type:'tire',count:4,min:3,max:8,spacing:4,width:6},triangle:{label:'Kontriangel',type:'cone',count:3,min:3,max:3,spacing:5,width:0},players:{label:'Spelarled',type:'player',count:5,min:2,max:12,spacing:1.5,width:0}};
+ const patternTypes={slalom:{label:'Däckslalom',type:'tire',count:4,min:3,max:8,minSpacing:1,spacing:4,width:6},triangle:{label:'Kontriangel',type:'cone',count:3,min:3,max:3,minSpacing:2.5,spacing:5,width:0},players:{label:'Spelarled',type:'player',count:5,min:2,max:12,minSpacing:2.5,spacing:2.5,width:0}};
  const patternFields=['patternId','patternType','patternIndex','patternCount','patternSpacing','patternWidth'];
  const patternMembers=m=>m?.patternId?marks.filter(p=>p.patternId===m.patternId):m?[m]:[];
  function patternMarks(type,count,spacing,width,center,patternId,color){
-  const spec=patternTypes[type];if(!spec||!Number.isInteger(count)||count<spec.min||count>spec.max||!Number.isFinite(spacing)||spacing<.5||spacing>12||!Number.isFinite(width)||(type==='slalom'&&(width<1||width>15)))return null;
+  const spec=patternTypes[type];if(!spec||!Number.isInteger(count)||count<spec.min||count>spec.max||!Number.isFinite(spacing)||spacing<spec.minSpacing||spacing>12||!Number.isFinite(width)||(type==='slalom'&&(width<1||width>15)))return null;
   const points=Array.from({length:count},(_,i)=>type==='triangle'?{x:Math.cos(-Math.PI/2+i*Math.PI*2/3)*spacing/Math.sqrt(3),y:Math.sin(-Math.PI/2+i*Math.PI*2/3)*spacing/Math.sqrt(3)}:{x:type==='slalom'?(i%2?-.5:.5)*width:0,y:(i-(count-1)/2)*spacing});
   const meanX=points.reduce((n,p)=>n+p.x,0)/count;points.forEach(p=>{p.x=(p.x-meanX)*rinkScale.x;p.y*=rinkScale.y;});
   const xs=points.map(p=>p.x),ys=points.map(p=>p.y),left=Math.min(...xs),right=Math.max(...xs),top=Math.min(...ys),bottom=Math.max(...ys);if(right-left>400||bottom-top>780)return null;
@@ -344,7 +344,7 @@
   if(selectionPanelId!==m.id){selectionPanelId=m.id;$('rinkSelectionPanel').setAttribute('data-expanded','false');$('rinkSelectionMore').setAttribute('aria-expanded','false');$('rinkSelectionMore').textContent='Fler val';}
   const pattern=m.patternId&&patternTypes[m.patternType];$('rinkPatternSettings').hidden=!pattern;$('rinkUngroup').hidden=!pattern;
   $('rinkDuplicate').textContent=pattern?'Kopiera grupp':'Kopiera';$('rinkDelete').textContent=pattern?'Ta bort grupp':'Ta bort';
-  if(pattern){$('rinkPatternCount').value=String(m.patternCount);$('rinkPatternCount').min=String(pattern.min);$('rinkPatternCount').max=String(pattern.max);$('rinkPatternCount').disabled=pattern.min===pattern.max;$('rinkPatternCountField').hidden=pattern.min===pattern.max;$('rinkPatternSpacing').value=String(m.patternSpacing);$('rinkPatternWidth').value=String(m.patternWidth);$('rinkPatternWidthField').hidden=m.patternType!=='slalom';$('rinkPatternSpacingLabel').textContent=m.patternType==='triangle'?'Sidlängd (m)':m.patternType==='slalom'?'Steg (m)':'Avstånd (m)';}
+  if(pattern){$('rinkPatternCount').value=String(m.patternCount);$('rinkPatternCount').min=String(pattern.min);$('rinkPatternCount').max=String(pattern.max);$('rinkPatternCount').disabled=pattern.min===pattern.max;$('rinkPatternCountField').hidden=pattern.min===pattern.max;$('rinkPatternSpacing').value=String(m.patternSpacing);$('rinkPatternSpacing').min=String(pattern.minSpacing);$('rinkPatternWidth').value=String(m.patternWidth);$('rinkPatternWidthField').hidden=m.patternType!=='slalom';$('rinkPatternSpacingLabel').textContent=m.patternType==='triangle'?'Sidlängd (m)':m.patternType==='slalom'?'Steg (m)':'Avstånd (m)';}
   $('rinkRouteActions').hidden=!['skate','curve','pass','shot'].includes(m.type);
   $('rinkAddPass').hidden=$('rinkAddShot').hidden=!['skate','curve'].includes(m.type);
   $('rinkChooseTarget').hidden=!['pass','shot'].includes(m.type)&&!m.shotEnd;
@@ -567,7 +567,7 @@
    if(['player','goalie'].includes(m.type)&&/^\d{1,2}$/.test(String(m.number??'')))n.number=String(m.number);
    if(isDivider(n)){if(Number.isFinite(m.lengthMetres))n.lengthMetres=clamp(m.lengthMetres,.25,60);fitDivider(n,true);}
    const spec=typeof m.patternType==='string'&&Object.hasOwn(patternTypes,m.patternType)?patternTypes[m.patternType]:null;
-   if(spec&&m.type===spec.type&&typeof m.patternId==='string'&&m.patternId.length>0&&m.patternId.length<=80&&Number.isInteger(m.patternCount)&&m.patternCount>=spec.min&&m.patternCount<=spec.max&&Number.isInteger(m.patternIndex)&&m.patternIndex>=0&&m.patternIndex<m.patternCount&&Number.isFinite(m.patternSpacing)&&m.patternSpacing>=.5&&m.patternSpacing<=12&&Number.isFinite(m.patternWidth)&&(m.patternType==='slalom'?m.patternWidth>=1&&m.patternWidth<=15:m.patternWidth===0))for(const key of patternFields)n[key]=m[key];
+   if(spec&&m.type===spec.type&&typeof m.patternId==='string'&&m.patternId.length>0&&m.patternId.length<=80&&Number.isInteger(m.patternCount)&&m.patternCount>=spec.min&&m.patternCount<=spec.max&&Number.isInteger(m.patternIndex)&&m.patternIndex>=0&&m.patternIndex<m.patternCount&&Number.isFinite(m.patternSpacing)&&m.patternSpacing>=spec.minSpacing&&m.patternSpacing<=12&&Number.isFinite(m.patternWidth)&&(m.patternType==='slalom'?m.patternWidth>=1&&m.patternWidth<=15:m.patternWidth===0))for(const key of patternFields)n[key]=m[key];
    return n;
   });
   for(const id of new Set(clean.filter(m=>m.patternId).map(m=>m.patternId))){const group=clean.filter(m=>m.patternId===id),first=group[0];if(group.length!==first.patternCount||new Set(group.map(m=>m.patternIndex)).size!==group.length||group.some(m=>m.patternType!==first.patternType||m.patternCount!==first.patternCount||m.patternSpacing!==first.patternSpacing||m.patternWidth!==first.patternWidth))for(const m of group)for(const key of patternFields)delete m[key];}
