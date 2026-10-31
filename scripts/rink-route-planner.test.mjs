@@ -56,3 +56,8 @@ test('hand-drawn circles around every printed rink circle and faceoff dot become
   const cross=(fit.points[0].x-landmark.x)*(fit.points[1].y-landmark.y)-(fit.points[0].y-landmark.y)*(fit.points[1].x-landmark.x);assert.equal(Math.sign(cross),dir);
  }
 });
+test('open turns around printed circles and dots stay open with fixed approach and exit',()=>{
+ for(const center of api.rinkLandmarks){
+  const radius=center.circleRadius||35,points=[{x:center.x-radius-15,y:center.y+100},...arc(center,radius,Math.PI,2*Math.PI,32),{x:center.x+radius+15,y:center.y+100}],r=route('open',points),fit=api.plan([r]).plans.get(r.id);assert.ok(fit,center.id);assert.deepEqual(plain(fit.points[0]),points[0]);assert.deepEqual(plain(fit.points.at(-1)),points.at(-1));assert.ok(dist(fit.points[0],fit.points.at(-1))>50);assert.ok(fit.points.filter(p=>Math.abs(dist(p,center)-radius)<1e-6).length>=8,center.id);
+ }
+});
