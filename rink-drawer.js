@@ -156,15 +156,16 @@
   }
   return result;
  }
- function tidyLayout(input,patterns=true){
+ function tidyLayout(input,patterns=true,patternLocks=new Set()){
   if(patterns){
-   let current=input;
+   let current=input;const locks=new Set();
    for(const proposal of equipmentPatternProposals(input)){
+    proposal.forEach(p=>locks.add(p.id));
     const moved=moveEquipmentPattern(current,proposal);if(!moved)continue;
-    const candidate=tidyLayout(moved,false),before=current.filter(m=>['cone','tire','goal'].includes(m.type)),after=candidate.filter(m=>['cone','tire','goal'].includes(m.type));
+    const candidate=tidyLayout(moved,false,locks),before=current.filter(m=>['cone','tire','goal'].includes(m.type)),after=candidate.filter(m=>['cone','tire','goal'].includes(m.type));
     if(candidate.every((m,i)=>!['curve','skate','pass','shot'].includes(m.type)||preservesObstacleSide(current[i],m,before,after)))current=candidate;
    }
-   return tidyLayout(current,false);
+   return tidyLayout(current,false,locks);
   }
   const result=JSON.parse(JSON.stringify(input));
   const symbols=input.filter(m=>['player','goalie','puck','cone','tire','goal'].includes(m.type));
@@ -207,7 +208,7 @@
    for(const group of groups){
     const rows=[];for(const m of group.sort((a,b)=>a[axis]-b[axis])){let row=rows.at(-1);if(!row||m[axis]-row.at(-1)[axis]>(m.type==='player'?120:180)){row=[];rows.push(row);}row.push(m);}
     for(const row of rows){
-     if(row.length<2||row.some(m=>moved.has(m.id)||protectedEquipment.has(m.id)))continue;const first=row[0],last=row.at(-1),step=(last[axis]-first[axis])/(row.length-1),baseline=row.reduce((n,m)=>n+m[cross],0)/row.length;
+     if(row.length<2||row.some(m=>moved.has(m.id)||protectedEquipment.has(m.id)||patternLocks.has(m.id)))continue;const first=row[0],last=row.at(-1),step=(last[axis]-first[axis])/(row.length-1),baseline=row.reduce((n,m)=>n+m[cross],0)/row.length;
      if(step<24||step>(first.type==='player'?110:150))continue;
      const proposals=row.map((m,i)=>({m,p:{[axis]:first[axis]+step*i,[cross]:baseline}}));
      if(proposals.some(({m,p})=>Math.hypot(p.x-m.x,p.y-m.y)>(m.type==='player'?20:60)||symbols.some(s=>s.id!==m.id&&!row.some(r=>r.id===s.id)&&Math.hypot(s.x-p.x,s.y-p.y)<22&&Math.hypot(s.x-m.x,s.y-m.y)>=22)))continue;
