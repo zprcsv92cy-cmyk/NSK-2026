@@ -1213,3 +1213,14 @@ button.shift-check.done{background:#167747;border-color:#39bb7c}button.shift-che
 .nsk-schedule-editor form,.nsk-schedule-editor [data-rows],.nsk-schedule-editor fieldset{min-width:0;min-inline-size:0;max-width:100%}
 .nsk-schedule-editor fieldset{box-sizing:border-box}
 @media(max-width:600px){.nsk-schedule-editor fieldset{grid-template-columns:minmax(0,1fr)}}
+
+/* Safari's native temporal controls must not size an implicit grid column. */
+.nsk-schedule-editor label{grid-template-columns:minmax(0,1fr)}
+#poolDate,.nsk-schedule-editor input[type=time]{
+  -webkit-appearance:none;appearance:none;display:block;
+  box-sizing:border-box;width:100%;inline-size:100%;min-width:0;min-inline-size:0;
+  max-width:100%;max-inline-size:100%;overflow:hidden;
+}
+#poolDate::-webkit-datetime-edit,.nsk-schedule-editor input[type=time]::-webkit-datetime-edit{
+  display:block;min-width:0;padding:0;
+}
