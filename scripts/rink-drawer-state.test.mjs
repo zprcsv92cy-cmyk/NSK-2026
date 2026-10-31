@@ -42,7 +42,7 @@ function viewTransform(f,rotated=false){
 test('building blocks create coherent groups with undo and persistent grouping',()=>{
  for(const [button,type,count] of [['rinkSlalom','tire',4],['rinkTriangle','cone',3],['rinkPlayers','player',5]]){
   const f=editor();f.node(button).onclick();f.flush();const group=f.draft().marks;assert.equal(group.length,count);assert.ok(group.every(m=>m.type===type&&m.patternId===group[0].patternId&&m.patternCount===count));assert.equal(new Set(group.map(m=>m.id)).size,count);
-  if(type==='player'){assert.deepEqual(group.map(m=>m.number),['1','2','3','4','5']);assert.ok(group[1].y-group[0].y>30);}
+  if(type==='player'){assert.deepEqual(group.map(m=>m.number),['1','2','3','4','5']);assert.ok(Math.abs(group[1].y-group[0].y)>30);}
   if(type==='cone'){const distances=group.map((p,i)=>{const q=group[(i+1)%3];return Math.hypot((p.x-q.x)/(436/30),(p.y-q.y)/(820/60));});assert.ok(distances.every(d=>Math.abs(d-5)<1e-6));assert.equal(f.node('rinkPatternCount').disabled,true);}
   f.node('rinkUndo').onclick();f.flush();assert.equal(f.draft().marks.length,0);f.node('rinkRedo').onclick();f.flush();assert.deepEqual(f.draft().marks,group);
   const restored=editor(Object.fromEntries(f.storage));restored.node('rinkTitle').emit('input');restored.flush();assert.deepEqual(restored.draft().marks,group);
@@ -363,4 +363,18 @@ test('rotating an odd slalom preserves its center away from the boards',()=>{
 
 test('tidy improves dense open tire roundings and restores the exact original with undo',()=>{
  for(const radius of [30,40,60]){const points=Array.from({length:45},(_,i)=>{const a=Math.PI+i/44*Math.PI,r=radius+Math.sin(i*2.1)*5;return {x:240+r*Math.cos(a),y:300+r*Math.sin(a)}}),marks=[{id:'r',type:'curve',x:points[0].x,y:points[0].y,points,color:'#111827'},{id:'t',type:'tire',x:240,y:300,color:'#111827'}],f=editor({[DRAFT]:JSON.stringify({marks})});f.node('rinkTitle').emit('input');f.flush();const before=f.draft().marks;f.node('rinkTidy').onclick();f.flush();const after=f.draft().marks[0];assert.equal(after.routeStyle,'planned');assert.notDeepEqual(after.points,before[0].points);assert.deepEqual(after.points[0],before[0].points[0]);assert.deepEqual(after.points.at(-1),before[0].points.at(-1));assert.ok(after.points.every(p=>p.y<=300.001));assert.ok(after.points.every(p=>Math.hypot(p.x-240,p.y-300)>16));f.node('rinkUndo').onclick();f.flush();assert.deepEqual(f.draft().marks,before);}
+});
+
+test('player queues follow the boards through a corner with stable spacing and reversible movement',()=>{
+ const f=editor();f.node('rinkPlayers').onclick();f.flush();const before=f.draft().marks,first=before[0];assert.ok(before.every(m=>m.patternBoard));
+ f.pointer('pointerdown',first.x,first.y);f.pointer('pointermove',90,90);f.pointer('pointerup',90,90);f.flush();const corner=f.draft().marks;assert.ok(new Set(corner.map(m=>Math.round(m.x))).size>2);assert.ok(new Set(corner.map(m=>Math.round(m.y))).size>2);
+ for(let i=1;i<corner.length;i++){const a=corner[i-1],b=corner[i],d=Math.hypot((a.x-b.x)/(436/30),(a.y-b.y)/(820/60));assert.ok(d>2.4&&d<=2.51);}
+ assert.deepEqual(corner.map(m=>m.number),['1','2','3','4','5']);const restored=editor(Object.fromEntries(f.storage));restored.leave();assert.deepEqual(restored.draft().marks,corner);f.node('rinkUndo').onclick();f.flush();assert.deepEqual(f.draft().marks,before);
+ f.pointer('pointerdown',first.x,first.y);f.pointer('pointerup',first.x,first.y);f.node('rinkPatternBoard').checked=false;f.node('rinkPatternBoard').onchange();f.flush();const straight=f.draft().marks;assert.ok(straight.every(m=>!m.patternBoard));assert.equal(new Set(straight.map(m=>m.x)).size,1);
+});
+test('slalom width handles stretch and tighten across either orientation in one undoable drag',()=>{
+ for(const angle of [0,90]){const f=editor();f.node('rinkSlalom').onclick();if(angle){f.node('rinkPatternAngle').value=String(angle);f.node('rinkPatternAngle').onchange();}f.flush();const before=f.draft().marks,center={x:before.reduce((s,m)=>s+m.x,0)/4,y:before.reduce((s,m)=>s+m.y,0)/4},ux=angle?0:436/30,uy=angle?820/60:0;
+ f.pointer('pointerdown',center.x+3*ux,center.y+3*uy);f.pointer('pointermove',center.x+6*ux,center.y+6*uy);f.pointer('pointerup',center.x+6*ux,center.y+6*uy);f.flush();const wide=f.draft().marks;assert.ok(wide.every(m=>Math.abs(m.patternWidth-12)<1e-6));assert.ok(wide.every(m=>m.patternSpacing===4&&m.patternCount===4));f.node('rinkUndo').onclick();f.flush();assert.deepEqual(f.draft().marks,before);
+ f.pointer('pointerdown',before[0].x,before[0].y);f.pointer('pointerup',before[0].x,before[0].y);f.pointer('pointerdown',center.x+3*ux,center.y+3*uy);f.pointer('pointermove',center.x+1*ux,center.y+1*uy);f.pointer('pointerup',center.x+1*ux,center.y+1*uy);f.flush();assert.ok(f.draft().marks.every(m=>Math.abs(m.patternWidth-2)<1e-6));
+ }
 });
