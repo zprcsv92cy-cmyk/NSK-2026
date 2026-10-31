@@ -8,6 +8,7 @@
  const DRAFT='nsk_rink_draft_v2',SAVED='nsk_rink_drawing_v1';
  let marks=[],history=[],future=[],tool='move',drag=null,selectedId=null,draftTimer=0,draftDirty=false,numberEditId=null;
  let zoom=1,viewX=0,viewY=0,selectionPanelId=null;
+ let resetTouchGesture=()=>{};
  const geometry=m=>m.points||[{x:m.x,y:m.y},...(m.x2===undefined?[]:[{x:m.x2,y:m.y2}])];
  // Conservative local cleanup. Endpoints, goals and exercise metadata are preserved.
  function segmentDistance(p,a,b){const dx=b.x-a.x,dy=b.y-a.y,k=clamp(((p.x-a.x)*dx+(p.y-a.y)*dy)/(dx*dx+dy*dy||1),0,1);return Math.hypot(p.x-a.x-k*dx,p.y-a.y-k*dy);}
@@ -332,7 +333,7 @@
   tool=next;closeMenus();$('rinkSelectionPanel').setAttribute('data-expanded','false');$('rinkSelectionMore').setAttribute('aria-expanded','false');$('rinkSelectionMore').textContent='Fler val';if(next!=='move'){selectedId=null;selectionPanelId=null;render();}
   document.querySelectorAll('[data-tool]').forEach(b=>b.setAttribute('aria-pressed',String(b.dataset.tool===tool)));
   $('rinkSymbolSummary').textContent=['player','goal','goalie','puck','cone','tire'].includes(next)?names[next]:'Symboler';
-  $('rinkLineSummary').textContent=({curve:'Åkväg',skate:'Rak linje',pass:'Passning',shot:'Skott','divider-yellow':'Avdelare','divider-blue':'Avdelare'})[next]||'Linjer';announce('');
+  $('rinkLineSummary').textContent=({curve:'Åkväg',skate:'Rak åkväg',pass:'Passning',shot:'Skott','divider-yellow':'Avdelare','divider-blue':'Avdelare'})[next]||'Linjer';announce('');
  }
  function rink(){
   const s=$('rinkSvg');s.replaceChildren();
@@ -403,7 +404,7 @@
  }
  function render(){rink();selectionOutline();updateControls();}
  function cleanSvg(){const svg=$('rinkSvg').cloneNode(true);svg.querySelectorAll('[data-editor-ui]').forEach(n=>n.remove());svg.setAttribute('xmlns',NS);svg.setAttribute('viewBox','0 0 '+W+' '+H);svg.setAttribute('width',String(W));svg.setAttribute('height',String(H));return svg;}
- function pos(e){const s=$('rinkSvg'),matrix=s.getScreenCTM();if(!matrix)return null;const p=s.createSVGPoint();p.x=e.clientX;p.y=e.clientY;const v=p.matrixTransform(matrix.inverse());return {x:clamp(v.x,22,W-22),y:clamp(v.y,20,H-20)};}
+ function pos(e,onIce=true){const s=$('rinkSvg'),matrix=s.getScreenCTM();if(!matrix)return null;const p=s.createSVGPoint();p.x=e.clientX;p.y=e.clientY;const v=p.matrixTransform(matrix.inverse());return onIce?{x:clamp(v.x,22,W-22),y:clamp(v.y,20,H-20)}:{x:v.x,y:v.y};}
  function hit(p){
   const matrix=$('rinkSvg').getScreenCTM(),scale=matrix?Math.hypot(matrix.a,matrix.b):1;
   let best=null,bestDistance=Infinity;
@@ -443,9 +444,34 @@
   m.x+=dx;m.y+=dy;if(m.points)m.points=m.points.map(p=>({x:p.x+dx,y:p.y+dy}));if(m.x2!==undefined){m.x2+=dx;m.y2+=dy;}
  }
  function pointers(){
-  const s=$('rinkSvg');
+  const s=$('rinkSvg'),touches=new Map();let touchStart=null,pinch=null,touchBlocked=false;
+  resetTouchGesture=()=>{touches.clear();touchStart=null;pinch=null;touchBlocked=false;drag=null;document.body.classList.toggle('rink-gesturing',false);render();};
+  const midpoint=()=>{const [a,b]=[...touches.values()];return {clientX:(a.x+b.x)/2,clientY:(a.y+b.y)/2,distance:Math.max(1,Math.hypot(a.x-b.x,a.y-b.y))};};
+  function beginPinch(restore=true){
+   if(restore&&touchStart){
+    const changed=snapshot()!==touchStart.marks;marks=JSON.parse(touchStart.marks);history=touchStart.history;future=touchStart.future;selectedId=touchStart.selectedId;targetEdit=touchStart.targetEdit;routePoint=touchStart.routePoint;drag=null;render();if(changed)saveDraft();
+   }
+   const middle=midpoint(),anchor=pos(middle,false);if(!anchor)return;
+   pinch={zoom,distance:middle.distance,anchor};touchBlocked=true;closeMenus();$('rinkTidyReport').hidden=true;announce('');document.body.classList.toggle('rink-gesturing',true);
+  }
+  function movePinch(){
+   const middle=midpoint();zoom=clamp(pinch.zoom*middle.distance/pinch.distance,1,3);viewport();const at=pos(middle,false);if(!at)return;
+   viewX=clamp(viewX+pinch.anchor.x-at.x,0,W-W/zoom);viewY=clamp(viewY+pinch.anchor.y-at.y,0,H-H/zoom);viewport();
+  }
+  function finishTouch(e){
+   if(!touches.has(e.pointerId))return false;const consumed=Boolean(pinch)||touchBlocked;touches.delete(e.pointerId);
+   if(consumed){if(touches.size>=2)beginPinch(false);else pinch=null;}
+   if(!touches.size){touchStart=null;touchBlocked=false;document.body.classList.toggle('rink-gesturing',false);}
+   return consumed;
+  }
   s.addEventListener('pointerdown',e=>{
-   if(drag||!e.isPrimary||(e.pointerType==='mouse'&&e.button!==0))return;
+   if(e.pointerType==='touch'){
+    if(!touches.size)touchStart={marks:snapshot(),history:history.slice(),future:future.slice(),selectedId,targetEdit,routePoint};
+    touches.set(e.pointerId,{x:e.clientX,y:e.clientY});
+    if(touches.size>=2){s.setPointerCapture(e.pointerId);beginPinch(!pinch);return;}
+    if(touchBlocked)return;
+   }
+   if(pinch||touchBlocked||drag||!e.isPrimary||(e.pointerType==='mouse'&&e.button!==0))return;
    const p=pos(e);if(!p)return;closeMenus();numberEditId=null;$('rinkTidyReport').hidden=true;announce('');
    if(targetEdit){const m=marks.find(m=>m.id===targetEdit);targetEdit=null;if(m){remember();if(m.shotEnd)m.shotEnd={x:p.x,y:p.y};else{m.x2=p.x;m.y2=p.y;}render();saveDraft();announce('Målpunkt ändrad.');}return;}
    if(tool==='pan'){drag={id:e.pointerId,pan:true,startX:e.clientX,startY:e.clientY,x:viewX,y:viewY,scale:Math.hypot(s.getScreenCTM().a,s.getScreenCTM().b)};s.setPointerCapture(e.pointerId);return;}
@@ -470,6 +496,7 @@
    if(!drag)saveDraft();
   });
   s.addEventListener('pointermove',e=>{
+   if(touches.has(e.pointerId)){touches.set(e.pointerId,{x:e.clientX,y:e.clientY});if(pinch&&touches.size>=2){movePinch();return;}if(touchBlocked)return;}
    if(!drag||e.pointerId!==drag.id)return;if(drag.pan){viewX=clamp(drag.x-(e.clientX-drag.startX)/drag.scale,0,W-W/zoom);viewY=clamp(drag.y-(e.clientY-drag.startY)/drag.scale,0,H-H/zoom);viewport();return;}const p=pos(e);if(!p)return;
    if(drag.resize!==undefined){
     if(!drag.changed&&Math.hypot(e.clientX-drag.startX,e.clientY-drag.startY)<drag.threshold)return;
@@ -491,8 +518,8 @@
    if(!cancelled&&drag.resize===undefined&&!drag.moving&&isDivider(drag.m)){const p=pos(e);if(p){drag.m.x=drag.p.x;drag.m.y=drag.p.y;drag.m.x2=p.x;drag.m.y2=p.y;fitDivider(drag.m);}}
    const changed=drag.changed;drag=null;render();if(changed)saveDraft();
   };
-  s.addEventListener('pointerup',e=>end(e));s.addEventListener('pointercancel',e=>end(e,true));
-  s.addEventListener('lostpointercapture',e=>{if(drag&&e.pointerId===drag.id)end(e,true);});
+  s.addEventListener('pointerup',e=>{if(!finishTouch(e))end(e);});s.addEventListener('pointercancel',e=>{if(!finishTouch(e))end(e,true);});
+  s.addEventListener('lostpointercapture',e=>{if(!finishTouch(e)&&drag&&e.pointerId===drag.id)end(e,true);});
  }
  function safeMarks(input){
   const ids=new Set();return input.filter(m=>m&&types.includes(m.type)&&[m.x,m.y].every(Number.isFinite)&&palette.includes(m.color)&&(m.type!=='curve'||(Array.isArray(m.points)&&m.points.length>=2&&m.points.length<=500&&m.points.every(p=>p&&Number.isFinite(p.x)&&Number.isFinite(p.y))))&&(m.x2===undefined?!['skate','pass','shot','divider','divider-yellow','divider-blue'].includes(m.type):[m.x2,m.y2].every(Number.isFinite))).slice(0,250).map(m=>{
@@ -609,7 +636,7 @@
   $('rinkFullscreen').onclick=()=>setRinkFullscreen(!fullscreenOn);$('rinkFullExit').onclick=()=>setRinkFullscreen(false);$('rinkFullTools').onclick=()=>fullscreenTools($('rinkFullTools').getAttribute('aria-expanded')!=='true');
   for(const event of ['resize','orientationchange'])window.addEventListener(event,syncFullscreenViewport);window.visualViewport?.addEventListener('resize',syncFullscreenViewport);
   window.addEventListener('keydown',event=>{if(event.key==='Escape'&&fullscreenOn){setRinkFullscreen(false);$('rinkFullscreen').focus();}});
-  const saveOnLeave=()=>{if(drag?.changed)draftDirty=true;flushDraft();};window.addEventListener('pagehide',saveOnLeave);window.addEventListener('nsk:page-hide',saveOnLeave);document.addEventListener('visibilitychange',()=>{if(document.hidden)saveOnLeave();});
+  const saveOnLeave=()=>{if(drag?.changed)draftDirty=true;resetTouchGesture();flushDraft();};window.addEventListener('pagehide',saveOnLeave);window.addEventListener('nsk:page-hide',saveOnLeave);document.addEventListener('visibilitychange',()=>{if(document.hidden)saveOnLeave();});
   restore();
  });
 })();
