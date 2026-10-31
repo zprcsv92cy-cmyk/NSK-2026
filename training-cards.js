@@ -1,9 +1,9 @@
-// Startsida: read-only training presentation. Editing stays on the training page.
+// Calendar training presentation and explicit confirmation of saved shirt colors.
 (() => {
  const esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
  function actions(date,hall=''){
   const href='../traningsgrupper/?date='+encodeURIComponent(date)+(hall?'&calendar_hall='+encodeURIComponent(hall):'');
-  return '<div class="nsk-training-grid"><button type="button" class="nsk-training-function" data-training-colors aria-expanded="false"><span aria-hidden="true">♙</span>Tröjfärger</button><a class="nsk-training-function" href="'+esc(href)+'"><span aria-hidden="true">↻</span>Träningsplanering</a><a class="nsk-training-function" style="grid-column:1/-1" href="'+esc(href+'&edit=colors#trainingGroups')+'">Redigera tröjfärger</a></div><div class="nsk-training-presentation" data-training-presentation hidden></div>';
+  return '<div class="nsk-training-grid"><button type="button" class="nsk-training-function" data-training-colors aria-expanded="false"><span aria-hidden="true">♙</span>Tröjfärger</button><a class="nsk-training-function" href="'+esc(href)+'"><span aria-hidden="true">↻</span>Träningsplanering</a><a class="nsk-training-function" style="grid-column:1/-1" href="'+esc(href+'&edit=colors#trainingGroups')+'">Redigera tröjfärger</a><button type="button" class="nsk-training-function" data-training-save-colors>Spara tröjfärger</button><span class="small" data-training-save-status role="status"></span></div><div class="nsk-training-presentation" data-training-presentation hidden></div>';
  }
  function presentation(session,players){
   if(!session)return '<p>Ingen fördelning sparad ännu.</p>';
@@ -91,6 +91,11 @@
  window.addEventListener?.('pagehide',()=>{colorsEpoch++;});
  document.addEventListener('DOMContentLoaded',()=>{setInterval(()=>{reorder();void refreshColors();},15000);document.addEventListener('visibilitychange',()=>{if(!document.hidden){reorder();void refreshColors();}else colorsEpoch++;});});
  document.addEventListener('click',async event=>{
+  const save=event.target.closest?.('[data-training-save-colors]');
+  if(save){const row=save.closest('details[data-date]'),status=row?.querySelector('[data-training-save-status]');if(!row||!status)return;save.disabled=true;try{
+   const date=decodeURIComponent(row.dataset.date),data=await SharedTraining.get(date);if(!data.session){status.textContent='Öppna Träningsplanering och fördela tröjfärger först.';return;}
+   const {revision,...session}=data.session;await SharedTraining.save(date,{...session,revision,base:{session}});status.textContent='Tröjfärger sparade.';await refreshColors();
+  }catch(error){status.textContent=error.message||'Tröjfärgerna kunde inte sparas.';}finally{save.disabled=false;}return;}
   const button=event.target.closest?.('[data-training-colors]');if(!button)return;
   const row=button.closest('details[data-date]'),panel=row?.querySelector('[data-training-presentation]');if(!panel)return;
   if(!panel.hidden){panel.hidden=true;button.setAttribute('aria-expanded','false');return;}

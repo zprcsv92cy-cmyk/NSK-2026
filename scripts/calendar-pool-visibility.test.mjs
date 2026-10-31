@@ -10,14 +10,23 @@ test('calendar removal is authorized, shared, undoable and preserved by feed ref
  const date='2099-11-07';const pool={type:'pool',date,place:'Smehallen',matches:[]};await syncCalendarCache(f.db,'NSK Team 18',[pool]);
  const rows=await f.db.prepare('SELECT event_key FROM svenskalag_calendar_events').all(),key=rows.results[0].event_key;
  const handler=createTrainingHandler(f.env,async()=>[{id:18,Namn:'NSK Team 18','Säsong':'2026'}]);
- const call=(action,method='GET',body,token=f.tokens.root)=>handler(new Request('https://test/api/training?team_id=18&action='+action,{method,headers:{Authorization:'Bearer '+token,'Content-Type':'application/json'},...(body?{body:JSON.stringify(body)}:{})}));
+ const call=(action,method='GET',body,token=f.tokens.root)=>handler(new Request('https://test/api/training?team_id=18&action='+action+(action==='svenskalag-saved'?'&include_removed=1':''),{method,headers:{Authorization:'Bearer '+token,'Content-Type':'application/json'},...(body?{body:JSON.stringify(body)}:{})}));
  // Root is the principal owner; explicit pool permissions cover regular coaches.
  let response=await call('calendar-pool-visibility','POST',{keys:[key]});assert.equal(response.status,403);
  await f.db.prepare('INSERT INTO auth_user_permissions VALUES(?,?)').bind(f.root,'pool:create').run();
  response=await call('calendar-pool-visibility','POST',{keys:[key]});assert.equal(response.status,200,await response.clone().text());
- assert.equal((await(await call('svenskalag-saved')).json()).items.length,0);
- await syncCalendarCache(f.db,'NSK Team 18',[{...pool,notice:'Updated schedule'}]);assert.equal((await(await call('svenskalag-saved')).json()).items.length,0);
+ assert.equal((await(await call('svenskalag-saved')).json()).items[0].calendarHidden,true);
+ await syncCalendarCache(f.db,'NSK Team 18',[{...pool,notice:'Updated schedule'}]);assert.equal((await(await call('svenskalag-saved')).json()).items[0].calendarHidden,true);
  response=await call('calendar-pool-visibility','POST',{keys:[key],hidden:false});assert.equal(response.status,200);assert.equal((await(await call('svenskalag-saved')).json()).items.length,1);
+ response=await call('calendar-pool-visibility','POST',{keys:[key],permanent:true});assert.equal(response.status,409);
+ response=await call('calendar-pool-visibility','POST',{keys:[key]});assert.equal(response.status,200);
+ response=await call('calendar-pool-visibility','POST',{keys:[key],permanent:true});assert.equal(response.status,200);assert.equal((await(await call('svenskalag-saved')).json()).items.length,0);
+ response=await call('pool-removal-state','POST',{poolId:123,date,removed:true});assert.equal(response.status,200);
+ let states=(await(await call('pool-removal-state')).json()).states;assert.equal(states[0].removed,true);
+ response=await call('pool-removal-state','POST',{poolId:123,date,removed:false});assert.equal(response.status,200);
+ response=await call('pool-removal-state','POST',{poolId:123,date,removed:true,permanent:true});assert.equal(response.status,409);
+ await call('pool-removal-state','POST',{poolId:123,date,removed:true});response=await call('pool-removal-state','POST',{poolId:123,date,removed:true,permanent:true});assert.equal(response.status,200);
+ states=(await(await call('pool-removal-state')).json()).states;assert.equal(states[0].permanent,true);
  response=await call('calendar-pool-visibility','POST',{keys:['missing']});assert.equal(response.status,409);
  response=await call('calendar-pool-visibility','POST',{keys:[key]},'invalid');assert.equal(response.status,401);
 });
