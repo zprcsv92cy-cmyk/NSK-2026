@@ -110,7 +110,62 @@
   for(let k=1;k<indices.length;k++){const part=smoothRoute(points.slice(indices[k-1],indices[k]+1));out.push(...(out.length?part.slice(1):part));}
   return out.length<=500?out:points;
  }
- function tidyLayout(input){
+ function equipmentPatternProposals(input){
+  const proposals=[],used=new Set(),wrap=a=>Math.atan2(Math.sin(a),Math.cos(a));
+  // Separate stations at the blue lines before looking for alternating columns.
+  for(const zone of [{min:20,max:301,from:20,to:286},{min:301,max:559,from:286,to:544},{min:559,max:840,from:544,to:841}]){
+   const remaining=new Set(input.filter(m=>m.type==='tire'&&m.y>=zone.from&&m.y<zone.to));
+   while(remaining.size){const group=[remaining.values().next().value];remaining.delete(group[0]);for(let i=0;i<group.length;i++)for(const m of [...remaining])if(Math.hypot(m.x-group[i].x,m.y-group[i].y)<145){group.push(m);remaining.delete(m);}
+    group.sort((a,b)=>a.y-b.y);if(group.length<4||group.length>8)continue;
+    const columns=[0,1].map(parity=>{const members=group.filter((_,i)=>i%2===parity);return members.reduce((n,m)=>n+m.x,0)/members.length;});
+    if(Math.abs(columns[0]-columns[1])<38||Math.abs(columns[0]-columns[1])>150||group.some((m,i)=>Math.abs(m.x-columns[i%2])>24||(i&&(m.y-group[i-1].y<28||m.y-group[i-1].y>130))))continue;
+    const first=Math.max(zone.min+30,group[0].y),last=Math.min(zone.max-40,group.at(-1).y),step=(last-first)/(group.length-1);if(step<36)continue;
+    proposals.push(group.map((m,i)=>({id:m.id,x:columns[i%2],y:first+step*i})));group.forEach(m=>used.add(m.id));
+   }
+  }
+  // A clear three-cone triangle belongs to the nearby printed faceoff/centre point.
+  for(const center of window.NskRoutePlanner?.rinkLandmarks||[]){
+   const group=input.filter(m=>m.type==='cone'&&!used.has(m.id)&&Math.hypot(m.x-center.x,m.y-center.y)<100);if(group.length!==3)continue;
+   const angles=group.map(m=>Math.atan2(m.y-center.y,m.x-center.x)),sorted=[...angles].sort((a,b)=>a-b),gaps=sorted.map((a,i)=>(sorted[(i+1)%3]-a+Math.PI*2)%(Math.PI*2)),radii=group.map(m=>Math.hypot(m.x-center.x,m.y-center.y));
+   if(gaps.some(g=>g<1.3||g>2.9)||Math.min(...radii)<25||Math.max(...radii)>Math.min(...radii)*1.8)continue;
+   let rotation=Math.atan2(angles.reduce((n,a)=>n+Math.sin(3*a),0),angles.reduce((n,a)=>n+Math.cos(3*a),0))/3;
+   if(Math.abs(wrap(3*(rotation+Math.PI/2))/3)<.3)rotation=-Math.PI/2;
+   const radius=Math.min(65,Math.max(32,radii.reduce((a,b)=>a+b,0)/3)),targets=Array.from({length:3},(_,i)=>({x:center.x+radius*Math.cos(rotation+i*Math.PI*2/3),y:center.y+radius*Math.sin(rotation+i*Math.PI*2/3)})),orders=[[0,1,2],[0,2,1],[1,0,2],[1,2,0],[2,0,1],[2,1,0]];
+   const best=orders.sort((a,b)=>a.reduce((n,k,i)=>n+Math.hypot(group[i].x-targets[k].x,group[i].y-targets[k].y),0)-b.reduce((n,k,i)=>n+Math.hypot(group[i].x-targets[k].x,group[i].y-targets[k].y),0))[0];
+   proposals.push(group.map((m,i)=>({id:m.id,...targets[best[i]]})));group.forEach(m=>used.add(m.id));
+  }
+  return proposals;
+ }
+ function moveEquipmentPattern(input,proposal){
+  const deltas=proposal.map(p=>{const m=input.find(m=>m.id===p.id);return {...m,dx:p.x-m.x,dy:p.y-m.y};});
+  if(deltas.every(d=>Math.hypot(d.dx,d.dy)<.1)||deltas.some(d=>Math.hypot(d.dx,d.dy)>45))return null;
+  const ids=new Set(proposal.map(p=>p.id)),symbols=input.filter(m=>['player','goalie','puck','cone','tire','goal'].includes(m.type));
+  if(proposal.some(p=>p.x<45||p.x>435||p.y<45||p.y>815||symbols.some(s=>!ids.has(s.id)&&Math.hypot(p.x-s.x,p.y-s.y)<24)))return null;
+  const result=JSON.parse(JSON.stringify(input));
+  for(const p of proposal)Object.assign(result.find(m=>m.id===p.id),p);
+  for(const m of result){
+   if(m.type!=='curve')continue;
+   const old=input.find(o=>o.id===m.id),rendered=renderedRoute(old);if(!deltas.some(d=>routeDistance(rendered,d)<130))continue;
+   const points=resampleRoute(rendered,Math.min(450,Math.max(24,rendered.length))),walked=[0];for(let i=1;i<points.length;i++)walked.push(walked.at(-1)+Math.hypot(points[i].x-points[i-1].x,points[i].y-points[i-1].y));
+   const pins=[0,walked.at(-1)];
+   for(const pass of input.filter(p=>p.type==='pass'))for(const p of [{x:pass.x,y:pass.y},{x:pass.x2,y:pass.y2}]){let nearest=0;for(let i=1;i<points.length;i++)if(Math.hypot(points[i].x-p.x,points[i].y-p.y)<Math.hypot(points[nearest].x-p.x,points[nearest].y-p.y))nearest=i;if(Math.hypot(points[nearest].x-p.x,points[nearest].y-p.y)<16)pins.push(walked[nearest]);}
+   m.points=points.map((p,i)=>{let x=0,y=0,total=1/22500;for(const d of deltas){const distance=Math.hypot(p.x-d.x,p.y-d.y),weight=Math.max(0,1-distance/150)**2/Math.max(20,distance)**2;x+=d.dx*weight;y+=d.dy*weight;total+=weight;}const fade=Math.min(1,...pins.map(pin=>Math.abs(walked[i]-pin)/60));return {x:p.x+x/total*fade,y:p.y+y/total*fade};});
+   m.points[0]={...rendered[0]};m.points[m.points.length-1]={...rendered.at(-1)};
+   if(m.points.some(p=>p.x<22||p.x>458||p.y<20||p.y>840))return null;
+   m.routeStyle='planned';m.x=m.points[0].x;m.y=m.points[0].y;if(m.x2!==undefined){m.x2=m.points.at(-1).x;m.y2=m.points.at(-1).y;}
+  }
+  return result;
+ }
+ function tidyLayout(input,patterns=true){
+  if(patterns){
+   let current=input;
+   for(const proposal of equipmentPatternProposals(input)){
+    const moved=moveEquipmentPattern(current,proposal);if(!moved)continue;
+    const candidate=tidyLayout(moved,false),before=current.filter(m=>['cone','tire','goal'].includes(m.type)),after=candidate.filter(m=>['cone','tire','goal'].includes(m.type));
+    if(candidate.every((m,i)=>!['curve','skate','pass','shot'].includes(m.type)||preservesObstacleSide(current[i],m,before,after)))current=candidate;
+   }
+   return tidyLayout(current,false);
+  }
   const result=JSON.parse(JSON.stringify(input));
   const symbols=input.filter(m=>['player','goalie','puck','cone','tire','goal'].includes(m.type));
   const routePlans=window.NskRoutePlanner?.plan(input).plans||new Map();

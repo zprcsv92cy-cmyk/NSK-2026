@@ -76,6 +76,12 @@ test('tapping or moving an existing curved route never appends the release point
  f.node('rinkSelectedDirection').value='backward';f.node('rinkSelectedDirection').onchange();f.flush();const split=f.draft().marks;assert.equal(split.length,2);assert.deepEqual(split[0].points.at(-1),{x:200,y:300});assert.deepEqual(split[1].points[0],{x:200,y:300});assert.deepEqual(split[1].points.at(-1),{x:300,y:300});
  const moved=editor({[DRAFT]:JSON.stringify({marks:[route]})});moved.choose('move');moved.pointer('pointerdown',200,300);moved.pointer('pointermove',210,320);moved.pointer('pointerup',210,320);moved.flush();assert.deepEqual(moved.draft().marks[0].points,route.points.map(p=>({x:p.x+10,y:p.y+20})));
 });
+test('equipment pattern cleanup is one undoable action and survives draft recovery',()=>{
+ const marks=[[210,559],[110,635],[195,710],[100,770]].map(([x,y],i)=>({id:'t'+i,type:'tire',x,y,color:'#111827'})).concat([{id:'a',type:'cone',x:353,y:650,color:'#b11226'},{id:'b',type:'cone',x:302,y:725,color:'#b11226'},{id:'c',type:'cone',x:410,y:733,color:'#b11226'}]);
+ const f=editor({[DRAFT]:JSON.stringify({marks})});f.node('rinkTidy').onclick();f.flush();const cleaned=f.draft().marks;assert.ok(cleaned[0].y>=589);assert.equal(cleaned[0].x,cleaned[2].x);assert.equal(cleaned[1].x,cleaned[3].x);assert.match(f.node('rinkTidyReport').textContent,/koner\/däck/);
+ f.node('rinkUndo').onclick();f.flush();assert.deepEqual(f.draft().marks,marks);f.node('rinkRedo').onclick();f.flush();assert.deepEqual(f.draft().marks,cleaned);
+ const restored=editor(Object.fromEntries(f.storage));restored.node('rinkTitle').emit('input');restored.flush();assert.deepEqual(restored.draft().marks,cleaned);
+});
 test('zoom and pan change only the view, not saved drawing coordinates or undo history',()=>{
  const f=editor();f.choose('player');f.pointer('pointerdown',100,200);f.pointer('pointerup',100,200);f.flush();const before=f.storage.get(DRAFT);
  f.node('rinkZoomIn').onclick();assert.equal(f.node('rinkZoomLabel').textContent,'150%');f.choose('pan');f.pointer('pointerdown',200,300);f.pointer('pointermove',160,250);f.pointer('pointerup',160,250);assert.equal(f.node('rinkSvg').attrs.viewBox.split(' ')[0],'120');assert.equal(f.storage.get(DRAFT),before);
