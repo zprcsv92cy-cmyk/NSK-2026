@@ -1,7 +1,7 @@
 // Fixed to the already verified account, never to a browser claim or email alone.
 export const PRIMARY_ADMIN_ID='f8a37a60-2c41-4b0d-8d3b-69ac843f2e10';
 export const PRIMARY_ADMIN_EMAIL='peter_hasselberg@hotmail.com';
-export const ALL_ACCOUNT_PERMISSIONS=Object.freeze(['read','pool:create','lineup:edit','shifts:check','match:manage','pool:finish','pool:reopen','roster:manage','users:manage']);
+export const ALL_ACCOUNT_PERMISSIONS=Object.freeze(['read','pool:create','lineup:edit','shifts:check','match:manage','pool:finish','pool:reopen','roster:manage','photos:manage','users:manage']);
 export function isPrimaryAdministrator(user){return user?.id===PRIMARY_ADMIN_ID&&String(user?.email||'').trim().toLowerCase()===PRIMARY_ADMIN_EMAIL;}
 export function withPrimaryAdministrator(actor,user){
  const primary=isPrimaryAdministrator(user);

@@ -2,6 +2,7 @@
 // A viewer membership remains read-only; team membership is always required.
 export const FEATURE_PERMISSIONS = Object.freeze({
   roster: 'roster:manage',
+  photos: 'photos:manage',
   pool: 'pool:create',
   lineup: 'lineup:edit',
   shifts: 'shifts:check',

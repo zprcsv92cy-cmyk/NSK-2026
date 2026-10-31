@@ -33,7 +33,7 @@
      const hide=!!term&&!name.toLocaleLowerCase('sv').includes(term);if(row.hidden!==hide)row.hidden=hide;
      if(hide)row.dataset.rosterSearchHidden='true';else delete row.dataset.rosterSearchHidden;
      if(index===selected&&!hide)matches++;
-     if(button){const [kind,id]=button.dataset.rosterName.split(':');const card=window.PersonCards?.summary?.(button.dataset.rosterTeam,kind,id);if(card){setText(button.querySelector('.roster-meta'),[card.position,card.hand].filter(Boolean).join(' · ')||(kind==='player'?'Spelarkort':'Tränarkort'));setText(button.querySelector('.roster-shirt-number'),kind==='player'?card.number||'':'');}}
+     if(button){const [kind,id]=button.dataset.rosterName.split(':');const badge=button.querySelector('.roster-shirt');if(badge&&window.PersonPhotos){let image=badge.querySelector('img');if(!image){badge.replaceChildren();image=document.createElement('img');image.alt='';image.width=image.height=36;badge.append(image);}window.PersonPhotos.mount(image,button.dataset.rosterTeam,kind,id);}const card=window.PersonCards?.summary?.(button.dataset.rosterTeam,kind,id);if(card){setText(button.querySelector('.roster-meta'),[card.position,card.hand].filter(Boolean).join(' · ')||(kind==='player'?'Spelarkort':'Tränarkort'));setText(button.querySelector('.roster-shirt-number'),kind==='player'?card.number||'':'');}}
     }
    }
    message.hidden=!term;setText(message,term?(matches?matches+(matches===1?' träff':' träffar'):'Inga namn matchar sökningen.'):'');

@@ -251,7 +251,7 @@ export async function handleTeamAuth(request, env) {
     if (!actor) return json({ error: 'Åtkomst nekad' }, 403);
     let data;
     try { data = await request.json(); } catch { return json({ error: 'Ogiltig JSON' }, 400); }
-    const allowed = ['read','pool:create','lineup:edit','shifts:check','match:manage','pool:finish','pool:reopen','roster:manage','users:manage'];
+    const allowed = ['read','pool:create','lineup:edit','shifts:check','match:manage','pool:finish','pool:reopen','roster:manage','photos:manage','users:manage'];
     if (!Array.isArray(data?.permissions) || data.permissions.some(p => !allowed.includes(p)) ||
         new Set(data.permissions).size !== data.permissions.length) return json({ error: 'Ogiltiga behörigheter' }, 400);
     const target = await db.prepare('SELECT id FROM auth_users WHERE id=?').bind(permissionPath[1]).first();
@@ -288,7 +288,7 @@ export async function handleTeamAuth(request, env) {
     if (existing) return json({ error: 'E-postadressen används redan' }, 409);
     const id = crypto.randomUUID();
     const grants=data.permissions===undefined?['read']:data.permissions;
-    const allowed=['read','pool:create','lineup:edit','shifts:check','match:manage','pool:finish','pool:reopen','roster:manage','users:manage'];
+    const allowed=['read','pool:create','lineup:edit','shifts:check','match:manage','pool:finish','pool:reopen','roster:manage','photos:manage','users:manage'];
     if(!Array.isArray(grants)||grants.some(p=>!allowed.includes(p))||new Set(grants).size!==grants.length)return json({error:'Ogiltiga behörigheter'},400);
     const team=data.team_id||'NSK Team 18',role=data.role||'viewer';
     if(!['NSK Team 18','NSK Testlag 2'].includes(team)||!['team_admin','coach','team_manager','fitness','equipment','player','viewer'].includes(role))return json({error:'Ogiltigt lag eller roll'},400);

@@ -50,6 +50,7 @@
  const pairStyle=document.createElement('style');pairStyle.textContent='#personCardGoalieEnabled{width:22px;min-height:22px;height:22px;margin-right:8px}#personCardGoalieLabel{display:flex;align-items:center;margin:16px 0}#personCardGoalieEditor label{display:grid;gap:6px}.goalie-card-facts{grid-column:1/-1;font-size:.85rem;line-height:1.5}';document.head.append(pairStyle);
  document.body.append(dialog);
  const $=id=>dialog.querySelector('#'+id),form=$('personCardForm');
+ const photoActions=document.createElement('div');photoActions.className='person-card-photo-actions';photoActions.innerHTML='<button type="button" id="personPhotoLibrary">Välj bild</button><button type="button" id="personPhotoCamera">Kamera</button><button type="button" id="personPhotoRemove">Ta bort bild</button><input type="file" id="personPhotoLibraryInput" accept="image/*" hidden><input type="file" id="personPhotoCameraInput" accept="image/*" capture="environment" hidden>';$('personCardAvatar').after(photoActions);
  const recovery=document.createElement('button');recovery.type='button';recovery.hidden=true;form.after(recovery);
  const skateIcon='<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 3h5l1 7 7 3v4H4V9h1zM3 21h17l2-2M7 17v4m10-4v4M7 6h3m-3 3h4"/></svg>';
  for(const id of ['personCardRegularTitle','personCardGoalieTitle','personCardSharpen'])$(id).insertAdjacentHTML('afterbegin',skateIcon);
@@ -85,8 +86,7 @@
   $('personCardName').textContent=current.name;$('personCardRole').textContent=player&&card.number?'#'+card.number:player?'Spelare':'Tränare';
   $('personCardTeam').textContent=window.Auth?.activeTeam?.()||'';
   const avatar=$('personCardAvatar');
-  if(player){avatar.innerHTML='<svg viewBox="0 0 120 145" aria-hidden="true"><defs><linearGradient id="jerseyShade" x2="1" y2="1"><stop stop-color="#28303a"/><stop offset="1" stop-color="#080d13"/></linearGradient></defs><path d="m36 8-28 15-6 29 22 9 10-14v88h52V47l10 14 22-9-6-29L84 8 70 19H50Z" fill="url(#jerseyShade)" stroke="#698093" stroke-width="1.5"/><path d="m9 26 21 11-6 12L5 40m106-14L90 37l6 12 19-9M34 112h52v10H34M34 126h52v6H34" fill="#bb1834"/><path d="m36 8 14 11h20L84 8l-6-5H42Z" fill="#b11226"/><image href="../icon-192.png" x="46" y="29" width="28" height="28"/><text x="60" y="97" text-anchor="middle" fill="#f1f4f8" font-size="32" font-weight="850" font-family="system-ui"></text></svg>';avatar.querySelector('text').textContent=card.number||'';}
-  else avatar.innerHTML='<img src="../icon-192.png" alt="NSK:s klubbmärke" width="86" height="86">';
+  avatar.replaceChildren();const image=document.createElement('img');image.alt='Profilbild för '+current.name;image.width=image.height=124;avatar.append(image);window.PersonPhotos?.mount(image,current.team,current.kind,current.id);
   $('personCardDetailsTitle').textContent=player?'Spelaruppgifter':'Tränaruppgifter';
   facts($('personCardDetails'),player?[['Position',card.position],['Fattning',card.hand]]:[['Tränarroll / ansvar',card.position],['Klubbfattning',card.hand]]);
   facts($('personCardSkates'),[['Skålradie',card.hollow],['Profilering',card.profile],['Skridskomodell',card.model]]);
@@ -104,6 +104,7 @@
   recovery.hidden=!conflicted;recovery.disabled=pending;recovery.textContent=editing?'Hämta senaste och granska mina ändringar':'Läs om kortet';
   for(const field of [...form.elements].filter(e=>e.name))field.disabled=pending||conflicted||!current||(['number','position','hand'].includes(field.name)?!current.canEditProfile:!current.canEditSkates);
   $('personCardSave').disabled=pending||conflicted;
+  photoActions.hidden=!current?.canEditPhoto;for(const button of photoActions.querySelectorAll('button'))button.disabled=pending||conflicted;
   $('personCardEdit').hidden=editing||!current?.canEditSkates;$('personCardEdit').disabled=pending||conflicted;
   $('personCardSharpenPair').disabled=pending||conflicted||!current?.canRequest;$('personCardSharpenPair').hidden=editing||!current?.canRequest||!current.card.goalieEnabled;$('personCardPairLabel').hidden=$('personCardSharpenPair').hidden;for(const field of dialog.querySelectorAll('#personCardGoalieFields input,#personCardGoalieFields select,#personCardGoalieFields textarea,#personCardGoalieEnabled'))field.disabled=pending||conflicted||!current?.canEditSkates;
   $('personCardSharpen').hidden=editing||!current?.canRequest;$('personCardSharpen').disabled=pending||conflicted;
@@ -155,6 +156,10 @@
   status('Sparar kort…');const result=await save(current.team,current.kind,current.id,values(),current.revision,current.card);
   current.card=result.card;current.revision=result.revision;editing=false;fillForm();render();status('Kortet är sparat.');
  });};
+ async function changePhoto(file,remove=false){if(!current?.canEditPhoto||!window.PersonPhotos)return;await perform(async()=>{status(remove?'Tar bort profilbild…':'Förbereder profilbild…');const target=current,photo=remove?null:await PersonPhotos.compress(file),latest=await PersonPhotos.get(target.team,target.kind,target.id);if(!latest.canEdit)throw Error('Din behörighet att ändra bilden har ändrats.');await PersonPhotos.save(target.team,target.kind,target.id,photo,latest.revision);render();status(remove?'Profilbilden är borttagen. NSK-loggan visas.':'Profilbilden är sparad och synkas med Truppen.');});}
+ $('personPhotoLibrary').onclick=()=>$('personPhotoLibraryInput').click();$('personPhotoCamera').onclick=()=>$('personPhotoCameraInput').click();
+ for(const id of ['personPhotoLibraryInput','personPhotoCameraInput'])$(id).onchange=event=>{const file=event.target.files?.[0];event.target.value='';if(file)void changePhoto(file);};
+ $('personPhotoRemove').onclick=()=>void changePhoto(null,true);
  $('personCardSharpen').onclick=()=>void perform(async()=>{
   status('Skapar slipönskemål…');
   if(!current.card.hollow&&!confirm('Skålradie saknas. Skicka önskemålet ändå med uppmaning till materialförvaltaren att kontrollera skålradien?')){status('Ange skålradie innan du skickar önskemålet.');return;}

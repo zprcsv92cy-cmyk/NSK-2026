@@ -6,6 +6,7 @@ import {installShiftRetime} from './shift-retime.js';
 import {withPoolFlow} from './pool-flow-api.js';
 import {createSharpeningHandler,readSharpeningPerson} from './sharpening-links-api.js';
 import {createPrivateSkillsHandler,readSkillsRoster} from './private-skills-api.js';
+import {createPersonPhotosHandler} from './person-photos-api.js';
 import { createEquipmentHandler } from './equipment-api.js';
 import { fetchBaserowRead as fetch } from './baserow-read-fetch.js';
 import { runSvenskalagScheduledSync } from './svenskalag-scheduled-sync.js';
@@ -351,9 +352,10 @@ var worker_default = { async fetch(req, env) {
     const finalHeaders=new Headers(response.headers);for(const [key,value] of Object.entries(headers))finalHeaders.set(key,value);
     return new Response(response.body,{status:response.status,headers:finalHeaders});
   }
-  if (["/api/equipment","/api/person-card"].includes(url.pathname)) {
+  if (["/api/equipment","/api/person-card","/api/person-photo","/api/person-photos"].includes(url.pathname)) {
     if (req.method === "OPTIONS") return new Response(null,{status:204,headers:{...cors,"Access-Control-Allow-Methods":"GET,PUT,OPTIONS"}});
-    const response=await createEquipmentHandler(env,()=>listTrustedRosterTeams(env),{readPerson:async(team,kind,id)=>{
+    const handler=['/api/person-photo','/api/person-photos'].includes(url.pathname)?createPersonPhotosHandler:createEquipmentHandler;
+    const response=await handler(env,()=>listTrustedRosterTeams(env),{readPerson:async(team,kind,id)=>{
       const table=kind==='player'?TABLES.spelare:TABLES.tranare;
       const response=await fetch(`https://api.baserow.io/api/database/rows/table/${table}/${id}/?user_field_names=true`,{headers:{Authorization:'Token '+env.BASEROW_TOKEN},signal:AbortSignal.timeout(12000)});
       if(response.status===404)return null;

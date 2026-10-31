@@ -47,6 +47,7 @@ export function createEquipmentHandler(env,listTeams,{verifyIdentity=createPerso
    if(!membership||!access.permissions.includes('read'))return reply(403,{ok:false,error:'Ingen åtkomst till laget'});
    const canWrite=['owner','team_admin','coach','equipment','team_manager'].includes(membership.role);
    const canEditProfile=authorizeTeamFeature(access,teams[0],'roster').allowed;
+   const canEditPhoto=actor.is_primary_admin===true||authorizeTeamFeature(access,teams[0],'photos').allowed;
    const canEditSkates=canEditProfile||membership.role==='equipment';
    if(request.method==='PUT'&&!(isCard?canEditSkates:canWrite))return reply(403,{ok:false,error:'Saknar behörighet att ändra'});
    // Validate the body before accessing material storage.
@@ -67,7 +68,7 @@ export function createEquipmentHandler(env,listTeams,{verifyIdentity=createPerso
    const key=isCard?kinds[0]+':'+ids[0]:null;
    const card=isCard?{...emptyPersonCard(),...profiles[key]}:null;
    const effectiveRequests=saved.requests.map(item=>!item.done&&Object.hasOwn(profiles,item.kind+':'+item.personId)?{...item,skates:pairSettings(profiles[item.kind+':'+item.personId],pairKey(item))}:item);
-   if(request.method==='GET')return reply(200,isCard?{ok:true,name:person.name,card,revision,canEditProfile,canEditSkates,canRequest:canWrite}:{ok:true,canWrite,requests:effectiveRequests,checklists:saved.checklists,revision});
+   if(request.method==='GET')return reply(200,isCard?{ok:true,name:person.name,card,revision,canEditProfile,canEditPhoto,canEditSkates,canRequest:canWrite}:{ok:true,canWrite,requests:effectiveRequests,checklists:saved.checklists,revision});
    if(data.revision!==revision)return reply(409,{ok:false,error:'Någon annan har ändrat. Ladda om innan du försöker igen.'});
    let next;
    if(isCard){

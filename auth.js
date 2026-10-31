@@ -6,7 +6,7 @@
   const teamKey = 'nsk_active_team';
   let identity = null;
   const token = () => sessionStorage.getItem(key);
-  const clear = (redirect = true) => { window.NSKViewCache?.clear(); try { sessionStorage.removeItem('nsk_view_cache_v1'); sessionStorage.removeItem('nsk_shell_ui_v1'); } catch {} identity = null; sessionStorage.removeItem(key); sessionStorage.removeItem(teamKey); if(redirect){window.NSKShellHost?.signedOut(); window.NSKAppShell?.signedOut();} };
+  const clear = (redirect = true) => { window.NSKViewCache?.clear(); try { sessionStorage.removeItem('nsk_view_cache_v1'); sessionStorage.removeItem('nsk_shell_ui_v1'); } catch {} identity = null; sessionStorage.removeItem(key); sessionStorage.removeItem(teamKey); if(typeof CustomEvent==='function')window.dispatchEvent(new CustomEvent('nsk:session-changed')); if(redirect){window.NSKShellHost?.signedOut(); window.NSKAppShell?.signedOut();} };
   let pendingIdentity=null;
   function init() {
     const current=token();
@@ -62,6 +62,7 @@
     pool_finish: 'pool:finish',
     pool_reopen: 'pool:reopen',
     roster: 'roster:manage',
+    photos: 'photos:manage',
     users: 'users:manage'
   });
   function can(permission, team = activeTeam()) {
@@ -143,6 +144,7 @@
     if (!response.ok || !data.token) throw new Error(data.error || 'Inloggningen misslyckades');
     clear();
     sessionStorage.setItem(key, data.token);
+    if(typeof CustomEvent==='function')window.dispatchEvent(new CustomEvent('nsk:session-changed'));
     const user = await init();
     if (!user) throw new Error('Kontot kunde inte verifieras');
     return user;
