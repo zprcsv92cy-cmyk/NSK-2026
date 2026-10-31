@@ -33,10 +33,10 @@ export function reconcileCalendarPools(items,pools,summaries=new Map()){
   if(removed.has(a))continue;
   const matches=peers.get(a);if(matches.length!==1||peers.get(matches[0]).length!==1)continue;
   const b=matches[0];if(removed.has(b))continue;
-  const score=item=>(venue(item)?100:0)+fixtures(item,output).filter(time).length;
+  const score=item=>(item.manualSchedule?10000:0)+(venue(item)?100:0)+fixtures(item,output).filter(time).length;
   const rich=score(a)>=score(b)?a:b,notice=[a.notice,b.notice,...[a,b].filter(x=>unknown(x.place)&&text(x.place)).map(x=>'SvenskaLag anger '+x.place+'. Kontrollera med arrangören före start.')].filter(Boolean);
   a.place=rich.place;a.hall=rich.hall;a.notice=[...new Set(notice)].join(' ');
-  a.matches=fixtures(rich,output).map(m=>({...m}));a.source=[...new Set([a.source||'SvenskaLag',b.source||'SvenskaLag'])].join(' + ');a.sourceUrl=a.sourceUrl||b.sourceUrl;
+  a.manualScheduleRevision=rich.manualScheduleRevision||0;a.manualSchedule=!!rich.manualSchedule;a.matches=fixtures(rich,output).map(m=>({...m}));a.source=[...new Set([a.source||'SvenskaLag',b.source||'SvenskaLag'])].join(' + ');a.sourceUrl=a.sourceUrl||b.sourceUrl;
   a.calendarHidden=!!(a.calendarHidden||b.calendarHidden);
   a.sourceKeys=[...new Set([...a.sourceKeys,...b.sourceKeys,...fixtures(a,output).map(m=>m.key),...fixtures(b,output).map(m=>m.key)].filter(Boolean))];
   removed.add(b);
@@ -49,7 +49,9 @@ export function reconcileCalendarPools(items,pools,summaries=new Map()){
   const primary=byVenue.get(key);
   if(!primary){byVenue.set(key,item);continue;}
   const seen=new Set();
-  primary.matches=[...fixtures(primary,output),...fixtures(item,output)].filter(m=>{
+  primary.manualScheduleRevision=Math.max(Number(primary.manualScheduleRevision)||0,Number(item.manualScheduleRevision)||0);primary.manualSchedule=!!(primary.manualSchedule||item.manualSchedule);
+  const schedule=primary.manualSchedule?(primary.matches&&primary.manualSchedule&&!item.manualSchedule?primary.matches:item.manualSchedule?item.matches:primary.matches):[...fixtures(primary,output),...fixtures(item,output)];
+  primary.matches=schedule.filter(m=>{if(primary.manualSchedule)return true;
    const key=[opponent(m),time(m),text(m.ownTeam)].join('|');
    if(seen.has(key))return false;
    seen.add(key);return true;
@@ -74,9 +76,9 @@ export function reconcileCalendarPools(items,pools,summaries=new Map()){
   const primary=overlaps[0];
   const competitors=related.filter(other=>other!==primary&&venue(other)&&venue(other)!==venue(primary));
   if(competitors.length)continue;
-  const combined=[...fixtures(primary,output),...fixtures(item,output)];
+  const combined=primary.manualSchedule?primary.matches:item.manualSchedule?item.matches:[...fixtures(primary,output),...fixtures(item,output)];primary.manualSchedule=!!(primary.manualSchedule||item.manualSchedule);primary.manualScheduleRevision=Math.max(Number(primary.manualScheduleRevision)||0,Number(item.manualScheduleRevision)||0);
   const seen=new Set();
-  primary.matches=combined.filter(m=>{
+  primary.matches=combined.filter(m=>{if(primary.manualSchedule)return true;
    const key=[opponent(m),time(m),text(m.ownTeam)].join('|');
    if(seen.has(key))return false;
    seen.add(key);return true;
