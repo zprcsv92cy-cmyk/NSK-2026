@@ -10,7 +10,7 @@ test('calendar removal is authorized, shared, undoable and preserved by feed ref
  const date='2099-11-07';const pool={type:'pool',date,place:'Smehallen',matches:[]};await syncCalendarCache(f.db,'NSK Team 18',[pool]);
  const rows=await f.db.prepare('SELECT event_key FROM svenskalag_calendar_events').all(),key=rows.results[0].event_key;
  const handler=createTrainingHandler(f.env,async()=>[{id:18,Namn:'NSK Team 18','Säsong':'2026'}]);
- const call=(action,method='GET',body,token=f.tokens.root)=>handler(new Request('https://test/api/training?team_id=18&action='+action,{method,headers:{Authorization:'Bearer '+token,'Content-Type':'application/json'},...(body?{body:JSON.stringify(body)}:{})}));
+ const call=(action,method='GET',body,token=f.tokens.root)=>handler(new Request('https://test/api/training?team_id=18&action='+action+(action==='svenskalag-saved'?'&include_removed=1':''),{method,headers:{Authorization:'Bearer '+token,'Content-Type':'application/json'},...(body?{body:JSON.stringify(body)}:{})}));
  // Root is the principal owner; explicit pool permissions cover regular coaches.
  let response=await call('calendar-pool-visibility','POST',{keys:[key]});assert.equal(response.status,403);
  await f.db.prepare('INSERT INTO auth_user_permissions VALUES(?,?)').bind(f.root,'pool:create').run();
