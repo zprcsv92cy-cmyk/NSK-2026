@@ -1233,3 +1233,8 @@ button.shift-check.done{background:#167747;border-color:#39bb7c}button.shift-che
 .person-card-photo-actions{display:flex;gap:6px;justify-content:center;flex-wrap:wrap;max-width:100%}
 .person-card-photo-actions button{min-height:44px;margin:0;padding:6px 10px;font-size:.8rem}
 .person-card-photo-actions [hidden]{display:none!important}
+
+html[data-nsk-theme="arena"] #personCardAvatar{height:110px;overflow:hidden;border-radius:50%;background:#101923}
+html[data-nsk-theme="arena"] #personCardAvatar .person-profile-photo{width:100%;height:100%;object-fit:contain}
+.person-card-photo-actions{margin:0 0 18px}
+@media(max-width:380px){html[data-nsk-theme="arena"] #personCardAvatar{height:94px}}

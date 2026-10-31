@@ -50,7 +50,7 @@
  const pairStyle=document.createElement('style');pairStyle.textContent='#personCardGoalieEnabled{width:22px;min-height:22px;height:22px;margin-right:8px}#personCardGoalieLabel{display:flex;align-items:center;margin:16px 0}#personCardGoalieEditor label{display:grid;gap:6px}.goalie-card-facts{grid-column:1/-1;font-size:.85rem;line-height:1.5}';document.head.append(pairStyle);
  document.body.append(dialog);
  const $=id=>dialog.querySelector('#'+id),form=$('personCardForm');
- const photoActions=document.createElement('div');photoActions.className='person-card-photo-actions';photoActions.innerHTML='<button type="button" id="personPhotoLibrary">Välj bild</button><button type="button" id="personPhotoCamera">Kamera</button><button type="button" id="personPhotoRemove">Ta bort bild</button><input type="file" id="personPhotoLibraryInput" accept="image/*" hidden><input type="file" id="personPhotoCameraInput" accept="image/*" capture="environment" hidden>';$('personCardAvatar').after(photoActions);
+ const photoActions=document.createElement('div');photoActions.className='person-card-photo-actions';photoActions.innerHTML='<button type="button" id="personPhotoLibrary">Välj bild</button><button type="button" id="personPhotoCamera">Kamera</button><button type="button" id="personPhotoRemove">Ta bort bild</button><input type="file" id="personPhotoLibraryInput" accept="image/*" hidden><input type="file" id="personPhotoCameraInput" accept="image/*" capture="environment" hidden>';$('personCardAvatar').closest('.person-card-identity').after(photoActions);
  const recovery=document.createElement('button');recovery.type='button';recovery.hidden=true;form.after(recovery);
  const skateIcon='<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 3h5l1 7 7 3v4H4V9h1zM3 21h17l2-2M7 17v4m10-4v4M7 6h3m-3 3h4"/></svg>';
  for(const id of ['personCardRegularTitle','personCardGoalieTitle','personCardSharpen'])$(id).insertAdjacentHTML('afterbegin',skateIcon);
@@ -86,7 +86,7 @@
   $('personCardName').textContent=current.name;$('personCardRole').textContent=player&&card.number?'#'+card.number:player?'Spelare':'Tränare';
   $('personCardTeam').textContent=window.Auth?.activeTeam?.()||'';
   const avatar=$('personCardAvatar');
-  avatar.replaceChildren();const image=document.createElement('img');image.alt='Profilbild för '+current.name;image.width=image.height=124;avatar.append(image);window.PersonPhotos?.mount(image,current.team,current.kind,current.id);
+  avatar.replaceChildren();const image=document.createElement('img');image.src='../icon-192.png';image.alt='Profilbild för '+current.name;image.width=image.height=124;avatar.append(image);window.PersonPhotos?.mount(image,current.team,current.kind,current.id);
   $('personCardDetailsTitle').textContent=player?'Spelaruppgifter':'Tränaruppgifter';
   facts($('personCardDetails'),player?[['Position',card.position],['Fattning',card.hand]]:[['Tränarroll / ansvar',card.position],['Klubbfattning',card.hand]]);
   facts($('personCardSkates'),[['Skålradie',card.hollow],['Profilering',card.profile],['Skridskomodell',card.model]]);
