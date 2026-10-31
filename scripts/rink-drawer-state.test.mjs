@@ -378,3 +378,7 @@ test('slalom width handles stretch and tighten across either orientation in one 
  f.pointer('pointerdown',before[0].x,before[0].y);f.pointer('pointerup',before[0].x,before[0].y);f.pointer('pointerdown',center.x+3*ux,center.y+3*uy);f.pointer('pointermove',center.x+1*ux,center.y+1*uy);f.pointer('pointerup',center.x+1*ux,center.y+1*uy);f.flush();assert.ok(f.draft().marks.every(m=>Math.abs(m.patternWidth-2)<1e-6));
  }
 });
+
+test('width resizing begins from the grabbed handle without a jump when the touch is off-center',()=>{
+ const f=editor();f.node('rinkSlalom').onclick();f.flush();const before=f.draft().marks,cx=before.reduce((s,m)=>s+m.x,0)/4,cy=before.reduce((s,m)=>s+m.y,0)/4,handle=cx+3*(436/30);f.pointer('pointerdown',handle+8,cy);f.pointer('pointermove',handle+8-20,cy);f.pointer('pointerup',handle+8-20,cy);f.flush();assert.ok(f.draft().marks.every(m=>m.patternWidth<6&&m.patternWidth>3));
+});
