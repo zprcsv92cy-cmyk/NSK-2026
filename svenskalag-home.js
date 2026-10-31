@@ -344,8 +344,8 @@
   const response=await fetch(base+'/api/training?team_id='+encodeURIComponent(pool.team_id||poolMatchContext.teamId)+'&action=pool-removal-state',{method:'POST',headers:{Authorization:'Bearer '+token,'Content-Type':'application/json'},body:JSON.stringify({poolId:Number(pool.id),date:calendarDate(pool.pool_date),removed,permanent,...extra})});
   if(!response.ok)throw Error('Poolspelets status kunde inte sparas. Försök igen.');
  }
- async function linkedPoolSources(pool){
-  await show();if(!calendarReady)throw Error('Kalenderkopplingen kunde inte kontrolleras. Försök igen.');
+ async function linkedPoolSources(pool,refresh=true){
+  if(refresh||!calendarReady)await show();if(!calendarReady)throw Error('Kalenderkopplingen kunde inte kontrolleras. Försök igen.');
   const items=poolMatchContext.items.filter(item=>item.type==='pool'&&samePool(pool,item));
   return {manualScheduleRevision:Math.max(0,...items.map(item=>Number(item.manualScheduleRevision)||0)),sourceKeys:[...new Set(items.flatMap(item=>[...(item.sourceKeys||[]),item.key]).filter(Boolean))]};
  }
@@ -355,7 +355,7 @@
   const response=await fetch(base+'/api/training?team_id='+encodeURIComponent(poolMatchContext.teamId)+'&action=calendar-pool-schedule',{method:'POST',headers:{Authorization:'Bearer '+token,'Content-Type':'application/json'},body:JSON.stringify({keys,matches,revision:Number(item.manualScheduleRevision)||0})});
   if(!response.ok)throw Error('Matchschemat kunde inte sparas. Ladda om och kontrollera uppgifterna.');
  }
- window.NSKCalendarPools={saveImportedSchedule,getSavedScheduleSources:linkedPoolSources,lockSchedule:pool=>savedPoolState(pool,!!pool.removed,false,{scheduleEdited:true}),async saveSavedScheduleSources(pool,matches,sources){const item=sources||await linkedPoolSources(pool);if(item.sourceKeys.length)await saveImportedSchedule(item,matches);},async setSavedPoolRemoved(pool,removed){
+ window.NSKCalendarPools={saveImportedSchedule,getSavedScheduleSources:pool=>linkedPoolSources(pool,false),lockSchedule:pool=>savedPoolState(pool,!!pool.removed,false,{scheduleEdited:true}),async saveSavedScheduleSources(pool,matches,sources){const item=sources||await linkedPoolSources(pool);if(item.sourceKeys.length)await saveImportedSchedule(item,matches);},async setSavedPoolRemoved(pool,removed){
   const item=await linkedPoolSources(pool);await savedPoolState(pool,removed);
   try{if(item.sourceKeys.length)await changeCalendarVisibility(item,removed);}
   catch(error){await savedPoolState(pool,!!pool.removed);throw error;}
