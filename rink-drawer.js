@@ -423,7 +423,7 @@
   const end=(e,cancelled=false)=>{
    if(!drag||e.pointerId!==drag.id)return;
    if(drag.pan){drag=null;return;}
-   if(!cancelled&&drag.m.points){const p=pos(e);if(p&&drag.m.points.length<500)drag.m.points.push(p);}
+   if(!cancelled&&!drag.moving&&drag.m.points){const p=pos(e);if(p&&drag.m.points.length<500)drag.m.points.push(p);}
    if(cancelled||(drag.m.points&&!drag.m.points.some(p=>Math.hypot(p.x-drag.m.x,p.y-drag.m.y)>=3))){marks=JSON.parse(drag.before);history=drag.history;future=drag.future;selectedId=null;}
    if(!cancelled&&drag.resize!==undefined){const p=pos(e);if(p&&drag.changed)resizeDivider(drag,p);}
    if(!cancelled&&drag.resize===undefined&&!drag.moving&&isDivider(drag.m)){const p=pos(e);if(p){drag.m.x=drag.p.x;drag.m.y=drag.p.y;drag.m.x2=p.x;drag.m.y2=p.y;fitDivider(drag.m);}}
