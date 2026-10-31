@@ -8,6 +8,18 @@ vm.runInNewContext(fs.readFileSync(new URL('../rink-route-planner.js',import.met
 vm.runInNewContext(code.replace(/\}\)\(\);\s*$/,'window.testLayout={tidyLayout,preservesObstacleSide,renderedRoute,routeDistance};})();'),context);
 const tidy=marks=>JSON.parse(JSON.stringify(context.window.testLayout.tidyLayout(marks)));
 const cone=(id,x,y)=>({id,type:'cone',x,y,color:'#b11226'});
+test('direction changes pin the shared point while jitter on each side is tidied',()=>{
+ const forward={id:'a',type:'curve',routeStyle:'planned',directionBoundary:true,motion:'forward',x:80,y:400,color:'#111827',points:[{x:80,y:400},{x:120,y:406},{x:160,y:394},{x:200,y:400}]};
+ const backward={...forward,id:'b',motion:'backward',color:'#7c3aed',x:200,y:400,points:[{x:200,y:400},{x:240,y:406},{x:280,y:394},{x:320,y:400}]};
+ const result=tidy([forward,backward]);
+ for(let i=0;i<2;i++){const original=[forward,backward][i];assert.equal(result[i].points.length,2);assert.deepEqual(result[i].points[0],original.points[0]);assert.deepEqual(result[i].points.at(-1),original.points.at(-1));assert.equal(result[i].motion,original.motion);assert.equal(result[i].color,original.color);assert.equal(result[i].routeStyle,'planned');assert.equal(result[i].directionBoundary,true);}
+ assert.deepEqual(result[0].points.at(-1),result[1].points[0]);
+});
+test('a direction boundary still protects an intentional return and crossing',()=>{
+ const route={id:'r',type:'curve',routeStyle:'planned',directionBoundary:true,motion:'backward',color:'#7c3aed',x:100,y:300,points:[{x:100,y:300},{x:200,y:400},{x:300,y:300},{x:300,y:400},{x:200,y:300},{x:100,y:400}]};
+ assert.deepEqual(tidy([route]),[route]);
+ const returning={...route,points:[{x:100,y:300},{x:300,y:300},{x:102,y:305}]};assert.deepEqual(tidy([returning]),[returning]);
+});
 test('passing points attached to a drawn route remain fixed during interpretation',()=>{
  const pass={id:'pass',type:'pass',x:100,y:480,x2:40,y2:482,color:'#2563eb'},points=[{x:80,y:600},{x:100,y:480},{x:150,y:300}],route={id:'r',type:'curve',...points[0],points,color:'#15803d'},result=tidy([route,pass]);
  assert.deepEqual(result[1],pass);assert.ok(result[0].points.some(p=>p.x===100&&p.y===480));
