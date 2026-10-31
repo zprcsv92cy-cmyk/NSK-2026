@@ -39,6 +39,24 @@ export function reconcileCalendarPools(items,pools,summaries=new Map()){
   a.matches=fixtures(rich,output).map(m=>({...m}));a.source=[...new Set([a.source||'SvenskaLag',b.source||'SvenskaLag'])].join(' + ');a.sourceUrl=a.sourceUrl||b.sourceUrl;
   removed.add(b);
  }
+ // Consolidate pool cards sharing a date and known venue, across sources.
+ const byVenue=new Map();
+ for(const item of candidates){
+  if(removed.has(item)||!venue(item))continue;
+  const key=item.date+'|'+venue(item);
+  const primary=byVenue.get(key);
+  if(!primary){byVenue.set(key,item);continue;}
+  const seen=new Set();
+  primary.matches=[...fixtures(primary,output),...fixtures(item,output)].filter(m=>{
+   const key=[opponent(m),time(m),text(m.ownTeam)].join('|');
+   if(seen.has(key))return false;
+   seen.add(key);return true;
+  }).map(m=>({...m}));
+  primary.notice=[...new Set([primary.notice,item.notice].filter(Boolean))].join(' ');
+  primary.source=[...new Set([primary.source,item.source].filter(Boolean))].join(' + ');
+  primary.sourceUrl=primary.sourceUrl||item.sourceUrl;
+  removed.add(item);
+ }
  const remaining=candidates.filter(item=>!removed.has(item));
  for(const item of remaining){
   const matches=pools.filter(pool=>sameEvent({date:pool.pool_date,place:pool.place,hall:pool.hall,matches:summaries.get(String(pool.id))||[]},item,output));
