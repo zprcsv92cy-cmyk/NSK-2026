@@ -1,3 +1,4 @@
+import {sweHockeyPoolsWithState} from './swehockey-pool-state.js';
 export const SWEHOCKEY_SCHEDULE_URL='https://stats.swehockey.se/District/Sodermanland/Nykoping/ScheduleAndResults/Schedule/21963';
 const hockeyText=value=>String(value||'').replace(/<script\b[\s\S]*?<\/script>/gi,'').replace(/<style\b[\s\S]*?<\/style>/gi,'').replace(/<[^>]*>/g,' ').replace(/&(#x[0-9a-f]+|#\d+|amp|nbsp|quot|apos|lt|gt|aring|auml|ouml|Aring|Auml|Ouml);/g,(m,k)=>{if(k[0]==='#'){const n=k[1].toLowerCase()==='x'?parseInt(k.slice(2),16):Number(k.slice(1));return n>0&&n<=0x10ffff?String.fromCodePoint(n):'';}return {amp:'&',nbsp:' ',quot:'"',apos:"'",lt:'<',gt:'>',aring:'å',auml:'ä',ouml:'ö',Aring:'Å',Auml:'Ä',Ouml:'Ö'}[k]||m;}).replace(/\s+/g,' ').trim();
 const ownHockeyTeam=name=>/^nyköpings\s+(?:sk|sportklubb)(?:\s+(?:röd|svart|vit|gul|blå|grön))?$/iu.test(name);
@@ -37,7 +38,7 @@ export function mergeHockeyCalendar(items,pools){
   const target=exact.length===1?exact[0]:(!pool.place&&sameDate.length===1?sameDate[0]:null);
   const merged=target||{...pool};if(target&&/inställ|inställd|cancelled|okänd|ej bestämd/iu.test(target.place||'')){merged.notice='SvenskaLag anger '+target.place+'. Kontrollera med arrangören före start.';merged.place=pool.place||'';merged.hall=pool.hall||'';}const oldMatches=originalMatches.filter(x=>atVenue(x,merged));
   const matches=pool.matches.map(m=>{const found=oldMatches.filter(o=>hockeyVenue(o.opponent)===hockeyVenue(m.opponent));const times=[...new Set(found.map(o=>o.startTime).filter(t=>/^(?:[01]\d|2[0-3]):[0-5]\d$/.test(t||'')&&t!=='00:00'))];return {...m,startTime:m.startTime|| (times.length===1?times[0]:''),place:merged.place||pool.place};});
-  Object.assign(merged,{matches,source:target?'SvenskaLag + SweHockey':'SweHockey',sourceUrl:SWEHOCKEY_SCHEDULE_URL});
+  Object.assign(merged,{sourceKeys:[...new Set([...(merged.sourceKeys||[]),merged.key,...(pool.sourceKeys||[]),pool.key,...oldMatches.filter(m=>belongs(m,pool)).map(m=>m.key)].filter(Boolean))],calendarHidden:!!(merged.calendarHidden||pool.calendarHidden),matches,source:target?'SvenskaLag + SweHockey':'SweHockey',sourceUrl:SWEHOCKEY_SCHEDULE_URL});
   // Remove only represented fixtures; later groups still read the immutable source snapshot.
   for(let i=output.length-1;i>=0;i--)if(oldMatches.includes(output[i])&&belongs(output[i],pool))output.splice(i,1);
   if(!target)output.push(merged);
@@ -64,7 +65,7 @@ export function withSweHockey(original){
    const data=await response.clone().json();try{data.swehockey={ok:true,...await syncSweHockey(env)};}catch{data.swehockey={ok:false,error:'SweHockey kunde inte uppdateras. Senast hämtade schema behålls.'};}return new Response(JSON.stringify(data),{status:response.status,headers:response.headers});
   }
   if(req.method==='GET'&&action==='svenskalag-saved'){
-   try{const data=await response.clone().json();const cached=await env.AUTH_DB.prepare("SELECT items_json,updated_at FROM swehockey_schedule_cache WHERE team_id='NSK Team 18'").first();if(cached){const today=new Intl.DateTimeFormat('sv-SE',{timeZone:'Europe/Stockholm',year:'numeric',month:'2-digit',day:'2-digit'}).format(new Date());data.items=mergeHockeyCalendar(data.items||[],JSON.parse(cached.items_json).filter(p=>p.date>=today));data.swehockeyUpdatedAt=cached.updated_at;}return new Response(JSON.stringify(data),{status:response.status,headers:response.headers});}catch{return response;}
+   try{const data=await response.clone().json();const cached=await env.AUTH_DB.prepare("SELECT items_json,updated_at FROM swehockey_schedule_cache WHERE team_id='NSK Team 18'").first();if(cached){const today=new Intl.DateTimeFormat('sv-SE',{timeZone:'Europe/Stockholm',year:'numeric',month:'2-digit',day:'2-digit'}).format(new Date());const pools=await sweHockeyPoolsWithState(env.AUTH_DB,JSON.parse(cached.items_json),today);data.items=mergeHockeyCalendar((data.items||[]).filter(p=>!String(p.key||'').startsWith('swehockey-pool:')),pools).filter(p=>!p.calendarPermanent&&(!p.calendarHidden||url.searchParams.get('include_removed')==='1'&&p.type==='pool'));data.swehockeyUpdatedAt=cached.updated_at;}return new Response(JSON.stringify(data),{status:response.status,headers:response.headers});}catch{return response;}
   }
   return response;
  };
