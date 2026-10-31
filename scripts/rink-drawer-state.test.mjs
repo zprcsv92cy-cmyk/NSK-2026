@@ -29,10 +29,49 @@ function editor(stored={},movableGoals=false){
  const context={confirm:()=>true,document,window:{innerWidth:1200,innerHeight:700,requestAnimationFrame:fn=>fn(),addEventListener:(type,fn)=>windowEvents[type]=fn},crypto:{randomUUID:()=>String(++nextId)},localStorage:{getItem:key=>storage.get(key)??null,setItem:(key,value)=>{if(quota)throw Error('Quota exceeded');storage.set(key,value);}},setTimeout:fn=>{const id=++nextId;timers.set(id,fn);return id;},clearTimeout:id=>timers.delete(id),Blob};
  vm.runInNewContext(plannerCode,context);vm.runInNewContext(code,context);documentEvents.DOMContentLoaded();
  const flush=()=>{for(const [id,fn] of [...timers]){timers.delete(id);fn();}};
- const pointer=(type,x,y)=>node('rinkSvg').emit(type,{clientX:x,clientY:y,pointerId:1,isPrimary:true,pointerType:'touch',button:0});
+ const pointer=(type,x,y,extra={})=>node('rinkSvg').emit(type,{clientX:x,clientY:y,pointerId:1,isPrimary:true,pointerType:'touch',button:0,...extra});
  const choose=tool=>tools.find(t=>t.dataset.tool===tool).onclick();
  return {node,choose,pointer,flush,storage,context,windowEvent:(name,event={})=>windowEvents[name]?.(event),draft:()=>JSON.parse(storage.get(DRAFT)),quota:()=>{quota=true;},leave:()=>windowEvents.pagehide()};
 }
+function viewTransform(f,rotated=false){
+ const svg=f.node('rinkSvg');
+ svg.getScreenCTM=()=>{const [x,y,width]=svg.attrs.viewBox.split(' ').map(Number),scale=480/width;return {a:rotated?0:scale,b:rotated?scale:0,inverse:()=>({x,y,scale,rotated})};};
+ svg.createSVGPoint=()=>({x:0,y:0,matrixTransform(m){return m.rotated?{x:m.x+this.y/m.scale,y:m.y+(860-this.x)/m.scale}:{x:m.x+this.x/m.scale,y:m.y+this.y/m.scale};}});
+ return ()=>svg.attrs.viewBox.split(' ').map(Number);
+}
+test('pinch zoom keeps the point between both fingers anchored and never edits marks',()=>{
+ const mark={id:'a',type:'player',x:120,y:200,color:'#b11226'},f=editor({[DRAFT]:JSON.stringify({marks:[mark]})}),view=viewTransform(f);f.node('rinkTitle').emit('input');f.flush();
+ f.pointer('pointerdown',100,300);f.pointer('pointerdown',300,300,{pointerId:2,isPrimary:false});f.pointer('pointermove',400,300,{pointerId:2,isPrimary:false});
+ const [x,y,width]=view(),scale=480/width;assert.equal(scale,1.5);assert.ok(Math.abs(x+250/scale-200)<1e-6);assert.ok(Math.abs(y+300/scale-300)<1e-6);
+ f.pointer('pointerup',400,300,{pointerId:2,isPrimary:false});f.pointer('pointerup',100,300);f.node('rinkTitle').emit('input');f.flush();assert.deepEqual(f.draft().marks,[mark]);assert.equal(f.node('rinkUndo').disabled,true);
+});
+test('two fingers pan a zoomed rink without moving objects or changing scale',()=>{
+ const mark={id:'a',type:'tire',x:220,y:365,color:'#111827'},f=editor({[DRAFT]:JSON.stringify({marks:[mark]})}),view=viewTransform(f);f.node('rinkZoomIn').onclick();f.node('rinkZoomIn').onclick();const [oldX,oldY,width]=view();
+ f.pointer('pointerdown',100,300);f.pointer('pointerdown',300,300,{pointerId:2,isPrimary:false});f.pointer('pointermove',120,320);f.pointer('pointermove',320,320,{pointerId:2,isPrimary:false});
+ assert.ok(Math.abs(view()[0]-(oldX-10))<1e-6);assert.ok(Math.abs(view()[1]-(oldY-10))<1e-6);assert.equal(view()[2],width);f.pointer('pointerup',320,320,{pointerId:2,isPrimary:false});f.pointer('pointerup',120,320);f.node('rinkTitle').emit('input');f.flush();assert.deepEqual(f.draft().marks,[mark]);
+});
+test('pinching rolls back provisional drawing, placement, erasure and object movement',()=>{
+ for(const tool of ['curve','skate','pass','shot','player','cone','tire','erase','move']){
+  const mark={id:'a',type:'player',x:100,y:200,color:'#b11226'},f=editor({[DRAFT]:JSON.stringify({marks:[mark]})});viewTransform(f);f.choose(tool);f.pointer('pointerdown',100,200);f.pointer('pointermove',130,230);f.pointer('pointerdown',300,300,{pointerId:2,isPrimary:false});f.flush();
+  f.pointer('pointerup',300,300,{pointerId:2,isPrimary:false});f.pointer('pointermove',160,260);f.pointer('pointerup',160,260);f.node('rinkTitle').emit('input');f.flush();assert.deepEqual(f.draft().marks,[mark],tool);assert.equal(f.node('rinkUndo').disabled,true,tool);assert.equal(f.context.document.body.classList.contains('rink-gesturing'),false);
+  f.choose('cone');f.pointer('pointerdown',250,400);f.pointer('pointerup',250,400);f.flush();assert.equal(f.draft().marks.length,2,tool);
+ }
+});
+test('a pinch preserves redo history when it cancels a newly started stroke',()=>{
+ const f=editor();viewTransform(f);f.choose('player');f.pointer('pointerdown',100,200);f.pointer('pointerup',100,200);f.node('rinkUndo').onclick();f.choose('curve');f.pointer('pointerdown',100,300);f.pointer('pointermove',150,350);f.pointer('pointerdown',300,300,{pointerId:2,isPrimary:false});f.pointer('pointerup',300,300,{pointerId:2,isPrimary:false});f.pointer('pointerup',150,350);assert.equal(f.node('rinkRedo').disabled,false);f.node('rinkRedo').onclick();f.flush();assert.equal(f.draft().marks.length,1);assert.equal(f.draft().marks[0].type,'player');
+});
+test('pinch cancellation and zoom limits keep all viewport edges within the rink',()=>{
+ const f=editor();const view=viewTransform(f);f.choose('curve');f.pointer('pointerdown',100,300);f.pointer('pointerdown',200,300,{pointerId:2,isPrimary:false});f.pointer('pointermove',1000,300,{pointerId:2,isPrimary:false});assert.equal(view()[2],160);
+ f.pointer('pointercancel',1000,300,{pointerId:2,isPrimary:false});f.pointer('lostpointercapture',100,300);f.node('rinkTitle').emit('input');f.flush();assert.deepEqual(f.draft().marks,[]);assert.equal(f.context.document.body.classList.contains('rink-gesturing'),false);
+ f.pointer('pointerdown',100,300);f.pointer('pointerdown',300,300,{pointerId:2,isPrimary:false});f.pointer('pointermove',101,300,{pointerId:2,isPrimary:false});assert.deepEqual(view(),[0,0,480,860]);f.pointer('pointerup',101,300,{pointerId:2,isPrimary:false});f.pointer('pointerup',100,300);
+});
+test('pinch anchoring follows the rotated rink coordinate transform',()=>{
+ const f=editor(),view=viewTransform(f,true);f.pointer('pointerdown',300,200);f.pointer('pointerdown',500,200,{pointerId:2,isPrimary:false});f.pointer('pointermove',700,200,{pointerId:2,isPrimary:false});const [x,y,width]=view(),scale=480/width;assert.equal(scale,2);assert.ok(Math.abs(x+200/scale-200)<1e-6);assert.ok(Math.abs(y+(860-500)/scale-460)<1e-6);f.pointer('pointerup',700,200,{pointerId:2,isPrimary:false});f.pointer('pointerup',300,200);
+});
+test('leaving during a pinch clears held fingers so drawing works on return',()=>{
+ const f=editor();viewTransform(f);f.choose('curve');f.pointer('pointerdown',100,300);f.pointer('pointermove',150,350);f.pointer('pointerdown',300,300,{pointerId:2,isPrimary:false});f.leave();assert.deepEqual(f.draft().marks,[]);assert.equal(f.context.document.body.classList.contains('rink-gesturing'),false);
+ f.choose('cone');f.pointer('pointerdown',200,400);f.pointer('pointerup',200,400);f.flush();assert.equal(f.draft().marks.length,1);assert.equal(f.draft().marks[0].type,'cone');
+});
 test('rink drafts preserve symbol changes, numbers, duplication and undo/redo without replacing manual saves',()=>{
  const f=editor({[SAVED]:JSON.stringify({title:'Arkiv',category:'Passningar',description:'',marks:[]})});
  f.choose('player');f.pointer('pointerdown',100,100);f.pointer('pointerup',100,100);f.flush();assert.equal(f.draft().marks.length,1);
