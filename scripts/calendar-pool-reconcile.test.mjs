@@ -18,22 +18,23 @@ test('identical single match from two sources merges and preserves the tentative
  const result=reconcile([a,pool('SweHockey',[{opponent:'Linden Vit',startTime:'12:00'}])],[]);
  assert.equal(result.items.length,1);assert.equal(result.items[0].hall,'Smehallen B');assert.match(result.items[0].notice,/EV inställd/);
 });
-test('different known venues, times, opponents, own teams or dates stay separate',()=>{
+test('different known venues or dates stay separate; same venue combines distinct fixtures',()=>{
  for(const changed of [{hall:'Other rink'}, {date:'2026-11-09'},{matches:[{opponent:'Other',startTime:'12:00'}]},{matches:[{opponent:'Linden Vit',startTime:'13:00'}]},{matches:[{opponent:'Linden Vit',startTime:'12:00',ownTeam:'NSK Vit'}]}]){
   const a=pool('SvenskaLag',[{opponent:'Linden Vit',startTime:'12:00',ownTeam:'NSK Röd'}]);
-  assert.equal(reconcile([a,{...pool('SweHockey',a.matches),...changed}],[]).items.length,2,JSON.stringify(changed));
+  const result=reconcile([a,{...pool('SweHockey',a.matches),...changed}],[]);
+  assert.equal(result.items.length,changed.hall||changed.date?2:1,JSON.stringify(changed));
  }
 });
-test('single match without a known time and repeated opponents cannot establish identity',()=>{
- for(const matches of [[{opponent:'A',startTime:''}],[{opponent:'A',startTime:'12:00'},{opponent:'A',startTime:'13:00'}]])assert.equal(reconcile([pool('SvenskaLag',matches),pool('SweHockey',matches)],[]).items.length,2);
+test('single match without a known time and repeated opponents share a venue card',()=>{
+ for(const matches of [[{opponent:'A',startTime:''}],[{opponent:'A',startTime:'12:00'},{opponent:'A',startTime:'13:00'}]])assert.equal(reconcile([pool('SvenskaLag',matches),pool('SweHockey',matches)],[]).items.length,1);
 });
-test('ambiguous source or saved candidates remain visible and unlinked',()=>{
- assert.equal(reconcile([pool('SvenskaLag'),pool(),pool('Third source')],[]).items.length,3);
+test('multiple source cards share a venue but ambiguous saved links remain unlinked',()=>{
+ assert.equal(reconcile([pool('SvenskaLag'),pool(),pool('Third source')],[]).items.length,1);
  assert.equal(reconcile([pool()],[saved,{...saved,id:37}],new Map([...summaries,['37',fixtures]])).links.size,0);
 });
-test('empty source pool is preserved rather than guessed into one of several schedules',()=>{
+test('empty source pool is combined with known same-venue fixtures',()=>{
  const empty=pool('SvenskaLag',[]);const result=reconcile([empty,pool(),pool('SweHockey',[{opponent:'Linden Vit',startTime:'12:00'}])],[]);
- assert.equal(result.items.length,3);
+ assert.equal(result.items.length,1);assert.ok(result.items[0].matches.length>=1);
 });
 test('only a uniquely represented standalone match is suppressed; unrelated matches remain',()=>{
  const match={type:'match',date,place:'Smehallen B',opponent:'Linden Gul',startTime:'12:40'};
