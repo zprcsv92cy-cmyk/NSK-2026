@@ -25,7 +25,7 @@ function sameEvent(a,b,all){
  return sameFixtures(fixtures(a,all),fixtures(b,all));
 }
 export function reconcileCalendarPools(items,pools,summaries=new Map()){
- const output=items.map(item=>({...item})),removed=new Set(),links=new Map();
+ const output=items.map(item=>({...item,date:String(item.date||'').slice(0,10),sourceKeys:[...new Set([...(item.sourceKeys||[]),item.key,...(item.matches||[]).map(m=>m.key)].filter(Boolean))]})),removed=new Set(),links=new Map();
  const candidates=output.filter(item=>item.type==='pool');
  // Merge only unique, reciprocal pairs from different sources. Ambiguity stays visible.
  const peers=new Map(candidates.map(a=>[a,candidates.filter(b=>a!==b&&text(a.source||'svenskalag')!==text(b.source||'svenskalag')&&sameEvent(a,b,output))]));
@@ -37,6 +37,7 @@ export function reconcileCalendarPools(items,pools,summaries=new Map()){
   const rich=score(a)>=score(b)?a:b,notice=[a.notice,b.notice,...[a,b].filter(x=>unknown(x.place)&&text(x.place)).map(x=>'SvenskaLag anger '+x.place+'. Kontrollera med arrangören före start.')].filter(Boolean);
   a.place=rich.place;a.hall=rich.hall;a.notice=[...new Set(notice)].join(' ');
   a.matches=fixtures(rich,output).map(m=>({...m}));a.source=[...new Set([a.source||'SvenskaLag',b.source||'SvenskaLag'])].join(' + ');a.sourceUrl=a.sourceUrl||b.sourceUrl;
+  a.sourceKeys=[...new Set([...a.sourceKeys,...b.sourceKeys,...fixtures(a,output).map(m=>m.key),...fixtures(b,output).map(m=>m.key)].filter(Boolean))];
   removed.add(b);
  }
  // Consolidate pool cards sharing a date and known venue, across sources.
@@ -55,6 +56,7 @@ export function reconcileCalendarPools(items,pools,summaries=new Map()){
   primary.notice=[...new Set([primary.notice,item.notice].filter(Boolean))].join(' ');
   primary.source=[...new Set([primary.source,item.source].filter(Boolean))].join(' + ');
   primary.sourceUrl=primary.sourceUrl||item.sourceUrl;
+  primary.sourceKeys=[...new Set([...primary.sourceKeys,...item.sourceKeys,...fixtures(item,output).map(m=>m.key)].filter(Boolean))];
   removed.add(item);
  }
  // A source may label the same pool as "EV inställd" or omit the rink entirely.
@@ -80,20 +82,21 @@ export function reconcileCalendarPools(items,pools,summaries=new Map()){
   primary.notice=[...new Set([primary.notice,item.notice,...[item].filter(x=>unknown(x.place)&&text(x.place)).map(x=>'SvenskaLag anger '+x.place+'. Kontrollera med arrangören före start.')].filter(Boolean))].join(' ');
   primary.source=[...new Set([primary.source,item.source].filter(Boolean))].join(' + ');
   primary.sourceUrl=primary.sourceUrl||item.sourceUrl;
+  primary.sourceKeys=[...new Set([...primary.sourceKeys,...item.sourceKeys,...fixtures(item,output).map(m=>m.key)].filter(Boolean))];
   removed.add(item);
  }
  const remaining=candidates.filter(item=>!removed.has(item));
  for(const item of remaining){
-  const matches=pools.filter(pool=>sameEvent({date:pool.pool_date,place:pool.place,hall:pool.hall,matches:summaries.get(String(pool.id))||[]},item,output));
+  const matches=pools.filter(pool=>sameEvent({date:String(pool.pool_date||'').slice(0,10),place:pool.place,hall:pool.hall,matches:summaries.get(String(pool.id))||[]},item,output));
   if(matches.length!==1)continue;
   // Two source groups claiming the same stored event are not silently collapsed.
-  const pool=matches[0];const claims=remaining.filter(other=>sameEvent({date:pool.pool_date,place:pool.place,hall:pool.hall,matches:summaries.get(String(pool.id))||[]},other,output));
+  const pool=matches[0];const claims=remaining.filter(other=>sameEvent({date:String(pool.pool_date||'').slice(0,10),place:pool.place,hall:pool.hall,matches:summaries.get(String(pool.id))||[]},other,output));
   if(claims.length===1)links.set(item,String(pool.id));
  }
  // Standalone matches are redundant only with exactly one fully identified source pool.
  for(const match of output.filter(item=>item.type==='match')){
   const owners=remaining.filter(pool=>pool.matches?.length&&pool.date===match.date&&(!venue(match)||!venue(pool)||venue(match)===venue(pool))&&fixtures(pool,output).some(m=>opponent(m)===opponent(match)&&time(m)&&time(m)===time(match)&&(!m.ownTeam||!match.ownTeam||text(m.ownTeam)===text(match.ownTeam))));
-  if(owners.length===1)removed.add(match);
+  if(owners.length===1){owners[0].sourceKeys=[...new Set([...owners[0].sourceKeys,match.key].filter(Boolean))];removed.add(match);}
  }
  for(const item of remaining){
   if(unknown(item.hall||item.place)&&text(item.hall||item.place)){

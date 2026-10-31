@@ -76,3 +76,8 @@ test('unknown venue events without overlapping opponents remain distinct',()=>{
  const b={type:'pool',source:'SweHockey',date,place:'',hall:'',matches:[{opponent:'B',startTime:'12:00'}]};
  assert.equal(reconcile([a,b],[]).items.length,2);
 });
+
+test('timestamp dates link to saved calendar days and merged cards retain all removable source keys',()=>{
+ const a={...pool('SvenskaLag'),key:'source-a',date:date+'T00:00:00Z'},b={...pool('SweHockey'),key:'source-b'},result=reconcile([a,b],[{...saved,pool_date:date+'T00:00:00Z'}],summaries);
+ assert.equal(result.items.length,1);assert.equal(result.links.get(result.items[0]),String(saved.id));assert.deepEqual(result.items[0].sourceKeys.sort(),['source-a','source-b']);
+});
