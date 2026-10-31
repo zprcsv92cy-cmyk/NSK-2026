@@ -225,7 +225,7 @@
    const teams=Array.isArray(data.results)?data.results:Array.isArray(data)?data:[];
    const matched=teams.filter(t=>t.Namn===team&&String(t['Säsong'])==='2026');
    if(matched.length!==1)throw Error('Lagkopplingen saknas');
-   const events=await fetch(base+'/api/training?team_id='+encodeURIComponent(matched[0].id)+'&action=svenskalag-saved&training_history=1',{headers,cache:'no-store'});
+   const events=await fetch(base+'/api/training?team_id='+encodeURIComponent(matched[0].id)+'&action=svenskalag-saved&training_history=1&include_removed=1',{headers,cache:'no-store'});
    if(!events.ok)throw Error('Kalendern kunde inte läsas');
    const result=await events.json();let items=Array.isArray(result.items)?result.items:[];
    if(!items.length){root.textContent='Inga kommande kalenderaktiviteter importerade ännu.';renderUpcomingCalendarPools([]);}

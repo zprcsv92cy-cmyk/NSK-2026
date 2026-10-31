@@ -9,7 +9,7 @@ export function patchPoolArchiveWorker(source,oldHelper,newHelper){
       }
 `+marker);
  once("(event_type='training' AND ?=1)) ORDER","(event_type='training' AND ?=1) OR json_extract(event_json,'$.calendarHidden')=1) ORDER");
- once('.filter(item=>!item.calendarHidden)',".filter(item=>item.type!=='pool-state'&&!item.calendarPermanent&&!(item.type==='match'&&item.calendarHidden))");
+ once('.filter(item=>!item.calendarHidden)',".filter(item=>item.type!=='pool-state'&&!item.calendarPermanent&&(!item.calendarHidden||url.searchParams.get('include_removed')==='1'&&item.type==='pool'))");
  once(oldHelper.replaceAll('export async function','async function').trim(),newHelper.replaceAll('export async function','async function').trim());
  return source;
 }
