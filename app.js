@@ -343,17 +343,23 @@ window.NSK2App = (() => {
           return;
         }
 
+        if(t.dataset.restorePool){
+          const pool=await DB.getPool(t.dataset.restorePool);if(!pool)return;
+          t.disabled=true;try{await window.NSKCalendarPools.setSavedPoolRemoved(pool,false);}finally{t.disabled=false;}
+          (window.NSKNavigate?window.NSKNavigate(location.href,{reload:true,replace:true}):window.location.reload());return;
+        }
         if (t.dataset.deletePool) {
-          const ok = window.confirm("Ta bort poolspelet permanent? Detta kan inte ångras.");
-          if (!ok) return;
+          const pool=await DB.getPool(t.dataset.deletePool);if(!pool)return;
+          const permanent=pool.removed||pool.deleting;
+          if(!window.confirm(permanent?'Ta bort poolspelet permanent? Detta kan inte ångras.':'Flytta poolspelet till Avslutade och markera det som Borttagen?'))return;
           t.disabled=true;
-          let restoreCalendar;
-          try{restoreCalendar=await window.NSKCalendarPools?.hideSavedPool(t.dataset.deletePool);await DB.deletePool(t.dataset.deletePool);}
-          catch(error){if(restoreCalendar)await restoreCalendar();throw error;}
-          finally{t.disabled=false;}
-          for(const key of ["nsk2_pool_id","nsk2_edit_pool_id"])if(sessionStorage.getItem(key)===t.dataset.deletePool)sessionStorage.removeItem(key);
-          (window.NSKNavigate?window.NSKNavigate(location.href,{reload:true,replace:true}):window.location.reload());
-          return;
+          try{
+            if(!window.NSKCalendarPools)throw Error('Kalendern är inte klar. Ladda om och försök igen.');
+            if(permanent){const finish=await window.NSKCalendarPools.preparePermanentSavedPool(pool);await DB.deletePool(pool.id);await finish();}
+            else await window.NSKCalendarPools.setSavedPoolRemoved(pool,true);
+          }finally{t.disabled=false;}
+          for(const key of ["nsk2_pool_id","nsk2_edit_pool_id"])if(sessionStorage.getItem(key)===String(pool.id))sessionStorage.removeItem(key);
+          (window.NSKNavigate?window.NSKNavigate(location.href,{reload:true,replace:true}):window.location.reload());return;
         }
 
         const flowLink=t.closest('.pool-flow-actions a');
@@ -534,7 +540,7 @@ window.NSK2App = (() => {
 
       const today = new Date();
       const localToday = `${today.getFullYear()}-${String(today.getMonth()+1).padStart(2,'0')}-${String(today.getDate()).padStart(2,'0')}`;
-      const isArchived = (p) => p.active === false;
+      const isArchived = (p) => p.active === false || p.removed === true;
       // Normalize Baserow date values before sorting; keep every pool, including cancelled titles.
       const poolDay = p => {
         const raw = String(p.pool_date || '').trim();
@@ -545,8 +551,8 @@ window.NSK2App = (() => {
         return '99999999';
       };
       const byDate = (a,b) => poolDay(a).localeCompare(poolDay(b)) || String(a.id).localeCompare(String(b.id));
-      const upcoming = pools.filter(p => !isArchived(p)).sort(byDate);
-      const archived = pools.filter(isArchived).sort((a,b) => -byDate(a,b));
+      const upcoming = pools.filter(p => !p.removedPermanent&&!isArchived(p)).sort(byDate);
+      const archived = pools.filter(p=>!p.removedPermanent&&isArchived(p)).sort((a,b) => -byDate(a,b));
       let matchSummaries;
       if(viewData){matchSummaries=new Map(viewData.summaries);}
       else if(typeof DB.listPoolMatchSummaries==='function'){
@@ -574,7 +580,7 @@ window.NSK2App = (() => {
         return `
           <details class="nsk-pool-row" data-view-key="pool:${poolId}" data-view-revision="${esc(JSON.stringify([p,matchSummaries.get(String(p.id))]))}" data-pool-date="${esc(poolDay(p))}" data-pool-finished="${isArchived(p)}">
             <summary class="nsk-pool-summary">
-              <span class="nsk-pool-name">${esc([nskPoolWeekday(poolDay(p)),p.place || "Ort",p.pool_date || "Datum"].filter(Boolean).join(" • "))}</span>
+              <span class="nsk-pool-name">${esc([nskPoolWeekday(poolDay(p)),p.place || "Ort",p.pool_date || "Datum"].filter(Boolean).join(" • "))}${p.removed?'<small class="small" data-pool-removed>Borttagen</small>':''}</span>
               <span class="nsk-pool-hall" data-pool-hall-id="${poolId}" data-gathering="${esc(gathering)}">${esc([p.hall,gathering].filter(Boolean).join(" • "))}</span>
               <span class="nsk-pool-chevron" aria-hidden="true">⌄</span>
             </summary>
@@ -603,8 +609,8 @@ window.NSK2App = (() => {
               <div class="nsk-pool-actions">
                 ${isArchived(p)||p.deleting?'':`<button class="start-pool-btn nsk-action nsk-action--primary nsk-action--wide" type="button" data-start-pool-id="${poolId}">Påbörja poolspel</button>`}
                 <div class="nsk-pool-secondary-actions">
-                  ${isArchived(p)||p.deleting?'':`<button class="row-btn nsk-action nsk-action--edit" type="button" data-edit-pool="${poolId}">Redigera</button>`}<button class="row-btn nsk-action" type="button" data-delete-pool="${poolId}">${p.deleting?'Fortsätt radering':'Ta bort'}</button>
-                  <button class="row-btn nsk-action ${isArchived(p) ? "nsk-action--neutral" : "nsk-action--finish"}" type="button" data-pool-status-id="${poolId}" data-pool-status-next="${isArchived(p) ? "Aktiv" : "Avslutad"}">${isArchived(p) ? "Återöppna" : "Avsluta"}</button>
+                  ${isArchived(p)||p.deleting?'':`<button class="row-btn nsk-action nsk-action--edit" type="button" data-edit-pool="${poolId}">Redigera</button>`}<button class="row-btn nsk-action" type="button" data-delete-pool="${poolId}">${p.deleting?'Fortsätt radering':p.removed?'Ta bort permanent':'Ta bort'}</button>
+                  ${p.removed?`<button class="row-btn nsk-action" type="button" data-restore-pool="${poolId}">Återställ</button>`:`<button class="row-btn nsk-action ${isArchived(p) ? "nsk-action--neutral" : "nsk-action--finish"}" type="button" data-pool-status-id="${poolId}" data-pool-status-next="${isArchived(p) ? "Aktiv" : "Avslutad"}">${isArchived(p) ? "Återöppna" : "Avsluta"}</button>`}
                 </div>
               </div>
             </div>

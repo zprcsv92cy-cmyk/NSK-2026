@@ -79,16 +79,18 @@
   document.querySelectorAll('[data-svenskalag-pool]').forEach(node=>node.remove());
   const title=section.querySelector('h2');
   if(!title)return;
+  const archivedSection=box.querySelectorAll('.pool-overview-section')[1],archivedFragment=document.createDocumentFragment();
+  const visibleItems=items.filter(item=>!item.calendarHidden);
   const existing=Array.from(section.querySelectorAll(':scope > details.nsk-pool-row')).length;
-  title.textContent='Kommande poolspel ('+(existing+items.length)+')';
+  title.textContent='Kommande poolspel ('+(existing+visibleItems.length)+')';
   const empty=section.querySelector('.listrow');
-  if(empty)empty.hidden=items.length>0;
-  if(!items.length)return;
+  if(empty)empty.hidden=visibleItems.length>0;
+
   const fragment=document.createDocumentFragment();
   for(const item of items){
    const row=document.createElement('details');
    row.className='nsk-pool-row';
-   row.dataset.svenskalagPool='1';
+   row.dataset.svenskalagPool='1';row.dataset.poolFinished=String(!!item.calendarHidden);
    row.dataset.poolDate=calendarDate(item.date).replaceAll('-','');
    const summary=document.createElement('summary');
    summary.className='nsk-pool-summary';
@@ -102,7 +104,7 @@
    chevron.className='nsk-pool-chevron';
    chevron.setAttribute('aria-hidden','true');
    chevron.textContent='⌄';
-   summary.append(name,origin,chevron);
+   summary.append(name,origin,chevron);if(item.calendarHidden){const badge=document.createElement('small');badge.className='small';badge.textContent=' · Borttagen';name.append(badge);}
    const content=document.createElement('div');
    content.className='nsk-pool-content';
    const note=document.createElement('p');
@@ -139,7 +141,7 @@
     const icon=document.createElement('span');icon.className='nsk-pool-function-icon';icon.setAttribute('aria-hidden','true');icon.textContent=symbol;
     const name=document.createElement('span');name.textContent=label;button.append(icon,name);grid.append(button);
    }
-   content.append(grid);
+   grid.hidden=!!item.calendarHidden;content.append(grid);
    content.append(note);
    const actions=document.createElement('div');
    actions.className='nsk-pool-actions';
@@ -171,36 +173,37 @@
     }catch(error){button.disabled=false;alert(error.message||'Poolspelet kunde inte öppnas.');}
    }
    create.addEventListener('click',()=>openCalendarPool('start',create));
-   actions.append(create);
+   create.hidden=!!item.calendarHidden;actions.append(create);
    const secondary=document.createElement('div');secondary.className='nsk-pool-secondary-actions';
    for(const [label,action,cls] of [['Redigera','edit','edit'],['Avsluta','finish','finish']]){
-    const button=document.createElement('button');button.type='button';button.className='row-btn nsk-action nsk-action--'+cls;button.textContent=label;
+    const button=document.createElement('button');button.type='button';button.className='row-btn nsk-action nsk-action--'+cls;button.textContent=label;button.hidden=!!item.calendarHidden;
     button.addEventListener('click',()=>openCalendarPool(action,button));secondary.append(button);
    }
-   const remove=document.createElement('button');remove.type='button';remove.className='row-btn nsk-action nsk-action--delete';remove.textContent='Ta bort';
+   const remove=document.createElement('button');remove.type='button';remove.className='row-btn nsk-action nsk-action--delete';remove.textContent=item.calendarHidden?'Ta bort permanent':'Ta bort';
    remove.addEventListener('click',async()=>{
-    if(!confirm('Ta bort det importerade poolspelet från lagets kalender? Det kan ångras.'))return;
+    if(!confirm(item.calendarHidden?'Ta bort poolspelet permanent? Detta kan inte ångras.':'Flytta poolspelet till Avslutade och markera det som Borttagen?'))return;
     remove.disabled=true;
-    try{await changeCalendarVisibility(item,true);await show();const message=document.createElement('p');message.textContent='Poolspelet har tagits bort. ';const undo=document.createElement('button');undo.type='button';undo.textContent='Ångra';undo.onclick=async()=>{undo.disabled=true;try{await changeCalendarVisibility(item,false);message.remove();await show();}catch(error){undo.disabled=false;alert(error.message);}};message.append(undo);section.append(message);}
+    try{await changeCalendarVisibility(item,true,!!item.calendarHidden);await show();if(item.calendarHidden)return;const message=document.createElement('p');message.textContent='Poolspelet har tagits bort. ';const undo=document.createElement('button');undo.type='button';undo.textContent='Ångra';undo.onclick=async()=>{undo.disabled=true;try{await changeCalendarVisibility(item,false);message.remove();await show();}catch(error){undo.disabled=false;alert(error.message);}};message.append(undo);section.append(message);}
     catch(error){remove.disabled=false;alert(error.message||'Poolspelet kunde inte tas bort.');}
    });secondary.append(remove);
+   if(item.calendarHidden){const restore=document.createElement('button');restore.type='button';restore.className='row-btn nsk-action';restore.textContent='Återställ';restore.onclick=async()=>{restore.disabled=true;try{await changeCalendarVisibility(item,false);await show();}catch(error){restore.disabled=false;alert(error.message);}};secondary.append(restore);}
    actions.append(secondary);
    content.append(actions);
    row.append(summary,content);
-   fragment.append(row);
+   if(item.calendarHidden&&archivedSection)archivedFragment.append(row);else fragment.append(row);
   }
-  section.append(fragment);
+  section.append(fragment);if(archivedSection){archivedSection.append(archivedFragment);const count=archivedSection.querySelectorAll(':scope > details.nsk-pool-row').length;archivedSection.querySelector('h2').textContent='Avslutade poolspel ('+count+')';const empty=archivedSection.querySelector('.listrow');if(empty)empty.hidden=count>0;}
   // Saved pools and calendar-only pools share the same chronological order.
   const rows=Array.from(section.querySelectorAll(':scope > details.nsk-pool-row'));
   const poolDate=row=>row.dataset.poolDate||'99999999';
   rows.sort((a,b)=>poolDate(a).localeCompare(poolDate(b)));
   rows.forEach(row=>section.append(row));
  }
- async function changeCalendarVisibility(item,hidden){
+ async function changeCalendarVisibility(item,hidden,permanent=false){
   const base=String(window.APP_CONFIG?.API_URL||'https://nsk-api.peter-hasselberg.workers.dev').replace(/\/$/,''),token=Auth.getToken();
   if(!token||!poolMatchContext.teamId)throw Error('Logga in igen och ladda om kalendern.');
   const keys=[...new Set([...(item.sourceKeys||[]),item.key].filter(Boolean))];if(!keys.length)throw Error('Kalenderkopplingen saknas. Ladda om sidan.');
-  const response=await fetch(base+'/api/training?team_id='+encodeURIComponent(poolMatchContext.teamId)+'&action=calendar-pool-visibility',{method:'POST',headers:{Authorization:'Bearer '+token,'Content-Type':'application/json'},body:JSON.stringify({keys,hidden})});
+  const response=await fetch(base+'/api/training?team_id='+encodeURIComponent(poolMatchContext.teamId)+'&action=calendar-pool-visibility',{method:'POST',headers:{Authorization:'Bearer '+token,'Content-Type':'application/json'},body:JSON.stringify({keys,hidden,permanent})});
   if(!response.ok)throw Error(response.status===403?'Du saknar behörighet att ta bort poolspel.':'Poolspelet kunde inte uppdateras. Ladda om och försök igen.');
  }
  let calendarReady=false;
@@ -334,13 +337,23 @@
    }
   }catch(error){root.textContent='Kunde inte visa SvenskaLag-kalendern: '+(error.message||String(error));}
  }
- window.NSKCalendarPools={async hideSavedPool(id){
+ async function savedPoolState(pool,removed,permanent=false){
+  const base=String(window.APP_CONFIG?.API_URL||'https://nsk-api.peter-hasselberg.workers.dev').replace(/\/$/,''),token=Auth.getToken();
+  const response=await fetch(base+'/api/training?team_id='+encodeURIComponent(pool.team_id||poolMatchContext.teamId)+'&action=pool-removal-state',{method:'POST',headers:{Authorization:'Bearer '+token,'Content-Type':'application/json'},body:JSON.stringify({poolId:Number(pool.id),date:calendarDate(pool.pool_date),removed,permanent})});
+  if(!response.ok)throw Error('Poolspelets status kunde inte sparas. Försök igen.');
+ }
+ async function linkedPoolSources(pool){
   await show();if(!calendarReady)throw Error('Kalenderkopplingen kunde inte kontrolleras. Försök igen.');
-  const pool=poolMatchContext.pools.find(p=>String(p.id)===String(id));if(!pool)return;
   const items=poolMatchContext.items.filter(item=>item.type==='pool'&&samePool(pool,item));
-  const sourceKeys=[...new Set(items.flatMap(item=>[...(item.sourceKeys||[]),item.key]).filter(Boolean))];
-  if(!sourceKeys.length)return;
-  const item={sourceKeys};await changeCalendarVisibility(item,true);return ()=>changeCalendarVisibility(item,false);
+  return {sourceKeys:[...new Set(items.flatMap(item=>[...(item.sourceKeys||[]),item.key]).filter(Boolean))]};
+ }
+ window.NSKCalendarPools={async setSavedPoolRemoved(pool,removed){
+  const item=await linkedPoolSources(pool);await savedPoolState(pool,removed);
+  try{if(item.sourceKeys.length)await changeCalendarVisibility(item,removed);}
+  catch(error){await savedPoolState(pool,!!pool.removed);throw error;}
+ },async preparePermanentSavedPool(pool){
+  const item=await linkedPoolSources(pool);if(!pool.removed){await savedPoolState(pool,true);if(item.sourceKeys.length)await changeCalendarVisibility(item,true);}
+  return async()=>{if(item.sourceKeys.length)await changeCalendarVisibility(item,true,true);await savedPoolState(pool,true,true);};
  }};
  if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',show,{once:true});else show();
 })();

@@ -37,6 +37,7 @@ export function reconcileCalendarPools(items,pools,summaries=new Map()){
   const rich=score(a)>=score(b)?a:b,notice=[a.notice,b.notice,...[a,b].filter(x=>unknown(x.place)&&text(x.place)).map(x=>'SvenskaLag anger '+x.place+'. Kontrollera med arrangören före start.')].filter(Boolean);
   a.place=rich.place;a.hall=rich.hall;a.notice=[...new Set(notice)].join(' ');
   a.matches=fixtures(rich,output).map(m=>({...m}));a.source=[...new Set([a.source||'SvenskaLag',b.source||'SvenskaLag'])].join(' + ');a.sourceUrl=a.sourceUrl||b.sourceUrl;
+  a.calendarHidden=!!(a.calendarHidden||b.calendarHidden);
   a.sourceKeys=[...new Set([...a.sourceKeys,...b.sourceKeys,...fixtures(a,output).map(m=>m.key),...fixtures(b,output).map(m=>m.key)].filter(Boolean))];
   removed.add(b);
  }
@@ -56,6 +57,7 @@ export function reconcileCalendarPools(items,pools,summaries=new Map()){
   primary.notice=[...new Set([primary.notice,item.notice].filter(Boolean))].join(' ');
   primary.source=[...new Set([primary.source,item.source].filter(Boolean))].join(' + ');
   primary.sourceUrl=primary.sourceUrl||item.sourceUrl;
+  primary.calendarHidden=!!(primary.calendarHidden||item.calendarHidden);
   primary.sourceKeys=[...new Set([...primary.sourceKeys,...item.sourceKeys,...fixtures(item,output).map(m=>m.key)].filter(Boolean))];
   removed.add(item);
  }
@@ -82,6 +84,7 @@ export function reconcileCalendarPools(items,pools,summaries=new Map()){
   primary.notice=[...new Set([primary.notice,item.notice,...[item].filter(x=>unknown(x.place)&&text(x.place)).map(x=>'SvenskaLag anger '+x.place+'. Kontrollera med arrangören före start.')].filter(Boolean))].join(' ');
   primary.source=[...new Set([primary.source,item.source].filter(Boolean))].join(' + ');
   primary.sourceUrl=primary.sourceUrl||item.sourceUrl;
+  primary.calendarHidden=!!(primary.calendarHidden||item.calendarHidden);
   primary.sourceKeys=[...new Set([...primary.sourceKeys,...item.sourceKeys,...fixtures(item,output).map(m=>m.key)].filter(Boolean))];
   removed.add(item);
  }

@@ -14,7 +14,7 @@ function fixture(){
  const window={NSKShellActive:true,addEventListener:(name,fn)=>winEvents.set(name,fn)};
  const context={window,document,setInterval:fn=>timers.push(fn),Auth:{activeTeam:()=>team,getToken:()=>token},SharedTraining:{get:()=>{reads++;return read();},listPlayers:async()=>[{id:1,full_name:'Alpha'},{id:2,full_name:'Beta'}]}};
  vm.runInNewContext(readFileSync(new URL('../training-cards.js',import.meta.url),'utf8'),context);docEvents.get('DOMContentLoaded')();
- return {panel,row,button,document,window,docEvents,winEvents,timers,reads:()=>reads,setSession:s=>value=s,setToken:t=>token=t,setRead:f=>read=f,open:()=>docEvents.get('click')({target:{closest:()=>button}})};
+ return {panel,row,button,document,window,docEvents,winEvents,timers,reads:()=>reads,setSession:s=>value=s,setToken:t=>token=t,setRead:f=>read=f,open:()=>docEvents.get('click')({target:{closest:s=>s==='[data-training-colors]'?button:null}})};
 }
 test('returning to the calendar refreshes already-open shirt groups after a save',async()=>{
  const f=fixture();await f.open();const before=f.panel.innerHTML;f.setSession(session(true));f.docEvents.get('nsk:page-show')();await tick();
