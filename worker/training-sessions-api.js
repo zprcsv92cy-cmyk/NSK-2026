@@ -1,3 +1,4 @@
+import {editCalendarPoolSchedule} from './calendar-pool-schedule-edit.js';
 import {changeCalendarPoolVisibility,savedPoolRemovalState} from './calendar-pool-visibility.js';
 import {createPersonalRosterIdentityVerifier} from './personal-roster-identity-adapter.js';
 import {mapTrustedMembershipsToLegacyTeams} from './production-team-id-map.js';
@@ -54,6 +55,11 @@ export function createTrainingHandler(env,listTeams){
     if(!(await listTeams()).some(t=>String(t.id)===team[0]&&t.Namn==='NSK Team 18'&&String(t['Säsong'])==='2026'))return fail(403,'Wrong team');
     return savedPoolRemovalState(db,request);
    }
+   if(request.method==='POST'&&url.searchParams.get('action')==='calendar-pool-schedule'){
+    if(!authorizeTeamFeature(access,team[0],'pool').allowed)return fail(403,'Pool edit permission required');
+    if(!(await listTeams()).some(t=>String(t.id)===team[0]&&t.Namn==='NSK Team 18'&&String(t['Säsong'])==='2026'))return fail(403,'Wrong team');
+    return editCalendarPoolSchedule(db,request);
+   }
    if(request.method==='POST'&&url.searchParams.get('action')==='calendar-pool-visibility'){
     if(!authorizeTeamFeature(access,team[0],'pool').allowed)return fail(403,'Pool edit permission required');
     if(!(await listTeams()).some(t=>String(t.id)===team[0]&&t.Namn==='NSK Team 18'&&String(t['Säsong'])==='2026'))return fail(403,'Wrong team');
@@ -65,7 +71,7 @@ export function createTrainingHandler(env,listTeams){
     if(!trusted.some(t=>String(t.id)===team[0]&&t.Namn==='NSK Team 18'&&String(t['Säsong'])==='2026'))return fail(403,'Wrong team');
     const result=await db.prepare("SELECT event_key,event_type,event_date,event_json FROM svenskalag_calendar_events WHERE team_id=? AND (event_date>=? OR (event_type='training' AND ?=1) OR json_extract(event_json,'$.calendarHidden')=1) ORDER BY event_date DESC,event_key LIMIT 500")
       .bind('NSK Team 18',new Intl.DateTimeFormat('sv-SE',{timeZone:'Europe/Stockholm',year:'numeric',month:'2-digit',day:'2-digit'}).format(new Date()),url.searchParams.get('training_history')==='1'?1:0).all();
-    return Response.json({ok:true,items:(result.results||[]).map(r=>({key:r.event_key,type:r.event_type,date:r.event_date,...JSON.parse(r.event_json)})).filter(item=>item.type!=='pool-state'&&!item.calendarPermanent&&(!item.calendarHidden||url.searchParams.get('include_removed')==='1'&&item.type==='pool'))},{headers:{'cache-control':'private, no-store'}});
+    return Response.json({ok:true,items:(result.results||[]).map(r=>({key:r.event_key,type:r.event_type,date:r.event_date,...JSON.parse(r.event_json)})).filter(item=>item.type!=='pool-state'&&!item.calendarPermanent&&!item.calendarSuppressed&&(!item.calendarHidden||url.searchParams.get('include_removed')==='1'&&item.type==='pool'))},{headers:{'cache-control':'private, no-store'}});
    }
    if(request.method==='GET'&&url.searchParams.get('action')==='svenskalag-calendar'){
     if(dates.length)return fail(400,'Calendar feed is team-scoped, not date-scoped');

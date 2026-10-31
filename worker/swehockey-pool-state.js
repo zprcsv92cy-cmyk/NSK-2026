@@ -13,7 +13,7 @@ export async function sweHockeyPoolsWithState(db,pools,today){
  const rows=await db.prepare("SELECT event_key,event_json FROM svenskalag_calendar_events WHERE team_id=? AND event_key LIKE 'swehockey-pool:%'").bind('NSK Team 18').all();
  const states=new Map((rows.results||[]).map(r=>[r.event_key,JSON.parse(r.event_json)])),seen=new Set(),result=[];
  for(const pool of pools){const key=sweHockeyPoolKey(pool);if(!key)continue;seen.add(key);const state=states.get(key)||{};if(state.calendarPermanent)continue;
-  if(pool.date>=today||state.calendarHidden)result.push({...pool,key,sourceKeys:[...new Set([key,...(state.sourceKeys||[])])],calendarHidden:state.calendarHidden===true});
+  if(pool.date>=today||state.calendarHidden)result.push({...pool,...(state.manualSchedule?{matches:state.matches,manualSchedule:true,manualScheduleRevision:state.manualScheduleRevision||0}:{}),key,sourceKeys:[...new Set([key,...(state.sourceKeys||[])])],calendarHidden:state.calendarHidden===true});
  }
  for(const [key,state] of states)if(!seen.has(key)&&state.calendarHidden&&!state.calendarPermanent)result.push({...state,key,sourceKeys:[...new Set([key,...(state.sourceKeys||[])])]});
  return result;

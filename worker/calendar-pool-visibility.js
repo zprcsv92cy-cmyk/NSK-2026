@@ -32,7 +32,7 @@ export async function savedPoolRemovalState(db,request){
  const key='nsk-pool-state:'+body.poolId,existing=await db.prepare('SELECT event_json FROM svenskalag_calendar_events WHERE team_id=? AND event_key=?').bind('NSK Team 18',key).first();
  const previous=existing?JSON.parse(existing.event_json):{};
  if(previous.permanent||body.permanent&&!previous.removed)return Response.json({ok:false,error:'Pool state changed'},{status:409});
- const state={type:'pool-state',poolId:body.poolId,removed:body.removed,permanent:body.permanent===true};
+ const state={...previous,type:'pool-state',poolId:body.poolId,removed:body.removed,permanent:body.permanent===true,...(typeof body.scheduleEdited==='boolean'?{scheduleEdited:body.scheduleEdited}:{})};
  await db.prepare("INSERT INTO svenskalag_calendar_events(team_id,event_key,event_type,event_date,event_json,source,manually_edited) VALUES(?,?,'pool',?,?,'manual',1) ON CONFLICT(team_id,event_key) DO UPDATE SET event_json=excluded.event_json,manually_edited=1,updated_at=CURRENT_TIMESTAMP").bind('NSK Team 18',key,body.date,JSON.stringify(state)).run();
  return Response.json({ok:true,state},{headers:{'cache-control':'no-store'}});
 }

@@ -55,6 +55,7 @@ export function planCalendarCompletion(pool, existing, matches) {
 export async function completeCalendarPool(db,poolId,matches){
   const pool=await db.getPool(poolId);
   if(!pool)throw Error('Poolspelet kunde inte läsas.');
+  if(pool.schedule_edited)throw Error('Matchschemat är manuellt redigerat och skyddat från import.');
   const plan=planCalendarCompletion(pool,await db.listPoolTeamMatchConfigs(poolId),matches);
   if(plan.matches>Number(pool.matches)){
     const payload={};

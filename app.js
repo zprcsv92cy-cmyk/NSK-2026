@@ -587,14 +587,14 @@ window.NSK2App = (() => {
             <div class="nsk-pool-content" data-selected-lag="1">
               ${teamChoices}
               ${(() => {
-                const matches = matchSummaries.get(String(p.id));
-                if (!matches) return '<div class="small">Matchuppgifter kunde inte hämtas.</div>';
-                if (!matches.length) return '<div class="small">Inga matchuppgifter sparade ännu.</div>';
-                return `<div class="nsk-pool-match-summary"><strong>Matcher</strong>${[...new Set(matches.map(m => Number(m.lag_no) || 1))].sort((a,b) => a-b).map(lagNo =>
-                  `<div class="nsk-pool-match-team"><strong>Lag ${esc(lagNo)}</strong>${matches.filter(m => (Number(m.lag_no) || 1) === lagNo).map(m =>
-                    `<div class="small nsk-pool-match-line"><span class="nsk-pool-match-number">Match ${esc(m.match_no)}</span> <span class="nsk-pool-match-time">${esc(!m.start_time || String(m.start_time).slice(0,5)==='00:00' ? 'Tid ej angiven' : String(m.start_time).slice(0,5))}</span> <span class="nsk-pool-match-opponent">${esc(m.opponent || 'Motståndare saknas')}</span></div>`
+                let matches=matchSummaries.get(String(p.id));const heading=`<div class="nsk-pool-match-heading"><strong>Matcher</strong>${isArchived(p)||p.deleting?'':`<button type="button" class="row-btn nsk-schedule-edit-button" data-edit-match-schedule="${poolId}" aria-label="Redigera matchschema">Redigera</button>`}</div>`;
+                if(!matches)return '<div class="nsk-pool-match-summary">'+heading+'<p class="small">Matchuppgifter kunde inte hämtas.</p></div>';
+                matches=matches.filter(m=>m.lag_no<=teams&&m.match_no<=Number(p.matches));
+                return `<div class="nsk-pool-match-summary">${heading}${matches.length?[...new Set(matches.map(m=>Number(m.lag_no)||1))].sort((a,b)=>a-b).map(lagNo=>
+                  `<div class="nsk-pool-match-team"><strong>Lag ${esc(lagNo)}</strong>${matches.filter(m=>(Number(m.lag_no)||1)===lagNo).map(m=>
+                    `<div class="small nsk-pool-match-line"><span class="nsk-pool-match-number">Match ${esc(m.match_no)}</span> <span class="nsk-pool-match-time">${esc(!m.start_time||String(m.start_time).slice(0,5)==='00:00'?'Tid ej angiven':String(m.start_time).slice(0,5))}</span> <span class="nsk-pool-match-opponent">${esc(m.opponent||'Motståndare saknas')}</span></div>`
                   ).join('')}</div>`
-                ).join('')}</div>`;
+                ).join(''):'<p class="small">Inga matchuppgifter sparade ännu.</p>'}</div>`;
               })()}
               <div class="nsk-pool-grid">
                 <button class="nsk-pool-function" type="button" data-pool-team-action="lineup" data-pool-action-id="${poolId}">
