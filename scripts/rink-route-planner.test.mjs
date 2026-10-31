@@ -2,6 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import vm from 'node:vm';
+import {threeTireRoute} from './fixtures/three-tire-route.mjs';
 const context={};vm.runInNewContext(fs.readFileSync(new URL('../rink-route-planner.js',import.meta.url),'utf8'),context);const api=context.NskRoutePlanner;
 const arc=(c,r,a,b,n=20)=>Array.from({length:n+1},(_,i)=>{const t=a+(b-a)*i/n,rr=r+Math.sin(i*1.7)*4;return {x:c.x+rr*Math.cos(t),y:c.y+rr*Math.sin(t)};});
 const route=(id,points)=>({id,type:'curve',x:points[0].x,y:points[0].y,points,color:'#15803d',motion:'forward'});
@@ -40,4 +41,18 @@ test('an open rounding remains an arc, never completed to a full circle',()=>{
 
 test('a figure eight touching the exact same crossing vertex is protected',()=>{
  const r={...route('8',[{x:200,y:400},{x:100,y:300},{x:100,y:500},{x:200,y:400},{x:300,y:300},{x:300,y:500},{x:200,y:400}]),routeStyle:'planned'};assert.equal(api.hasRouteFeatures(r),true);assert.equal(api.plan([r,tire]).plans.size,0);
+});
+test('the photographed three-tire route becomes three equal-radius turns joined by tangents',()=>{
+ const marks=threeTireRoute(),[r,...tires]=marks,before=JSON.stringify(marks),fit=api.plan(marks).plans.get(r.id);assert.ok(fit);assert.equal(fit.routeStyle,'planned');assert.deepEqual(plain(fit.points[0]),r.points[0]);assert.deepEqual(plain(fit.points.at(-1)),r.points.at(-1));
+ const arcs=[tires[2],tires[0],tires[1]].map(t=>{const radius=Math.min(...fit.points.map(p=>dist(p,t)));const pts=fit.points.map((p,i)=>({p,i})).filter(({p})=>Math.abs(dist(p,t)-radius)<1e-6);assert.ok(pts.length>=8);return {t,radius,pts};});
+ assert.ok(Math.max(...arcs.map(a=>a.radius))-Math.min(...arcs.map(a=>a.radius))<1e-6);
+ for(let i=1;i<arcs.length;i++){const a=arcs[i-1],b=arcs[i];assert.equal(b.pts[0].i,a.pts.at(-1).i+1);const p=a.pts.at(-1).p,q=b.pts[0].p,v={x:q.x-p.x,y:q.y-p.y};assert.ok(Math.abs((p.x-a.t.x)*v.x+(p.y-a.t.y)*v.y)<1e-5);assert.ok(Math.abs((q.x-b.t.x)*v.x+(q.y-b.t.y)*v.y)<1e-5);}
+ assert.ok(arcs[0].pts.some(({p})=>p.y>arcs[0].t.y+arcs[0].radius*.9));assert.ok(arcs[1].pts.some(({p})=>p.y<arcs[1].t.y-arcs[1].radius*.9));assert.ok(arcs[2].pts.some(({p})=>p.y>arcs[2].t.y+arcs[2].radius*.9));assert.equal(JSON.stringify(marks),before);
+});
+test('hand-drawn circles around every printed rink circle and faceoff dot become concentric',()=>{
+ for(const landmark of api.rinkLandmarks)for(const dir of [-1,1]){
+  const radius=landmark.circleRadius||35,points=arc(landmark,radius,0,dir*Math.PI*2,48);points[points.length-1]={...points[0]};const r=route('reference',points),fit=api.plan([r]).plans.get(r.id);assert.ok(fit,landmark.id);
+  const radii=fit.points.map(p=>dist(p,landmark));assert.ok(Math.max(...radii)-Math.min(...radii)<1e-6,landmark.id);assert.deepEqual(plain(fit.points[0]),points[0]);assert.deepEqual(plain(fit.points.at(-1)),points.at(-1));
+  const cross=(fit.points[0].x-landmark.x)*(fit.points[1].y-landmark.y)-(fit.points[0].y-landmark.y)*(fit.points[1].x-landmark.x);assert.equal(Math.sign(cross),dir);
+ }
 });
