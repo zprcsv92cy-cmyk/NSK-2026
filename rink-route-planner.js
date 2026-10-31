@@ -26,7 +26,7 @@
  function sample(points,fixedCount){
   const lengths=[0];for(let i=1;i<points.length;i++)lengths.push(lengths.at(-1)+distance(points[i-1],points[i]));
   const count=fixedCount??Math.min(450,Math.max(24,Math.ceil(lengths.at(-1)/3))),out=[];let j=1;
-  for(let k=0;k<count;k++){const d=lengths.at(-1)*k/(count-1);while(j<points.length-1&&lengths[j]<d)j++;const f=(d-lengths[j-1])/(lengths[j]-lengths[j-1]||1);out.push({x:points[j-1].x+(points[j].x-points[j-1].x)*f,y:points[j-1].y+(points[j].y-points[j-1].y)*f});}return out;
+  for(let k=0;k<count;k++){const d=lengths.at(-1)*k/(count-1);while(j<points.length-1&&lengths[j]<d)j++;const f=(d-lengths[j-1])/(lengths[j]-lengths[j-1]||1);out.push({x:points[j-1].x+(points[j].x-points[j-1].x)*f,y:points[j-1].y+(points[j].y-points[j-1].y)*f});}out[0]=copy(points[0]);out[out.length-1]=copy(points.at(-1));return out;
  }
  function turns(points,center){
   let polar=0,bend=0,previousAngle=Math.atan2(points[0].y-center.y,points[0].x-center.x),previousHeading=null,variation=0;
