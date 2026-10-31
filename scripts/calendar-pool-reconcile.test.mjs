@@ -62,3 +62,17 @@ test('raw calendar cancellation placeholders retain their linked standalone fixt
  const result=reconcile([placeholder,match,rich],[]);
  assert.equal(result.items.length,1);assert.match(result.items[0].notice,/EV inställd/);assert.equal(result.items[0].matches.length,1);
 });
+
+test('unknown venue cards with overlapping opponents and extra fixtures consolidate',()=>{
+ const a={type:'pool',source:'SvenskaLag',date:'2026-11-07',place:'EV inställd',hall:'',matches:[{opponent:'Åker Röd',startTime:'12:30'},{opponent:'Järna Svart',startTime:'13:10'}]};
+ const b={type:'pool',source:'SweHockey',date:'2026-11-07',place:'',hall:'',matches:[...a.matches,{opponent:'Linden Vit',startTime:'14:00'}]};
+ const result=reconcile([a,b],[]);
+ assert.equal(result.items.length,1);
+ assert.equal(result.items[0].matches.length,3);
+ assert.match(result.items[0].notice,/EV inställd/);
+});
+test('unknown venue events without overlapping opponents remain distinct',()=>{
+ const a={type:'pool',source:'SvenskaLag',date,place:'',hall:'',matches:[{opponent:'A',startTime:'12:00'}]};
+ const b={type:'pool',source:'SweHockey',date,place:'',hall:'',matches:[{opponent:'B',startTime:'12:00'}]};
+ assert.equal(reconcile([a,b],[]).items.length,2);
+});

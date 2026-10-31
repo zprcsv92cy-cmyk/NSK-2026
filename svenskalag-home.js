@@ -8,7 +8,22 @@
  const samePool=(p,item,pools=poolMatchContext.pools,items=poolMatchContext.items)=>{
   if(p.pool_date!==item.date)return false;
   const linked=poolMatchContext.links?.get(item);if(linked)return String(p.id)===linked;
-  // Known fixture lists were already reconciled. Venue-only fallback must not hide a different schedule.
+  // The saved card is authoritative when exactly one saved pool has the same date and rink.
+  // Do not display a second imported card merely because its fixture list is incomplete.
+  const normalized=value=>String(value||'').normalize('NFKC').trim().toLocaleLowerCase('sv-SE').replace(/^smehallen b$/,'smehallen');
+  const known=value=>normalized(value)&&!/inställ|inställd|cancelled|okänd|ej angiven/iu.test(normalized(value));
+  const savedHall=normalized(p.hall),importedHall=normalized(item.hall||item.place);
+  if(known(savedHall)&&known(importedHall)&&savedHall===importedHall){
+   const stored=poolMatchContext.summaries?.get(String(p.id))||[];
+   const incoming=Array.isArray(item.matches)?item.matches:[];
+   const opponent=m=>normalized(m.opponent||m.motstandare);
+   // Never hide a genuinely different schedule. Partial overlapping fixture lists are duplicates.
+   if(stored.length&&incoming.length&&!stored.some(a=>incoming.some(b=>opponent(a)&&opponent(a)===opponent(b))))return false;
+   return pools.filter(other=>other.pool_date===p.pool_date&&normalized(other.hall)===savedHall).length===1;
+  }
+  // A different identified rink is a different event, even on the same day.
+  if(known(savedHall)&&known(importedHall))return false;
+  // Fixture-only matching remains conservative for ambiguous saved pools.
   if(item.matches?.length&&poolMatchContext.summaries?.get(String(p.id))?.length)return false;
   const text=value=>String(value||'').normalize('NFKC').replace(/\s+/g,' ').trim().toLocaleLowerCase('sv-SE');
   const location=poolLocation(item),place=text(p.place),hall=text(p.hall);

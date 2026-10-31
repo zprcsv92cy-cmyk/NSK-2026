@@ -57,6 +57,31 @@ export function reconcileCalendarPools(items,pools,summaries=new Map()){
   primary.sourceUrl=primary.sourceUrl||item.sourceUrl;
   removed.add(item);
  }
+ // A source may label the same pool as "EV inställd" or omit the rink entirely.
+ // Combine such cards only when their named fixtures overlap and there is no
+ // competing identified rink on that date. Never merge by date alone.
+ for(const item of candidates){
+  if(removed.has(item)||venue(item))continue;
+  const related=candidates.filter(other=>other!==item&&!removed.has(other)&&other.date===item.date);
+  const mine=fixtures(item,output).map(opponent).filter(Boolean);
+  if(!mine.length)continue;
+  const overlaps=related.filter(other=>fixtures(other,output).some(m=>mine.includes(opponent(m))));
+  if(overlaps.length!==1)continue;
+  const primary=overlaps[0];
+  const competitors=related.filter(other=>other!==primary&&venue(other)&&venue(other)!==venue(primary));
+  if(competitors.length)continue;
+  const combined=[...fixtures(primary,output),...fixtures(item,output)];
+  const seen=new Set();
+  primary.matches=combined.filter(m=>{
+   const key=[opponent(m),time(m),text(m.ownTeam)].join('|');
+   if(seen.has(key))return false;
+   seen.add(key);return true;
+  }).map(m=>({...m}));
+  primary.notice=[...new Set([primary.notice,item.notice,...[item].filter(x=>unknown(x.place)&&text(x.place)).map(x=>'SvenskaLag anger '+x.place+'. Kontrollera med arrangören före start.')].filter(Boolean))].join(' ');
+  primary.source=[...new Set([primary.source,item.source].filter(Boolean))].join(' + ');
+  primary.sourceUrl=primary.sourceUrl||item.sourceUrl;
+  removed.add(item);
+ }
  const remaining=candidates.filter(item=>!removed.has(item));
  for(const item of remaining){
   const matches=pools.filter(pool=>sameEvent({date:pool.pool_date,place:pool.place,hall:pool.hall,matches:summaries.get(String(pool.id))||[]},item,output));
