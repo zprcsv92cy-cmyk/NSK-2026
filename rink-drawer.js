@@ -22,7 +22,16 @@
  }
  function createPattern(type){
   const spec=patternTypes[type];if(!spec)return;if(marks.length+spec.count>250){announce('Högst 250 objekt per övning.');return;}
-  const group=patternMarks(type,spec.count,spec.spacing,spec.width,{x:viewX+W/zoom/2,y:viewY+H/zoom/2},uuid(),$('rinkColor').value);if(!group)return;
+  const center={x:viewX+W/zoom/2,y:viewY+H/zoom/2},patternId=uuid(),color=$('rinkColor').value;
+  const bounds=items=>{const points=items.flatMap(geometry);return {left:Math.min(...points.map(p=>p.x))-22,right:Math.max(...points.map(p=>p.x))+22,top:Math.min(...points.map(p=>p.y))-22,bottom:Math.max(...points.map(p=>p.y))+22};};
+  const seen=new Set(),occupied=[];for(const mark of marks){const key=mark.patternId||mark.id;if(seen.has(key))continue;seen.add(key);occupied.push(bounds(patternMembers(mark)));}
+  let group=null,best=Infinity;
+  const candidates=[center];for(let row=0;row<11;row++)for(let col=0;col<7;col++)candidates.push({x:viewX+(col+.5)*W/zoom/7,y:viewY+(row+.5)*H/zoom/11});
+  for(const candidate of candidates){const next=patternMarks(type,spec.count,spec.spacing,spec.width,candidate,patternId,color);if(!next)continue;const box=bounds(next);if(box.left<viewX||box.right>viewX+W/zoom||box.top<viewY||box.bottom>viewY+H/zoom)continue;
+   const overlap=occupied.reduce((sum,b)=>sum+Math.max(0,Math.min(box.right,b.right)-Math.max(box.left,b.left))*Math.max(0,Math.min(box.bottom,b.bottom)-Math.max(box.top,b.top)),0),score=overlap*10000+Math.hypot(candidate.x-center.x,candidate.y-center.y);
+   if(score<best){best=score;group=next;}
+  }
+  group||=patternMarks(type,spec.count,spec.spacing,spec.width,center,patternId,color);if(!group)return;
   remember();marks.push(...group);setTool('move');selectedId=group[0].id;render();saveDraft();announce(spec.label+' tillagd. Flytta gruppen eller öppna Fler val.');
  }
  function changePattern(){

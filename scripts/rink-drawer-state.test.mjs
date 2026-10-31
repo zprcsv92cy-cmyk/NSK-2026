@@ -331,3 +331,11 @@ test('direction changes start at a touched route point, preserve the shot ending
  const restored=editor(Object.fromEntries(f.storage));restored.leave();assert.deepEqual(restored.draft().marks,before);
  f.node('rinkUndo').onclick();f.flush();assert.equal(f.draft().marks.length,1);assert.equal(f.draft().marks[0].type,'skate');
 });
+
+test('new building blocks find separate visible spaces and placement remains undoable',()=>{
+ const f=editor();f.node('rinkSlalom').onclick();f.flush();const first=f.draft().marks;f.node('rinkTriangle').onclick();f.flush();const all=f.draft().marks,second=all.slice(first.length);
+ assert.ok(second.length===3);assert.deepEqual(all.slice(0,first.length),first);
+ const box=items=>({left:Math.min(...items.map(m=>m.x))-22,right:Math.max(...items.map(m=>m.x))+22,top:Math.min(...items.map(m=>m.y))-22,bottom:Math.max(...items.map(m=>m.y))+22});
+ const a=box(first),b=box(second);assert.ok(a.right<=b.left||b.right<=a.left||a.bottom<=b.top||b.bottom<=a.top);assert.ok(b.left>=0&&b.right<=480&&b.top>=0&&b.bottom<=860);
+ f.node('rinkUndo').onclick();f.flush();assert.deepEqual(f.draft().marks,first);
+});
