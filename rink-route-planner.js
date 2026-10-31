@@ -3,6 +3,12 @@
  'use strict';
  const TAU=Math.PI*2,clamp=(n,a,b)=>Math.max(a,Math.min(b,n)),distance=(a,b)=>Math.hypot(a.x-b.x,a.y-b.y),copy=p=>({x:p.x,y:p.y});
  const wrap=a=>Math.atan2(Math.sin(a),Math.cos(a));
+ // Same printed landmarks as rink-text-parser; never add these as editable marks.
+ const rinkLandmarks=Object.freeze([
+  {id:'rink-center',x:240,y:430,circleRadius:68},
+  ...[164,698].flatMap(y=>[128,353].map(x=>({id:`rink-circle-${x}-${y}`,x,y,circleRadius:70}))),
+  ...[331,525].flatMap(y=>[128,353].map(x=>({id:`rink-dot-${x}-${y}`,x,y})))
+ ].map(p=>Object.freeze({...p,type:'landmark'})));
  function project(p,a,b){const dx=b.x-a.x,dy=b.y-a.y,f=clamp(((p.x-a.x)*dx+(p.y-a.y)*dy)/(dx*dx+dy*dy||1),0,1);return {x:a.x+f*dx,y:a.y+f*dy};}
  const segmentDistance=(p,a,b)=>distance(p,project(p,a,b));
  const circlePoint=(c,r,a)=>({x:c.x+r*Math.cos(a),y:c.y+r*Math.sin(a)});
@@ -17,10 +23,10 @@
   }
   out.push(copy(m.points.at(-1)));return out;
  }
- function sample(points){
+ function sample(points,fixedCount){
   const lengths=[0];for(let i=1;i<points.length;i++)lengths.push(lengths.at(-1)+distance(points[i-1],points[i]));
-  const count=Math.min(450,Math.max(24,Math.ceil(lengths.at(-1)/3))),out=[];let j=1;
-  for(let k=0;k<count;k++){const d=lengths.at(-1)*k/(count-1);while(j<points.length-1&&lengths[j]<d)j++;const f=(d-lengths[j-1])/(lengths[j]-lengths[j-1]||1);out.push({x:points[j-1].x+(points[j].x-points[j-1].x)*f,y:points[j-1].y+(points[j].y-points[j-1].y)*f});}return out;
+  const count=fixedCount??Math.min(450,Math.max(24,Math.ceil(lengths.at(-1)/3))),out=[];let j=1;
+  for(let k=0;k<count;k++){const d=lengths.at(-1)*k/(count-1);while(j<points.length-1&&lengths[j]<d)j++;const f=(d-lengths[j-1])/(lengths[j]-lengths[j-1]||1);out.push({x:points[j-1].x+(points[j].x-points[j-1].x)*f,y:points[j-1].y+(points[j].y-points[j-1].y)*f});}out[0]=copy(points[0]);out[out.length-1]=copy(points.at(-1));return out;
  }
  function turns(points,center){
   let polar=0,bend=0,previousAngle=Math.atan2(points[0].y-center.y,points[0].x-center.x),previousHeading=null,variation=0;
@@ -35,14 +41,14 @@
    if(best.d<=16&&best.index>2&&best.index<points.length-3&&!found.some(a=>Math.abs(a.index-best.index)<5))found.push({kind:'point',point:copy(p),index:best.index,passId:pass.id});
   }return found.sort((a,b)=>a.index-b.index);
  }
- function analyze(route,equipment,passes=[]){
+ function analyze(route,equipment,passes=[],wide=false){
   const points=sample(rendered(route)),anchors=passAnchors(points,passes),events=[];
   for(const obstacle of equipment){
-   const footprint=obstacle.type==='tire'?13:14,distances=points.map(p=>distance(p,obstacle)),closest=Math.min(...distances);
+   const footprint=obstacle.type==='landmark'?0:obstacle.type==='tire'?13:14,distances=points.map(p=>distance(p,obstacle)),closest=Math.min(...distances);
    if(closest<footprint+3||closest>100)continue;
-   const limit=Math.min(120,closest+Math.max(9,closest*.3)),runs=[];let run=null;
+   const limit=wide?220:Math.min(120,closest+Math.max(9,closest*.3)),runs=[];let run=null;
    for(let i=0;i<points.length;i++){
-    const nearest=equipment.every(o=>o.id===obstacle.id||distance(points[i],o)>=distances[i]-5);
+    const nearest=equipment.every(o=>o.id===obstacle.id||distance(points[i],o)>=distances[i]-(wide?0:5));
     if(distances[i]<=limit&&nearest){if(!run){run=[];runs.push(run);}run.push(i);}else run=null;
    }
    for(const indices of runs){
@@ -50,7 +56,8 @@
     const part=points.slice(start,end+1),turn=turns(part,obstacle);
     if(Math.abs(turn.polar)<.85||Math.abs(turn.bend)<.85||Math.sign(turn.polar)!==Math.sign(turn.bend)||Math.abs(turn.polar)<turn.variation*.65)continue;
     const radii=indices.map(i=>distances[i]).sort((a,b)=>a-b),radius=radii[Math.floor(radii.length/2)];
-    events.push({kind:'arc',center:copy(obstacle),obstacleId:obstacle.id,footprint,radius,start,end,index:(start+end)/2,dir:Math.sign(turn.polar),sweep:Math.abs(turn.polar),oldEntry:Math.atan2(part[0].y-obstacle.y,part[0].x-obstacle.x),oldExit:Math.atan2(part.at(-1).y-obstacle.y,part.at(-1).x-obstacle.x),closed:start===0&&end===points.length-1&&distance(points[0],points.at(-1))<8&&Math.abs(turn.polar)>5});
+    const targetRadius=obstacle.type==='landmark'?(obstacle.circleRadius&&Math.abs(radius-obstacle.circleRadius)<=22?obstacle.circleRadius:radius):undefined;
+    events.push({kind:'arc',center:copy(obstacle),obstacleId:obstacle.id,footprint,radius,targetRadius,start,end,index:(start+end)/2,dir:Math.sign(turn.polar),sweep:Math.abs(wide?turn.bend:turn.polar),oldEntry:Math.atan2(part[0].y-obstacle.y,part[0].x-obstacle.x),oldExit:Math.atan2(part.at(-1).y-obstacle.y,part.at(-1).x-obstacle.x),closed:start===0&&end===points.length-1&&distance(points[0],points.at(-1))<8&&Math.abs(turn.polar)>5});
    }
   }
   // Overlapping interpretations are ambiguous: retain the one with the clearest turn.
@@ -81,7 +88,7 @@
  }
  function build(analysis,clearance){
   const {route,points,anchors}=analysis;if(!analysis.events.length&&!anchors.length)return null;
-  const arcs=analysis.events.map(e=>({...e,fitRadius:e.footprint+clearance}));
+  const arcs=analysis.events.map(e=>({...e,fitRadius:e.targetRadius??e.footprint+clearance}));
   // A full circle can use one exact radius without moving an attached start/pass point.
   if(arcs.length===1&&arcs[0].closed&&!anchors.length){
    const arc=arcs[0];if(analysis.startPinned)arc.fitRadius=distance(points[0],arc.center);const entry=arc.oldEntry,steps=Math.max(72,Math.ceil(arc.sweep/(Math.PI/36))),ps=Array.from({length:steps+1},(_,i)=>circlePoint(arc.center,arc.fitRadius,entry+arc.dir*arc.sweep*i/steps));ps[ps.length-1]=copy(ps[0]);if(ps.some(p=>p.x<22||p.x>458||p.y<20||p.y>840))return null;
@@ -126,8 +133,29 @@
   const equipment=marks.filter(m=>['tire','cone'].includes(m.type)),passes=marks.filter(m=>m.type==='pass'),analyses=marks.filter(m=>m.type==='curve'&&m.points?.length>=3).map(m=>analyze(m,equipment,passes));
   for(const analysis of analyses)analysis.startPinned=marks.some(m=>['player','goalie','puck'].includes(m.type)&&distance(m,analysis.points[0])<24)||passes.some(p=>distance(p,analysis.points[0])<16||distance({x:p.x2,y:p.y2},analysis.points[0])<16);
   const gaps=analyses.flatMap(a=>a.events.map(e=>e.radius-e.footprint)).sort((a,b)=>a-b),clearance=gaps.length?clamp(gaps[Math.floor(gaps.length/2)],18,65):24,plans=new Map();
-  for(const analysis of analyses){if(hasRouteFeatures(analysis.route))continue;const candidate=build(analysis,clearance);if(candidate)plans.set(analysis.route.id,candidate);}
+  for(const analysis of analyses){
+   if(hasRouteFeatures(analysis.route))continue;
+   let candidate=build(analysis,clearance);
+   if(!candidate){
+    const broad=analyze(analysis.route,equipment,passes,true);broad.startPinned=analysis.startPinned;
+    let fitClearance=clearance;
+    for(let i=1;i<broad.events.length;i++){const a=broad.events[i-1],b=broad.events[i];if(a.dir!==b.dir)fitClearance=Math.min(fitClearance,(distance(a.center,b.center)-a.footprint-b.footprint)/2-4);}
+    if(fitClearance>=18)candidate=build(broad,fitClearance);
+   }
+   if(!candidate&&analysis.route.points.length>=6){
+    const references=rinkLandmarks.filter(p=>equipment.every(o=>distance(p,o)>100));
+    const referenceAnalysis=analyze(analysis.route,references,passes);referenceAnalysis.startPinned=true;
+    if(referenceAnalysis.events.length)candidate=build(referenceAnalysis,clearance);
+   }
+   if(candidate){
+    if(analysis.route.routeStyle==='planned'){
+     const oldPoints=sample(rendered(analysis.route),128),newPoints=sample(rendered(candidate),128);
+     if(oldPoints.every((p,i)=>distance(p,newPoints[i])<.1))candidate=analysis.route;
+    }
+    plans.set(analysis.route.id,candidate);
+   }
+  }
   return {plans,clearance};
  }
- root.NskRoutePlanner=Object.freeze({plan,analyze,rendered,hasRouteFeatures});
+ root.NskRoutePlanner=Object.freeze({plan,analyze,rendered,hasRouteFeatures,rinkLandmarks});
 })(typeof window!=='undefined'?window:globalThis);

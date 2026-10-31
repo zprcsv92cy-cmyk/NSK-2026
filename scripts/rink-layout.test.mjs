@@ -2,6 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import vm from 'node:vm';
+import {threeTireRoute} from './fixtures/three-tire-route.mjs';
 const code=fs.readFileSync(new URL('../rink-drawer.js',import.meta.url),'utf8');
 const context={document:{addEventListener(){}},window:{},Blob};
 vm.runInNewContext(fs.readFileSync(new URL('../rink-route-planner.js',import.meta.url),'utf8'),context);
@@ -100,4 +101,10 @@ test('protecting a tire detour still permits unrelated equipment spacing improve
 test('tidy preserves a figure-eight crossing and a deliberate return point exactly',()=>{
  const eight={id:'e',type:'curve',routeStyle:'planned',x:100,y:300,color:'#111827',points:[{x:100,y:300},{x:200,y:400},{x:300,y:300},{x:300,y:400},{x:200,y:300},{x:100,y:400}]},reverse={id:'r',type:'curve',routeStyle:'planned',x:100,y:600,color:'#111827',points:[{x:100,y:600},{x:300,y:600},{x:102,y:605}]};
  assert.deepEqual(tidy([eight,reverse]),[eight,reverse]);
+});
+test('the complete tidy action keeps all three normalized photo roundings instead of reverting them',()=>{
+ const marks=threeTireRoute(),result=tidy(marks);assert.equal(result[0].routeStyle,'planned');assert.deepEqual(result.slice(1),marks.slice(1));assert.deepEqual(result[0].points[0],marks[0].points[0]);assert.deepEqual(result[0].points.at(-1),marks[0].points.at(-1));assert.deepEqual(tidy(result),result);
+});
+test('tidy recognizes the printed rink circles and dots without adding equipment',()=>{
+ for(const center of context.window.NskRoutePlanner.rinkLandmarks){const radius=center.circleRadius||35,points=Array.from({length:49},(_,i)=>{const angle=i/48*Math.PI*2,r=radius+Math.sin(i*1.7)*4;return {x:center.x+r*Math.cos(angle),y:center.y+r*Math.sin(angle)};});points[points.length-1]={...points[0]};const route={id:'rink-route',type:'curve',...points[0],points,color:'#111827',motion:'forward'},result=tidy([route]);assert.equal(result.length,1);assert.equal(result[0].routeStyle,'planned');const radii=result[0].points.map(p=>Math.hypot(p.x-center.x,p.y-center.y));assert.ok(Math.max(...radii)-Math.min(...radii)<1e-6);}
 });
