@@ -191,18 +191,24 @@
 <script>
 (function(){
  const btn=document.getElementById('savePool');
+ let refreshing=false;
  async function refresh(){
+  if(refreshing)return;refreshing=true;
+  try{
   if(window.APP_CONFIG?.REQUIRE_PERSONAL_POOL_WRITES===true){
-   btn.hidden=true;btn.disabled=true;
    try{
     if(!window.Auth?.getSession?.())await window.Auth?.init?.();
     const team=window.Auth?.activeTeam?.();
     const allowed=!!team && await window.Auth?.checkTeamFeature?.('pool',team);
-    btn.hidden=!allowed;btn.disabled=!allowed;
+    if(allowed){
+     // Keep a visible save button stable, including its busy/disabled state.
+     if(btn.hidden){btn.disabled=false;btn.hidden=false;}
+    }else{btn.hidden=true;btn.disabled=true;}
    }catch{btn.hidden=true;btn.disabled=true;}
    return;
   }
   btn.hidden=true;btn.disabled=true;
+  }finally{refreshing=false;}
  }
  window.addEventListener('storage',refresh);
  window.addEventListener('focus',refresh);
