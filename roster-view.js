@@ -27,7 +27,7 @@
   function refresh(){
    const term=search.value.trim().toLocaleLowerCase('sv');let matches=0;
    for(const [index,group] of groups.entries()){
-    const rows=group.lists.flatMap(list=>[...list.querySelectorAll('.person-row')]);setText(group.button,group.label+' ('+rows.length+')');
+    const rows=group.lists.flatMap(list=>[...list.querySelectorAll('.person-row')]);setText(group.button,group.label+' ('+(!rows.length&&index<2&&document.body.dataset.rosterLoading==='true'?'…':rows.length)+')');
     for(const row of rows){
      const button=row.querySelector('[data-roster-name]');const name=button?.querySelector('.roster-name')?.textContent||row.querySelector('summary')?.textContent||'';
      const hide=!!term&&!name.toLocaleLowerCase('sv').includes(term);if(row.hidden!==hide)row.hidden=hide;
@@ -40,7 +40,7 @@
   }
   let queued=false;const schedule=()=>{if(queued)return;queued=true;queueMicrotask(()=>{queued=false;refresh();});};
   const observer=new MutationObserver(schedule);for(const list of [players,coaches,...staff])observer.observe(list,{childList:true,subtree:true});
-  search.addEventListener('input',refresh);window.addEventListener('nsk:person-card',schedule);window.addEventListener('nsk:team-changed',schedule);
+  search.addEventListener('input',refresh);window.addEventListener('nsk:roster-loading',schedule);window.addEventListener('nsk:person-card',schedule);window.addEventListener('nsk:team-changed',schedule);
   select(0);
  }
  if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',init);else init();
