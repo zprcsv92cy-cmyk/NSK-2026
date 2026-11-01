@@ -6,21 +6,22 @@ const read=name=>readFileSync(new URL('../'+name,import.meta.url),'utf8');
 const clone=x=>JSON.parse(JSON.stringify(x));
 test('checking then unchecking really stores false and stale refresh cannot restore the check',async t=>{
  const data=Array.from({length:10},(_,i)=>({id:100+i,Poolspel:[10],Lagnummer:1,Matchnummer:3,Bytenummer:i+1,Periodnummer:1,'Tid kvar':`${String(Math.floor((900-i*90)/60)).padStart(2,'0')}:${String((900-i*90)%60).padStart(2,'0')}`,'Spelare på plan':[2,3,4],Genomfört:false}));
- const writes=[],beforeFetch=globalThis.fetch;let deferredRead=null,delayRead=false;
+ const writes=[],beforeFetch=globalThis.fetch;let deferredRead=null,delayRead=false,failNextPatch=false;
  globalThis.fetch=async(input,init={})=>{const url=new URL(input),parts=url.pathname.split('/'),table=Number(parts[5]),id=Number(parts[6]);assert.equal(url.origin,'https://api.baserow.io');
-  if(table===1255115){const row=data.find(r=>r.id===id);assert(row);if(init.method==='PATCH'){const payload=JSON.parse(init.body);writes.push(payload);Object.assign(row,payload);}return Response.json(row);}
-  if(table===1255101)return Response.json({id:10,Lag:[18],'Antal lag':1,Aktiv:true});
+  if(table===1255115){if(!id){if(init.method==='POST'){const payload=JSON.parse(init.body),created={id:Math.max(...data.map(r=>r.id))+1,...payload};data.push(created);return Response.json(created);}return Response.json({results:data,next:null});}const row=data.find(r=>r.id===id);assert(row);if(init.method==='PATCH'){if(failNextPatch){failNextPatch=false;return Response.json({error:'Synthetic interruption'},{status:502});}const payload=JSON.parse(init.body);writes.push(payload);Object.assign(row,payload);}return Response.json(row);}
+  if(table===1255101)return Response.json({id:10,Lag:[18],'Antal lag':1,'Antal matcher':3,Aktiv:true,Perioder:1,Periodtid:15,Bytestid:60});
   if(table===1255083)return Response.json({id:18,Namn:'NSK Team 18'});
   throw Error('Unexpected synthetic table '+table);
  };
  t.after(()=>{globalThis.fetch=beforeFetch;});
- const lock=new ShiftLock({storage:{get:async()=>undefined}},{BASEROW_TOKEN:'synthetic'});
+ const state=new Map(),lock=new ShiftLock({storage:{get:async k=>structuredClone(state.get(k)),put:async(k,v)=>state.set(k,structuredClone(v)),delete:async k=>state.delete(k)}},{BASEROW_TOKEN:'synthetic'});
  async function page(){
   const dom=new JSDOM(read('bytesschema/index.html').replace(/<script\b[^>]*>[\s\S]*?<\/script>/gi,''),{url:'https://isolated.example.test/bytesschema/',runScripts:'outside-only',pretendToBeVisual:true});t.after(()=>dom.window.close());const w=dom.window,$=id=>w.document.getElementById(id);
   await new Promise(r=>w.document.addEventListener('DOMContentLoaded',r,{once:true}));
   w.sessionStorage.setItem('nsk2_pool_id','10');w.sessionStorage.setItem('nsk2_lag_nr','1');w.sessionStorage.setItem('nsk2_match_no','3');w.setInterval=()=>0;
   w.Auth={init:async()=>({}),getSession:()=>({user:{id:'synthetic'}}),getToken:()=> 'synthetic'};
-  w.fetch=async(input,init)=>{const match=new URL(input).pathname.match(/^\/api\/bytesschema\/(\d+)\/done$/);assert(match);return lock.fetch(new Request('https://isolated.internal/',{method:'POST',body:JSON.stringify({action:'done',id:Number(match[1]),pool_id:10,lag_no:1,match_no:3,...JSON.parse(init.body)})}));};
+  w.APP_CONFIG={REQUIRE_PERSONAL_POOL_WRITES:true};
+  w.fetch=async(input,init)=>{if(new URL(input).pathname==='/api/bytesschema/retime')return lock.fetch(new Request('https://isolated.internal/',{method:'POST',body:JSON.stringify({action:'save',retime:true,...JSON.parse(init.body)})}));const match=new URL(input).pathname.match(/^\/api\/bytesschema\/(\d+)\/done$/);assert(match);return lock.fetch(new Request('https://isolated.internal/',{method:'POST',body:JSON.stringify({action:'done',id:Number(match[1]),pool_id:10,lag_no:1,match_no:3,...JSON.parse(init.body)})}));};
   w.eval(read('db.js'));
   Object.assign(w.DB,{getPool:async()=>({id:10,active:true,teams:1,matches:3,players_on_field:3,periods:1,period_time:15,sub_time:60}),listPoolMatchPlan:async()=>[1,2,3].map(match_no=>({lag_no:1,match_no})),listPoolTeamMatchConfigs:async()=>[{id:30,lag_no:1,match_no:3,goalie_player_id:1,player_count:3,players_on_field:[1,2,3,4]}],listPlayers:async()=>[1,2,3,4].map(id=>({id,full_name:'Player '+id})),listCoaches:async()=>[],getCoachSelection:async()=>({saved:true,coach_ids:[]}),getPoolMaterial:async()=>({name:'—'}),listShiftSchema:async()=>{const rows=clone(data.map(r=>({id:r.id,shift_no:r.Bytenummer,period_no:r.Periodnummer,time_left:r['Tid kvar'],players_json:r['Spelare på plan'],done:r.Genomfört})));if(delayRead){delayRead=false;await new Promise(resolve=>deferredRead=resolve);}return rows;}});
   w.eval(read('app.js'));await w.NSK2App.init();assert.equal($('appError').textContent,'');
@@ -35,6 +36,16 @@ test('checking then unchecking really stores false and stale refresh cannot rest
  await p.click();assert.equal(data[0].Genomfört,false);assert.match(p.$('shiftMsg').textContent,/urbockat/);assert.equal(p.check().getAttribute('aria-pressed'),'false');
  deferredRead();await new Promise(r=>setTimeout(r,20));assert.equal(p.check().getAttribute('aria-pressed'),'false');assert(!p.check().classList.contains('done'));assert.equal(data.length,10);assert.deepEqual(writes,[{Genomfört:true},{Genomfört:false}]);
  p.w.close();p=await page();assert.equal(p.check().getAttribute('aria-pressed'),'false');assert.equal(p.$('shiftMsg').textContent,'');assert.match(p.$('shiftTableWrap').textContent,/Sparat: 10 byten/);
+ // Reproduce the screenshot: first batch updates shifts 2–6, then stops.
+ p.w.close();const partial=await lock.save({retime:true,pool_id:10,lag_no:1,match_no:3});assert.equal((await partial.json()).pending,true);
+ assert.equal(data[5]['Tid kvar'],'10:00');assert.equal(data[6]['Tid kvar'],'06:00');assert(data.every(r=>!r.Genomfört));
+ p=await page();failNextPatch=true;p.$('repairOutdatedShifts').click();await p.until(()=>p.$('appError').textContent.includes('Omräkningen är inte klar'));assert.equal(p.$('repairOutdatedShifts').disabled,false);assert.match(p.$('repairOutdatedShifts').textContent,/Slutför omräkning/);
+ p.$('repairOutdatedShifts').click();await p.until(()=>!p.$('repairOutdatedShifts'));
+ assert.equal(data.length,15);assert.equal(state.size,0);assert(data.every((r,i)=>r['Tid kvar']===String(15-i).padStart(2,'0')+':00'));assert(data.every(r=>!r.Genomfört));
+ assert.match(p.$('shiftMsg').textContent,/är uppdaterade/);
+ p.w.close();p=await page();assert.equal(p.$('repairOutdatedShifts'),null);
+ // A single wrong middle timestamp must be detected despite correct count/start.
+ p.w.close();data[6]['Tid kvar']='06:00';p=await page();assert(p.$('repairOutdatedShifts'));p.$('repairOutdatedShifts').click();await p.until(()=>!p.$('repairOutdatedShifts'));assert.equal(data[6]['Tid kvar'],'09:00');
 });
 
 test('new pool controls default to 15 minutes and 60 seconds',async()=>{
