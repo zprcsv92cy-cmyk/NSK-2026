@@ -166,7 +166,7 @@ export function withPoolFlow(original,{resolveTables,listTeams,verifyIdentity,au
       if(!info&&current&&lock.status==='ready'){
        const desiredEntries=[...body.players.map((person_id,i)=>({person_type:'player',person_id,sort_order:i+1})),...body.coaches.map((person_id,i)=>({person_type:'coach',person_id,sort_order:body.players.length+i+1}))];
        const confirmed=lineupSnapshot(current,entries);
-       if(JSON.stringify(lineupSnapshot(configData,desiredEntries))===JSON.stringify(confirmed))return reply(200,null,{row:current,base:confirmed,unchanged:true});
+       if(entries.length===desiredEntries.length&&JSON.stringify(lineupSnapshot(configData,desiredEntries))===JSON.stringify(confirmed))return reply(200,null,{row:current,base:confirmed,unchanged:true});
       }
      }
      if(!info&&env.NSK_MULTIUSER_ENABLED==='true')await env.AUTH_DB.prepare('UPDATE pool_flow_saves SET status=? WHERE pool_id=? AND lease=?').bind('pending',poolId,lease).run();
