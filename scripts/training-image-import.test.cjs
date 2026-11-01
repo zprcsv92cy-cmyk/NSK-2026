@@ -45,7 +45,7 @@ test('training restore remains async for shared API loading',()=>{
 
 test('queued training saves snapshot group and goalie arrays',()=>{
  assert.match(js,/allocation:allocation\.map\(group=>\[\.\.\.group\]\)/);
- assert.match(js,/goalies:\[\.\.\.goalies\]/);
+ assert.match(js,/goalies:goalies\.filter\(Boolean\)/);
 });
 
 
@@ -58,8 +58,8 @@ test('failed shared save blocks subsequent writes and date changes',()=>{
  assert.match(js,/if\(saveBlocked\)\{/);
 });
 
-test('incomplete goalie selections are not sent to shared storage',()=>{
- assert.match(js,/goalies\.filter\(Boolean\)\.length!==goalieCount/);
+test('unnamed goalie places do not block saving',()=>{
+ assert.doesNotMatch(js,/Välj namn för alla målvakter/);
 });
 
 

@@ -12,7 +12,10 @@
   const goalies=new Set((session.goalies||[]).map(String));
   const selected=new Set((session.selected||[]).map(String));
   const colors=['Röd','Vit','Svart','Grön'];
-  let html='<h4>Målvakter</h4><p>'+((session.goalies||[]).filter(id=>selected.has(String(id))).map(name).join(', ')||'Inga målvakter valda')+'</p>';
+  const goalieNames=(session.goalies||[]).filter(id=>selected.has(String(id))).map(name);
+  const unnamed=Math.max(0,(Number(session.goalieCount)||0)-goalieNames.length);
+  if(unnamed)goalieNames.push(unnamed+(unnamed===1?' ej namngiven':' ej namngivna'));
+  let html='<h4>Målvakter</h4><p>'+(goalieNames.join(', ')||'Inga målvakter valda')+'</p>';
   const groups=Array.isArray(session.allocation)?session.allocation:[];
   const assigned=new Set(groups.flat().map(String)),unassigned=[...selected].filter(id=>!goalies.has(id)&&!assigned.has(id));
   const extra=unassigned.length?'<section class="nsk-training-color"><h4>Utan tröjfärg</h4><ul>'+unassigned.map(id=>'<li>'+name(id)+'</li>').join('')+'</ul></section>':'';
