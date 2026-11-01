@@ -749,7 +749,7 @@ window.NSK2App = (() => {
         if (byId("players")) byId("players").value = String(pool.players_on_field || 3);
         if (byId("periods")) byId("periods").value = String(pool.periods || 1);
         if (byId("periodTime")) byId("periodTime").value = String(pool.period_time || 15);
-        if (byId("subTime")) byId("subTime").value = String(pool.sub_time || 90);
+        if (byId("subTime")) byId("subTime").value = String(pool.sub_time || 60);
       } catch (err) {
         setText("appError", err?.message || String(err));
       }
@@ -835,7 +835,7 @@ window.NSK2App = (() => {
         players_on_field: safeInt(byId("players")?.value || "3", 3),
         periods: safeInt(byId("periods")?.value || "1", 1),
         period_time: safeInt(byId("periodTime")?.value || "15", 15),
-        sub_time: safeInt(byId("subTime")?.value || "90", 90)
+        sub_time: safeInt(byId("subTime")?.value || "60", 60)
       };
       const editId = sessionStorage.getItem("nsk2_edit_pool_id");
       if(editId && sessionStorage.getItem('nsk2_calendar_match_import_errors'))
@@ -1940,7 +1940,7 @@ window.NSK2App = (() => {
       playersOnField: safeInt(pool?.players_on_field || 3, 3),
       periods: safeInt(pool?.periods || 1, 1),
       periodTime: safeInt(pool?.period_time || 15, 15),
-      subTime: safeInt(pool?.sub_time || 90, 90)
+      subTime: safeInt(pool?.sub_time || 60, 60)
     });
 
     if (typeof DB?.saveShiftSchema === "function") {
@@ -2202,7 +2202,7 @@ window.NSK2App = (() => {
   const shiftPending=new Set();
   let shiftUndo=null;
   let shiftRefreshBusy = false;
-  let shiftViewGeneration = 0;
+  let shiftViewGeneration = 0,shiftDoneVersion=0;
   let shiftStructure=null,shiftBackgroundRefresh=false;
   const shiftStructureOf=rows=>JSON.stringify(rows.map(r=>[r.id,r.shift_no,r.period_no,r.time_left,r.players_json]));
 
@@ -2214,7 +2214,9 @@ window.NSK2App = (() => {
     const el = document.querySelector(`[data-shift-toggle="${shiftNo}"]`);
     const key=[poolId,lagNo,matchNo,shiftNo].join(":");
     if (!el || !poolId || shiftPending.has(key)) return;
-    shiftPending.add(key);shiftToggleSaving = true;
+    shiftPending.add(key);shiftToggleSaving = true;shiftDoneVersion++;
+    const generation=shiftViewGeneration;
+    const selectedNow=()=>generation===shiftViewGeneration&&sessionStorage.getItem("nsk2_pool_id")===poolId&&(sessionStorage.getItem("nsk2_lag_nr")||"1")===lagNo&&(byId("shiftMatch")?.value||"1")===matchNo;
     el.disabled=true;el.setAttribute("aria-busy","true");setText("shiftMsg","Sparar byte "+shiftNo+"…");
 
     const nextDone = !el.classList.contains("done");
@@ -2223,12 +2225,16 @@ window.NSK2App = (() => {
 
     try {
       await DB.setShiftDone(poolId, lagNo, matchNo, shiftNo, nextDone, el.dataset?.shiftId);
-      shiftUndo={poolId,lagNo,matchNo,shiftNo,after:nextDone};if(byId("shiftUndoButton"))byId("shiftUndoButton").hidden=false;
-      el.setAttribute("aria-pressed",String(nextDone));el.textContent=nextDone?"✓":"";setText("shiftMsg","Byte "+shiftNo+" sparat.");return true;
+      if(selectedNow()){
+        shiftUndo={poolId,lagNo,matchNo,shiftNo,after:nextDone};if(byId("shiftUndoButton"))byId("shiftUndoButton").hidden=false;
+        el.setAttribute("aria-pressed",String(nextDone));el.textContent=nextDone?"✓":"";
+        setText("appError","");setText("shiftMsg",nextDone?"Byte "+shiftNo+" markerat som genomfört.":"Byte "+shiftNo+" urbockat. Markeringen är borttagen.");
+      }
+      return true;
     } catch (err) {
       el.classList.toggle("done", !nextDone);
-      el.setAttribute("aria-pressed",String(!nextDone));el.textContent=!nextDone?"✓":"";setText("shiftMsg","Bytet kunde inte sparas. Försök igen.");
-      setText("appError", err?.message || String(err));return false;
+      el.setAttribute("aria-pressed",String(!nextDone));el.textContent=!nextDone?"✓":"";if(selectedNow()){setText("shiftMsg","Bytet kunde inte sparas. Försök igen.");
+      setText("appError", err?.message || String(err));}return false;
     } finally {
       shiftPending.delete(key);shiftToggleSaving=shiftPending.size>0;el.disabled=false;el.removeAttribute("aria-busy");
     }
@@ -2241,11 +2247,11 @@ window.NSK2App = (() => {
     const lagNo = sessionStorage.getItem("nsk2_lag_nr") || "1";
     const matchNo = byId("shiftMatch")?.value || "1";
     if (!poolId) return;
-    const generation = shiftViewGeneration;
+    const generation = shiftViewGeneration,doneVersion=shiftDoneVersion;
     shiftRefreshBusy = true;
     try {
       const rows = await DB.listShiftSchema(poolId, lagNo, matchNo);
-      if (shiftToggleSaving || generation !== shiftViewGeneration ||
+      if (shiftToggleSaving || doneVersion!==shiftDoneVersion || generation !== shiftViewGeneration ||
           sessionStorage.getItem("nsk2_pool_id") !== poolId ||
           (sessionStorage.getItem("nsk2_lag_nr") || "1") !== lagNo ||
           (byId("shiftMatch")?.value || "1") !== matchNo) return;
@@ -2332,6 +2338,7 @@ window.NSK2App = (() => {
   }
   async function renderShiftSchemaData() {
     const generation=++shiftViewGeneration;
+    if(!shiftBackgroundRefresh)setText("shiftMsg","");
     shiftUndo=null;if(byId('shiftUndoButton'))byId('shiftUndoButton').hidden=true;
     const isCurrent=()=>generation===shiftViewGeneration;
     const poolId = sessionStorage.getItem("nsk2_pool_id");
@@ -2357,7 +2364,12 @@ window.NSK2App = (() => {
     const outfield=(row?.players_on_field||[]).filter(id=>String(id)!==String(row?.goalie_player_id));
     const expected=new Set(outfield.map(String));
     const valid=!!row?.goalie_player_id&&expected.size===Number(row.player_count)&&rows.length>0&&rows.every(r=>r.players_json.length===Number(pool?.players_on_field)&&r.players_json.every(id=>expected.has(String(id))))&&!pool?.pending_matches?.some(r=>Number(r.lag_no)===Number(lagNo)&&Number(r.match_no)===Number(matchNo));
-    setText('matchReadiness',pool?.active===false?'Avslutat poolspel · Läs- och utskriftsvy':valid?'Matchen är förberedd · Målvakt, spelare och bytesschema finns.':'Kontrollera uppställningen · Målvakt, spelare eller bytesschema är inte komplett.');
+    const seconds=Number(pool?.period_time)*60,interval=Number(pool?.sub_time),periods=Number(pool?.periods);
+    const expectedCount=seconds>0&&interval>0&&periods>0?Math.ceil(seconds/interval)*periods:null;
+    const expectedStart=seconds>0?`${String(Math.floor(seconds/60)).padStart(2,'0')}:${String(seconds%60).padStart(2,'0')}`:'';
+    const outdated=rows.length>0&&expectedCount!==null&&(rows.length!==expectedCount||String(rows[0]?.time_left||'').trim()!==expectedStart);
+    const readiness=pool?.active===false?'Avslutat poolspel · Läs- och utskriftsvy':!row?.goalie_player_id?'Laguppställningen saknar målvakt. Öppna Laguppställning för denna match.':expected.size!==Number(row.player_count)?'Laguppställningen saknar spelarval. Öppna Laguppställning för denna match.':outdated?'Bytesschemat behöver räknas om enligt aktuell bytestid.':valid?'Matchen är förberedd · Målvakt, spelare och bytesschema finns.':'Kontrollera matchens spelarval och bytesschema. De sparade uppgifterna stämmer inte överens.';
+    setText('matchReadiness',readiness);
     const playerMap=Object.fromEntries(players.map(p=>[String(p.id),p.full_name]));
     const coachMap=Object.fromEntries(coaches.map(p=>[String(p.id),p.full_name]));
     setText('poolFlowContext',`${pool?.place||pool?.title||'Poolspel'} · ${pool?.pool_date||''} · Lag ${lagNo} · Match ${matchNo}`);
@@ -2422,7 +2434,7 @@ window.NSK2App = (() => {
         const actualStart = String(rows[0]?.time_left || "").trim();
         const outdated = rows.length !== expected || actualStart !== expectedStart;
         if (outdated) {
-          repairHtml = `<div class="small" style="margin-bottom:12px">Match ${esc(matchNo)} har ett bytesschema som inte stämmer med poolspelsinställningarna. Sparat: ${rows.length} byten, start ${esc(actualStart || "—")}. Aktuellt: ${expected} byten, start ${expectedStart}. Bockarna behålls vid omräkning.</div>`;
+          repairHtml = `<div class="small" style="margin-bottom:12px">Match ${esc(matchNo)} har ett bytesschema som inte stämmer med poolspelsinställningarna. Sparat: ${rows.length} byten, start ${esc(actualStart || "—")}. Aktuellt: ${expected} byten, start ${expectedStart}. Aktuell bytestid: ${esc(interval)} sekunder. Omräkning ändrar schemat, inte vilka byten som är markerade som genomförda.</div>`;
           if (rows.some(r => r.done)) repairHtml += `<div class="small" style="margin-bottom:8px">Hela schemat räknas om. Bockarna behålls på samma bytesnummer.</div>`;
           repairHtml += `<button type="button" class="row-btn nsk-action nsk-action--neutral" id="repairOutdatedShifts" style="margin-bottom:12px">Räkna om Match ${esc(matchNo)} enligt aktuella inställningar</button>`;
         }
