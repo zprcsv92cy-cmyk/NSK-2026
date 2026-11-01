@@ -42,14 +42,18 @@ export async function readPersonallyAuthorizedTeamCollection(request, env, {
   if (!token) return deny(401, 'Personlig inloggning krävs');
   if (typeof listTrustedTeams !== 'function' || typeof readRows !== 'function')
     return deny(503, 'Säker serverkoppling saknas');
+  let stage='identity';
   try {
     const actor = await (verifyPersonalSession || createPersonalRosterIdentityVerifier(env))(token);
     if (!actor) return deny(401, 'Giltig session krävs');
+    stage='teams';
     const trustedTeams = await listTrustedTeams();
+    stage='membership';
     const mapped = mapTrustedMembershipsToLegacyTeams(actor, trustedTeams);
     if (!mapped.memberships.some(m => m.team_id === teams[0]) ||
         !mapped.permissions.includes('read'))
       return deny(403, 'Saknar läsbehörighet');
+    stage='collection';
     // Fail closed if any referenced table cannot be fully loaded or resolved.
     if (match[1] === 'spelaretranare') {
       const [players, coaches, mappings] = await Promise.all([
@@ -84,6 +88,7 @@ export async function readPersonallyAuthorizedTeamCollection(request, env, {
     ]);
     if (![pools, configs, lineups, shifts].every(Array.isArray))
       throw Error('Incomplete table snapshot');
+    stage='ownership';
     // Pool membership permits reading shared pool metadata, but individual
     // match records must belong to the requested team via Lagnummer.
     const poolById = new Map(pools.map(p => [rowId(p), p]));
@@ -130,7 +135,14 @@ export async function readPersonallyAuthorizedTeamCollection(request, env, {
     return Response.json({
       ok: true, table: match[1], results, count: results.length, next: null, previous: null
     }, { headers: { 'cache-control': 'no-store', 'x-content-type-options': 'nosniff' } });
-  } catch {
+  } catch (error) {
+    // Only fixed internal categories; never log rows, tokens or arbitrary error messages.
+    const reasons=new Set(['Invalid ownership links','Invalid linked row','Invalid row id',
+      'Incomplete table snapshot','Incomplete pool snapshot','Incomplete association snapshot',
+      'Baserow collection unavailable','Collection unavailable','Invalid collection page',
+      'Invalid collection cursor','Collection pagination exceeded','Baserow response exceeds shared read limit']);
+    console.warn(JSON.stringify({event:'scoped_collection_read_failure',table:match[1],stage,
+      reason:reasons.has(error?.message)?error.message:'internal_read_failure'}));
     return deny(503, 'Laguppgifter kunde inte verifieras');
   }
 }

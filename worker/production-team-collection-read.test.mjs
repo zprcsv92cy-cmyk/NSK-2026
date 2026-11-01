@@ -240,3 +240,20 @@ test('match reads do not depend on lineup or shift tables and shift reads do not
   assert.equal(response.status,200);assert.deepEqual(reads.sort(),allowed.sort());
  }
 });
+
+test('failed reads log only fixed diagnostic categories and never upstream secrets',async()=>{
+ const previous=console.warn,logs=[];console.warn=message=>logs.push(JSON.parse(message));
+ try{
+  const response=await readPersonallyAuthorizedTeamCollection(req('bytesschema'),{},{...deps(),readRows:async()=>{throw Error('private upstream token and person name');}});
+  assert.equal(response.status,503);
+  assert.deepEqual(logs,[{event:'scoped_collection_read_failure',table:'bytesschema',stage:'collection',reason:'internal_read_failure'}]);
+ }finally{console.warn=previous;}
+});
+test('pagination diagnostics retain the fixed category without returning it to clients',async()=>{
+ const previous=console.warn,logs=[];console.warn=message=>logs.push(JSON.parse(message));
+ try{
+  const response=await readPersonallyAuthorizedTeamCollection(req('bytesschema'),{},{...deps(),readRows:async()=>{throw Error('Invalid collection cursor');}});
+  assert.equal(response.status,503);assert.equal(logs[0].reason,'Invalid collection cursor');
+  assert.equal((await response.json()).error,'Laguppgifter kunde inte verifieras');
+ }finally{console.warn=previous;}
+});
