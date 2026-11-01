@@ -14,3 +14,13 @@ for(const [name,target,init,status] of [['write',url,{method:'POST'},503],['othe
  let calls=0;const r=await fetchBaserowRead(target,init,{fetcher:async()=>{calls++;return new Response('failed',{status,headers:{'Retry-After':'60'}});},wait:async()=>assert.fail('unexpected wait'),log:()=>{}});assert.equal(r.status,status);assert.equal(calls,1);
 });
 test('repeated outage fails after two reads',async()=>{let calls=0;const r=await fetchBaserowRead(url,{}, {fetcher:async()=>{calls++;return new Response('failed',{status:502});},wait:async()=>{},log:()=>{}});assert.equal(r.status,502);assert.equal(calls,2);});
+
+test('identical concurrent reads share one upstream request with independent response bodies',async()=>{
+ let calls=0,release;const gate=new Promise(r=>release=r),fetcher=async()=>{calls++;await gate;return Response.json({results:[{id:1}]});};
+ const options={fetcher};const a=fetchBaserowRead(url,{headers:{Authorization:'Token A'}},options),b=fetchBaserowRead(url,{headers:{Authorization:'Token A'}},options);assert.equal(calls,1);release();
+ const responses=await Promise.all([a,b]);assert.deepEqual(await responses[0].json(),await responses[1].json());await fetchBaserowRead(url,{headers:{Authorization:'Token A'}},options);assert.equal(calls,2);
+});
+test('different upstream credentials never share a read',async()=>{
+ let calls=0,release;const gate=new Promise(r=>release=r),fetcher=async()=>{calls++;await gate;return Response.json({results:[]});};
+ const a=fetchBaserowRead(url,{headers:{Authorization:'Token A'}},{fetcher}),b=fetchBaserowRead(url,{headers:{Authorization:'Token B'}},{fetcher});assert.equal(calls,2);release();await Promise.all([a,b]);
+});

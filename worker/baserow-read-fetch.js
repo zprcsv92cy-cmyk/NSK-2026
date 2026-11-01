@@ -1,5 +1,19 @@
 // Retry only safe Baserow reads. Writes and other providers are never replayed.
-export async function fetchBaserowRead(input, init, {fetcher=globalThis.fetch,wait=ms=>new Promise(resolve=>setTimeout(resolve,ms)),log=event=>console.warn(JSON.stringify(event))}={}) {
+const pendingReads=new WeakMap();
+export async function fetchBaserowRead(input,init,options={}){
+ const fetcher=options.fetcher||globalThis.fetch,url=new URL(input instanceof Request?input.url:String(input));
+ const method=String(init?.method||(input instanceof Request?input.method:'GET')).toUpperCase();
+ if(url.origin!=='https://api.baserow.io'||method!=='GET'||init?.signal||input instanceof Request)return readBaserow(input,init,{...options,fetcher});
+ // Share only identical in-flight upstream GETs, partitioned by fetcher and all headers.
+ // Each caller receives its own body; completed responses are never cached.
+ const headers=new Headers(input instanceof Request?input.headers:undefined);for(const [name,value] of new Headers(init?.headers))headers.set(name,value);
+ const key=JSON.stringify([url.href,[...headers].sort(([a],[b])=>a.localeCompare(b))]);
+ let pending=pendingReads.get(fetcher);if(!pending){pending=new Map();pendingReads.set(fetcher,pending);}
+ let request=pending.get(key);
+ if(!request){request=readBaserow(input,init,{...options,fetcher});pending.set(key,request);const clear=()=>{if(pending.get(key)===request)pending.delete(key);};request.then(clear,clear);}
+ return (await request).clone();
+}
+async function readBaserow(input, init, {fetcher=globalThis.fetch,wait=ms=>new Promise(resolve=>setTimeout(resolve,ms)),log=event=>console.warn(JSON.stringify(event))}={}) {
   const url=new URL(input instanceof Request?input.url:String(input));
   const method=String(init?.method||(input instanceof Request?input.method:'GET')).toUpperCase();
   if(url.origin!=='https://api.baserow.io'||method!=='GET')return fetcher(input,init);

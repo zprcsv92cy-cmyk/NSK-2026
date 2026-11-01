@@ -233,3 +233,10 @@ test('pool metadata remains available when unrelated match tables are offline', 
   assert.deepEqual((await res.json()).results.map(r=>r.id),[101]);
   assert.deepEqual(reads,['poolspel']);
 });
+
+test('match reads do not depend on lineup or shift tables and shift reads do not depend on match tables',async()=>{
+ for(const [table,allowed] of [['matchkonfiguration',['poolspel','matchkonfiguration']],['laguppstallningar',['poolspel','matchkonfiguration','laguppstallningar']],['bytesschema',['poolspel','bytesschema']]]){
+  const reads=[];const response=await readPersonallyAuthorizedTeamCollection(req(table),{},{...deps(),readRows:async name=>{reads.push(name);if(!allowed.includes(name))throw Error('Unrelated table unavailable');return data[name];}});
+  assert.equal(response.status,200);assert.deepEqual(reads.sort(),allowed.sort());
+ }
+});

@@ -27,3 +27,5 @@ jobs:
         run: NSK_JSDOM_MODULE="$RUNNER_TEMP/training-dom/node_modules/jsdom/lib/api.js" node scripts/lineup-editor-dom-check.mjs
       - name: Verify shift check and uncheck through UI, client and production lock
         run: NSK_JSDOM_MODULE="$RUNNER_TEMP/training-dom/node_modules/jsdom/lib/api.js" node scripts/shift-uncheck-dom-check.mjs
+      - name: Verify calendar grouping and removal during a match API outage
+        run: NSK_JSDOM_MODULE="$RUNNER_TEMP/training-dom/node_modules/jsdom/lib/api.js" node scripts/calendar-outage-dom-check.mjs
