@@ -1192,15 +1192,11 @@ var worker_default = { async fetch(req, env) {
         const body = await result.json();
         if (!Array.isArray(body.results) || body.results.length > 200)
           throw Error("Invalid collection page");
-        if (body.next != null) {
-          if (typeof body.next !== "string") throw Error("Invalid collection cursor");
-          const next = new URL(body.next);
-          if (next.origin !== "https://api.baserow.io" || next.pathname !==
-              "/api/database/rows/table/" + id + "/" ||
-              next.searchParams.getAll("page").length !== 1 ||
-              next.searchParams.get("page") !== String(page + 1))
-            throw Error("Invalid collection cursor");
-        }
+        // Treat next as a continuation marker only. Never follow its URL:
+        // Baserow may return a different proxy scheme/path. All requests above
+        // use our fixed HTTPS origin, known table ID and increasing page number.
+        if (body.next != null && (typeof body.next !== "string" || !body.next.trim() || !body.results.length))
+          throw Error("Invalid collection cursor");
         rows.push(...body.results);
         if (!body.next) return rows;
       }
