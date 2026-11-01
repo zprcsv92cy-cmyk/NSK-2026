@@ -163,6 +163,11 @@ export function withPoolFlow(original,{resolveTables,listTeams,verifyIdentity,au
       if(JSON.stringify(lineupSnapshot(current,entries))!==JSON.stringify(body.base))return reply(409,'Laguppställningen ändrades av en annan ledare. Dina val finns kvar. Läs om innan du sparar.');
       if((current?.id||null)!==(old?.id||null))return reply(409,'Matchen har ändrats. Läs om innan du sparar.');
       if(info)configData={...data,player_count:current?.['Antal spelare']||null,goalie_player_id:links(current?.Målvakt)[0]||null,players_on_field:links(current?.['Spelare på plan'])};
+      if(!info&&current&&lock.status==='ready'){
+       const desiredEntries=[...body.players.map((person_id,i)=>({person_type:'player',person_id,sort_order:i+1})),...body.coaches.map((person_id,i)=>({person_type:'coach',person_id,sort_order:body.players.length+i+1}))];
+       const confirmed=lineupSnapshot(current,entries);
+       if(entries.length===desiredEntries.length&&JSON.stringify(lineupSnapshot(configData,desiredEntries))===JSON.stringify(confirmed))return reply(200,null,{row:current,base:confirmed,unchanged:true});
+      }
      }
      if(!info&&env.NSK_MULTIUSER_ENABLED==='true')await env.AUTH_DB.prepare('UPDATE pool_flow_saves SET status=? WHERE pool_id=? AND lease=?').bind('pending',poolId,lease).run();
      const saved=await original(internal('/api/matchkonfiguration'+(old?'/'+old.id:''),old?'PATCH':'POST',configData),env,ctx);if(!saved.ok)return saved;const result=await saved.clone().json();

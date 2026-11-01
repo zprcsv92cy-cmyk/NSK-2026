@@ -273,7 +273,7 @@ jobs:
             });
             const first = await lock.fetch(request());
             const firstData = await first.json();
-            if (first.status !== 200 || firstData.cleanup_pending !== true || posts !== 1)
+            if (first.status !== 200 || firstData.verified !== true || firstData.count !== 1 || firstData.cleanup_pending === true || posts !== 1)
               throw Error('First save did not persist expected Baserow row');
             const second = await lock.fetch(request());
             const secondData = await second.json();

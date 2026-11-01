@@ -250,6 +250,8 @@ var ShiftLock = class {
       if (old.some((x) => x["Genomf\xF6rt"] === true) && (old.length !== shifts.length || shifts.some((x, i) => !same(byNo.get(i + 1), x))))
         return reply({ ok: false, error: "Matchen har redan genomf\xF6rda byten. Schemat f\xE5r inte \xE4ndras.", saved: old.length }, 409);
       const writeHeaders = { ...auth, "Content-Type": "application/json" };
+      let written = 0;
+      const writeBatchSize = 5;
       for (let i = 0; i < shifts.length; i++) {
         const x = shifts[i], current = byNo.get(i + 1);
         if (same(current, x)) continue;
@@ -261,7 +263,8 @@ var ShiftLock = class {
           const d = await r.json().catch(() => ({}));
           return reply({ ok: false, error: "Sparningen avbr\xF6ts utan att gamla byten raderades. Kontrollera felet f\xF6re nytt f\xF6rs\xF6k.", shift_no: i + 1, status: r.status, detail: d.detail || d.error || null }, 502);
         }
-        return reply({ ok: true, cleanup_pending: true, progress: i + 1, expected: shifts.length });
+        written++;
+        if(written>=writeBatchSize&&i+1<shifts.length)return reply({ ok: true, cleanup_pending: true, progress: i + 1, expected: shifts.length });
       }
       const saved = await getOld();
       if (saved.length !== shifts.length) return reply({ ok: false, error: "Antalet sparade byten st\xE4mmer inte", expected: shifts.length, actual: saved.length }, 502);
@@ -970,6 +973,8 @@ var worker_default = { async fetch(req, env) {
         const x = entries[i];
         const payload = { Poolspel: [poolId], Matchkonfiguration: [configId], Persontyp: x.type, "Person-ID": x.personId, Sorteringsordning: x.order };
         const current = existing[i];
+        const currentType=current?.Persontyp?.value||current?.Persontyp;
+        if(current&&currentType===x.type&&Number(current['Person-ID'])===x.personId&&Number(current.Sorteringsordning)===x.order&&JSON.stringify(linkIds(current.Poolspel))===JSON.stringify([poolId])&&JSON.stringify(linkIds(current.Matchkonfiguration))===JSON.stringify([configId]))continue;
         const r = await fetch(current ? rowUrl(current.id) : `${base}${TABLES.laguppstallningar}/?user_field_names=true`, {
           method: current ? "PATCH" : "POST",
           headers: { ...auth, "Content-Type": "application/json" },

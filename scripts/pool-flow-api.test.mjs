@@ -86,3 +86,13 @@ test('the deletion gate preserves concurrent saves to independent matches',async
  const started=deferred(),release=deferred();const x=await setup(t,{saving:async body=>{if(body.match_no===1){started.resolve();await release.promise;}}});const first=x.request('/api/poolspel/10/lineup','POST',{config:x.config,players:[2],coaches:[]});
  try{await started.promise;assert.equal((await x.request('/api/poolspel/10/lineup','POST',{config:{...x.config,match_no:2},players:[2],coaches:[]})).status,200);release.resolve();assert.equal((await first).status,200);assert.equal((await x.f.db.prepare('SELECT COUNT(*) AS n FROM pool_flow_operations').first()).n,0);}finally{release.resolve();await first;}
 });
+
+test('a verified unchanged lineup save performs no delegated write and stale bases still fail',async t=>{
+ let writes=0;const x=await setup(t,{saving:async()=>writes++});x.env.NSK_MULTIUSER_ENABLED='true';
+ Object.assign(x.data.matchkonfiguration[0],{Starttid:'10:00',Motståndare:'Away',Plan:'Plan 1'});
+ const base=lineupSnapshot(x.data.matchkonfiguration[0],x.data.laguppstallningar);
+ const body={config:x.config,players:[2],coaches:[],base};let r=await x.request('/api/poolspel/10/lineup','POST',body);
+ assert.equal(r.status,200);assert.equal((await r.json()).unchanged,true);assert.equal(writes,0);
+ x.data.matchkonfiguration[0].Motståndare='Changed remotely';r=await x.request('/api/poolspel/10/lineup','POST',body);assert.equal(r.status,409);assert.equal(writes,0);
+ x.data.matchkonfiguration[0].Motståndare='Away';await x.f.db.prepare("UPDATE pool_flow_saves SET status='pending' WHERE pool_id=10").run();r=await x.request('/api/poolspel/10/lineup','POST',body);assert.equal(r.status,200);assert.notEqual((await r.json()).unchanged,true);assert.equal(writes,1,'a pending save must finish its writes even when the requested values match');
+});
