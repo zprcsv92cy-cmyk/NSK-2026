@@ -63,7 +63,8 @@ test('open turns around printed circles and dots stay open with fixed approach a
 });
 
 test('a rounding starting directly on the arc is fitted without requiring a tangent approach',()=>{
- const center={id:'direct-tire',type:'tire',x:240,y:300};for(const radius of [30,40,60]){const points=arc(center,radius,Math.PI,2*Math.PI,44),r=route('direct',points),fit=api.plan([r,center]).plans.get(r.id);assert.ok(fit);assert.deepEqual(plain(fit.points[0]),points[0]);assert.deepEqual(plain(fit.points.at(-1)),points.at(-1));const radii=fit.points.slice(1,-1).map(p=>dist(p,center));assert.ok(Math.max(...radii)-Math.min(...radii)<1e-6);assert.ok(fit.points.every(p=>p.y<=center.y+1e-6));}
+ const center={id:'direct-tire',type:'tire',x:240,y:300};for(const radius of [30,40,60]){const points=arc(center,radius,Math.PI,2*Math.PI,44),r=route('direct',points),fit=api.plan([r,center]).plans.get(r.id);assert.ok(fit);assert.deepEqual(plain(fit.points[0]),points[0]);assert.deepEqual(plain(fit.points.at(-1)),points.at(-1));const radii=fit.points.slice(12,-12).map(p=>dist(p,center));assert.ok(radii.length>=8);assert.ok(Math.max(...radii)-Math.min(...radii)<1e-6);assert.ok(fit.points.every(p=>p.y<=center.y+1e-6));
+  for(const [end,near,dir] of [[fit.points[0],fit.points[1],1],[fit.points.at(-1),fit.points.at(-2),-1]]){const angle=Math.atan2(end.y-center.y,end.x-center.x),v={x:(near.x-end.x)*dir,y:(near.y-end.y)*dir},len=Math.hypot(v.x,v.y);assert.ok((v.x*-Math.sin(angle)+v.y*Math.cos(angle))/len>.98,'the fixed endpoint must join along the turn, not radially');}}
 });
 
 // A tire-only fit previously skipped the entire later faceoff-circle rounding.

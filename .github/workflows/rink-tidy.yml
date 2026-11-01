@@ -1,0 +1,25 @@
+name: Rink tidy preview
+on:
+  pull_request:
+    paths:
+      - 'rink-*.js'
+      - 'ritverktyg/**'
+      - 'scripts/rink*'
+      - '.github/workflows/rink-tidy.yml'
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  tidy:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Verify rink geometry, previews and draft recovery
+        run: node --test scripts/rink*.test.mjs
+      - name: Install isolated DOM test dependency
+        run: npm install --prefix "$RUNNER_TEMP/rink-dom" jsdom@26 --no-audit --no-fund
+      - name: Verify actual rink preview controls without production access
+        run: NSK_JSDOM_MODULE="$RUNNER_TEMP/rink-dom/node_modules/jsdom/lib/api.js" node scripts/rink-tidy-dom-check.mjs
