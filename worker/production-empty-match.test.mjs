@@ -134,7 +134,7 @@ test('opening a saved empty match inherits the populated Match 1 lineup', async 
     setText() {}, updateVisiblePlayers() {}, setActiveMatchButton() {},
     cleanUUID: value => value == null ? '' : String(value), safeInt: (value, fallback) => Number.parseInt(value, 10) || fallback,
     syncGoalieAgainstPlayers() {}, syncSelectedPlayersAcrossLineup() {},
-    loadCoachSelectionFromKV: async () => {}, updateCoachEnabledState() {}
+    loadCoachSelectionFromKV: async () => {}, updateCoachEnabledState() {}, updateLineupEditControls() {}
   });
   vm.runInContext(app.slice(start, end) + '\nthis.openMatch = fillLaguppstallningFormFromSelection;', context);
   await context.openMatch();

@@ -125,7 +125,7 @@
 <p id="poolFlowContext" class="pool-flow-context" aria-live="polite"></p>
 <nav class="pool-flow-actions" aria-label="Poolspelsflöde"><a class="nsk-action" href="../lag/">Välj eget lag</a><a class="nsk-action nsk-action--primary" href="../bytesschema/">Nästa: Bytesschema</a></nav>
 
-    <div class="lineup-print-row"><button id="lineupSaveButton" type="button" class="nsk-action nsk-action--save">Spara uppställning</button><button id="lineupPrintButton" type="button">Skriv ut / PDF</button></div>
+    <div class="lineup-print-row"><button id="lineupPrintButton" type="button">Skriv ut / PDF</button></div>
     <div class="lineup-main">
       <section class="card">
         <h2>Laguppställning</h2>
@@ -145,6 +145,8 @@
       </section>
     </div>
     <section class="card lineup-players-card"><h2>Målvakt</h2><div id="lineupSelectors"></div></section>
+    <div class="lineup-print-row no-print" role="group" aria-label="Redigera vald match"><button id="lineupEditButton" type="button" class="nsk-action" disabled>Redigera</button><button id="lineupSaveButton" type="button" class="nsk-action nsk-action--save" disabled>Spara laguppställning</button></div>
+    <p id="lineupEditStatus" class="small no-print" role="status" aria-live="polite"></p>
     <section class="card lineup-messages"><div id="lineupMsg" class="small"></div><div id="appError" class="small"></div></section>
   </div>
   <script>
@@ -181,7 +183,7 @@
             button.textContent = o.textContent;
             button.addEventListener('click', () => {
               const current = Array.from(select.options).find(x => x.value === button.dataset.coachId);
-              if (!current) return;
+              if (!current || select.disabled) return;
               current.selected = !current.selected;
               refresh();
               // Spara direkt från den synliga knappen. Ingen dubbel sparning via select-change.
@@ -225,6 +227,7 @@
         box.querySelectorAll('button[data-coach-id]').forEach(button => {
           const option = options.find(o => o.value === button.dataset.coachId);
           const checked = !!option?.selected;
+          button.disabled = select.disabled;
           button.setAttribute('aria-pressed', String(checked));
           button.classList.toggle('selected', checked);
         });
@@ -232,7 +235,7 @@
       }
       select.addEventListener('change', refresh);
       select.addEventListener('lineup-coaches-refresh', refresh);
-      new MutationObserver(refresh).observe(select, { childList: true, subtree: true });
+      new MutationObserver(refresh).observe(select, { childList: true, subtree: true, attributes: true, attributeFilter: ['disabled'] });
       refresh();
     })();
   </script>
