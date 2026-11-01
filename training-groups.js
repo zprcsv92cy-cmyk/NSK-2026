@@ -216,7 +216,7 @@
     const removed=goalies.filter(id=>id&&!selected.has(id)).length;
     goalies=goalies.map(id=>selected.has(id)?id:'');
     goalieCount=Math.max(0,goalieCount-removed);
-    goalies=[...goalies.filter(Boolean),...goalies.filter(id=>!id)].slice(0,goalieCount);
+    if(removed)goalies=[...goalies.filter(Boolean),...goalies.filter(id=>!id)].slice(0,goalieCount);
     $('trainingGoalieCount').value=String(goalieCount);
   }
   function renderCount(){$('trainingCount').textContent=selected.size+' av '+players.length+' valda';}

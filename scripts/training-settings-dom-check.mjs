@@ -56,6 +56,9 @@ test('shirt edits and two unnamed keepers survive reload, later naming and anoth
  // Choosing the second selector first must not move it to the first selector.
  p.change(p.get('trainingGoalies').querySelectorAll('select')[1],'2');await p.save();
  assert.equal(p.get('trainingGoalies').querySelectorAll('select')[0].value,'');assert.equal(p.get('trainingGoalies').querySelectorAll('select')[1].value,'2');
+ fifth.checked=false;fifth.dispatchEvent(new p.w.Event('change',{bubbles:true}));await p.save();
+ assert.equal(p.get('trainingGoalieCount').value,'2');assert.equal(p.get('trainingGoalies').querySelectorAll('select')[1].value,'2');
+ fifth.checked=true;fifth.dispatchEvent(new p.w.Event('change',{bubbles:true}));await p.save();
  p.change(p.get('trainingGoalies').querySelectorAll('select')[0],'1');await p.save();
  saved=(await(await call('GET','',f.tokens.user)).json()).session;
  assert.equal(saved.goalieCount,2);assert.deepEqual(saved.goalies,['1','2']);assert(!saved.allocation.flat().includes('1'));assert(!saved.allocation.flat().includes('2'));
