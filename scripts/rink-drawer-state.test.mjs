@@ -156,7 +156,7 @@ test('tapping or moving an existing curved route never appends the release point
 });
 test('equipment pattern cleanup is one undoable action and survives draft recovery',()=>{
  const marks=[[210,559],[110,635],[195,710],[100,770]].map(([x,y],i)=>({id:'t'+i,type:'tire',x,y,color:'#111827'})).concat([{id:'a',type:'cone',x:353,y:650,color:'#b11226'},{id:'b',type:'cone',x:302,y:725,color:'#b11226'},{id:'c',type:'cone',x:410,y:733,color:'#b11226'}]);
- const f=editor({[DRAFT]:JSON.stringify({marks})});f.node('rinkTidy').onclick();f.node('rinkTidyApply').onclick();f.flush();const cleaned=f.draft().marks;assert.ok(cleaned[0].y>=589);assert.equal(cleaned[0].x,cleaned[2].x);assert.equal(cleaned[1].x,cleaned[3].x);assert.match(f.node('rinkTidyReport').textContent,/koner\/däck/);
+ const f=editor({[DRAFT]:JSON.stringify({marks})});f.node('rinkTidy').onclick();f.node('rinkTidyMode').value='equipment';f.node('rinkTidyMode').onchange();f.node('rinkTidyApply').onclick();f.flush();const cleaned=f.draft().marks;assert.ok(cleaned[0].y>=589);assert.equal(cleaned[0].x,cleaned[2].x);assert.equal(cleaned[1].x,cleaned[3].x);assert.match(f.node('rinkTidyReport').textContent,/koner\/däck/);
  f.node('rinkUndo').onclick();f.flush();assert.deepEqual(f.draft().marks,marks);f.node('rinkRedo').onclick();f.flush();assert.deepEqual(f.draft().marks,cleaned);
  const restored=editor(Object.fromEntries(f.storage));restored.node('rinkTitle').emit('input');restored.flush();assert.deepEqual(restored.draft().marks,cleaned);
 });
@@ -276,7 +276,7 @@ test('numeric divider length and angle work, and cancelled handle drags restore 
  f.choose('move');f.pointer('pointerdown',before.x2,before.y2);f.pointer('pointermove',300,500);f.pointer('pointercancel',300,500);f.flush();assert.deepEqual(f.draft().marks[0],before);
 });
 test('tidy gives a visible result count for equipment and a clear explanation when unchanged',()=>{
- const marks=[{id:'c1',type:'cone',x:100,y:300,color:'#b11226'},{id:'t',type:'tire',x:130,y:315,color:'#b11226'},{id:'c2',type:'cone',x:220,y:300,color:'#b11226'}],f=editor({[DRAFT]:JSON.stringify({marks})});f.node('rinkTidy').onclick();f.node('rinkTidyApply').onclick();f.flush();assert.equal(f.draft().marks[1].x,160);assert.equal(f.node('rinkTidyReport').hidden,false);assert.match(f.node('rinkTidyReport').textContent,/koner\/däck jämnt fördelade/);
+ const marks=[{id:'c1',type:'cone',x:100,y:300,color:'#b11226'},{id:'t',type:'tire',x:130,y:315,color:'#b11226'},{id:'c2',type:'cone',x:220,y:300,color:'#b11226'}],f=editor({[DRAFT]:JSON.stringify({marks})});f.node('rinkTidy').onclick();f.node('rinkTidyMode').value='equipment';f.node('rinkTidyMode').onchange();f.node('rinkTidyApply').onclick();f.flush();assert.equal(f.draft().marks[1].x,160);assert.equal(f.node('rinkTidyReport').hidden,false);assert.match(f.node('rinkTidyReport').textContent,/koner\/däck jämnt fördelade/);
  f.node('rinkUndo').onclick();f.flush();assert.deepEqual(f.draft().marks,marks);assert.equal(f.node('rinkTidyReport').hidden,true);
  const empty=editor();empty.node('rinkTidy').onclick();empty.node('rinkTidyApply').onclick();assert.match(empty.node('rinkTidyReport').textContent,/Ingen förändring/);assert.equal(empty.node('rinkTidyReport').hidden,false);
 });
@@ -433,4 +433,25 @@ test('two-finger inspection zoom works during preview without accepting or editi
  f.pointer('pointerdown',100,200);f.pointer('pointerdown',200,200,{pointerId:2,isPrimary:false});f.pointer('pointermove',300,200,{pointerId:2,isPrimary:false});
  f.pointer('pointerup',300,200,{pointerId:2,isPrimary:false});f.pointer('pointerup',100,200);f.flush();
  assert.equal(f.node('rinkTidyPreview').hidden,false);assert.deepEqual(f.draft().marks,marks);assert.equal(Number(f.node('rinkSvg').attrs.viewBox.split(' ')[2]),240);
+});
+
+test('tidying a selected route leaves all other routes, passes, players and equipment exact',()=>{
+ const first=previewMarks()[0],second={...previewMarks()[0],id:'second',y:250,points:previewMarks()[0].points.map(p=>({x:p.x,y:p.y+150}))},equipment=[{id:'cone1',type:'cone',x:100,y:500,color:'#b11226'},{id:'cone2',type:'cone',x:130,y:515,color:'#b11226'},{id:'cone3',type:'cone',x:220,y:500,color:'#b11226'}],marks=[first,second,...equipment],f=editor({[DRAFT]:JSON.stringify({marks})});
+ f.choose('move');f.pointer('pointerdown',140,100);f.pointer('pointerup',140,100);f.node('rinkTidy').onclick();
+ assert.equal(f.node('rinkTidyScope').value,'selected');assert.equal(f.node('rinkTidyMode').disabled,true);
+ f.node('rinkTidyApply').onclick();f.flush();const result=f.draft().marks;assert.equal(result[0].points.length,2);assert.deepEqual(result.slice(1),marks.slice(1));
+ f.node('rinkUndo').onclick();f.flush();assert.deepEqual(f.draft().marks,marks);
+});
+test('whole drawing line-only mode preserves all equipment and equipment mode is explicitly selected',()=>{
+ const marks=[...previewMarks(),{id:'a',type:'cone',x:100,y:500,color:'#b11226'},{id:'b',type:'tire',x:130,y:515,color:'#111827'},{id:'c',type:'cone',x:220,y:500,color:'#b11226'},{id:'p1',type:'player',x:300,y:100,color:'#b11226'},{id:'p2',type:'player',x:350,y:110,color:'#b11226'}],f=editor({[DRAFT]:JSON.stringify({marks})});
+ f.node('rinkTidy').onclick();assert.equal(f.node('rinkTidyScope').value,'all');assert.equal(f.node('rinkTidySelectedOption').disabled,true);assert.equal(f.node('rinkTidyMode').value,'lines');f.node('rinkTidyApply').onclick();f.flush();assert.equal(f.draft().marks[0].points.length,2);assert.deepEqual(f.draft().marks.slice(1),marks.slice(1));
+ f.node('rinkUndo').onclick();f.flush();f.node('rinkTidy').onclick();f.node('rinkTidyMode').value='equipment';f.node('rinkTidyMode').onchange();assert.deepEqual(f.draft().marks,marks,'changing options must not commit');f.node('rinkTidyApply').onclick();f.flush();const result=f.draft().marks;assert.equal(result[2].x,160);assert.deepEqual(result.slice(4),marks.slice(4));
+});
+test('equipment-only drawing can switch from unchanged line preview to an equipment proposal',()=>{
+ const marks=[{id:'a',type:'cone',x:100,y:300,color:'#b11226'},{id:'b',type:'tire',x:130,y:315,color:'#111827'},{id:'c',type:'cone',x:220,y:300,color:'#b11226'}],f=editor({[DRAFT]:JSON.stringify({marks})});f.node('rinkTidy').onclick();assert.equal(f.node('rinkTidyApply').disabled,true);assert.equal(f.node('rinkTidyPreview').hidden,false);
+ f.node('rinkTidyMode').value='equipment';f.node('rinkTidyMode').onchange();assert.equal(f.node('rinkTidyApply').disabled,false);f.node('rinkTidyCancel').onclick();f.flush();assert.deepEqual(f.draft().marks,marks);
+});
+test('changing preview scope from selected to all recomputes without storing intermediate choices',()=>{
+ const first=previewMarks()[0],second={...previewMarks()[0],id:'second',y:250,points:previewMarks()[0].points.map(p=>({x:p.x,y:p.y+150}))},marks=[first,second],f=editor({[DRAFT]:JSON.stringify({marks})});f.choose('move');f.pointer('pointerdown',140,100);f.pointer('pointerup',140,100);f.node('rinkTidy').onclick();f.node('rinkTidyScope').value='all';f.node('rinkTidyScope').onchange();assert.equal(f.node('rinkTidyMode').disabled,false);f.flush();assert.deepEqual(f.draft().marks,marks);
+ f.node('rinkTidyApply').onclick();f.flush();assert.ok(f.draft().marks.every(m=>m.points.length===2));
 });
