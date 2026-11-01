@@ -45,7 +45,10 @@
   const points=sample(rendered(route)),anchors=passAnchors(points,passes),events=[];
   for(const obstacle of equipment){
    const footprint=obstacle.type==='landmark'?0:obstacle.type==='tire'?13:14,distances=points.map(p=>distance(p,obstacle)),closest=Math.min(...distances);
-   if(closest<footprint+3||closest>100)continue;
+   // Touch strokes can graze an equipment edge. Keep these candidates for the
+   // broad turn analysis; rejecting them here loses every other slalom turn.
+   // A stroke through the centre still has no unambiguous rounding side.
+   if(closest<Math.max(3,footprint*.6)||closest>100)continue;
    const limit=wide?220:Math.min(120,closest+Math.max(9,closest*.3)),runs=[];let run=null;
    for(let i=0;i<points.length;i++){
     const nearest=equipment.every(o=>o.id===obstacle.id||distance(points[i],o)>=distances[i]-(wide?0:5));

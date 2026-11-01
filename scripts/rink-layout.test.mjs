@@ -144,3 +144,14 @@ test('Snygga till retains a faceoff-circle turn after rounding equipment on the 
   const again=tidy(result);assert.deepEqual(again,result,'repeated tidy must not drift');
  }
 });
+
+test('Snygga till improves the photographed tight slalom without moving tires or switching sides',async()=>{
+ const {tightTireSlalom}=await import('./fixtures/tight-tire-slalom.mjs');
+ for(const raw of [false,true]){
+  const input=tightTireSlalom();if(raw)delete input[0].routeStyle;const before=JSON.stringify(input),result=tidy(input),[fit,...tires]=result;
+  assert.notDeepEqual(fit.points,input[0].points);assert.equal(fit.routeStyle,'planned');assert.deepEqual(tires,input.slice(1));
+  assert.equal(context.window.testLayout.preservesObstacleSide(input[0],fit,tires),true);
+  assert.deepEqual(fit.points[0],input[0].points[0]);assert.deepEqual(fit.points.at(-1),input[0].points.at(-1));
+  assert.deepEqual(tidy(result),result);assert.equal(JSON.stringify(input),before);
+ }
+});
