@@ -133,23 +133,26 @@
   for(let i=1;i<ps.length;i++)for(let j=i+2;j<ps.length;j++){const a=ps[i-1],b=ps[i],c=ps[j-1],d=ps[j];if(cross(a,b,c)*cross(a,b,d)<-1e-6&&cross(c,d,a)*cross(c,d,b)<-1e-6)return true;}
   return false;
  }
+ // Printed circles/dots are route anchors too, including when equipment was
+ // already recognised elsewhere on the same stroke. Never drop a later turn.
+ function withReferences(analysis,references){
+  const extra=references.events.filter(e=>!analysis.events.some(a=>e.start<a.end&&e.end>a.start));
+  return {...analysis,startPinned:analysis.startPinned||extra.length>0,events:[...analysis.events,...extra].sort((a,b)=>a.index-b.index)};
+ }
  function plan(marks){
   const equipment=marks.filter(m=>['tire','cone'].includes(m.type)),passes=marks.filter(m=>m.type==='pass'),analyses=marks.filter(m=>m.type==='curve'&&m.points?.length>=3).map(m=>analyze(m,equipment,passes));
   for(const analysis of analyses)analysis.startPinned=marks.some(m=>['player','goalie','puck'].includes(m.type)&&distance(m,analysis.points[0])<24)||passes.some(p=>distance(p,analysis.points[0])<16||distance({x:p.x2,y:p.y2},analysis.points[0])<16);
   const gaps=analyses.flatMap(a=>a.events.map(e=>e.radius-e.footprint)).sort((a,b)=>a-b),clearance=gaps.length?clamp(gaps[Math.floor(gaps.length/2)],18,65):24,plans=new Map();
   for(const analysis of analyses){
    if(hasRouteFeatures(analysis.route))continue;
-   let candidate=build(analysis,clearance);
+   const references=analysis.route.points.length>=6?rinkLandmarks.filter(p=>equipment.every(o=>distance(p,o)>100)):[];
+   const referenceAnalysis=analyze(analysis.route,references,passes);
+   let candidate=build(withReferences(analysis,referenceAnalysis),clearance);
    if(!candidate){
     const broad=analyze(analysis.route,equipment,passes,true);broad.startPinned=analysis.startPinned;
     let fitClearance=clearance;
     for(let i=1;i<broad.events.length;i++){const a=broad.events[i-1],b=broad.events[i];if(a.dir!==b.dir)fitClearance=Math.min(fitClearance,(distance(a.center,b.center)-a.footprint-b.footprint)/2-4);}
-    if(fitClearance>=18)candidate=build(broad,fitClearance);
-   }
-   if(!candidate&&analysis.route.points.length>=6){
-    const references=rinkLandmarks.filter(p=>equipment.every(o=>distance(p,o)>100));
-    const referenceAnalysis=analyze(analysis.route,references,passes);referenceAnalysis.startPinned=true;
-    if(referenceAnalysis.events.length)candidate=build(referenceAnalysis,clearance);
+    if(fitClearance>=18)candidate=build(withReferences(broad,referenceAnalysis),fitClearance);
    }
    if(candidate){
     if(analysis.route.routeStyle==='planned'){

@@ -132,3 +132,15 @@ test('row alignment never merges an identified tire slalom with a nearby cone tr
  const step=result[1].y-result[0].y;for(let i=2;i<4;i++)assert.ok(Math.abs(result[i].y-result[i-1].y-step)<1e-6);
  const triangle=result.slice(4),sides=triangle.map((p,i)=>Math.hypot(p.x-triangle[(i+1)%3].x,p.y-triangle[(i+1)%3].y));assert.ok(Math.max(...sides)-Math.min(...sides)<1e-6);assert.ok(Math.abs(triangle.reduce((n,p)=>n+p.x,0)/3-353)<1e-6);assert.ok(Math.abs(triangle.reduce((n,p)=>n+p.y,0)/3-698)<1e-6);assert.deepEqual(tidy(result),result);
 });
+test('Snygga till retains a faceoff-circle turn after rounding equipment on the same stroke',()=>{
+ const equipment={id:'mixed-tire',type:'tire',x:128,y:300},center={x:353,y:698};
+ const arc=(c,r,a,b)=>Array.from({length:33},(_,i)=>{const t=a+(b-a)*i/32,rr=r+Math.sin(i*1.7)*4;return{x:c.x+rr*Math.cos(t),y:c.y+rr*Math.sin(t)};});
+ const points=[{x:40,y:400},...arc(equipment,40,Math.PI,2*Math.PI),{x:240,y:480},...arc(center,70,Math.PI,0),{x:440,y:600}];
+ for(const ps of [points,[...points].reverse()]){
+  const route={id:'mixed',type:'curve',...ps[0],points:ps,color:'#111827',motion:'backward'},marks=[route,equipment],before=JSON.stringify(marks),result=tidy(marks),fit=result[0];
+  assert.equal(fit.routeStyle,'planned');assert.deepEqual(fit.points[0],ps[0]);assert.deepEqual(fit.points.at(-1),ps.at(-1));assert.equal(fit.motion,'backward');
+  assert.ok(fit.points.filter(p=>Math.abs(Math.hypot(p.x-center.x,p.y-center.y)-70)<1e-6).length>=12);
+  assert.equal(JSON.stringify(marks),before);
+  const again=tidy(result);assert.deepEqual(again,result,'repeated tidy must not drift');
+ }
+});

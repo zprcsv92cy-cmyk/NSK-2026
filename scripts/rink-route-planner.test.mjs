@@ -65,3 +65,21 @@ test('open turns around printed circles and dots stay open with fixed approach a
 test('a rounding starting directly on the arc is fitted without requiring a tangent approach',()=>{
  const center={id:'direct-tire',type:'tire',x:240,y:300};for(const radius of [30,40,60]){const points=arc(center,radius,Math.PI,2*Math.PI,44),r=route('direct',points),fit=api.plan([r,center]).plans.get(r.id);assert.ok(fit);assert.deepEqual(plain(fit.points[0]),points[0]);assert.deepEqual(plain(fit.points.at(-1)),points.at(-1));const radii=fit.points.slice(1,-1).map(p=>dist(p,center));assert.ok(Math.max(...radii)-Math.min(...radii)<1e-6);assert.ok(fit.points.every(p=>p.y<=center.y+1e-6));}
 });
+
+// A tire-only fit previously skipped the entire later faceoff-circle rounding.
+test('one stroke keeps both its equipment rounding and its printed-circle rounding',()=>{
+ const equipment={id:'mixed-tire',type:'tire',x:128,y:300},center=api.rinkLandmarks.find(p=>p.x===353&&p.y===698);
+ const points=[{x:40,y:400},...arc(equipment,40,Math.PI,2*Math.PI,32),{x:240,y:480},...arc(center,70,Math.PI,0,32),{x:440,y:600}];
+ const r=route('mixed',points),marks=[r,equipment],before=JSON.stringify(marks),fit=api.plan(marks).plans.get(r.id);assert.ok(fit);
+ assert.deepEqual(plain(fit.points[0]),points[0]);assert.deepEqual(plain(fit.points.at(-1)),points.at(-1));
+ assert.ok(fit.points.filter(p=>Math.abs(dist(p,center)-70)<1e-6).length>=12,'the faceoff circle must not become a straight shortcut');
+ assert.ok(fit.points.filter(p=>Math.abs(dist(p,equipment)-Math.min(...fit.points.map(q=>dist(q,equipment))))<1e-6).length>=8);
+ assert.equal(JSON.stringify(marks),before);
+});
+test('an equipment rounding and later rounding around a neutral-zone faceoff dot are fitted together',()=>{
+ const equipment={id:'mixed-cone',type:'cone',x:128,y:300},center=api.rinkLandmarks.find(p=>p.x===353&&p.y===525);
+ const points=[{x:40,y:400},...arc(equipment,40,Math.PI,2*Math.PI,32),{x:240,y:480},...arc(center,35,Math.PI,0,32),{x:440,y:450}],r=route('mixed-dot',points),fit=api.plan([r,equipment]).plans.get(r.id);assert.ok(fit);
+ const radius=Math.min(...fit.points.map(p=>dist(p,center)));assert.ok(Math.abs(radius-35)<8);
+ assert.ok(fit.points.filter(p=>Math.abs(dist(p,center)-radius)<1e-6).length>=12);
+ assert.deepEqual(plain(fit.points[0]),points[0]);assert.deepEqual(plain(fit.points.at(-1)),points.at(-1));
+});
