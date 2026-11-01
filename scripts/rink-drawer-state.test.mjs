@@ -72,7 +72,7 @@ test('partial or inconsistent stored groups degrade to editable individual symbo
  }
 });
 test('tidying and pinching preserve explicit group settings and history',()=>{
- const f=editor();f.node('rinkSlalom').onclick();f.flush();const original=f.draft().marks;f.node('rinkTidy').onclick();f.flush();assert.deepEqual(f.draft().marks,original);const p=original[0];f.pointer('pointerdown',p.x,p.y);f.pointer('pointermove',p.x+20,p.y+30);f.pointer('pointerdown',300,300,{pointerId:2,isPrimary:false});f.pointer('pointerup',300,300,{pointerId:2,isPrimary:false});f.pointer('pointerup',p.x+20,p.y+30);f.flush();assert.deepEqual(f.draft().marks,original);f.node('rinkUndo').onclick();f.flush();assert.equal(f.draft().marks.length,0);
+ const f=editor();f.node('rinkSlalom').onclick();f.flush();const original=f.draft().marks;f.node('rinkTidy').onclick();f.node('rinkTidyApply').onclick();f.flush();assert.deepEqual(f.draft().marks,original);const p=original[0];f.pointer('pointerdown',p.x,p.y);f.pointer('pointermove',p.x+20,p.y+30);f.pointer('pointerdown',300,300,{pointerId:2,isPrimary:false});f.pointer('pointerup',300,300,{pointerId:2,isPrimary:false});f.pointer('pointerup',p.x+20,p.y+30);f.flush();assert.deepEqual(f.draft().marks,original);f.node('rinkUndo').onclick();f.flush();assert.equal(f.draft().marks.length,0);
 });
 test('pinch zoom keeps the point between both fingers anchored and never edits marks',()=>{
  const mark={id:'a',type:'player',x:120,y:200,color:'#b11226'},f=editor({[DRAFT]:JSON.stringify({marks:[mark]})}),view=viewTransform(f);f.node('rinkTitle').emit('input');f.flush();
@@ -156,7 +156,7 @@ test('tapping or moving an existing curved route never appends the release point
 });
 test('equipment pattern cleanup is one undoable action and survives draft recovery',()=>{
  const marks=[[210,559],[110,635],[195,710],[100,770]].map(([x,y],i)=>({id:'t'+i,type:'tire',x,y,color:'#111827'})).concat([{id:'a',type:'cone',x:353,y:650,color:'#b11226'},{id:'b',type:'cone',x:302,y:725,color:'#b11226'},{id:'c',type:'cone',x:410,y:733,color:'#b11226'}]);
- const f=editor({[DRAFT]:JSON.stringify({marks})});f.node('rinkTidy').onclick();f.flush();const cleaned=f.draft().marks;assert.ok(cleaned[0].y>=589);assert.equal(cleaned[0].x,cleaned[2].x);assert.equal(cleaned[1].x,cleaned[3].x);assert.match(f.node('rinkTidyReport').textContent,/koner\/däck/);
+ const f=editor({[DRAFT]:JSON.stringify({marks})});f.node('rinkTidy').onclick();f.node('rinkTidyApply').onclick();f.flush();const cleaned=f.draft().marks;assert.ok(cleaned[0].y>=589);assert.equal(cleaned[0].x,cleaned[2].x);assert.equal(cleaned[1].x,cleaned[3].x);assert.match(f.node('rinkTidyReport').textContent,/koner\/däck/);
  f.node('rinkUndo').onclick();f.flush();assert.deepEqual(f.draft().marks,marks);f.node('rinkRedo').onclick();f.flush();assert.deepEqual(f.draft().marks,cleaned);
  const restored=editor(Object.fromEntries(f.storage));restored.node('rinkTitle').emit('input');restored.flush();assert.deepEqual(restored.draft().marks,cleaned);
 });
@@ -235,7 +235,7 @@ test('backwards skating and movement labels survive loading, copying and draft r
 
 test('tidying is a single undoable action and persists as a draft',()=>{
  const original=[{id:'j',type:'curve',x:100,y:100,color:'#7c3aed',points:[{x:100,y:100},{x:120,y:102},{x:140,y:99},{x:160,y:101},{x:180,y:100}],motion:'backward'}];
- const f=editor({[DRAFT]:JSON.stringify({title:'Städa',marks:original})});f.node('rinkTidy').onclick();f.flush();
+ const f=editor({[DRAFT]:JSON.stringify({title:'Städa',marks:original})});f.node('rinkTidy').onclick();f.node('rinkTidyApply').onclick();f.flush();
  assert.equal(f.draft().marks[0].points.length,2);assert.equal(f.draft().marks[0].motion,'backward');
  f.node('rinkUndo').onclick();f.flush();assert.deepEqual(f.draft().marks,original);
  f.node('rinkRedo').onclick();f.flush();assert.equal(f.draft().marks[0].points.length,2);
@@ -276,9 +276,9 @@ test('numeric divider length and angle work, and cancelled handle drags restore 
  f.choose('move');f.pointer('pointerdown',before.x2,before.y2);f.pointer('pointermove',300,500);f.pointer('pointercancel',300,500);f.flush();assert.deepEqual(f.draft().marks[0],before);
 });
 test('tidy gives a visible result count for equipment and a clear explanation when unchanged',()=>{
- const marks=[{id:'c1',type:'cone',x:100,y:300,color:'#b11226'},{id:'t',type:'tire',x:130,y:315,color:'#b11226'},{id:'c2',type:'cone',x:220,y:300,color:'#b11226'}],f=editor({[DRAFT]:JSON.stringify({marks})});f.node('rinkTidy').onclick();f.flush();assert.equal(f.draft().marks[1].x,160);assert.equal(f.node('rinkTidyReport').hidden,false);assert.match(f.node('rinkTidyReport').textContent,/koner\/däck jämnt fördelade/);
+ const marks=[{id:'c1',type:'cone',x:100,y:300,color:'#b11226'},{id:'t',type:'tire',x:130,y:315,color:'#b11226'},{id:'c2',type:'cone',x:220,y:300,color:'#b11226'}],f=editor({[DRAFT]:JSON.stringify({marks})});f.node('rinkTidy').onclick();f.node('rinkTidyApply').onclick();f.flush();assert.equal(f.draft().marks[1].x,160);assert.equal(f.node('rinkTidyReport').hidden,false);assert.match(f.node('rinkTidyReport').textContent,/koner\/däck jämnt fördelade/);
  f.node('rinkUndo').onclick();f.flush();assert.deepEqual(f.draft().marks,marks);assert.equal(f.node('rinkTidyReport').hidden,true);
- const empty=editor();empty.node('rinkTidy').onclick();assert.match(empty.node('rinkTidyReport').textContent,/Ingen förändring/);assert.equal(empty.node('rinkTidyReport').hidden,false);
+ const empty=editor();empty.node('rinkTidy').onclick();empty.node('rinkTidyApply').onclick();assert.match(empty.node('rinkTidyReport').textContent,/Ingen förändring/);assert.equal(empty.node('rinkTidyReport').hidden,false);
 });
 
 test('twelve standard dividers exactly span the thirty metre rink width',()=>{
@@ -308,7 +308,7 @@ test('backward routes retain their color and line pattern without repeated direc
 
 test('interpreted pass-and-round route keeps exact geometry through undo and recovery',()=>{
  const tire={id:'t',type:'tire',x:240,y:300,color:'#111827'},arc=Array.from({length:21},(_,i)=>{const a=Math.PI+i/20*Math.PI,r=50+Math.sin(i*1.7)*4;return {x:240+r*Math.cos(a),y:300+r*Math.sin(a)};}),points=[{x:80,y:600},{x:90,y:540},{x:100,y:480},{x:160,y:380},...arc,{x:320,y:380},{x:350,y:450},{x:380,y:500}],marks=[{id:'r',type:'curve',x:80,y:600,points,color:'#15803d',motion:'forward'},tire,{id:'pass',type:'pass',x:100,y:480,x2:40,y2:480,color:'#2563eb'}],f=editor({[DRAFT]:JSON.stringify({marks})});
- f.node('rinkTitle').emit('input');f.flush();const before=f.draft().marks;f.node('rinkTidy').onclick();f.flush();const route=f.draft().marks[0];assert.equal(route.routeStyle,'planned');assert.ok(route.points.some(p=>p.x===100&&p.y===480));
+ f.node('rinkTitle').emit('input');f.flush();const before=f.draft().marks;f.node('rinkTidy').onclick();f.node('rinkTidyApply').onclick();f.flush();const route=f.draft().marks[0];assert.equal(route.routeStyle,'planned');assert.ok(route.points.some(p=>p.x===100&&p.y===480));
  const path=f.node('rinkSvg').children.find(n=>n.attrs['data-mark']==='r').children[0];assert.doesNotMatch(path.attrs.d,/ Q /);f.node('rinkUndo').onclick();f.flush();assert.deepEqual(f.draft().marks,before);f.node('rinkRedo').onclick();f.flush();
  const restored=editor(Object.fromEntries(f.storage));restored.node('rinkTitle').emit('input');restored.flush();assert.equal(restored.draft().marks[0].routeStyle,'planned');assert.deepEqual(restored.draft().marks[0].points,route.points);
 });
@@ -327,7 +327,7 @@ test('direction changes start at a touched route point, preserve the shot ending
  const route={id:'r',type:'skate',x:100,y:300,x2:400,y2:300,color:'#111827',motion:'forward',shotEnd:{x:240,y:78}},f=editor({[DRAFT]:JSON.stringify({marks:[route]})});
  f.pointer('pointerdown',220,310);f.pointer('pointerup',220,310);f.node('rinkSelectedDirection').value='backward';f.node('rinkSelectedDirection').onchange();f.flush();
  let ms=f.draft().marks;assert.equal(ms.length,2);assert.equal(ms[0].motion,'forward');assert.equal(ms[1].motion,'backward');assert.deepEqual(ms[0].points.at(-1),{x:220,y:300});assert.deepEqual(ms[1].points[0],{x:220,y:300});assert.equal(ms[0].shotEnd,undefined);assert.deepEqual(ms[1].shotEnd,route.shotEnd);
- const before=structuredClone(ms);f.node('rinkTidy').onclick();f.flush();assert.deepEqual(f.draft().marks,before);
+ const before=structuredClone(ms);f.node('rinkTidy').onclick();f.node('rinkTidyApply').onclick();f.flush();assert.deepEqual(f.draft().marks,before);
  const restored=editor(Object.fromEntries(f.storage));restored.leave();assert.deepEqual(restored.draft().marks,before);
  f.node('rinkUndo').onclick();f.flush();assert.equal(f.draft().marks.length,1);assert.equal(f.draft().marks[0].type,'skate');
 });
@@ -362,7 +362,7 @@ test('rotating an odd slalom preserves its center away from the boards',()=>{
 });
 
 test('tidy improves dense open tire roundings and restores the exact original with undo',()=>{
- for(const radius of [30,40,60]){const points=Array.from({length:45},(_,i)=>{const a=Math.PI+i/44*Math.PI,r=radius+Math.sin(i*2.1)*5;return {x:240+r*Math.cos(a),y:300+r*Math.sin(a)}}),marks=[{id:'r',type:'curve',x:points[0].x,y:points[0].y,points,color:'#111827'},{id:'t',type:'tire',x:240,y:300,color:'#111827'}],f=editor({[DRAFT]:JSON.stringify({marks})});f.node('rinkTitle').emit('input');f.flush();const before=f.draft().marks;f.node('rinkTidy').onclick();f.flush();const after=f.draft().marks[0];assert.equal(after.routeStyle,'planned');assert.notDeepEqual(after.points,before[0].points);assert.deepEqual(after.points[0],before[0].points[0]);assert.deepEqual(after.points.at(-1),before[0].points.at(-1));assert.ok(after.points.every(p=>p.y<=300.001));assert.ok(after.points.every(p=>Math.hypot(p.x-240,p.y-300)>16));f.node('rinkUndo').onclick();f.flush();assert.deepEqual(f.draft().marks,before);}
+ for(const radius of [30,40,60]){const points=Array.from({length:45},(_,i)=>{const a=Math.PI+i/44*Math.PI,r=radius+Math.sin(i*2.1)*5;return {x:240+r*Math.cos(a),y:300+r*Math.sin(a)}}),marks=[{id:'r',type:'curve',x:points[0].x,y:points[0].y,points,color:'#111827'},{id:'t',type:'tire',x:240,y:300,color:'#111827'}],f=editor({[DRAFT]:JSON.stringify({marks})});f.node('rinkTitle').emit('input');f.flush();const before=f.draft().marks;f.node('rinkTidy').onclick();f.node('rinkTidyApply').onclick();f.flush();const after=f.draft().marks[0];assert.equal(after.routeStyle,'planned');assert.notDeepEqual(after.points,before[0].points);assert.deepEqual(after.points[0],before[0].points[0]);assert.deepEqual(after.points.at(-1),before[0].points.at(-1));assert.ok(after.points.every(p=>p.y<=300.001));assert.ok(after.points.every(p=>Math.hypot(p.x-240,p.y-300)>16));f.node('rinkUndo').onclick();f.flush();assert.deepEqual(f.draft().marks,before);}
 });
 
 test('player queues follow the boards through a corner with stable spacing and reversible movement',()=>{
@@ -406,4 +406,31 @@ test('goals face into the rink when dropped at side boards, end boards or a roun
 });
 test('tight player queues sit next to the boards and can switch to a free diagonal formation',()=>{
  const f=editor();f.node('rinkPlayers').onclick();f.flush();const board=f.draft().marks;assert.ok(board.every(m=>m.x<40||m.x>440));f.node('rinkPatternBoard').value='free';f.node('rinkPatternAngle').value='45';f.node('rinkPatternBoard').onchange();f.flush();const diagonal=f.draft().marks;assert.ok(diagonal.every(m=>!m.patternBoard&&m.patternAngle===45));assert.ok(Math.abs(diagonal[1].x-diagonal[0].x)>15);assert.ok(Math.abs(diagonal[1].y-diagonal[0].y)>15);f.pointer('pointerdown',diagonal[0].x,diagonal[0].y);f.pointer('pointermove',200,430);f.pointer('pointerup',200,430);f.flush();assert.ok(f.draft().marks.every(m=>m.x>80&&m.x<400));
+});
+
+const previewMarks=()=>[{id:'preview-route',type:'curve',x:100,y:100,color:'#111827',points:[{x:100,y:100},{x:120,y:102},{x:140,y:99},{x:160,y:101},{x:180,y:100}],motion:'forward'}];
+test('tidy previews ghost original and clear proposal without changing stored draft or history',()=>{
+ const marks=previewMarks(),f=editor({[DRAFT]:JSON.stringify({marks})});
+ f.node('rinkTidy').onclick();f.flush();assert.deepEqual(f.draft().marks,marks);assert.equal(f.node('rinkTidyPreview').hidden,false);
+ const svg=f.node('rinkSvg');assert.ok(svg.children.some(n=>n.attrs['data-editor-ui']==='tidy-original'&&n.attrs.opacity===.22));assert.ok(svg.children.some(n=>n.attrs['data-editor-ui']==='tidy-preview'));
+ f.node('rinkTidyCancel').onclick();f.flush();assert.equal(f.node('rinkTidyPreview').hidden,true);assert.deepEqual(f.draft().marks,marks);assert.ok(!svg.children.some(n=>n.attrs['data-editor-ui']==='tidy-preview'));
+ f.node('rinkUndo').onclick();f.flush();assert.deepEqual(f.draft().marks,marks,'discard must not add undo entries');
+});
+test('preview blocks accidental drawing and applies exactly once with an undoable result',()=>{
+ const marks=previewMarks(),f=editor({[DRAFT]:JSON.stringify({marks})});f.choose('cone');f.node('rinkTidy').onclick();
+ f.pointer('pointerdown',200,300);f.pointer('pointerup',200,300);f.flush();assert.deepEqual(f.draft().marks,marks);
+ f.node('rinkTidyApply').onclick();f.flush();const result=f.draft().marks;assert.equal(result[0].points.length,2);assert.equal(f.node('rinkTidyPreview').hidden,true);
+ f.node('rinkTidyApply').onclick();f.node('rinkUndo').onclick();f.flush();assert.deepEqual(f.draft().marks,marks);
+ f.node('rinkRedo').onclick();f.flush();assert.deepEqual(f.draft().marks,result);
+});
+test('Escape dismisses preview before fullscreen and leaving saves only the original',()=>{
+ const marks=previewMarks(),f=editor({[DRAFT]:JSON.stringify({marks})});f.node('rinkFullscreen').onclick();f.node('rinkTidy').onclick();
+ f.windowEvent('keydown',{key:'Escape'});assert.equal(f.node('rinkTidyPreview').hidden,true);assert.equal(f.context.document.body.classList.contains('rink-fullscreen'),true);
+ f.node('rinkTidy').onclick();f.leave();assert.deepEqual(f.draft().marks,marks);assert.equal(f.node('rinkTidyPreview').hidden,true);
+});
+test('two-finger inspection zoom works during preview without accepting or editing the proposal',()=>{
+ const marks=previewMarks(),f=editor({[DRAFT]:JSON.stringify({marks})});viewTransform(f);f.node('rinkTidy').onclick();
+ f.pointer('pointerdown',100,200);f.pointer('pointerdown',200,200,{pointerId:2,isPrimary:false});f.pointer('pointermove',300,200,{pointerId:2,isPrimary:false});
+ f.pointer('pointerup',300,200,{pointerId:2,isPrimary:false});f.pointer('pointerup',100,200);f.flush();
+ assert.equal(f.node('rinkTidyPreview').hidden,false);assert.deepEqual(f.draft().marks,marks);assert.equal(Number(f.node('rinkSvg').attrs.viewBox.split(' ')[2]),240);
 });

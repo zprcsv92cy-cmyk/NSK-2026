@@ -67,11 +67,23 @@
   const chosen=[];for(const e of events.sort((a,b)=>b.sweep-a.sweep))if(!chosen.some(c=>e.start<c.end&&e.end>c.start))chosen.push(e);
   return {route,points,anchors,events:chosen.sort((a,b)=>a.index-b.index)};
  }
+ // A short cubic joins an attached endpoint to the fitted circle tangentially.
+ // Avoid the radial connector that creates a visible corner on a partial arc.
+ function tangentBlend(a,b,ta,tb){
+  const handle=distance(a,b)/3,c={x:a.x+ta.x*handle,y:a.y+ta.y*handle},d={x:b.x-tb.x*handle,y:b.y-tb.y*handle};
+  return Array.from({length:13},(_,i)=>{const t=i/12,u=1-t;return {x:u*u*u*a.x+3*u*u*t*c.x+3*u*t*t*d.x+t*t*t*b.x,y:u*u*u*a.y+3*u*u*t*c.y+3*u*t*t*d.y+t*t*t*b.y};});
+ }
  function pointConnection(point,arc,incoming){
   const d=distance(point,arc.center);
   // A stroke can begin/end on the rounding itself, without a separate approach.
   // Keep that endpoint and join the fitted arc locally rather than rejecting it.
-  if((incoming?arc.start<=1:arc.endsRoute)&&Math.abs(d-arc.fitRadius)<=12){const angle=Math.atan2(point.y-arc.center.y,point.x-arc.center.x);return {angle,at:circlePoint(arc.center,arc.fitRadius,angle)};}
+  if((incoming?arc.start<=1:arc.endsRoute)&&Math.abs(d-arc.fitRadius)<=12){
+   const bearing=Math.atan2(point.y-arc.center.y,point.x-arc.center.x);
+   if(Math.abs(d-arc.fitRadius)<.01)return {angle:bearing,at:copy(point)};
+   const trim=clamp(Math.abs(d-arc.fitRadius)/arc.fitRadius*2,.12,.35),angle=bearing+(incoming?1:-1)*arc.dir*trim,at=circlePoint(arc.center,arc.fitRadius,angle);
+   const transition=incoming?tangentBlend(point,at,tangent(bearing,arc.dir),tangent(angle,arc.dir)):tangentBlend(at,point,tangent(angle,arc.dir),tangent(bearing,arc.dir));
+   return {angle,at,transition};
+  }
   if(d<=arc.fitRadius+.1)return null;
   const bearing=Math.atan2(point.y-arc.center.y,point.x-arc.center.x),offset=Math.acos(arc.fitRadius/d),candidates=[];
   for(const angle of [bearing+offset,bearing-offset]){
@@ -106,8 +118,8 @@
   for(let i=1;i<nodes.length;i++){
    const a=nodes[i-1],b=nodes[i];
    if(a.kind==='point'&&b.kind==='point'){connections.push({start:a.point,end:b.point});continue;}
-   if(a.kind==='point'){const c=pointConnection(a.point,b,true);if(!c)return null;b.entry=c.angle;connections.push({start:a.point,end:c.at});}
-   else if(b.kind==='point'){const c=pointConnection(b.point,a,false);if(!c)return null;a.exit=c.angle;connections.push({start:c.at,end:b.point});}
+   if(a.kind==='point'){const c=pointConnection(a.point,b,true);if(!c)return null;b.entry=c.angle;connections.push({start:a.point,end:c.at,transition:c.transition});}
+   else if(b.kind==='point'){const c=pointConnection(b.point,a,false);if(!c)return null;a.exit=c.angle;connections.push({start:c.at,end:b.point,transition:c.transition});}
    else{const c=circleConnection(a,b);if(!c)return null;a.exit=c.a;b.entry=c.b;connections.push({start:circlePoint(a.center,a.fitRadius,c.a),end:circlePoint(b.center,b.fitRadius,c.b)});}
   }
   const out=[];const append=p=>{if(!out.length||distance(out.at(-1),p)>.001)out.push(copy(p));};
@@ -119,6 +131,7 @@
     if(a.kind==='point'&&b.kind==='point'){
      const original=points.slice(Math.floor(a.index),Math.ceil(b.index)+1);if(original.some(p=>segmentDistance(p,c.start,c.end)>30))return null;
     }
+    if(c.transition)c.transition.forEach(append);
     append(c.end);
    }
   }
