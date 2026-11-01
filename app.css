@@ -1238,3 +1238,13 @@ html[data-nsk-theme="arena"] #personCardAvatar{height:110px;overflow:hidden;bord
 html[data-nsk-theme="arena"] #personCardAvatar .person-profile-photo{width:100%;height:100%;object-fit:contain}
 .person-card-photo-actions{margin:0 0 18px}
 @media(max-width:380px){html[data-nsk-theme="arena"] #personCardAvatar{height:94px}}
+
+/* Open the same private photo at a larger size without changing the card layout. */
+button#personCardAvatar{padding:0;margin:0;cursor:zoom-in;color:inherit}
+button#personCardAvatar:focus-visible{outline:3px solid #ed4361;outline-offset:4px}
+.person-photo-viewer{box-sizing:border-box;width:min(640px,calc(100% - 24px));max-height:92dvh;overflow:auto;margin:auto;padding:16px;border:1px solid #46505c;border-radius:18px;background:#101923;color:#f4f4f6;box-shadow:0 24px 80px #0009}
+.person-photo-viewer::backdrop{background:#000d}
+.person-photo-viewer-header{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:12px}
+.person-photo-viewer-header h2{font-size:1.1rem;margin:0;overflow-wrap:anywhere}
+.person-photo-viewer-header button{flex:none;min-width:44px;min-height:44px;margin:0;padding:0;border:0;background:transparent;color:inherit;font-size:2rem}
+.person-photo-viewer-image img{display:block;width:100%;max-height:72dvh;object-fit:contain;border-radius:8px}
