@@ -34,6 +34,6 @@ export function mergeTraining(base,desired,current,resolveConflicts=false){
  for(const key of sets){const ids=[...new Set([...c[key],...d[key],...b[key]])];next[key]=ids.filter(id=>mergeConcurrent(b[key].includes(id),d[key].includes(id),c[key].includes(id),resolveConflicts));}
  const out=mergeConcurrent(Object.fromEntries(Object.entries(b).filter(([k])=>!sets.includes(k))),Object.fromEntries(Object.entries(d).filter(([k])=>!sets.includes(k))),Object.fromEntries(Object.entries(c).filter(([k])=>!sets.includes(k))),resolveConflicts);
  Object.assign(out,Object.fromEntries(sets.map(k=>[k,next[k]])));
- if(out.goalies.length!==out.goalieCount||out.goalies.some(id=>!out.selected.includes(id))||out.allocation.flat().some(id=>!out.selected.includes(id)||out.goalies.includes(id))||new Set(out.allocation.flat()).size!==out.allocation.flat().length)throw Object.assign(Error('Närvaro, målvakter eller tröjfärger ändrades samtidigt. Granska dina val innan du sparar.'),{status:409});
+ if(out.goalies.length>out.goalieCount||out.goalies.some(id=>!out.selected.includes(id))||out.allocation.flat().some(id=>!out.selected.includes(id)||out.goalies.includes(id))||new Set(out.allocation.flat()).size!==out.allocation.flat().length)throw Object.assign(Error('Närvaro, målvakter eller tröjfärger ändrades samtidigt. Granska dina val innan du sparar.'),{status:409});
  return out;
 }

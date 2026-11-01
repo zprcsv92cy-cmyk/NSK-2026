@@ -19,3 +19,7 @@ jobs:
         run: node --test scripts/*.test.mjs scripts/*.test.cjs worker/*.test.mjs
       - name: Verify local training database integration
         run: python3 scripts/training-d1-integration.test.py
+      - name: Install isolated training DOM dependency
+        run: npm install --prefix "$RUNNER_TEMP/training-dom" jsdom@26 --no-audit --no-fund
+      - name: Verify training settings through real page, HTTP client and isolated database
+        run: NSK_JSDOM_MODULE="$RUNNER_TEMP/training-dom/node_modules/jsdom/lib/api.js" node scripts/training-settings-dom-check.mjs

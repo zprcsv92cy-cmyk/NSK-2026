@@ -22,7 +22,7 @@ test('rejects duplicate players, coaches and goalies',()=>{
 
 test('rejects goalies not selected, invalid goalie count and goalies allocated as skaters',()=>{
  for(const patch of [
-  {goalies:['999']},{goalieCount:2},{goalieCount:-1},
+  {goalies:['999']},{goalieCount:3},{goalieCount:-1},
   {allocation:[['101']]},{allocation:[['102'],['102']]}
  ]) assert.equal(validateTrainingPayload({...valid(),...patch}),false);
 });

@@ -20,9 +20,12 @@ test('group allocation uses arrays and rejects repeated or unknown players',()=>
  assert.equal(validateTrainingPayload({...grouped,allocation:[['1'],['2'],[]]}),false);
 });
 
-test('goalie count must match confirmed goalie names',()=>{
- assert.equal(validateTrainingPayload({...good,goalieCount:2}),false);
+test('goalie count allows unnamed places but never more names than places',()=>{
+ assert.equal(validateTrainingPayload({...good,goalieCount:2}),true);
  assert.equal(validateTrainingPayload({...good,goalieCount:0,goalies:[]}),true);
+ assert.equal(validateTrainingPayload({...good,goalieCount:2,goalies:[]}),true);
+ assert.equal(validateTrainingPayload({...good,goalieCount:0}),false);
+ assert.equal(validateTrainingPayload({...good,goalieCount:2,goalies:['']}),false);
 });
 
 test('equipment attendance accepts only namespaced UUIDs in staff attendance, never as players or goalies',()=>{
