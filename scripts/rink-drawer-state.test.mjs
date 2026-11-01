@@ -471,3 +471,14 @@ test('limited turn-size preview explains constraints and can be discarded',async
 test('turn size is unavailable for a straight stroke with no equipment roundings',()=>{
  const f=editor({[DRAFT]:JSON.stringify({marks:previewMarks()})});f.node('rinkTidy').onclick();assert.equal(f.node('rinkTidyRadius').disabled,true);assert.equal(f.node('rinkTidyRadiusValue').textContent,'Normal');
 });
+
+test('placing asymmetric tires and drawing a sloppy stroke through pointer input yields a visible tidy result',async()=>{
+ const {asymmetricSlalom}=await import('./fixtures/asymmetric-slalom.mjs'),[r,...tires]=asymmetricSlalom(),f=editor();
+ for(const tire of tires){f.choose('tire');f.pointer('pointerdown',tire.x,tire.y);f.pointer('pointerup',tire.x,tire.y);}
+ f.choose('curve');f.pointer('pointerdown',r.points[0].x,r.points[0].y);for(const p of r.points.slice(1,-1))f.pointer('pointermove',p.x,p.y);f.pointer('pointerup',r.points.at(-1).x,r.points.at(-1).y);f.flush();const before=f.draft().marks,route=before.find(m=>m.type==='curve');
+ f.node('rinkTidy').onclick();assert.equal(f.node('rinkTidyApply').disabled,false);assert.equal(f.node('rinkTidyScope').value,'selected');f.flush();assert.deepEqual(f.draft().marks,before);
+ f.node('rinkTidyApply').onclick();f.flush();const after=f.draft().marks,fit=after.find(m=>m.id===route.id);assert.equal(fit.routeStyle,'planned');assert.deepEqual(after.filter(m=>m.type==='tire'),before.filter(m=>m.type==='tire'));
+ const radii=tires.map(t=>{const radius=Math.min(...fit.points.map(p=>Math.hypot(p.x-t.x,p.y-t.y)));assert.ok(fit.points.filter(p=>Math.abs(Math.hypot(p.x-t.x,p.y-t.y)-radius)<1e-6).length>=8);return radius;});assert.ok(Math.max(...radii)-Math.min(...radii)<1e-6);
+ assert.deepEqual(fit.points[0],route.points[0]);assert.deepEqual(fit.points.at(-1),route.points.at(-1));assert.notDeepEqual(fit.points,route.points);
+ f.node('rinkUndo').onclick();f.flush();assert.deepEqual(f.draft().marks,before);f.node('rinkRedo').onclick();f.flush();assert.deepEqual(f.draft().marks,after);
+});

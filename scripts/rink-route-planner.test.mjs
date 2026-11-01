@@ -121,3 +121,17 @@ test('turn-size control does not resize the printed rink circles',()=>{
 test('a closed equipment loop retains its fixed start when a larger turn is requested',()=>{
  const center={...tire,y:430},points=arc(center,48,0,Math.PI*2,48);points[points.length-1]={...points[0]};const r=route('fixed-loop',points),result=api.plan([r,center],{radiusScale:1.5}),fit=result.plans.get(r.id);assert.ok(fit);assert.equal(result.limited,true);assert.deepEqual(plain(fit.points[0]),points[0]);assert.deepEqual(plain(fit.points.at(-1)),points.at(-1));
 });
+
+test('asymmetric slalom with shaky touch samples becomes five ordered equal-radius turns',async()=>{
+ const {asymmetricSlalom}=await import('./fixtures/asymmetric-slalom.mjs');
+ for(const jitter of [3,7,12])for(const density of [16,40]){
+  const [r,...tires]=asymmetricSlalom({jitter,density}),before=JSON.stringify([r,...tires]),fit=api.plan([r,...tires]).plans.get(r.id);assert.ok(fit,`jitter ${jitter}, density ${density}`);assert.equal(fit.routeStyle,'planned');
+  const groups=tires.map(t=>{const radius=Math.min(...fit.points.map(p=>dist(p,t))),pts=fit.points.map((p,i)=>({p,i})).filter(({p})=>Math.abs(dist(p,t)-radius)<1e-6);assert.ok(pts.length>=8);return {radius,pts};});
+  assert.ok(Math.max(...groups.map(g=>g.radius))-Math.min(...groups.map(g=>g.radius))<1e-6);
+  for(let i=0;i<groups.length;i++){if(i)assert.ok(groups[i].pts[0].i>groups[i-1].pts.at(-1).i);assert.ok(groups[i].pts.some(({p})=>(p.x-tires[i].x)*(i%2?-1:1)>groups[i].radius*.8));}
+  assert.deepEqual(plain(fit.points[0]),r.points[0]);assert.deepEqual(plain(fit.points.at(-1)),r.points.at(-1));assert.equal(JSON.stringify([r,...tires]),before);
+ }
+});
+test('a skating-direction boundary pins endpoints without prohibiting rounded interpretation',()=>{
+ const r={...approach(),directionBoundary:true,motion:'backward'},fit=api.plan([r,tire]).plans.get(r.id);assert.ok(fit);assert.equal(fit.motion,'backward');assert.equal(fit.directionBoundary,true);assert.deepEqual(plain(fit.points[0]),r.points[0]);assert.deepEqual(plain(fit.points.at(-1)),r.points.at(-1));
+});
