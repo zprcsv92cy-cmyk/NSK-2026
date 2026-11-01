@@ -41,8 +41,8 @@
    if(best.d<=16&&best.index>2&&best.index<points.length-3&&!found.some(a=>Math.abs(a.index-best.index)<5))found.push({kind:'point',point:copy(p),index:best.index,passId:pass.id});
   }return found.sort((a,b)=>a.index-b.index);
  }
- function analyze(route,equipment,passes=[],wide=false){
-  const points=sample(rendered(route)),anchors=passAnchors(points,passes),events=[];
+ function analyze(route,equipment,passes=[],wide=false,stroke=null){
+  const points=sample(stroke||interpretedStroke(route)),anchors=passAnchors(points,passes),events=[];
   for(const obstacle of equipment){
    const footprint=obstacle.type==='landmark'?0:obstacle.type==='tire'?13:14,distances=points.map(p=>distance(p,obstacle)),closest=Math.min(...distances);
    // Touch strokes can graze an equipment edge. Keep these candidates for the
@@ -139,16 +139,37 @@
   return {...route,x:out[0].x,y:out[0].y,...(route.x2!==undefined?{x2:out.at(-1).x,y2:out.at(-1).y}:{}),points:out,routeStyle:'planned'};
  }
  // Preserve explicit reversals and figure-eight crossings instead of guessing a shortcut.
- function hasRouteFeatures(route){
-  const raw=rendered(route),ps=raw.length>450?sample(raw):raw;if(route.directionBoundary)return true;
+ function strokeFeatures(raw,includeJitter=false){
+  const ps=raw.length>450?sample(raw):raw;
   const significant=[ps[0]];for(const p of ps.slice(1))if(distance(p,significant.at(-1))>=8)significant.push(p);
-  for(let i=1;i<significant.length-1;i++){const a=significant[i-1],b=significant[i],c=significant[i+1],u=distance(a,b),v=distance(b,c);if(u&&v&&((b.x-a.x)*(c.x-b.x)+(b.y-a.y)*(c.y-b.y))/(u*v)<-.75)return true;}
+  for(let i=1;i<significant.length-1;i++){const a=significant[i-1],b=significant[i],c=significant[i+1],u=distance(a,b),v=distance(b,c);if(u&&v&&((b.x-a.x)*(c.x-b.x)+(b.y-a.y)*(c.y-b.y))/(u*v)<-.75){const before=significant[Math.max(0,i-3)],after=significant[Math.min(significant.length-1,i+3)],bu=distance(before,b),bv=distance(b,after);if(includeJitter||bu>16&&bv>16&&((b.x-before.x)*(after.x-b.x)+(b.y-before.y)*(after.y-b.y))/(bu*bv)<-.6)return true;}}
   const walked=[0];for(let i=1;i<ps.length;i++)walked.push(walked.at(-1)+distance(ps[i-1],ps[i]));
-  for(let i=0;i<ps.length;i++)for(let j=i+3;j<ps.length;j++){const span=walked[j]-walked[i];if(span>50&&walked.at(-1)-span>30&&distance(ps[i],ps[j])<2)return true;}
+  const meaningful=(start,end)=>{const part=ps.slice(start,end+1),xs=part.map(p=>p.x),ys=part.map(p=>p.y);return Math.max(...xs)-Math.min(...xs)>24||Math.max(...ys)-Math.min(...ys)>24;};
+  for(let i=0;i<ps.length;i++)for(let j=i+3;j<ps.length;j++){const span=walked[j]-walked[i];if(span>50&&walked.at(-1)-span>30&&distance(ps[i],ps[j])<2&&(includeJitter||meaningful(i,j)))return true;
+   const p=ps[i],a=ps[j-1],b=ps[j];if(!includeJitter&&p.x>=Math.min(a.x,b.x)-2&&p.x<=Math.max(a.x,b.x)+2&&p.y>=Math.min(a.y,b.y)-2&&p.y<=Math.max(a.y,b.y)+2){const q=project(p,a,b),along=walked[j-1]+distance(a,q)-walked[i];if(along>50&&walked.at(-1)-along>30&&distance(p,q)<2&&meaningful(i,j))return true;}
+  }
   const cross=(a,b,c)=>(b.x-a.x)*(c.y-a.y)-(b.y-a.y)*(c.x-a.x);
-  for(let i=1;i<ps.length;i++)for(let j=i+2;j<ps.length;j++){const a=ps[i-1],b=ps[i],c=ps[j-1],d=ps[j];if(cross(a,b,c)*cross(a,b,d)<-1e-6&&cross(c,d,a)*cross(c,d,b)<-1e-6)return true;}
+  for(let i=1;i<ps.length;i++)for(let j=i+2;j<ps.length;j++){const a=ps[i-1],b=ps[i],c=ps[j-1],d=ps[j];if(cross(a,b,c)*cross(a,b,d)<-1e-6&&cross(c,d,a)*cross(c,d,b)<-1e-6&&(includeJitter||meaningful(i-1,j)))return true;}
   return false;
  }
+ // Only remove sub-symbol touch jitter before interpreting a protected stroke.
+ // A real crossing/return survives this small geometric tolerance and stays protected.
+ function simplifyStroke(points,tolerance=6){
+  if(points.length<3)return points.map(copy);let far=tolerance,index=-1;
+  for(let i=1;i<points.length-1;i++){const d=segmentDistance(points[i],points[0],points.at(-1));if(d>far){far=d;index=i;}}
+  if(index<0)return [copy(points[0]),copy(points.at(-1))];
+  return [...simplifyStroke(points.slice(0,index+1),tolerance).slice(0,-1),...simplifyStroke(points.slice(index),tolerance)];
+ }
+ function interpretedStroke(route){
+  const raw=rendered(route);if(strokeFeatures(raw))return raw;
+  const simple=simplifyStroke(raw),length=ps=>ps.slice(1).reduce((n,p,i)=>n+distance(p,ps[i]),0);
+  const bending=ps=>{let previous=null,total=0;for(let i=1;i<ps.length;i++){if(distance(ps[i],ps[i-1])<.01)continue;const h=Math.atan2(ps[i].y-ps[i-1].y,ps[i].x-ps[i-1].x);if(previous!==null)total+=Math.abs(wrap(h-previous));previous=h;}return total;};
+  const noisy=length(raw)>length(simple)*1.08||bending(raw)>Math.max(8,bending(simple)*1.7);
+  if(!noisy&&!strokeFeatures(raw,true))return raw;
+  let smooth=sample(raw);for(let pass=0;pass<3;pass++)smooth=smooth.map((p,i)=>!i||i===smooth.length-1?copy(p):{x:(smooth[i-1].x+2*p.x+smooth[i+1].x)/4,y:(smooth[i-1].y+2*p.y+smooth[i+1].y)/4});
+  const clean=simplifyStroke(smooth);return strokeFeatures(clean)?raw:clean;
+ }
+ function hasRouteFeatures(route){return strokeFeatures(interpretedStroke(route));}
  // Printed circles/dots are route anchors too, including when equipment was
  // already recognised elsewhere on the same stroke. Never drop a later turn.
  function withReferences(analysis,references){
@@ -158,19 +179,19 @@
  function plan(marks,options={}){
   const radiusScale=Number.isFinite(options.radiusScale)?clamp(options.radiusScale,.75,1.5):1;
   let limited=false,equipmentTurns=0;
-  const equipment=marks.filter(m=>['tire','cone'].includes(m.type)),passes=marks.filter(m=>m.type==='pass'),analyses=marks.filter(m=>m.type==='curve'&&m.points?.length>=3).map(m=>analyze(m,equipment,passes));
-  for(const analysis of analyses)analysis.startPinned=radiusScale!==1||marks.some(m=>['player','goalie','puck'].includes(m.type)&&distance(m,analysis.points[0])<24)||passes.some(p=>distance(p,analysis.points[0])<16||distance({x:p.x2,y:p.y2},analysis.points[0])<16);
+  const equipment=marks.filter(m=>['tire','cone'].includes(m.type)),passes=marks.filter(m=>m.type==='pass'),routes=marks.filter(m=>m.type==='curve'&&m.points?.length>=3),strokes=new Map(routes.map(m=>[m.id,interpretedStroke(m)])),analyses=routes.map(m=>analyze(m,equipment,passes,false,strokes.get(m.id)));
+  for(const analysis of analyses)analysis.startPinned=analysis.route.directionBoundary||radiusScale!==1||marks.some(m=>['player','goalie','puck'].includes(m.type)&&distance(m,analysis.points[0])<24)||passes.some(p=>distance(p,analysis.points[0])<16||distance({x:p.x2,y:p.y2},analysis.points[0])<16);
   const gaps=analyses.flatMap(a=>a.events.map(e=>e.radius-e.footprint)).sort((a,b)=>a-b),baseClearance=gaps.length?clamp(gaps[Math.floor(gaps.length/2)],18,65):24,clearance=clamp(baseClearance*radiusScale,18,85),plans=new Map();
   if(Math.abs(clearance-baseClearance*radiusScale)>.01)limited=true;
   for(const analysis of analyses){
-   if(hasRouteFeatures(analysis.route))continue;
+   if(strokeFeatures(strokes.get(analysis.route.id)))continue;
    let routeHasEquipment=analysis.events.length>0;equipmentTurns+=analysis.events.length;
    if(radiusScale!==1&&analysis.events.some(e=>e.closed)&&analysis.startPinned)limited=true;
    const references=analysis.route.points.length>=6?rinkLandmarks.filter(p=>equipment.every(o=>distance(p,o)>100)):[];
-   const referenceAnalysis=analyze(analysis.route,references,passes);
+   const referenceAnalysis=analyze(analysis.route,references,passes,false,strokes.get(analysis.route.id));
    let candidate=build(withReferences(analysis,referenceAnalysis),clearance);
    if(!candidate){
-    const broad=analyze(analysis.route,equipment,passes,true);broad.startPinned=analysis.startPinned;routeHasEquipment||=broad.events.length>0;equipmentTurns+=broad.events.length;
+    const broad=analyze(analysis.route,equipment,passes,true,strokes.get(analysis.route.id));broad.startPinned=analysis.startPinned;routeHasEquipment||=broad.events.length>0;equipmentTurns+=broad.events.length;
     let fitClearance=clearance;
     for(let i=1;i<broad.events.length;i++){const a=broad.events[i-1],b=broad.events[i];if(a.dir!==b.dir)fitClearance=Math.min(fitClearance,(distance(a.center,b.center)-a.footprint-b.footprint)/2-4);}
     if(fitClearance<clearance-.01)limited=true;
