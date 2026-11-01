@@ -1273,6 +1273,7 @@ window.NSK2App = (() => {
   function queueAutoSaveLineup() {
     clearTimeout(window.__nskLineupSaveTimer);
     lineupPendingSnapshot=captureLineupSnapshot();
+    if(byId('lineupEditButton')){setText('lineupMsg','Osparade ändringar för Match '+lineupPendingSnapshot.matchNo+'. Tryck Spara laguppställning.');window.NSKShellHost?.dirty?.(window);return;}
     setText('lineupMsg','Ändringar väntar på att sparas…');
     window.__nskLineupSaveTimer=setTimeout(()=>{void flushLineupChanges();},350);
   }
@@ -1615,6 +1616,8 @@ window.NSK2App = (() => {
     const loadGeneration=(window.__nskLineupLoadGeneration||0)+1;window.__nskLineupLoadGeneration=loadGeneration;
     const selectedNow=()=>loadGeneration===window.__nskLineupLoadGeneration;
     const loading=disabled=>{byId('lineupSelectors')?.setAttribute?.('aria-busy',String(disabled));for(const field of (typeof document==='undefined'?null:document.querySelectorAll?.("#lineupSelectors select,#lineupCoach,#lineupStartTime,#lineupOpponent,#lineupPlan,#lineupPlayerCount,#lineupSaveButton,#poolEquipment,.coach-choice,[data-random-goalie]"))||[])field.disabled=disabled||window.__nskLineupClosed===true;};
+    window.__nskLineupLoading=true;window.__nskLineupLoadFailed=false;window.__nskLineupEditing=false;
+    updateLineupEditControls();
     loading(true);
     clearTimeout(window.__nskLineupSaveTimer);
     const lagNo = sessionStorage.getItem("nsk2_lag_nr") || "1";
@@ -1760,11 +1763,16 @@ window.NSK2App = (() => {
       updateCoachEnabledState();
 
       if(byId('poolEquipment')&&DB.getPoolMaterial){try{const selected=await DB.getPoolMaterial(poolId);if(!selectedNow())return;renderPoolMaterial(selected,poolId);}catch(error){if(selectedNow()){setText('poolEquipmentMsg','Materialvalet kunde inte hämtas.');byId('poolEquipmentReload').hidden=false;}}}
-      loading(false);
+      const played=DB.listShiftSchema?await DB.listShiftSchema(poolId,lagNo,matchNo):[];
+      if(!selectedNow())return;
+      window.__nskLineupStarted=played.some(row=>row.done);
+      window.__nskLineupEditing=!rowCurrent?.goalie_player_id&&!window.__nskLineupStarted;
+      window.__nskLineupLoading=false;
+      loading(false);updateLineupEditControls();
       // Do not auto-save when merely opening another match. Save on user changes.
 
     } catch (err) {
-      if(selectedNow()){loading(false);setText("appError", err?.message || String(err));}
+      if(selectedNow()){window.__nskLineupLoading=false;window.__nskLineupLoadFailed=true;loading(false);updateLineupEditControls();setText("appError", err?.message || String(err));}
     }
   }
 
@@ -1952,6 +1960,7 @@ window.NSK2App = (() => {
       goalie: cleanUUID(byId("lineupGoalie")?.value),
       playerCount: safeInt(byId("lineupPlayerCount")?.value || "3", 3),
       players: [],
+      onlySelectedMatch:!!byId('lineupEditButton'),
       coachIds: Array.from(byId("lineupCoach")?.selectedOptions || []).map(o => String(o.value)).filter(Boolean),
       startTime: byId("lineupStartTime")?.value || null,
       opponent: byId("lineupOpponent")?.value?.trim() || "",
@@ -2015,7 +2024,7 @@ window.NSK2App = (() => {
       else{const matchRow=await DB.savePoolTeamMatchConfig(matchConfig);await DB.saveLineup(matchRow.id,selectedPlayers.map(Number),coachIds.map(Number));}
       if(!emptyDraft)await regenerateShiftSchemaFor(poolId,lagNo,matchNo);else if(played.length&&DB.deleteShiftSchema)await DB.deleteShiftSchema(poolId,lagNo,matchNo);
       lineupSaveFailed=false;
-      if(String(matchNo)==='1'&&!emptyDraft){
+      if(String(matchNo)==='1'&&!emptyDraft&&!snapshot.onlySelectedMatch){
         const pool=await DB.getPool(poolId);
         const plan=DB.listPoolMatchPlan?await DB.listPoolMatchPlan(poolId):Array.from({length:Number(pool.matches)},(_,i)=>({lag_no:Number(lagNo),match_no:i+1}));
         for(const item of plan.filter(r=>Number(r.lag_no)===Number(lagNo)&&Number(r.match_no)>1)){const n=Number(item.match_no);
@@ -2040,6 +2049,28 @@ window.NSK2App = (() => {
   async function initLaguppstallningPage() {
     return DB.withReadSnapshot?DB.withReadSnapshot(()=>initLineupPageData()):initLineupPageData();
   }
+  function updateLineupEditControls(){
+    if(!byId('lineupEditButton'))return;
+    const unavailable=window.__nskLineupLoading||window.__nskLineupSaving||window.__nskLineupLoadFailed||window.__nskLineupClosed||!sessionStorage.getItem('nsk2_pool_id');
+    const editing=window.__nskLineupEditing===true;
+    for(const field of document.querySelectorAll('#lineupSelectors select,#lineupCoach,#lineupStartTime,#lineupOpponent,#lineupPlan,#lineupPlayerCount,[data-random-goalie]')){
+      const playerField=field.closest('#lineupSelectors')||field.id==='lineupPlayerCount';
+      field.disabled=!!unavailable||!editing||!!(playerField&&window.__nskLineupStarted);
+    }
+    for(const button of document.querySelectorAll('#lineupCoachChoices button'))button.disabled=byId('lineupCoach')?.disabled===true;
+    byId('lineupEditButton').disabled=!!unavailable||editing;
+    byId('lineupSaveButton').disabled=!!unavailable||!editing;
+    const match=byId('lineupMatch')?.value||'1',lag=sessionStorage.getItem('nsk2_lag_nr')||'1';
+    setText('lineupEditStatus',window.__nskLineupLoading?'Hämtar laguppställning…':window.__nskLineupSaving?'Sparar Lag '+lag+' · Match '+match+'…':window.__nskLineupClosed?'Poolspelet är avslutat. Återöppna det i kalendern för att ändra.':window.__nskLineupLoadFailed?'Laguppställningen kunde inte läsas. Ladda om sidan.':window.__nskLineupStarted?'Lag '+lag+' · Match '+match+': spelarna är låsta efter matchstart. Matchinfo kan redigeras.':editing?'Redigerar Lag '+lag+' · Match '+match+'. Spara när du är klar.':'Lag '+lag+' · Match '+match+'. Tryck Redigera för att ändra.');
+  }
+  async function saveSelectedLineup(){
+    if(window.__nskLineupSaving||window.__nskLineupLoading||window.__nskLineupClosed||!window.__nskLineupEditing)return;
+    const snapshot=captureLineupSnapshot(),generation=window.__nskLineupLoadGeneration;
+    window.__nskLineupSaving=true;updateLineupEditControls();
+    lineupPendingSnapshot=snapshot;
+    try{if(await flushLineupChanges()&&generation===window.__nskLineupLoadGeneration)window.__nskLineupEditing=false;}
+    finally{window.__nskLineupSaving=false;updateLineupEditControls();}
+  }
   async function initLineupPageData() {
     const teamButtonsBox = byId("laguppstallningTeamButtons");
     const matchSelect = byId("lineupMatch");
@@ -2049,7 +2080,8 @@ window.NSK2App = (() => {
     if (!teamButtonsBox || !matchSelect || !lineupBox || !coachSelect) return;
 
     byId('poolEquipmentReload')?.addEventListener('click',async()=>{try{const poolId=sessionStorage.getItem('nsk2_pool_id'),data=await DB.getPoolMaterial(poolId);renderPoolMaterial(data,poolId);coachSaveFailed=false;byId('poolEquipmentReload').hidden=true;setText('poolEquipmentMsg','Materialval hämtat.');}catch(error){setText('poolEquipmentMsg',error.message);}});
-    byId("lineupSaveButton")?.addEventListener("click",async()=>{lineupPendingSnapshot=captureLineupSnapshot();await flushLineupChanges();});
+    byId('lineupEditButton')?.addEventListener('click',()=>{if(byId('lineupEditButton').disabled)return;window.__nskLineupEditing=true;setText('appError','');updateLineupEditControls();});
+    byId("lineupSaveButton")?.addEventListener("click",saveSelectedLineup);
     try {
       const poolId = sessionStorage.getItem("nsk2_pool_id");
       let teams = 2;
