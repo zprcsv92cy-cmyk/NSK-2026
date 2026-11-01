@@ -79,8 +79,8 @@ export async function readPersonallyAuthorizedTeamCollection(request, env, {
         {headers:{'cache-control':'no-store','x-content-type-options':'nosniff'}});
     }
     const [pools, configs, lineups, shifts] = await Promise.all([
-      readRows('poolspel'), readRows('matchkonfiguration'),
-      readRows('laguppstallningar'), readRows('bytesschema')
+      readRows('poolspel'), match[1]!=='bytesschema'?readRows('matchkonfiguration'):[],
+      match[1]==='laguppstallningar'?readRows('laguppstallningar'):[], match[1]==='bytesschema'?readRows('bytesschema'):[]
     ]);
     if (![pools, configs, lineups, shifts].every(Array.isArray))
       throw Error('Incomplete table snapshot');

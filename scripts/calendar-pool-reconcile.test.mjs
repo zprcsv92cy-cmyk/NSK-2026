@@ -81,3 +81,9 @@ test('timestamp dates link to saved calendar days and merged cards retain all re
  const a={...pool('SvenskaLag'),key:'source-a',date:date+'T00:00:00Z'},b={...pool('SweHockey'),key:'source-b'},result=reconcile([a,b],[{...saved,pool_date:date+'T00:00:00Z'}],summaries);
  assert.equal(result.items.length,1);assert.equal(result.links.get(result.items[0]),String(saved.id));assert.deepEqual(result.items[0].sourceKeys.sort(),['source-a','source-b']);
 });
+
+test('manually edited aliases with identical explicit source groups render one known venue pool',()=>{
+ const keys=['pool:ev','pool:smehallen','swehockey-pool:1','swehockey-pool:2'];
+ const items=keys.map((key,i)=>({...pool(i>1?'swehockey':'svenskalag'),key,sourceKeys:keys,manualSchedule:true,manualScheduleRevision:3,place:i===0?'EV inställd':'Smehallen B',hall:'',...(i>1?{sourceUrl:'https://example.invalid/schedule'}:{})}));
+ const before=JSON.stringify(items),result=reconcile(items,[]);assert.equal(result.items.filter(i=>i.type==='pool').length,1);assert.equal(result.items[0].place,'Smehallen B');assert.deepEqual(result.items[0].sourceKeys,keys);assert.equal(JSON.stringify(items),before);
+});

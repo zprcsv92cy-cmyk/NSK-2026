@@ -241,7 +241,7 @@
    let links=new Map(),summaries=new Map();
    try{
     const relevant=existingPools.filter(p=>items.some(item=>item.type==='pool'&&calendarDate(item.date)===calendarDate(p.pool_date)));
-    summaries=typeof DB.listPoolMatchSummaries==='function'&&relevant.length?await DB.listPoolMatchSummaries(relevant.map(p=>p.id)):new Map();
+    try{summaries=typeof DB.listPoolMatchSummaries==='function'&&relevant.length?await DB.listPoolMatchSummaries(relevant.map(p=>p.id)):new Map();}catch(error){console.warn('Matchuppgifter kunde inte hämtas för kalenderkopplingen',error);}
     const {reconcileCalendarPools}=await import(new URL('calendar-pool-reconcile.mjs?v='+encodeURIComponent(window.NSK_VERSION||'1'),nskVersionRoot()).href);
     const reconciled=reconcileCalendarPools(items,existingPools,summaries);items=reconciled.items;links=reconciled.links;
    }catch(error){console.warn('Kalenderkopplingen kunde inte kontrolleras',error);}

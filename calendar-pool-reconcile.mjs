@@ -27,8 +27,23 @@ function sameEvent(a,b,all){
 export function reconcileCalendarPools(items,pools,summaries=new Map()){
  const output=items.map(item=>({...item,date:String(item.date||'').slice(0,10),sourceKeys:[...new Set([...(item.sourceKeys||[]),item.key,...(item.matches||[]).map(m=>m.key)].filter(Boolean))]})),removed=new Set(),links=new Map();
  const candidates=output.filter(item=>item.type==='pool');
+ // An explicitly edited source group is one event even if the feed retains aliases.
+ // Never infer this from a shared date or one shared source key.
+ const editedGroups=new Map();
+ for(const item of candidates){
+  if(!item.manualSchedule||!item.key||!item.sourceKeys.includes(item.key))continue;
+  const key=JSON.stringify([item.date,Number(item.manualScheduleRevision)||0,[...item.sourceKeys].sort()]);
+  const group=editedGroups.get(key)||[];group.push(item);editedGroups.set(key,group);
+ }
+ for(const group of editedGroups.values()){
+  if(group.length<2||group.some(item=>!sameFixtures(fixtures(item,output),fixtures(group[0],output))))continue;
+  const score=item=>(venue(item)?100:0)+(item.sourceUrl?10:0);
+  const primary=[...group].sort((a,b)=>score(b)-score(a))[0];
+  primary.notice=[...new Set(group.flatMap(item=>[item.notice,...(unknown(item.place)&&text(item.place)?['SvenskaLag anger '+item.place+'. Kontrollera med arrangören före start.']:[])]).filter(Boolean))].join(' ');
+  for(const item of group)if(item!==primary){primary.calendarHidden=!!(primary.calendarHidden||item.calendarHidden);removed.add(item);}
+ }
  // Merge only unique, reciprocal pairs from different sources. Ambiguity stays visible.
- const peers=new Map(candidates.map(a=>[a,candidates.filter(b=>a!==b&&text(a.source||'svenskalag')!==text(b.source||'svenskalag')&&sameEvent(a,b,output))]));
+ const peers=new Map(candidates.map(a=>[a,candidates.filter(b=>a!==b&&!removed.has(b)&&text(a.source||'svenskalag')!==text(b.source||'svenskalag')&&sameEvent(a,b,output))]));
  for(const a of candidates){
   if(removed.has(a))continue;
   const matches=peers.get(a);if(matches.length!==1||peers.get(matches[0]).length!==1)continue;
