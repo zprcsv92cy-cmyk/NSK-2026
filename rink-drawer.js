@@ -213,7 +213,7 @@
   }
   return result;
  }
- function tidyLayout(input,patterns=true,patternLocks=new Set()){
+ function tidyLayout(input,patterns=true,patternLocks=new Set(),options={}){
   if(patterns){
    let current=input;const locks=new Set([...patternLocks,...input.filter(m=>m.patternId).map(m=>m.id)]);
    for(const proposal of equipmentPatternProposals(input)){
@@ -222,11 +222,11 @@
     const candidate=tidyLayout(moved,false,locks),before=current.filter(m=>['cone','tire','goal'].includes(m.type)),after=candidate.filter(m=>['cone','tire','goal'].includes(m.type));
     if(candidate.every((m,i)=>!['curve','skate','pass','shot'].includes(m.type)||preservesObstacleSide(current[i],m,before,after)))current=candidate;
    }
-   return tidyLayout(current,false,locks);
+   return tidyLayout(current,false,locks,options);
   }
   const result=JSON.parse(JSON.stringify(input));
   const symbols=input.filter(m=>['player','goalie','puck','cone','tire','goal'].includes(m.type));
-  const routePlans=window.NskRoutePlanner?.plan(input).plans||new Map();
+  const routeResult=window.NskRoutePlanner?.plan(input,options),routePlans=routeResult?.plans||new Map();
   for(const m of result){
    if(m.type==='curve'&&m.points?.length>2){
     // A direction boundary pins the endpoints, not every sampled point between them.
@@ -307,32 +307,37 @@
    if(blocked(current)){const offset=options.find(o=>!blocked({x:base.x+o.x,y:base.y+o.y}));if(offset)m.labelOffset={...offset};}
    const p=labelPoint(m);placed.push({left:p.x-(m.type==='goal'?0:width/2),right:p.x+(m.type==='goal'?width:width/2),top:p.y-13,bottom:p.y+3});
   }
+  Object.defineProperties(result,{tidyAdjustable:{value:Boolean(routeResult?.equipmentTurns)},tidyLimited:{value:Boolean(routeResult?.limited||protectedSmoothing||unsafePassage)}});
   Object.defineProperty(result,'keptPassages',{value:protectedSmoothing||unsafePassage||protectedEquipment.size>0});
   return result;
  }
- function tidyChoice(input,scope,mode,routeId){
+ function tidyChoice(input,scope,mode,routeId,options={}){
+  const withInfo=(choice,result)=>Object.defineProperties(choice,{tidyAdjustable:{value:Boolean(result.tidyAdjustable)},tidyLimited:{value:Boolean(result.tidyLimited)}});
   const lines=new Set(['curve','skate','pass','shot']);
   if(scope==='selected'){
    const target=input.find(m=>m.id===routeId&&['curve','skate'].includes(m.type));if(!target)return input;
    // Other skating routes must not influence this route's fitted clearance.
-   const context=input.filter(m=>!['curve','skate'].includes(m.type)||m.id===routeId),result=tidyLayout(context,false,new Set(input.map(m=>m.id)));
-   return input.map(m=>m.id===routeId?result.find(n=>n.id===routeId):m);
+   const context=input.filter(m=>!['curve','skate'].includes(m.type)||m.id===routeId),result=tidyLayout(context,false,new Set(input.map(m=>m.id)),options);
+   return withInfo(input.map(m=>m.id===routeId?result.find(n=>n.id===routeId):m),result);
   }
   const arrange=mode==='equipment',locks=new Set(input.filter(m=>!arrange||!['cone','tire'].includes(m.type)).map(m=>m.id));
-  const result=tidyLayout(input,arrange,locks);
-  return result.map((m,i)=>lines.has(m.type)||arrange&&['cone','tire'].includes(m.type)?m:input[i]);
+  const result=tidyLayout(input,arrange,locks,options);
+  return withInfo(result.map((m,i)=>lines.has(m.type)||arrange&&['cone','tire'].includes(m.type)?m:input[i]),result);
  }
  function updateTidyPreview(){
   if(!tidyPreview)return;
   if(snapshot()!==tidyPreview.base){cancelTidyPreview();return;}
   const scope=$('rinkTidyScope').value,selectedOnly=scope==='selected';
   $('rinkTidyMode').disabled=selectedOnly;if(selectedOnly)$('rinkTidyMode').value='lines';
-  const next=tidyChoice(marks,scope,$('rinkTidyMode').value,tidyPreview.routeId),counts={routes:0,equipment:0,labels:0};
+  const percentage=Math.min(150,Math.max(75,Number($('rinkTidyRadius').value)||100)),radiusScale=percentage/100;
+  const next=tidyChoice(marks,scope,$('rinkTidyMode').value,tidyPreview.routeId,{radiusScale}),counts={routes:0,equipment:0,labels:0};
   for(let i=0;i<next.length;i++){const a=marks[i],b=next[i];if(JSON.stringify(geometry(a))!==JSON.stringify(geometry(b))){if(['skate','pass','shot','curve'].includes(b.type))counts.routes++;else if(['cone','tire'].includes(b.type))counts.equipment++;}if(JSON.stringify(a.labelOffset)!==JSON.stringify(b.labelOffset))counts.labels++;}
+  $('rinkTidyRadius').disabled=!next.tidyAdjustable;if(!next.tidyAdjustable)$('rinkTidyRadius').value='100';const radiusLabel=!next.tidyAdjustable||percentage===100?'Normal':percentage<100?'Tätare':'Större';$('rinkTidyRadiusValue').textContent=radiusLabel;$('rinkTidyRadius').setAttribute('aria-valuetext',radiusLabel);
   const details=[counts.routes?counts.routes+' linjer/åkvägar förbättrade':'',counts.equipment?counts.equipment+' koner/däck jämnt fördelade':'',counts.labels?counts.labels+' etiketter flyttade':''].filter(Boolean).join(' · '),changed=JSON.stringify(next)!==tidyPreview.base;
   const message=changed?details+'. Ångra återställer originalet.':'Ingen förändring behövdes med dessa val.';
   tidyPreview.next=next;tidyPreview.message=message;$('rinkTidyApply').disabled=!changed;
   $('rinkTidyHint').textContent=selectedOnly?'Bara markerad åkväg ändras. Utrustningen står kvar.':$('rinkTidyMode').value==='equipment'?'Däck och koner får flyttas. Övriga symboler står kvar.':'Alla linjer jämnas till. Utrustningen står kvar.';
+  if(radiusScale!==1&&next.tidyLimited&&next.tidyAdjustable)$('rinkTidyHint').textContent+=' Svängstorleken begränsas för att behålla vägen och fria passager.';
   if(!changed)$('rinkTidyHint').textContent+=' Ingen förändring behövdes.';
   const report=$('rinkTidyReport');report.hidden=changed;report.textContent=message;render();updateTidyPreviewSize();announce(message);
  }
@@ -340,7 +345,7 @@
  function tidyDrawing(){
   if(tidyPreview||!marks.length){if(!marks.length){const report=$('rinkTidyReport');report.hidden=false;report.textContent='Ingen förändring: rinken är tom.';announce(report.textContent);}return;}
   closeMenus();const target=selected(),routeId=target&&['curve','skate'].includes(target.type)?target.id:null;
-  $('rinkTidySelectedOption').disabled=!routeId;$('rinkTidyScope').value=routeId?'selected':'all';$('rinkTidyMode').value='lines';
+  $('rinkTidySelectedOption').disabled=!routeId;$('rinkTidyScope').value=routeId?'selected':'all';$('rinkTidyMode').value='lines';$('rinkTidyRadius').value='100';
   tidyPreview={base:snapshot(),routeId,next:marks,message:''};
   $('rinkTidyPreview').hidden=false;document.body.classList.toggle('rink-tidy-previewing',true);updateTidyPreview();
   announce('Förhandsvisning. Välj omfattning och justering. Originalet visas svagt.');
@@ -750,7 +755,7 @@
   document.querySelectorAll('[data-tool-menu]').forEach(d=>d.addEventListener('toggle',()=>{if(d.open)document.querySelectorAll('[data-tool-menu]').forEach(other=>{if(other!==d)other.open=false;});}));
   $('rinkUndo').onclick=()=>{if(tidyPreview){cancelTidyPreview();return;}if(!history.length)return;closeMenus();$('rinkTidyReport').hidden=true;future.push(snapshot());marks=JSON.parse(history.pop());selectedId=null;render();saveDraft();};
   $('rinkRedo').onclick=()=>{if(tidyPreview){cancelTidyPreview();return;}if(!future.length)return;closeMenus();$('rinkTidyReport').hidden=true;history.push(snapshot());marks=JSON.parse(future.pop());selectedId=null;render();saveDraft();};
-  $('rinkTidy').onclick=tidyDrawing;$('rinkTidyScope').onchange=updateTidyPreview;$('rinkTidyMode').onchange=updateTidyPreview;
+  $('rinkTidy').onclick=tidyDrawing;$('rinkTidyScope').onchange=updateTidyPreview;$('rinkTidyMode').onchange=updateTidyPreview;$('rinkTidyRadius').oninput=updateTidyPreview;$('rinkTidyRadius').onchange=updateTidyPreview;
   if(window.ResizeObserver)new window.ResizeObserver(updateTidyPreviewSize).observe($('rinkTidyPreview'));
   $('rinkTidyApply').onclick=applyTidyPreview;$('rinkTidyCancel').onclick=()=>cancelTidyPreview();
   $('rinkPlay').onclick=()=>playDrawing();$('rinkPlaySelected').onclick=()=>playDrawing(true);

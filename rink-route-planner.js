@@ -155,21 +155,28 @@
   const extra=references.events.filter(e=>!analysis.events.some(a=>e.start<a.end&&e.end>a.start));
   return {...analysis,startPinned:analysis.startPinned||extra.length>0,events:[...analysis.events,...extra].sort((a,b)=>a.index-b.index)};
  }
- function plan(marks){
+ function plan(marks,options={}){
+  const radiusScale=Number.isFinite(options.radiusScale)?clamp(options.radiusScale,.75,1.5):1;
+  let limited=false,equipmentTurns=0;
   const equipment=marks.filter(m=>['tire','cone'].includes(m.type)),passes=marks.filter(m=>m.type==='pass'),analyses=marks.filter(m=>m.type==='curve'&&m.points?.length>=3).map(m=>analyze(m,equipment,passes));
-  for(const analysis of analyses)analysis.startPinned=marks.some(m=>['player','goalie','puck'].includes(m.type)&&distance(m,analysis.points[0])<24)||passes.some(p=>distance(p,analysis.points[0])<16||distance({x:p.x2,y:p.y2},analysis.points[0])<16);
-  const gaps=analyses.flatMap(a=>a.events.map(e=>e.radius-e.footprint)).sort((a,b)=>a-b),clearance=gaps.length?clamp(gaps[Math.floor(gaps.length/2)],18,65):24,plans=new Map();
+  for(const analysis of analyses)analysis.startPinned=radiusScale!==1||marks.some(m=>['player','goalie','puck'].includes(m.type)&&distance(m,analysis.points[0])<24)||passes.some(p=>distance(p,analysis.points[0])<16||distance({x:p.x2,y:p.y2},analysis.points[0])<16);
+  const gaps=analyses.flatMap(a=>a.events.map(e=>e.radius-e.footprint)).sort((a,b)=>a-b),baseClearance=gaps.length?clamp(gaps[Math.floor(gaps.length/2)],18,65):24,clearance=clamp(baseClearance*radiusScale,18,85),plans=new Map();
+  if(Math.abs(clearance-baseClearance*radiusScale)>.01)limited=true;
   for(const analysis of analyses){
    if(hasRouteFeatures(analysis.route))continue;
+   let routeHasEquipment=analysis.events.length>0;equipmentTurns+=analysis.events.length;
+   if(radiusScale!==1&&analysis.events.some(e=>e.closed)&&analysis.startPinned)limited=true;
    const references=analysis.route.points.length>=6?rinkLandmarks.filter(p=>equipment.every(o=>distance(p,o)>100)):[];
    const referenceAnalysis=analyze(analysis.route,references,passes);
    let candidate=build(withReferences(analysis,referenceAnalysis),clearance);
    if(!candidate){
-    const broad=analyze(analysis.route,equipment,passes,true);broad.startPinned=analysis.startPinned;
+    const broad=analyze(analysis.route,equipment,passes,true);broad.startPinned=analysis.startPinned;routeHasEquipment||=broad.events.length>0;equipmentTurns+=broad.events.length;
     let fitClearance=clearance;
     for(let i=1;i<broad.events.length;i++){const a=broad.events[i-1],b=broad.events[i];if(a.dir!==b.dir)fitClearance=Math.min(fitClearance,(distance(a.center,b.center)-a.footprint-b.footprint)/2-4);}
+    if(fitClearance<clearance-.01)limited=true;
     if(fitClearance>=18)candidate=build(withReferences(broad,referenceAnalysis),fitClearance);
    }
+   if(!candidate&&routeHasEquipment)limited=true;
    if(candidate){
     if(analysis.route.routeStyle==='planned'){
      const oldPoints=sample(rendered(analysis.route),128),newPoints=sample(rendered(candidate),128);
@@ -178,7 +185,7 @@
     plans.set(analysis.route.id,candidate);
    }
   }
-  return {plans,clearance};
+  return {plans,clearance,limited,equipmentTurns};
  }
  root.NskRoutePlanner=Object.freeze({plan,analyze,rendered,hasRouteFeatures,rinkLandmarks});
 })(typeof window!=='undefined'?window:globalThis);
