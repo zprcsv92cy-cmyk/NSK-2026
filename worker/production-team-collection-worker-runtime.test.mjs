@@ -103,3 +103,23 @@ test('real Worker verifies D1 session and isolates shared-pool rows end-to-end',
     globalThis.fetch = originalFetch;
   }
 });
+
+for(const next of ['http://api.baserow.io/api/database/rows/table/1255115/?page=2','?page=2','https://untrusted.example/never-follow?token=private'])
+ test('paginated shift read uses fixed HTTPS origin and own page counter: '+next.split('?')[0],{concurrency:false},async()=>{
+  const previous=globalThis.fetch,calls=[];
+  const authDb={prepare(sql){return {bind(){return {async first(){return {id:'u1',display_name:'Fixture',is_global_admin:0};},async all(){return {results:sql.includes('auth_team_memberships')?[{team_id:'NSK Team 18',role:'coach'}]:[{permission:'read'}]};}};}};}};
+  globalThis.fetch=async(input,init)=>{
+   const u=new URL(input);calls.push(u.href);
+   assert.equal(u.origin,'https://api.baserow.io');assert.equal(init.headers.Authorization,'Token fixture');
+   const id=Number(u.pathname.match(/\/table\/(\d+)\//)?.[1]),page=Number(u.searchParams.get('page'));
+   if(id===1255083)return Response.json({results:[{id:11,Namn:'NSK Team 18','Säsong':'2026'}],next:null});
+   if(id===1255101)return Response.json({results:[{id:103,Lag:[{id:11}],'Antal lag':1}],next:null});
+   assert.equal(id,1255115);assert.ok(page===1||page===2);
+   return Response.json({results:Array.from({length:page===1?200:1},(_,i)=>({id:(page-1)*200+i+1,Poolspel:[{id:103}],Lagnummer:1})),next:page===1?next:null});
+  };
+  try{
+   const res=await worker.fetch(request('/api/bytesschema?team_id=11',{Authorization:'Bearer '+'p'.repeat(64)}),{...env,BASEROW_TOKEN:'fixture',AUTH_DB:authDb});
+   assert.equal(res.status,200);const rows=(await res.json()).results;assert.equal(rows.length,201);assert.equal(rows.at(-1).id,201);
+   const pages=calls.filter(u=>u.includes('/1255115/')).map(u=>new URL(u).searchParams.get('page'));assert.deepEqual(pages,['1','2']);
+  }finally{globalThis.fetch=previous;}
+ });
