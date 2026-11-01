@@ -126,3 +126,9 @@ body.rink-fullscreen.rink-tidy-previewing .rink-container{bottom:var(--rink-prev
 .rink-tidy-options select{box-sizing:border-box;width:100%;min-width:0;min-height:44px;margin:0;padding:6px;border:1px solid #607386;border-radius:8px;background:#202b39;color:white;font:inherit;font-size:.85rem}
 .rink-tidy-options select:disabled,.rink-tidy-preview button:disabled{opacity:.5}
 @media(orientation:landscape){body.rink-fullscreen.rink-tidy-previewing #rinkSvg{width:calc(var(--rink-full-height,100dvh) - var(--rink-preview-height,188px) - env(safe-area-inset-top,0px))}}
+
+.rink-tidy-radius{display:block;max-width:520px;margin:0 auto 8px;font-size:.8rem}
+.rink-tidy-radius output{float:right;font-weight:700}
+.rink-tidy-radius input{display:block;box-sizing:border-box;width:100%;min-height:44px;margin:0;padding:0;accent-color:#ed4361;touch-action:pan-y}
+.rink-tidy-radius>span{display:flex;justify-content:space-between;font-size:.7rem;color:#bac8d6}
+.rink-tidy-radius:has(input:disabled){opacity:.5}

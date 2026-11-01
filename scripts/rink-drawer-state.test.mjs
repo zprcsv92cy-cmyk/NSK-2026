@@ -455,3 +455,19 @@ test('changing preview scope from selected to all recomputes without storing int
  const first=previewMarks()[0],second={...previewMarks()[0],id:'second',y:250,points:previewMarks()[0].points.map(p=>({x:p.x,y:p.y+150}))},marks=[first,second],f=editor({[DRAFT]:JSON.stringify({marks})});f.choose('move');f.pointer('pointerdown',140,100);f.pointer('pointerup',140,100);f.node('rinkTidy').onclick();f.node('rinkTidyScope').value='all';f.node('rinkTidyScope').onchange();assert.equal(f.node('rinkTidyMode').disabled,false);f.flush();assert.deepEqual(f.draft().marks,marks);
  f.node('rinkTidyApply').onclick();f.flush();assert.ok(f.draft().marks.every(m=>m.points.length===2));
 });
+
+test('turn-size preview is recalculated from original and stored only after acceptance',async()=>{
+ const {threeTireRoute}=await import('./fixtures/three-tire-route.mjs'),marks=threeTireRoute(),radii=[];
+ for(const value of ['75','100','125']){
+  const f=editor({[DRAFT]:JSON.stringify({marks})});f.node('rinkTidy').onclick();assert.equal(f.node('rinkTidyRadius').disabled,false);f.node('rinkTidyRadius').value=value;f.node('rinkTidyRadius').oninput();f.flush();assert.deepEqual(f.draft().marks,marks);
+  assert.equal(f.node('rinkTidyRadiusValue').textContent,value==='100'?'Normal':value==='75'?'Tätare':'Större');f.node('rinkTidyApply').onclick();f.flush();const result=f.draft().marks;assert.deepEqual(result.slice(1),marks.slice(1));assert.deepEqual(result[0].points[0],marks[0].points[0]);assert.deepEqual(result[0].points.at(-1),marks[0].points.at(-1));
+  radii.push(Math.min(...result[0].points.map(p=>Math.hypot(p.x-marks[1].x,p.y-marks[1].y))));f.node('rinkUndo').onclick();f.flush();assert.deepEqual(f.draft().marks,marks);
+ }
+ assert.ok(radii[0]<radii[1]&&radii[1]<radii[2]);
+});
+test('limited turn-size preview explains constraints and can be discarded',async()=>{
+ const {tightTireSlalom}=await import('./fixtures/tight-tire-slalom.mjs'),marks=tightTireSlalom(),f=editor({[DRAFT]:JSON.stringify({marks})});f.node('rinkTidy').onclick();f.node('rinkTidyRadius').value='150';f.node('rinkTidyRadius').oninput();assert.match(f.node('rinkTidyHint').textContent,/begränsas/);f.node('rinkTidyCancel').onclick();f.flush();assert.deepEqual(f.draft().marks,marks);
+});
+test('turn size is unavailable for a straight stroke with no equipment roundings',()=>{
+ const f=editor({[DRAFT]:JSON.stringify({marks:previewMarks()})});f.node('rinkTidy').onclick();assert.equal(f.node('rinkTidyRadius').disabled,true);assert.equal(f.node('rinkTidyRadiusValue').textContent,'Normal');
+});

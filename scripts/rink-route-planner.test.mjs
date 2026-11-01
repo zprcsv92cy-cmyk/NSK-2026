@@ -101,3 +101,23 @@ test('straight strokes through or grazing equipment are not invented as rounding
   assert.equal(api.plan([r,tire]).plans.size,0);
  }
 });
+
+test('turn size adjusts equipment clearance monotonically while retaining fixed endpoints',()=>{
+ const [r,...tires]=threeTireRoute(),radii=[];
+ for(const radiusScale of [.75,1,1.25]){
+  const result=api.plan([r,...tires],{radiusScale}),fit=result.plans.get(r.id);assert.ok(fit);assert.ok(result.equipmentTurns>0);
+  assert.deepEqual(plain(fit.points[0]),r.points[0]);assert.deepEqual(plain(fit.points.at(-1)),r.points.at(-1));
+  const distances=tires.map(t=>Math.min(...fit.points.map(p=>dist(p,t))));assert.ok(Math.max(...distances)-Math.min(...distances)<1e-6);radii.push(distances[0]);
+ }
+ assert.ok(radii[0]<radii[1]&&radii[1]<radii[2]);
+});
+test('turn size is limited by a tight slalom rather than joining through equipment',async()=>{
+ const {tightTireSlalom}=await import('./fixtures/tight-tire-slalom.mjs'),[r,...tires]=tightTireSlalom(),result=api.plan([r,...tires],{radiusScale:1.5}),fit=result.plans.get(r.id);assert.ok(fit);assert.equal(result.limited,true);
+ const radii=tires.map(t=>Math.min(...fit.points.map(p=>dist(p,t))));assert.ok(Math.max(...radii)-Math.min(...radii)<1e-6);assert.ok(radii.every(radius=>radius>16));assert.deepEqual(plain(fit.points[0]),r.points[0]);assert.deepEqual(plain(fit.points.at(-1)),r.points.at(-1));
+});
+test('turn-size control does not resize the printed rink circles',()=>{
+ const center=api.rinkLandmarks.find(p=>p.id==='rink-center'),points=arc(center,68,0,Math.PI*2,48);points[points.length-1]={...points[0]};const r=route('printed',points),result=api.plan([r],{radiusScale:1.5}),fit=result.plans.get(r.id);assert.ok(fit);assert.equal(result.equipmentTurns,0);assert.deepEqual(plain(fit.points[0]),points[0]);const radii=fit.points.map(p=>dist(p,center));assert.ok(Math.max(...radii)-Math.min(...radii)<1e-6);assert.ok(Math.abs(radii[0]-68)<1e-6);
+});
+test('a closed equipment loop retains its fixed start when a larger turn is requested',()=>{
+ const center={...tire,y:430},points=arc(center,48,0,Math.PI*2,48);points[points.length-1]={...points[0]};const r=route('fixed-loop',points),result=api.plan([r,center],{radiusScale:1.5}),fit=result.plans.get(r.id);assert.ok(fit);assert.equal(result.limited,true);assert.deepEqual(plain(fit.points[0]),points[0]);assert.deepEqual(plain(fit.points.at(-1)),points.at(-1));
+});
