@@ -2366,8 +2366,12 @@ window.NSK2App = (() => {
     const valid=!!row?.goalie_player_id&&expected.size===Number(row.player_count)&&rows.length>0&&rows.every(r=>r.players_json.length===Number(pool?.players_on_field)&&r.players_json.every(id=>expected.has(String(id))))&&!pool?.pending_matches?.some(r=>Number(r.lag_no)===Number(lagNo)&&Number(r.match_no)===Number(matchNo));
     const seconds=Number(pool?.period_time)*60,interval=Number(pool?.sub_time),periods=Number(pool?.periods);
     const expectedCount=seconds>0&&interval>0&&periods>0?Math.ceil(seconds/interval)*periods:null;
-    const expectedStart=seconds>0?`${String(Math.floor(seconds/60)).padStart(2,'0')}:${String(seconds%60).padStart(2,'0')}`:'';
-    const outdated=rows.length>0&&expectedCount!==null&&(rows.length!==expectedCount||String(rows[0]?.time_left||'').trim()!==expectedStart);
+    const perPeriod=seconds>0&&interval>0?Math.ceil(seconds/interval):0;
+    const outdated=rows.length>0&&expectedCount!==null&&(rows.length!==expectedCount||rows.some((r,i)=>{
+      const left=seconds-(i%perPeriod)*interval;
+      const time=`${String(Math.floor(left/60)).padStart(2,'0')}:${String(left%60).padStart(2,'0')}`;
+      return Number(r.shift_no)!==i+1||Number(r.period_no)!==Math.floor(i/perPeriod)+1||String(r.time_left||'').trim()!==time;
+    }));
     const readiness=pool?.active===false?'Avslutat poolspel · Läs- och utskriftsvy':!row?.goalie_player_id?'Laguppställningen saknar målvakt. Öppna Laguppställning för denna match.':expected.size!==Number(row.player_count)?'Laguppställningen saknar spelarval. Öppna Laguppställning för denna match.':outdated?'Bytesschemat behöver räknas om enligt aktuell bytestid.':valid?'Matchen är förberedd · Målvakt, spelare och bytesschema finns.':'Kontrollera matchens spelarval och bytesschema. De sparade uppgifterna stämmer inte överens.';
     setText('matchReadiness',readiness);
     const playerMap=Object.fromEntries(players.map(p=>[String(p.id),p.full_name]));
@@ -2432,7 +2436,6 @@ window.NSK2App = (() => {
         const expected = Math.ceil(seconds / interval) * periods;
         const expectedStart = `${String(Math.floor(seconds / 60)).padStart(2, "0")}:${String(seconds % 60).padStart(2, "0")}`;
         const actualStart = String(rows[0]?.time_left || "").trim();
-        const outdated = rows.length !== expected || actualStart !== expectedStart;
         if (outdated) {
           repairHtml = `<div class="small" style="margin-bottom:12px">Match ${esc(matchNo)} har ett bytesschema som inte stämmer med poolspelsinställningarna. Sparat: ${rows.length} byten, start ${esc(actualStart || "—")}. Aktuellt: ${expected} byten, start ${expectedStart}. Aktuell bytestid: ${esc(interval)} sekunder. Omräkning ändrar schemat, inte vilka byten som är markerade som genomförda.</div>`;
           if (rows.some(r => r.done)) repairHtml += `<div class="small" style="margin-bottom:8px">Hela schemat räknas om. Bockarna behålls på samma bytesnummer.</div>`;
@@ -2474,24 +2477,20 @@ window.NSK2App = (() => {
     if(pool?.active===false){for(const control of wrap.querySelectorAll("button"))control.disabled=true;setText("shiftMsg","Poolspelet är avslutat. Återöppna det i kalendern för att ändra.");}
     const repairButton = byId("repairOutdatedShifts");
     if (repairButton) repairButton.addEventListener("click", async () => {
-      if(rows.some(r=>r.done)){
-        repairButton.disabled=true;try{await DB.retimeShiftSchema(poolId,Number(lagNo),Number(matchNo));await renderShiftSchema();}catch(err){setText("appError",err.message);repairButton.disabled=false;}return;
-      }
-      if (!window.confirm(`Återskapa endast Match ${matchNo}, Lag ${lagNo}? Andra matcher påverkas inte.`)) return;
       repairButton.disabled = true;
+      repairButton.textContent='Slutför omräkningen…';
+      setText('shiftMsg','Räknar om alla bytestider för Match '+matchNo+'…');
       try {
-        const latestPool = await DB.getPool(poolId);
-        const config = await DB.getPoolTeamMatchConfig(poolId, lagNo, matchNo) ||
-          (String(matchNo) !== "1" ? await DB.getPoolTeamMatchConfig(poolId, lagNo, 1) : null);
-        const lineup = config?.id ? await DB.getLineup(config.id) : [];
-        if (!lineup.some(r => r.person_type === "player")) throw new Error("Ingen laguppställning hittades. Inget har ändrats.");
-        const result = await regenerateShiftSchemaFor(poolId, lagNo, matchNo);
-        if (!result.length) throw new Error("Kunde inte skapa bytesschemat.");
-        setText("appError", "");
+        // Resume a pending plan even after every completed mark has been cleared.
+        // Replacing the schedule would be refused while that plan still exists.
+        await DB.retimeShiftSchema(poolId,Number(lagNo),Number(matchNo));
+        setText('appError','');
         await renderShiftSchema();
+        if(!byId('repairOutdatedShifts'))setText('shiftMsg','Bytestiderna för Match '+matchNo+' är uppdaterade.');
       } catch (err) {
-        setText("appError", err?.message || String(err));
-        repairButton.disabled = false;
+        setText('appError','Omräkningen är inte klar. '+(err?.message||String(err)));
+        setText('shiftMsg','Tryck Slutför omräkning för att fortsätta.');
+        repairButton.disabled=false;repairButton.textContent='Slutför omräkning för Match '+matchNo;
       }
     });
   }
