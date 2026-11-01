@@ -25,3 +25,5 @@ jobs:
         run: NSK_JSDOM_MODULE="$RUNNER_TEMP/training-dom/node_modules/jsdom/lib/api.js" node scripts/training-settings-dom-check.mjs
       - name: Verify per-match lineup edit, save, reload and failure recovery
         run: NSK_JSDOM_MODULE="$RUNNER_TEMP/training-dom/node_modules/jsdom/lib/api.js" node scripts/lineup-editor-dom-check.mjs
+      - name: Verify shift check and uncheck through UI, client and production lock
+        run: NSK_JSDOM_MODULE="$RUNNER_TEMP/training-dom/node_modules/jsdom/lib/api.js" node scripts/shift-uncheck-dom-check.mjs

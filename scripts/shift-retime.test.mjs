@@ -15,3 +15,9 @@ const body={retime:true,pool_id:10,lag_no:1,match_no:1};
 test('retime changes all times, retains first three checkmarks and row ids, safely resumes interruption',async()=>{const x=fixture();x.fail();assert.equal((await x.lock.save(body)).status,503);assert.equal((await x.lock.done({})).status,409);let response;do{response=await x.lock.save(body);assert.equal(response.status,200);}while((await response.json()).pending);assert.equal(x.data.length,8);assert.deepEqual(x.data.slice(0,4).map(r=>r.Genomfört),[true,true,true,false]);assert.deepEqual(x.data.slice(0,4).map(r=>r.id),[1,2,3,4]);assert.equal(x.data[1]['Tid kvar'],'13:00');assert(x.writes.every(x=>!Object.hasOwn(x.body,'Genomfört')));assert.equal(x.state.size,0);assert.equal((await x.lock.done({})).status,200);});
 
 test('checking a shift resumes an interrupted retime without discarding its plan',async()=>{const x=fixture();x.fail();assert.equal((await x.lock.save(body)).status,503);const check={id:4,pool_id:10,lag_no:1,match_no:1,done:true};let r;do{const response=await x.lock.done(check);assert.equal(response.status,200);r=await response.json();}while(r.pending_retime);assert.equal(x.state.size,0);assert.equal(x.data[3].Genomfört,true);assert.equal(x.data[1]['Tid kvar'],'13:00');assert.deepEqual(x.data.slice(0,3).map(r=>r.Genomfört),[true,true,true]);});
+
+test('an unchecked first shift stays unchecked when the schedule is recalculated',async()=>{
+ const x=fixture();await x.lock.done({id:1,pool_id:10,lag_no:1,match_no:1,done:false});
+ let response;do{response=await x.lock.save(body);assert.equal(response.status,200);}while((await response.json()).pending);
+ assert.equal(x.data[0].Genomfört,false);assert.equal(x.data[1].Genomfört,true);
+});

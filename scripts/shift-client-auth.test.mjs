@@ -70,3 +70,14 @@ test('authorization failure with a misleading recovery flag cannot trigger repea
  await assert.rejects(client({session:'personal-session',requests,failure}).setShiftDone(1,1,1,1,true,42),/Session expired/);
  assert.equal(requests.length,1);
 });
+
+test('unchecking sends explicit false using the known row identity',async()=>{
+ const requests=[];await client({session:'personal-session',requests}).setShiftDone(1,1,3,1,false,42);
+ assert.equal(requests.length,1);assert.equal(JSON.parse(requests[0].init.body).done,false);assert.match(requests[0].url,/\/42\/done$/);
+});
+
+test('a confirmed toggle invalidates an earlier read in the same snapshot',async()=>{
+ const requests=[],db=client({session:'personal-session',requests});
+ await db.withReadSnapshot(async()=>{await db.listShiftSchema(1,1,1);await db.setShiftDone(1,1,1,1,false,42);await db.listShiftSchema(1,1,1);});
+ assert.equal(requests.filter(r=>r.url.includes('/api/bytesschema?')).length,2);
+});

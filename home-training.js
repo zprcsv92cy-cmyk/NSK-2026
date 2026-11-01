@@ -770,7 +770,7 @@
           try{
             const latest=await DB.listPools();
             if(latest.some(p=>p.pool_date===item.date&&!!String(item.place||'').trim()&&normalizeCalendarPoolPlace(p.place)===normalizeCalendarPoolPlace(item.place))){skipped++;continue;}
-            await DB.addPool({title:'Poolspel',place:item.place,hall:item.hall,pool_date:item.date,status:'Aktiv',teams:2,matches:4,players_on_field:3,periods:1,period_time:15,sub_time:90,calendarImport:true});
+            await DB.addPool({title:'Poolspel',place:item.place,hall:item.hall,pool_date:item.date,status:'Aktiv',teams:2,matches:4,players_on_field:3,periods:1,period_time:15,sub_time:60,calendarImport:true});
             created++;continue;
           }catch(error){status.textContent='Importerade '+created+'. Poolspel '+item.date+' kunde inte sparas: '+error.message;confirm.disabled=false;return;}
         }

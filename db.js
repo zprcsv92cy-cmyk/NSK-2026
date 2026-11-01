@@ -319,6 +319,7 @@ window.DB = (() => {
       const data=await response.json().catch(()=>({}));
       if(response.status===409&&data.pending_retime===true)continue;
       if(!response.ok||!data.ok)throw Object.assign(new Error(data.error||'Kunde inte spara byte'),{status:response.status});
+      invalidateReads();
       return data;
       }
       throw Error('Omräkningen behöver fortsätta. Tryck på bytet igen.');
