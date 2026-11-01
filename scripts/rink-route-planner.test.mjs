@@ -83,3 +83,20 @@ test('an equipment rounding and later rounding around a neutral-zone faceoff dot
  assert.ok(fit.points.filter(p=>Math.abs(dist(p,center)-radius)<1e-6).length>=12);
  assert.deepEqual(plain(fit.points[0]),points[0]);assert.deepEqual(plain(fit.points.at(-1)),points.at(-1));
 });
+
+test('a photographed tight tire slalom recognises all five turns even when strokes graze tire edges',async()=>{
+ const {tightTireSlalom}=await import('./fixtures/tight-tire-slalom.mjs');
+ for(const raw of [false,true]){
+  const [r,...tires]=tightTireSlalom();if(raw)delete r.routeStyle;
+  const before=JSON.stringify([r,...tires]),fit=api.plan([r,...tires]).plans.get(r.id);assert.ok(fit,'the tight slalom must produce a plan');
+  const radii=tires.map(t=>{const radius=Math.min(...fit.points.map(p=>dist(p,t)));assert.ok(fit.points.filter(p=>Math.abs(dist(p,t)-radius)<1e-6).length>=8,t.id+' has a circular rounding');return radius;});
+  assert.ok(Math.max(...radii)-Math.min(...radii)<1e-6,'all tires use the same turning radius');
+  assert.deepEqual(plain(fit.points[0]),r.points[0]);assert.deepEqual(plain(fit.points.at(-1)),r.points.at(-1));assert.equal(JSON.stringify([r,...tires]),before);
+ }
+});
+test('straight strokes through or grazing equipment are not invented as roundings',()=>{
+ for(const offset of [0,8,12]){
+  const points=Array.from({length:25},(_,i)=>({x:80+i*13,y:300+offset+Math.sin(i)*.2})),r=route('straight-contact',points);
+  assert.equal(api.plan([r,tire]).plans.size,0);
+ }
+});
