@@ -24,3 +24,13 @@ test('different upstream credentials never share a read',async()=>{
  let calls=0,release;const gate=new Promise(r=>release=r),fetcher=async()=>{calls++;await gate;return Response.json({results:[]});};
  const a=fetchBaserowRead(url,{headers:{Authorization:'Token A'}},{fetcher}),b=fetchBaserowRead(url,{headers:{Authorization:'Token B'}},{fetcher});assert.equal(calls,2);release();await Promise.all([a,b]);
 });
+test('shared read bounds buffered data and clears failed in-flight entries',async()=>{
+ let calls=0,cancelled=false;
+ const fetcher=async()=>++calls===1?new Response(new ReadableStream({start(c){c.enqueue(new Uint8Array(8*1024*1024+1));},cancel(){cancelled=true;}})):Response.json({results:[]});
+ await assert.rejects(fetchBaserowRead(url,{}, {fetcher}),/exceeds shared read limit/);
+ assert.equal(cancelled,true);assert.equal((await fetchBaserowRead(url,{}, {fetcher})).status,200);assert.equal(calls,2);
+});
+test('caller abort signals keep independent upstream requests',async()=>{
+ let calls=0;const fetcher=async()=>{calls++;return new Response('ok');};
+ await Promise.all([fetchBaserowRead(url,{signal:new AbortController().signal},{fetcher}),fetchBaserowRead(url,{signal:new AbortController().signal},{fetcher})]);assert.equal(calls,2);
+});

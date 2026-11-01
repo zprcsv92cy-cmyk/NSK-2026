@@ -10,8 +10,17 @@ export async function fetchBaserowRead(input,init,options={}){
  const key=JSON.stringify([url.href,[...headers].sort(([a],[b])=>a.localeCompare(b))]);
  let pending=pendingReads.get(fetcher);if(!pending){pending=new Map();pendingReads.set(fetcher,pending);}
  let request=pending.get(key);
- if(!request){request=readBaserow(input,init,{...options,fetcher});pending.set(key,request);const clear=()=>{if(pending.get(key)===request)pending.delete(key);};request.then(clear,clear);}
- return (await request).clone();
+ if(!request){request=bufferRead(input,init,{...options,fetcher});pending.set(key,request);const clear=()=>{if(pending.get(key)===request)pending.delete(key);};request.then(clear,clear);}
+ const result=await request;
+ return new Response(result.body,{status:result.status,statusText:result.statusText,headers:result.headers});
+}
+// Live streams belong to their creating Workers request. Share bounded plain data only.
+async function bufferRead(input,init,options){
+ const response=await readBaserow(input,init,options),chunks=[];let size=0;
+ if(response.body){const reader=response.body.getReader();for(;;){const {value,done}=await reader.read();if(done)break;size+=value.byteLength;if(size>8*1024*1024){await reader.cancel();throw Error('Baserow response exceeds shared read limit');}chunks.push(value);}}
+ const body=response.body?new Uint8Array(size):null;let offset=0;
+ for(const chunk of chunks){body.set(chunk,offset);offset+=chunk.byteLength;}
+ return {body,status:response.status,statusText:response.statusText,headers:[...response.headers]};
 }
 async function readBaserow(input, init, {fetcher=globalThis.fetch,wait=ms=>new Promise(resolve=>setTimeout(resolve,ms)),log=event=>console.warn(JSON.stringify(event))}={}) {
   const url=new URL(input instanceof Request?input.url:String(input));

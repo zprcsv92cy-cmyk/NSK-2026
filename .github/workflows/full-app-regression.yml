@@ -29,3 +29,7 @@ jobs:
         run: NSK_JSDOM_MODULE="$RUNNER_TEMP/training-dom/node_modules/jsdom/lib/api.js" node scripts/shift-uncheck-dom-check.mjs
       - name: Verify calendar grouping and removal during a match API outage
         run: NSK_JSDOM_MODULE="$RUNNER_TEMP/training-dom/node_modules/jsdom/lib/api.js" node scripts/calendar-outage-dom-check.mjs
+      - name: Install isolated Workers runtime dependencies
+        run: npm install --prefix "$RUNNER_TEMP/read-runtime" esbuild@0.25.12 workerd@1.20261023.1 --no-audit --no-fund
+      - name: Verify concurrent authorized reads in real Workers runtime
+        run: NSK_RUNTIME_DEPS="$RUNNER_TEMP/read-runtime/node_modules" node scripts/baserow-read-workerd-check.mjs
