@@ -1,0 +1,95 @@
+name: Manual NSK API production deploy
+
+on:
+  pull_request:
+    paths:
+      - '.github/workflows/manual-nsk-api-deploy.yml'
+  workflow_dispatch:
+    inputs:
+      confirm:
+        description: 'Type DEPLOY-NSK-API to authorize production deployment'
+        required: true
+        type: string
+
+permissions:
+  contents: read
+
+concurrency:
+  group: nsk-api-production-deploy
+  cancel-in-progress: false
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - run: npx --yes wrangler@4 deploy --config wrangler.api.production.toml --dry-run
+  deploy:
+    if: ${{ github.ref == 'refs/heads/main' && inputs.confirm == 'DEPLOY-NSK-API' }}
+    runs-on: ubuntu-latest
+    environment: nsk-api-production
+    steps:
+      - uses: actions/checkout@v4
+      - name: Validate Cloudflare credentials and required configuration
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+        run: |
+          test -n "$CLOUDFLARE_API_TOKEN" || { echo "::error::Missing CLOUDFLARE_API_TOKEN"; exit 1; }
+          test -n "$CLOUDFLARE_ACCOUNT_ID" || { echo "::error::Missing CLOUDFLARE_ACCOUNT_ID"; exit 1; }
+      - name: Verify existing Cloudflare bindings before deployment
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+        run: |
+          set -euo pipefail
+          settings=$(curl --fail --silent --show-error --retry 2 \
+            -H "Authorization: Bearer $CLOUDFLARE_API_TOKEN" \
+            "https://api.cloudflare.com/client/v4/accounts/$CLOUDFLARE_ACCOUNT_ID/workers/scripts/nsk-api/settings")
+          echo "$settings" | jq -e '.success == true' >/dev/null
+          for binding in ADMIN_KV NSK_TRAINERS AUTH_DB SHIFT_LOCK ADMIN_PASSWORD BASEROW_TOKEN MATCH_PASSWORD NSK_QR_LINK_KEY SVENSKALAG_PASSWORD SVENSKALAG_USERNAME; do
+            echo "$settings" | jq -e --arg name "$binding" '.result.bindings | any(.name == $name)' >/dev/null || { echo "::error::Missing live binding $binding"; exit 1; }
+          done
+          echo "$settings" | jq -e '.result.bindings | any(.name == "NSK_PAGES_MIGRATION_ENABLED" and .text == "true")' >/dev/null
+      - name: Verify production Worker bundle
+        run: |
+          npx --yes wrangler@4 deploy --config wrangler.api.production.toml --dry-run --outdir /tmp/nsk-api-dry-run
+          test -n "$(find /tmp/nsk-api-dry-run -type f -name '*.js' -print -quit)"
+      - name: Save production binding identities for post-deploy comparison
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+        run: |
+          set -euo pipefail
+          curl --fail --silent --show-error \
+            -H "Authorization: Bearer $CLOUDFLARE_API_TOKEN" \
+            "https://api.cloudflare.com/client/v4/accounts/$CLOUDFLARE_ACCOUNT_ID/workers/scripts/nsk-api/settings" \
+            | jq -cS '.result.bindings | map(if .type == "secret_text" then {name,type} else {name,type,namespace_id,database_id,id,class_name,script_name,text} end) | sort_by(.name)' > /tmp/nsk-bindings-before.json
+      - name: Record current deployed version for rollback
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+        run: |
+          set -euo pipefail
+          curl --fail --silent --show-error \
+            -H "Authorization: Bearer $CLOUDFLARE_API_TOKEN" \
+            "https://api.cloudflare.com/client/v4/accounts/$CLOUDFLARE_ACCOUNT_ID/workers/scripts/nsk-api/versions" \
+            | jq -r '.result.items[0].id' > /tmp/nsk-previous-version.txt
+          test -s /tmp/nsk-previous-version.txt
+      - name: Deploy production Worker
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+        run: npx --yes wrangler@4 deploy --config wrangler.api.production.toml --keep-vars
+
+      - name: Verify binding identities unchanged after deployment
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+        run: |
+          set -euo pipefail
+          curl --fail --silent --show-error \
+            -H "Authorization: Bearer $CLOUDFLARE_API_TOKEN" \
+            "https://api.cloudflare.com/client/v4/accounts/$CLOUDFLARE_ACCOUNT_ID/workers/scripts/nsk-api/settings" \
+            | jq -cS '.result.bindings | map(if .type == "secret_text" then {name,type} else {name,type,namespace_id,database_id,id,class_name,script_name,text} end) | sort_by(.name)' > /tmp/nsk-bindings-after.json
+          diff -u /tmp/nsk-bindings-before.json /tmp/nsk-bindings-after.json
