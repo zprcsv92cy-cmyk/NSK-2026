@@ -174,7 +174,7 @@ export function withPoolFlow(original,{resolveTables,listTeams,verifyIdentity,au
      // legacy/imported matches may have a partial lineup (e.g. no player count).
      // Patch only schedule fields and retain all player/goalie links unchanged.
      let saved;
-     if(info&&old&&(!positive(Number(configData.player_count))||!positive(Number(configData.goalie_player_id)))){
+     if(info&&old){
       const start=data.start_time;
       if(start!=null&&(typeof start!=='string'||!/^([01]\d|2[0-3]):[0-5]\d$/.test(start)))return reply(400,'Ange en giltig matchtid.');
       if(typeof data.opponent!=='string'||!data.opponent.trim()||data.opponent.length>150||typeof data.plan!=='string'||data.plan.length>80)return reply(400,'Ogiltiga matchuppgifter');
