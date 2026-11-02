@@ -1,6 +1,9 @@
 name: Manual NSK API production deploy
 
 on:
+  pull_request:
+    paths:
+      - '.github/workflows/manual-nsk-api-deploy.yml'
   workflow_dispatch:
     inputs:
       confirm:
@@ -16,6 +19,11 @@ concurrency:
   cancel-in-progress: false
 
 jobs:
+  validate:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - run: npx --yes wrangler@4 deploy --config wrangler.api.production.toml --dry-run
   deploy:
     if: ${{ github.ref == 'refs/heads/main' && inputs.confirm == 'DEPLOY-NSK-API' }}
     runs-on: ubuntu-latest
