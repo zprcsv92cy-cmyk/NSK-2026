@@ -29,6 +29,20 @@ jobs:
         run: |
           test -n "$CLOUDFLARE_API_TOKEN" || { echo "::error::Missing CLOUDFLARE_API_TOKEN"; exit 1; }
           test -n "$CLOUDFLARE_ACCOUNT_ID" || { echo "::error::Missing CLOUDFLARE_ACCOUNT_ID"; exit 1; }
+      - name: Verify existing Cloudflare bindings before deployment
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+        run: |
+          set -euo pipefail
+          settings=$(curl --fail --silent --show-error --retry 2 \
+            -H "Authorization: Bearer $CLOUDFLARE_API_TOKEN" \
+            "https://api.cloudflare.com/client/v4/accounts/$CLOUDFLARE_ACCOUNT_ID/workers/scripts/nsk-api/settings")
+          echo "$settings" | jq -e '.success == true' >/dev/null
+          for binding in ADMIN_KV NSK_TRAINERS AUTH_DB SHIFT_LOCK ADMIN_PASSWORD BASEROW_TOKEN MATCH_PASSWORD NSK_QR_LINK_KEY SVENSKALAG_PASSWORD SVENSKALAG_USERNAME; do
+            echo "$settings" | jq -e --arg name "$binding" '.result.bindings | any(.name == $name)' >/dev/null || { echo "::error::Missing live binding $binding"; exit 1; }
+          done
+          echo "$settings" | jq -e '.result.bindings | any(.name == "NSK_PAGES_MIGRATION_ENABLED" and .text == "true")' >/dev/null
       - name: Verify production Worker bundle
         run: |
           npx --yes wrangler@4 deploy --config wrangler.api.production.toml --dry-run --outdir /tmp/nsk-api-dry-run
