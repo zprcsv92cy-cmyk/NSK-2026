@@ -106,3 +106,13 @@ test('match-info edits legacy incomplete lineup without changing player fields',
  assert.equal(row.Starttid,'12:30');assert.equal(row.Motståndare,'New opponent');assert.equal(row.Plan,'Plan 2');
  assert.equal(row['Antal spelare'],before.count);assert.deepEqual(row.Målvakt,before.goalie);assert.deepEqual(row['Spelare på plan'],before.players);
 });
+
+test('match-info does not validate populated but inconsistent legacy player fields',async t=>{
+ const x=await setup(t),row=x.data.matchkonfiguration[0];
+ row['Antal spelare']=4;row.Målvakt=[1];row['Spelare på plan']=[2,3];
+ const before={count:row['Antal spelare'],goalie:[...row.Målvakt],players:[...row['Spelare på plan']]};
+ const response=await x.request('/api/poolspel/10/match-info','POST',{pool_id:10,lag_no:1,match_no:1,start_time:'12:30',opponent:'Järna SK Svart',plan:'Plan 2'});
+ assert.equal(response.status,200,await response.text());
+ assert.equal(row.Starttid,'12:30');assert.equal(row.Motståndare,'Järna SK Svart');
+ assert.equal(row['Antal spelare'],before.count);assert.deepEqual(row.Målvakt,before.goalie);assert.deepEqual(row['Spelare på plan'],before.players);
+});
