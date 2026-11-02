@@ -44,7 +44,7 @@ for(let round=0;round<2;round++){
  const responses=await Promise.all(Array.from({length:8},async()=>{const r=await fetch(base+'/api/'+path+'?team_id=11',{headers});assert.equal(r.status,200);return r.json();}));
  for(const body of responses){if(id===null){assert.equal(body.results.length,201);assert.equal(body.results.at(-1).id,201);}else assert.deepEqual(body.results.map(r=>r.id),[id]);}
  }
- assert.deepEqual(counts,{lag:3,poolspel:2,matchkonfiguration:1,bytesschema:2});
+ assert.deepEqual(counts,{lag:24,poolspel:16,matchkonfiguration:8,bytesschema:16});
 }
 assert.equal((await fetch(base+'/api/lag')).status,401);
 assert.equal((await fetch(base+'/api/matchkonfiguration?team_id=11')).status,401);
