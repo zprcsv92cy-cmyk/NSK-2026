@@ -57,6 +57,17 @@ jobs:
             -H "Authorization: Bearer $CLOUDFLARE_API_TOKEN" \
             "https://api.cloudflare.com/client/v4/accounts/$CLOUDFLARE_ACCOUNT_ID/workers/scripts/nsk-api/settings" \
             | jq -cS '.result.bindings | map(if .type == "secret_text" then {name,type} else {name,type,namespace_id,database_id,id,class_name,script_name,text} end) | sort_by(.name)' > /tmp/nsk-bindings-before.json
+      - name: Record current deployed version for rollback
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+        run: |
+          set -euo pipefail
+          curl --fail --silent --show-error \
+            -H "Authorization: Bearer $CLOUDFLARE_API_TOKEN" \
+            "https://api.cloudflare.com/client/v4/accounts/$CLOUDFLARE_ACCOUNT_ID/workers/scripts/nsk-api/versions" \
+            | jq -r '.result.items[0].id' > /tmp/nsk-previous-version.txt
+          test -s /tmp/nsk-previous-version.txt
       - name: Deploy production Worker
         env:
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
