@@ -170,7 +170,23 @@ export function withPoolFlow(original,{resolveTables,listTeams,verifyIdentity,au
       }
      }
      if(!info&&env.NSK_MULTIUSER_ENABLED==='true')await env.AUTH_DB.prepare('UPDATE pool_flow_saves SET status=? WHERE pool_id=? AND lease=?').bind('pending',poolId,lease).run();
-     const saved=await original(internal('/api/matchkonfiguration'+(old?'/'+old.id:''),old?'PATCH':'POST',configData),env,ctx);if(!saved.ok)return saved;const result=await saved.clone().json();
+     // Editing the schedule must not require a complete player lineup. Existing
+     // legacy/imported matches may have a partial lineup (e.g. no player count).
+     // Patch only schedule fields and retain all player/goalie links unchanged.
+     let saved;
+     if(info&&old&&(!positive(Number(configData.player_count))||!positive(Number(configData.goalie_player_id)))){
+      const start=data.start_time;
+      if(start!=null&&(typeof start!=='string'||!/^([01]\\d|2[0-3]):[0-5]\\d$/.test(start)))return reply(400,'Ange en giltig matchtid.');
+      if(typeof data.opponent!=='string'||!data.opponent.trim()||data.opponent.length>150||typeof data.plan!=='string'||data.plan.length>80)return reply(400,'Ogiltiga matchuppgifter');
+      const payload={Starttid:start||null,'Motståndare':data.opponent,Plan:data.plan};
+      const response=await fetcher(base+tables.matchkonfiguration+'/'+old.id+'/?user_field_names=true',{method:'PATCH',headers:{...auth,'Content-Type':'application/json'},body:JSON.stringify(payload)});
+      if(!response.ok)return reply(502,'Baserow kunde inte spara matchinformation');
+      const updated=await response.json();
+      saved=new Response(JSON.stringify({ok:true,row:updated}),{status:200,headers});
+     }else{
+      saved=await original(internal('/api/matchkonfiguration'+(old?'/'+old.id:''),old?'PATCH':'POST',configData),env,ctx);
+     }
+     if(!saved.ok)return saved;const result=await saved.clone().json();
      if(!info){const lineup=await original(internal('/api/laguppstallningar/'+result.row.id,'POST',{players:body.players,coaches:body.coaches}),env,ctx);if(!lineup.ok)return lineup;}
      if(!info)await env.AUTH_DB.prepare('UPDATE pool_flow_saves SET status=? WHERE pool_id=? AND lag_no=? AND match_no=? AND lease=?').bind('ready',poolId,lag,match,lease).run();
      if(env.NSK_MULTIUSER_ENABLED==='true'){
