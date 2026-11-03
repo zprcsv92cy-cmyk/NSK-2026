@@ -126,7 +126,19 @@ window.DB = (() => {
   async function getPoolTeamMatchConfig(poolId,lagNo,matchNo){return (await listPoolTeamMatchConfigs(poolId)).find(r=>r.lag_no==lagNo&&r.match_no==matchNo)||null}
   async function getPlayersOnField(poolId,lagNo,matchNo){const [players,configs]=await Promise.all([listPlayers(),listPoolTeamMatchConfigs(poolId)]);const row=configs.find(r=>r.lag_no==lagNo&&r.match_no==matchNo)||configs.find(r=>r.lag_no==lagNo&&r.match_no===1);return row?.players_on_field?.length?players.filter(p=>row.players_on_field.includes(p.id)):players}
   async function getLineup(matchConfigId){return (await rows('laguppstallningar',await teamId(),false,{match_config_id:matchConfigId})).filter(r=>first(r.Matchkonfiguration)==id(matchConfigId)).map(r=>({id:r.id,pool_id:first(r.Poolspel),match_config_id:id(matchConfigId),person_type:(typeof r.Persontyp==='object'?r.Persontyp?.value:r.Persontyp)==='Spelare'?'player':(typeof r.Persontyp==='object'?r.Persontyp?.value:r.Persontyp)==='Tränare'?'coach':null,person_id:num(r['Person-ID']),sort_order:num(r.Sorteringsordning)})).filter(r=>r.person_id&&r.person_type).sort((a,b)=>a.sort_order-b.sort_order)}
-  async function listUsedPlayersInPool(poolId,currentLagNo){const cfg=(await listPoolTeamMatchConfigs(poolId)).filter(r=>r.lag_no!=currentLagNo);const result=await Promise.all(cfg.map(c=>getLineup(c.id)));return [...new Set(result.flat().filter(r=>r.person_type==='player').map(r=>r.person_id))]}
+  async function listUsedPlayersInPool(poolId,currentLagNo){
+    const team=await teamId();
+    const [configs,lineups]=await Promise.all([
+      listPoolTeamMatchConfigs(poolId),
+      rows('laguppstallningar',team,false,{pool_id:poolId})
+    ]);
+    const otherMatchIds=new Set(configs.filter(c=>c.lag_no!=currentLagNo).map(c=>id(c.id)));
+    return [...new Set(lineups.filter(r=>
+      first(r.Poolspel)===id(poolId) &&
+      otherMatchIds.has(first(r.Matchkonfiguration)) &&
+      (typeof r.Persontyp==='object'?r.Persontyp?.value:r.Persontyp)==='Spelare'
+    ).map(r=>num(r['Person-ID'])).filter(Boolean))];
+  }
   async function listShiftSchema(poolId,lagNo,matchNo){return (await rows('bytesschema',await teamId(),false,{pool_id:poolId,lag_no:lagNo,match_no:matchNo})).filter(r=>first(r.Poolspel)==id(poolId)&&num(r.Lagnummer)==lagNo&&num(r.Matchnummer)==matchNo).map(r=>({id:r.id,pool_id:id(poolId),lag_no:num(r.Lagnummer),match_no:num(r.Matchnummer),shift_no:num(r.Bytenummer),period_no:num(r.Periodnummer),time_left:r['Tid kvar']||'',players_json:linked(r['Spelare på plan']),done:!!r.Genomfört})).sort((a,b)=>a.shift_no-b.shift_no)}
   // Målvaktsstatistik härleds från sparade matchkonfigurationer.
   // Endast matcher med en vald målvakt räknas; tomma statistikposter ignoreras.
