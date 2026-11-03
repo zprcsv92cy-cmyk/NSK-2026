@@ -2040,14 +2040,24 @@ window.NSK2App = (() => {
           DB.listPoolMatchPlan?DB.listPoolMatchPlan(poolId):Promise.resolve(null)
         ]);
         const plan=savedPlan||Array.from({length:Number(pool.matches)},(_,i)=>({lag_no:Number(lagNo),match_no:i+1}));
-        for(const item of plan.filter(r=>Number(r.lag_no)===Number(lagNo)&&Number(r.match_no)>1)){const n=Number(item.match_no);
-          const [target,shifts]=await Promise.all([
-            DB.getPoolTeamMatchConfig(poolId,lagNo,n),
-            DB.listShiftSchema(poolId,lagNo,n)
-          ]);
+        const remainingMatches=plan.filter(r=>Number(r.lag_no)===Number(lagNo)&&Number(r.match_no)>1);
+        // Bound concurrent reads to avoid overloading the API. Keep writes ordered
+        // so a failed save stops propagation without racing later match updates.
+        for(let offset=0;offset<remainingMatches.length;offset+=3){
+          const batch=remainingMatches.slice(offset,offset+3);
+          const prepared=await Promise.all(batch.map(async item=>{
+            const n=Number(item.match_no);
+            const [target,shifts]=await Promise.all([
+              DB.getPoolTeamMatchConfig(poolId,lagNo,n),
+              DB.listShiftSchema(poolId,lagNo,n)
+            ]);
+            if(shifts.some(x=>x.done))return {n,shifts,skip:true};
+            const existing=target?.id?await DB.getLineup(target.id):[];
+            return {n,target,shifts,existing};
+          }));
+          for(const {n,target,shifts,existing,skip} of prepared){
           // Completed shifts must never be overwritten by lineup inheritance.
-          if(shifts.some(x=>x.done))continue;
-          const existing=target?.id?await DB.getLineup(target.id):[];
+          if(skip)continue;
           if(existing.some(x=>x.person_type==='player')||target?.goalie_player_id){
             const targetPlayers=existing.filter(x=>x.person_type==='player').sort((a,b)=>a.sort_order-b.sort_order).map(x=>String(x.person_id));
             if(!shifts.length&&String(target?.goalie_player_id)===String(goalie)&&JSON.stringify(targetPlayers)===JSON.stringify(selectedPlayers)){
@@ -2062,6 +2072,7 @@ window.NSK2App = (() => {
           if(DB.saveFullLineup)await DB.saveFullLineup(copyConfig,selectedPlayers.map(Number),coachIds.map(Number),DB.lineupBase?await DB.lineupBase(target,existing):undefined);else{const copied=await DB.savePoolTeamMatchConfig(copyConfig);await DB.saveLineup(copied.id,selectedPlayers.map(Number),coachIds.map(Number));}
           await DB.saveCoachSelection(poolId,lagNo,String(n),coachIds.map(Number));
           await regenerateShiftSchemaFor(poolId,lagNo,String(n),shifts);
+          }
         }
       }
       message("appError", "");
