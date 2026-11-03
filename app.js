@@ -2107,10 +2107,13 @@ window.NSK2App = (() => {
   async function compareConflictedLineup() {
     const draft=captureLineupSnapshot(),button=byId('lineupCompareButton'),output=byId('lineupConflictComparison');
     if(!button||!output||!draft.poolId)return;
+    const generation=window.__nskLineupLoadGeneration;
+    const stillCurrent=()=>generation===window.__nskLineupLoadGeneration&&sessionStorage.getItem('nsk2_pool_id')===draft.poolId&&(sessionStorage.getItem('nsk2_lag_nr')||'1')===draft.lagNo&&(byId('lineupMatch')?.value||'1')===draft.matchNo;
     button.disabled=true;output.hidden=false;output.textContent='Hämtar senast sparade laguppställning…';
     try{
       const config=await DB.getPoolTeamMatchConfig(draft.poolId,draft.lagNo,draft.matchNo);
       const entries=config?.id?await DB.getLineup(config.id):[];
+      if(!stillCurrent())return;
       const currentPlayers=(entries||[]).filter(e=>e.person_type==='player').sort((a,b)=>(a.sort_order||0)-(b.sort_order||0)).map(e=>String(e.person_id));
       const name=id=>{const options=byId('lineupGoalie')?.options||[];for(const o of options)if(String(o.value)===String(id))return o.textContent.trim();return id?('Spelare '+id):'Ingen';};
       const lines=[
@@ -2129,8 +2132,8 @@ window.NSK2App = (() => {
         output.append(row);
       }
       const warning=document.createElement('p');warning.textContent='Jämförelsen är endast för läsning. Inga ändringar har sparats. Kopiera dina val innan du laddar om.';output.append(warning);
-    }catch(error){output.textContent='Kunde inte hämta senaste versionen: '+(error?.message||String(error));}
-    finally{button.disabled=false;}
+    }catch(error){if(stillCurrent())output.textContent='Kunde inte hämta senaste versionen: '+(error?.message||String(error));}
+    finally{if(stillCurrent())button.disabled=false;}
   }
   async function initLaguppstallningPage() {
     return DB.withReadSnapshot?DB.withReadSnapshot(()=>initLineupPageData()):initLineupPageData();
