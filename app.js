@@ -1116,21 +1116,20 @@ window.NSK2App = (() => {
 
     const rows = await DB.listPoolTeamMatchConfigs(poolId);
 
-    for (const row of rows) {
-      const sameMatch = String(row.match_no) === String(matchNo);
-      const otherLag = String(row.lag_no) !== String(currentLagNo);
-      if (!sameMatch || !otherLag) continue;
-
+    const otherTeams = rows.filter(row =>
+      String(row.match_no) === String(matchNo) &&
+      String(row.lag_no) !== String(currentLagNo)
+    );
+    const lineups = await Promise.all(otherTeams.map(row =>
+      row.id && typeof DB?.getLineup === "function" ? DB.getLineup(row.id) : Promise.resolve([])
+    ));
+    otherTeams.forEach((row, index) => {
       const rowGoalieId = cleanUUID(row.goalie_player_id);
       if (rowGoalieId) used.add(String(rowGoalieId));
-
-      if (row.id && typeof DB?.getLineup === "function") {
-        const lineup = await DB.getLineup(row.id);
-        lineup
-          .filter((x) => x.person_type === "player")
-          .forEach((x) => used.add(String(x.person_id)));
-      }
-    }
+      (lineups[index] || [])
+        .filter(x => x.person_type === "player")
+        .forEach(x => used.add(String(x.person_id)));
+    });
 
     return used;
   }
