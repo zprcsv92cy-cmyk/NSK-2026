@@ -1625,7 +1625,7 @@ window.NSK2App = (() => {
     window.__nskLineupLoading=true;window.__nskLineupLoadFailed=false;window.__nskLineupEditing=false;
     updateLineupEditControls();
     setText("lineupMsg","");
-    if(byId('lineupCompareButton'))byId('lineupCompareButton').hidden=true;
+    if(byId('lineupCompareButton')){byId('lineupCompareButton').hidden=true;byId('lineupCompareButton').disabled=false;}
     if(byId('lineupConflictComparison')){byId('lineupConflictComparison').hidden=true;byId('lineupConflictComparison').textContent='';}
     loading(true);
     clearTimeout(window.__nskLineupSaveTimer);
