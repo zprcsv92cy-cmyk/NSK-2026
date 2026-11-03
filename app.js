@@ -427,6 +427,10 @@ window.NSK2App = (() => {
         }
 
         if (t.dataset.shiftMatchCard) {
+          if(shiftToggleSaving){
+            setText("shiftMsg","Vänta tills bytet har sparats innan du byter match.");
+            return;
+          }
           const sel = byId("shiftMatch");
           if (sel) sel.value = String(t.dataset.shiftMatchCard);
           sessionStorage.setItem("nsk2_match_no", String(t.dataset.shiftMatchCard));
