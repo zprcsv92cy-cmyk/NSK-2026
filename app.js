@@ -1625,6 +1625,8 @@ window.NSK2App = (() => {
     window.__nskLineupLoading=true;window.__nskLineupLoadFailed=false;window.__nskLineupEditing=false;
     updateLineupEditControls();
     setText("lineupMsg","");
+    if(byId('lineupCompareButton'))byId('lineupCompareButton').hidden=true;
+    if(byId('lineupConflictComparison')){byId('lineupConflictComparison').hidden=true;byId('lineupConflictComparison').replaceChildren();}
     loading(true);
     clearTimeout(window.__nskLineupSaveTimer);
     const lagNo = sessionStorage.getItem("nsk2_lag_nr") || "1";
@@ -2098,10 +2100,38 @@ window.NSK2App = (() => {
       message("appError", "");
       message("lineupMsg", "Laguppställning sparad för Match " + matchNo + ".");
     } catch (err) {
-      lineupSaveFailed=true;const conflict=err?.status===409||/konflikt|ändrats av (en )?annan|läs om innan du sparar/i.test(err?.message||'');if(conflict){message('lineupMsg','En annan ledare har ändrat matchen. Dina val finns kvar här, men är inte sparade.');message('appError','Sparningen stoppades för att undvika att skriva över en annan ledares ändringar. Kopiera dina val innan du laddar om matchen och jämför med den senaste versionen. '+(err?.message||''));}else{message('lineupMsg','Sparningen är inte klar. Dina val finns kvar. Tryck Spara laguppställning igen.');message('appError','Sparningen blev inte klar. Dina val finns kvar. Tryck Spara igen. '+(err?.message||String(err)));}
+      lineupSaveFailed=true;const conflict=err?.status===409||/konflikt|ändrats av (en )?annan|läs om innan du sparar/i.test(err?.message||'');if(conflict){if(stillSelected()){const button=byId('lineupCompareButton');if(button)button.hidden=false;const output=byId('lineupConflictComparison');if(output){output.hidden=true;output.replaceChildren();}}message('lineupMsg','En annan ledare har ändrat matchen. Dina val finns kvar här, men är inte sparade.');message('appError','Sparningen stoppades för att undvika att skriva över en annan ledares ändringar. Kopiera dina val innan du laddar om matchen och jämför med den senaste versionen. '+(err?.message||''));}else{message('lineupMsg','Sparningen är inte klar. Dina val finns kvar. Tryck Spara laguppställning igen.');message('appError','Sparningen blev inte klar. Dina val finns kvar. Tryck Spara igen. '+(err?.message||String(err)));}
     }
   }
 
+  async function compareConflictedLineup() {
+    const draft=captureLineupSnapshot(),button=byId('lineupCompareButton'),output=byId('lineupConflictComparison');
+    if(!button||!output||!draft.poolId)return;
+    button.disabled=true;output.hidden=false;output.textContent='Hämtar senast sparade laguppställning…';
+    try{
+      const config=await DB.getPoolTeamMatchConfig(draft.poolId,draft.lagNo,draft.matchNo);
+      const entries=config?.id?await DB.getLineup(config.id):[];
+      const currentPlayers=(entries||[]).filter(e=>e.person_type==='player').sort((a,b)=>(a.sort_order||0)-(b.sort_order||0)).map(e=>String(e.person_id));
+      const name=id=>{const options=byId('lineupGoalie')?.options||[];for(const o of options)if(String(o.value)===String(id))return o.textContent.trim();return id?('Spelare '+id):'Ingen';};
+      const lines=[
+        ['Målvakt',name(config?.goalie_player_id),name(draft.goalie)],
+        ['Antal spelare',String(config?.player_count??''),String(draft.playerCount)],
+        ...Array.from({length:Math.max(currentPlayers.length,draft.players.length)},(_,i)=>['Spelare '+(i+1),name(currentPlayers[i]),name(draft.players[i])]),
+        ['Starttid',config?.start_time||'',draft.startTime||''],
+        ['Motståndare',config?.opponent||'',draft.opponent||''],
+        ['Plan',config?.plan||'',draft.plan||'']
+      ];
+      output.replaceChildren();
+      const heading=document.createElement('strong');heading.textContent='Senast sparat jämfört med dina osparade val';output.append(heading);
+      for(const [label,saved,mine] of lines){
+        const row=document.createElement('p');row.textContent=label+': sparat '+(saved||'–')+' | dina val '+(mine||'–');
+        if(saved!==mine)row.style.fontWeight='bold';
+        output.append(row);
+      }
+      const warning=document.createElement('p');warning.textContent='Jämförelsen är endast för läsning. Inga ändringar har sparats. Kopiera dina val innan du laddar om.';output.append(warning);
+    }catch(error){output.textContent='Kunde inte hämta senaste versionen: '+(error?.message||String(error));}
+    finally{button.disabled=false;}
+  }
   async function initLaguppstallningPage() {
     return DB.withReadSnapshot?DB.withReadSnapshot(()=>initLineupPageData()):initLineupPageData();
   }
@@ -2137,6 +2167,7 @@ window.NSK2App = (() => {
     if (!teamButtonsBox || !matchSelect || !lineupBox || !coachSelect) return;
 
     byId('poolEquipmentReload')?.addEventListener('click',async()=>{try{const poolId=sessionStorage.getItem('nsk2_pool_id'),data=await DB.getPoolMaterial(poolId);renderPoolMaterial(data,poolId);coachSaveFailed=false;byId('poolEquipmentReload').hidden=true;setText('poolEquipmentMsg','Materialval hämtat.');}catch(error){setText('poolEquipmentMsg',error.message);}});
+    byId('lineupCompareButton')?.addEventListener('click',compareConflictedLineup);
     byId('lineupEditButton')?.addEventListener('click',()=>{if(byId('lineupEditButton').disabled)return;window.__nskLineupEditing=true;setText('appError','');updateLineupEditControls();});
     byId("lineupSaveButton")?.addEventListener("click",saveSelectedLineup);
     try {
