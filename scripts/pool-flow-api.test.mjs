@@ -47,6 +47,21 @@ test('simultaneous lineup saves from the same base never silently overwrite each
  assert.equal((await x.f.db.prepare('SELECT status FROM pool_flow_saves WHERE pool_id=10').first()).status,'ready');
 });
 
+test('conflicted lineup can be reviewed against a fresh base and saved without overwriting the first editor',async t=>{
+ const x=await setup(t);x.env.NSK_MULTIUSER_ENABLED='true';
+ const stale=lineupSnapshot(x.data.matchkonfiguration[0],x.data.laguppstallningar);
+ const first=await x.request('/api/poolspel/10/lineup','POST',{config:{...x.config,opponent:'First editor'},players:[2],coaches:[],base:stale});
+ assert.equal(first.status,200);
+ const rejected=await x.request('/api/poolspel/10/lineup','POST',{config:{...x.config,opponent:'Second editor'},players:[2],coaches:[],base:stale});
+ assert.equal(rejected.status,409);
+ assert.equal(x.data.matchkonfiguration[0].Motståndare,'First editor');
+ const fresh=lineupSnapshot(x.data.matchkonfiguration[0],x.data.laguppstallningar);
+ const retried=await x.request('/api/poolspel/10/lineup','POST',{config:{...x.config,opponent:'Second editor'},players:[2],coaches:[],base:fresh});
+ assert.equal(retried.status,200);
+ assert.equal(x.data.matchkonfiguration[0].Motståndare,'Second editor');
+ assert.equal((await x.f.db.prepare('SELECT status FROM pool_flow_saves WHERE pool_id=10').first()).status,'ready');
+});
+
 test('multiuser lineup rejects stale editors and missing bases without blocking the match or changing saved data',async t=>{
  const x=await setup(t);x.env.NSK_MULTIUSER_ENABLED='true';
  const base=lineupSnapshot(x.data.matchkonfiguration[0],x.data.laguppstallningar);
