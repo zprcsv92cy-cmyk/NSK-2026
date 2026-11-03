@@ -35,6 +35,6 @@ test('manual isolated calendar request reports invalid confirmation and branch i
  assert.match(yaml,/Confirmation must exactly equal ISOLATED_CALENDAR_E2E/);
  assert.match(yaml,/Choose branch main/);
  assert.match(yaml,/expected_version must be the reviewed isolated Worker version UUID/);
- assert.match(yaml,/if: \\$\\{\\{ inputs\\.confirmation == 'ISOLATED_CALENDAR_E2E' && github\\.ref == 'refs\\/heads\\/main' \\}\\}/);
+ assert.ok(yaml.includes("if: ${{ inputs.confirmation == 'ISOLATED_CALENDAR_E2E' && github.ref == 'refs/heads/main' }}"));
  assert.match(yaml,/environment: isolated-preview/);
 });
