@@ -31,6 +31,18 @@ test('per-match edits persist, Match 1 fills untouched matches and failed drafts
   return {w,$,change,save,select,until};
  }
  let p=await page();
+ // A button navigation and a dropdown change in the same tick must not
+ // race; the first navigation owns the load until it finishes.
+ p.w.document.querySelector('[data-match-no="2"]').click();
+ p.change('lineupMatch','3');
+ assert.equal(p.$('lineupMatch').value,'1','dropdown restores loaded match while button navigation is pending');
+ await p.until(()=>p.$('lineupMatch').value==='2'&&!p.w.__nskLineupLoading&&!p.w.__nskLineupSwitching);
+ assert.equal(p.$('lineupPlayer1').value,'2','first navigation loads its own lineup');
+ // The same rule applies in reverse: a dropdown change blocks button taps.
+ p.change('lineupMatch','1');
+ p.w.document.querySelector('[data-match-no="3"]').click();
+ await p.until(()=>p.$('lineupMatch').value==='1'&&!p.w.__nskLineupLoading&&!p.w.__nskLineupSwitching);
+ assert.equal(p.$('lineupPlayer1').value,'2','dropdown navigation wins over simultaneous button tap');
  assert(p.$('lineupEditButton').compareDocumentPosition(p.$('lineupSelectors'))&p.w.Node.DOCUMENT_POSITION_PRECEDING);
  assert(p.$('lineupPlayer1').disabled);assert(!p.$('lineupEditButton').disabled);assert(p.$('lineupSaveButton').disabled);
  await p.select(2);p.$('lineupEditButton').click();assert(!p.$('lineupPlayer1').disabled);assert(!p.$('lineupSaveButton').disabled);
