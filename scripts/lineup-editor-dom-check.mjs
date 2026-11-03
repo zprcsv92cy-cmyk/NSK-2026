@@ -109,7 +109,8 @@ test('per-match edits persist, Match 1 fills untouched matches and failed drafts
  await p.until(()=>/Dina val har ändrats under hämtningen/.test(p.$('lineupConflictComparison').textContent));
  assert.equal(p.$('lineupPlayer1').value,'5','draft remains editable after stale comparison');
  assert.equal(p.$('lineupCompareButton').disabled,false,'comparison can be rerun');
- // Discard the unsaved test draft by navigating away, allowing its debounce to settle first.
+ // Restore the original player before navigating; never persist the synthetic stale-comparison edit.
+ p.change('lineupPlayer1','4');
  await new Promise(r=>setTimeout(r,450));
  await p.select(1);
  p.w.close();p=await page('2');assert.equal(p.$('lineupPlayer1').value,'4');
