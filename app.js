@@ -2098,7 +2098,7 @@ window.NSK2App = (() => {
       message("appError", "");
       message("lineupMsg", "Laguppställning sparad för Match " + matchNo + ".");
     } catch (err) {
-      lineupSaveFailed=true;message('lineupMsg','Sparningen är inte klar. Dina val finns kvar. Tryck Spara laguppställning igen.');message("appError", "Sparningen blev inte klar. Dina val finns kvar. Tryck Spara igen. "+(err?.message || String(err)));
+      lineupSaveFailed=true;const conflict=err?.status===409||/konflikt|ändrats av (en )?annan|läs om innan du sparar/i.test(err?.message||'');if(conflict){message('lineupMsg','En annan ledare har ändrat matchen. Dina val finns kvar här, men är inte sparade.');message('appError','Sparningen stoppades för att undvika att skriva över en annan ledares ändringar. Kopiera dina val innan du laddar om matchen och jämför med den senaste versionen. '+(err?.message||''));}else{message('lineupMsg','Sparningen är inte klar. Dina val finns kvar. Tryck Spara laguppställning igen.');message('appError','Sparningen blev inte klar. Dina val finns kvar. Tryck Spara igen. '+(err?.message||String(err)));}
     }
   }
 
