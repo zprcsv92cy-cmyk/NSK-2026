@@ -2027,8 +2027,11 @@ window.NSK2App = (() => {
       if(!emptyDraft)await regenerateShiftSchemaFor(poolId,lagNo,matchNo,played);else if(played.length&&DB.deleteShiftSchema)await DB.deleteShiftSchema(poolId,lagNo,matchNo);
       lineupSaveFailed=false;
       if(String(matchNo)==='1'&&!emptyDraft){
-        const pool=await DB.getPool(poolId);
-        const plan=DB.listPoolMatchPlan?await DB.listPoolMatchPlan(poolId):Array.from({length:Number(pool.matches)},(_,i)=>({lag_no:Number(lagNo),match_no:i+1}));
+        const [pool, savedPlan]=await Promise.all([
+          DB.getPool(poolId),
+          DB.listPoolMatchPlan?DB.listPoolMatchPlan(poolId):Promise.resolve(null)
+        ]);
+        const plan=savedPlan||Array.from({length:Number(pool.matches)},(_,i)=>({lag_no:Number(lagNo),match_no:i+1}));
         for(const item of plan.filter(r=>Number(r.lag_no)===Number(lagNo)&&Number(r.match_no)>1)){const n=Number(item.match_no);
           const target=await DB.getPoolTeamMatchConfig(poolId,lagNo,n);
           const existing=target?.id?await DB.getLineup(target.id):[];
