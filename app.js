@@ -2179,16 +2179,29 @@ window.NSK2App = (() => {
       if (!matchSelect.dataset.bound) {
         matchSelect.dataset.bound = "1";
         matchSelect.addEventListener("change", async () => {
-          const requestedMatch=matchSelect.value || "1";
-          const previousMatch=matchSelect.dataset.loadedMatch || requestedMatch;
-          if(!await flushLineupChanges()){
-            matchSelect.value=previousMatch;
-            setActiveMatchButton(previousMatch);
+          // A select change updates its value before the event fires. Restore
+          // the loaded match while flushing so pending edits and save status
+          // still belong to the match being left, not the requested match.
+          if(matchSelect.dataset.switching==='1'){
+            matchSelect.value=matchSelect.dataset.loadedMatch || '1';
             return;
           }
-          matchSelect.value=requestedMatch;
-          setActiveMatchButton(requestedMatch);
-          await fillLaguppstallningFormFromSelection();
+          const requestedMatch=matchSelect.value || "1";
+          const previousMatch=matchSelect.dataset.loadedMatch || requestedMatch;
+          if(requestedMatch===previousMatch)return;
+          matchSelect.dataset.switching='1';
+          matchSelect.value=previousMatch;
+          try{
+            if(!await flushLineupChanges()){
+              setActiveMatchButton(previousMatch);
+              return;
+            }
+            matchSelect.value=requestedMatch;
+            setActiveMatchButton(requestedMatch);
+            await fillLaguppstallningFormFromSelection();
+          }finally{
+            delete matchSelect.dataset.switching;
+          }
         });
       }
     } catch (err) {
