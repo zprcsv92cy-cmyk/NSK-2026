@@ -18,7 +18,7 @@ concurrency:
   cancel-in-progress: false
 jobs:
   deploy:
-    if: ${{ inputs.confirmation == 'ISOLATED_ONLY' && (!inputs.positive_calendar_e2e || github.ref == 'refs/heads/feat/calendar-match-metadata-401') }}
+    if: ${{ inputs.confirmation == 'ISOLATED_ONLY' && (!inputs.positive_calendar_e2e || github.ref == 'refs/heads/main') }}
     runs-on: ubuntu-latest
     environment: isolated-preview
     steps:
