@@ -2040,11 +2040,14 @@ window.NSK2App = (() => {
       };
       if(DB.saveFullLineup){const saved=await DB.saveFullLineup(matchConfig,selectedPlayers.map(Number),coachIds.map(Number),expected);if(saved?.base)lineupBases.set(baseKey,saved.base);}
       else{const matchRow=await DB.savePoolTeamMatchConfig(matchConfig);await DB.saveLineup(matchRow.id,selectedPlayers.map(Number),coachIds.map(Number));}
-      if(!emptyDraft)await regenerateShiftSchemaFor(poolId,lagNo,matchNo,played);else if(played.length&&DB.deleteShiftSchema)await DB.deleteShiftSchema(poolId,lagNo,matchNo);
+      // Match 1 needs pool settings both for shift regeneration and for
+      // inheriting the lineup. Reuse the same read instead of fetching twice.
+      const firstMatchPool = String(matchNo)==='1'&&!emptyDraft ? DB.getPool(poolId) : null;
+      if(!emptyDraft)await regenerateShiftSchemaFor(poolId,lagNo,matchNo,played,firstMatchPool ? await firstMatchPool : undefined);else if(played.length&&DB.deleteShiftSchema)await DB.deleteShiftSchema(poolId,lagNo,matchNo);
       lineupSaveFailed=false;
-      if(String(matchNo)==='1'&&!emptyDraft){
+      if(firstMatchPool){
         const [pool, savedPlan]=await Promise.all([
-          DB.getPool(poolId),
+          firstMatchPool,
           DB.listPoolMatchPlan?DB.listPoolMatchPlan(poolId):Promise.resolve(null)
         ]);
         const plan=savedPlan||Array.from({length:Number(pool.matches)},(_,i)=>({lag_no:Number(lagNo),match_no:i+1}));
