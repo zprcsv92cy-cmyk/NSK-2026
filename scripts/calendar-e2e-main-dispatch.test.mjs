@@ -27,3 +27,14 @@ test('standalone positive E2E is manually confirmed and pinned to isolated Worke
  assert.match(script,/assert\.equal\(binding\('BASEROW_DATABASE_ID'\)\?\.text,'599495'\)/);
  assert.match(script,/assert\.equal\(binding\('NSK_ISOLATED_MODE'\)\?\.text,'true'\)/);
 });
+
+test('manual isolated calendar request reports invalid confirmation and branch instead of silently skipping',()=>{
+ const yaml=read('.github/workflows/calendar-isolated-positive-e2e.yml');
+ assert.match(yaml,/validate-request:/);
+ assert.match(yaml,/needs: validate-request/);
+ assert.match(yaml,/Confirmation must exactly equal ISOLATED_CALENDAR_E2E/);
+ assert.match(yaml,/Choose branch main/);
+ assert.match(yaml,/expected_version must be the reviewed isolated Worker version UUID/);
+ assert.match(yaml,/if: \\$\\{\\{ inputs\\.confirmation == 'ISOLATED_CALENDAR_E2E' && github\\.ref == 'refs\\/heads\\/main' \\}\\}/);
+ assert.match(yaml,/environment: isolated-preview/);
+});
