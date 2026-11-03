@@ -77,6 +77,7 @@ test('per-match edits persist, Match 1 fills untouched matches and failed drafts
  await p.until(()=>/Senast sparat jämfört med dina osparade val/.test(p.$('lineupConflictComparison').textContent));
  assert.match(p.$('lineupConflictComparison').textContent,/1 skillnad hittades/,'comparison summarizes changed fields');
  assert.match(p.$('lineupConflictComparison').textContent,/Spelare 1: sparat/);
+ assert.doesNotMatch(p.$('lineupConflictComparison').textContent,/Spelare 2: sparat/,'unchanged fields are omitted');
  assert.match(p.$('lineupConflictComparison').textContent,/dina val/);
  assert.match(p.$('lineupConflictComparison').textContent,/Jämförelsen är endast för läsning/);
  assert.equal(p.$('lineupPlayer1').value,'4','comparison must not discard local draft');

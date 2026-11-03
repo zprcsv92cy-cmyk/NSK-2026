@@ -2129,8 +2129,9 @@ window.NSK2App = (() => {
       const differences=lines.filter(([,saved,mine])=>saved!==mine).length;
       const summary=document.createElement('p');summary.textContent=differences===0?'Inga skillnader hittades.':differences+' skillnad'+(differences===1?'':'er')+' hittades.';output.append(summary);
       for(const [label,saved,mine] of lines){
+        if(saved===mine)continue;
         const row=document.createElement('p');row.textContent=label+': sparat '+(saved||'–')+' | dina val '+(mine||'–');
-        if(saved!==mine)row.style.fontWeight='bold';
+        row.style.fontWeight='bold';
         output.append(row);
       }
       const warning=document.createElement('p');warning.textContent='Jämförelsen är endast för läsning. Inga ändringar har sparats. Kopiera dina val innan du laddar om.';output.append(warning);
