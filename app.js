@@ -435,21 +435,27 @@ window.NSK2App = (() => {
           return;
         }
 
-        if (t.dataset.lagTeam) {
-          if(!await flushLineupChanges())return;
-          sessionStorage.setItem("nsk2_lag_nr", String(t.dataset.lagTeam));
-          setActiveLagButton(String(t.dataset.lagTeam));
-          if(!syncFlowMatchChoices('lineup',sessionStorage.getItem('nsk2_lineup_match_'+sessionStorage.getItem('nsk2_pool_id')+'_'+t.dataset.lagTeam)||'1'))return;
-          await fillLaguppstallningFormFromSelection();
-          return;
-        }
-
-        if (t.dataset.matchNo) {
-          if(!await flushLineupChanges())return;
-          const sel = byId("lineupMatch");
-          if (sel) sel.value = String(t.dataset.matchNo);
-          setActiveMatchButton(String(t.dataset.matchNo));
-          await fillLaguppstallningFormFromSelection();
+        if (t.dataset.lagTeam || t.dataset.matchNo) {
+          // Serialize navigation: a second tap must not change the active
+          // team/match while the previous lineup is still being saved.
+          if(window.__nskLineupSwitching)return;
+          window.__nskLineupSwitching=true;
+          try {
+            if(!await flushLineupChanges())return;
+            if(t.dataset.lagTeam) {
+              const team=String(t.dataset.lagTeam);
+              sessionStorage.setItem("nsk2_lag_nr",team);
+              setActiveLagButton(team);
+              if(!syncFlowMatchChoices('lineup',sessionStorage.getItem('nsk2_lineup_match_'+sessionStorage.getItem('nsk2_pool_id')+'_'+team)||'1'))return;
+            } else {
+              const sel=byId("lineupMatch");
+              if(sel)sel.value=String(t.dataset.matchNo);
+              setActiveMatchButton(String(t.dataset.matchNo));
+            }
+            await fillLaguppstallningFormFromSelection();
+          } finally {
+            window.__nskLineupSwitching=false;
+          }
           return;
         }
 
