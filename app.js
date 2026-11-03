@@ -2126,10 +2126,13 @@ window.NSK2App = (() => {
       let playersOnField = 3;
 
       if (poolId && typeof DB?.getPool === "function") {
-        const pool = await DB.getPool(poolId);
+        const [pool,matchPlan] = await Promise.all([
+          DB.getPool(poolId),
+          DB.listPoolMatchPlan ? DB.listPoolMatchPlan(poolId) : Promise.resolve(null)
+        ]);
         teams = safeInt(pool?.teams || "2", 2);
         matches = safeInt(pool?.matches || "4", 4);
-        flowMatchPlan=DB.listPoolMatchPlan?await DB.listPoolMatchPlan(poolId):null;flowDefaultMatchCount=matches;
+        flowMatchPlan=matchPlan;flowDefaultMatchCount=matches;
         setText("poolFlowContext",`${pool?.place||pool?.title||"Poolspel"} · ${pool?.pool_date||""}`);
         playersOnField = safeInt(pool?.players_on_field || "3", 3);
         window.__nskLineupClosed=pool?.active===false;
