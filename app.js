@@ -2142,7 +2142,7 @@ window.NSK2App = (() => {
           let target=null,value=null;
           if(label==='Målvakt'){target=byId('lineupGoalie');value=config?.goalie_player_id??'';}
           else if(label==='Antal spelare'){target=byId('lineupPlayerCount');value=config?.player_count??'';}
-          else if(/^Spelare \\d+$/.test(label)){target=byId('lineupPlayer'+label.slice(8));value=currentPlayers[Number(label.slice(8))-1]??'';}
+          else if(/^Spelare \d+$/.test(label)){target=byId('lineupPlayer'+label.slice(8));value=currentPlayers[Number(label.slice(8))-1]??'';}
           else if(label==='Starttid'){target=byId('lineupStartTime');value=config?.start_time||'';}
           else if(label==='Motståndare'){target=byId('lineupOpponent');value=config?.opponent||'';}
           else if(label==='Plan'){target=byId('lineupPlan');value=config?.plan||'';}
