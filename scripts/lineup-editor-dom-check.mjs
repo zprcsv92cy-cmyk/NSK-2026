@@ -75,6 +75,7 @@ test('per-match edits persist, Match 1 fills untouched matches and failed drafts
  assert.equal(p.$('lineupCompareButton').hidden,false,'comparison is offered after a conflict');
  p.$('lineupCompareButton').click();
  await p.until(()=>/Senast sparat jämfört med dina osparade val/.test(p.$('lineupConflictComparison').textContent));
+ assert.match(p.$('lineupConflictComparison').textContent,/1 skillnad hittades/,'comparison summarizes changed fields');
  assert.match(p.$('lineupConflictComparison').textContent,/Spelare 1: sparat/);
  assert.match(p.$('lineupConflictComparison').textContent,/dina val/);
  assert.match(p.$('lineupConflictComparison').textContent,/Jämförelsen är endast för läsning/);
