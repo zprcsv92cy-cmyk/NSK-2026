@@ -2458,6 +2458,13 @@ window.NSK2App = (() => {
       if (!matchSelect.dataset.bound) {
         matchSelect.dataset.bound = "1";
         matchSelect.addEventListener("change", async () => {
+          if(shiftToggleSaving){
+            const previous=sessionStorage.getItem("nsk2_match_no") || "1";
+            matchSelect.value=previous;
+            setActiveShiftMatchButton(previous);
+            setText("shiftMsg","Vänta tills bytet har sparats innan du byter match.");
+            return;
+          }
           sessionStorage.setItem("nsk2_match_no", matchSelect.value || "1");
           setActiveShiftMatchButton(matchSelect.value || "1");
           await renderShiftSchema();
