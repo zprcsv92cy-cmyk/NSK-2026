@@ -67,7 +67,10 @@ test('per-match edits persist, Match 1 fills untouched matches and failed drafts
  assert.equal(p.$('lineupMatch').value,'2','concurrent conflict keeps current match');
  assert.equal(p.$('lineupPlayer1').value,'4','concurrent conflict preserves local draft');
  assert.equal(p.$('lineupPlayer1').disabled,false,'conflicted draft remains editable');
- assert.match(p.$('appError').textContent,/Konflikt/);
+ assert.match(p.$('appError').textContent,/Konflikt|Sparningen stoppades/);
+ assert.match(p.$('appError').textContent,/Kopiera dina val innan du laddar om matchen/,'conflict must not recommend a blind retry');
+ assert.match(p.$('lineupMsg').textContent,/Dina val finns kvar här, men är inte sparade/);
+ assert.doesNotMatch(p.$('lineupMsg').textContent,/Tryck Spara.*igen/);
  assert.equal(writes.length,0,'conflicted write must not reach persisted state');
  conflicting=false;
  const first=clone(configs.get('1')),third=clone(configs.get('3'));
