@@ -2016,12 +2016,16 @@ window.NSK2App = (() => {
       message("lineupMsg", "Matchinfo sparas separat. Fyll alla spelarplatser innan du går vidare."); return;
     }
     try {
-      const poolConflict = await validateUniquePlayersPerMatch(poolId, lagNo, matchNo, goalie, selectedPlayers);
+      // Independent preflight reads can run together; do not write until both
+      // player conflicts and completed shifts have been checked.
+      const [poolConflict, played] = await Promise.all([
+        validateUniquePlayersPerMatch(poolId, lagNo, matchNo, goalie, selectedPlayers),
+        DB.listShiftSchema ? DB.listShiftSchema(poolId,lagNo,matchNo) : Promise.resolve([])
+      ]);
       if (poolConflict) { lineupIncomplete=true;message("lineupMsg", poolConflict); return; }
       // Do not update controls after an asynchronous wait: another match may be open.
       // Spara de tränare som faktiskt markerats, inte en ny automatisk beräkning.
       const coachIds = [...new Set(snapshot.coachIds)];
-      const played=DB.listShiftSchema?await DB.listShiftSchema(poolId,lagNo,matchNo):[];
       if(played.some(r=>r.done)){
         const current=await DB.getPoolTeamMatchConfig(poolId,lagNo,matchNo),entries=current?.id?await DB.getLineup(current.id):[];
         const ids=entries.filter(r=>r.person_type==='player').sort((a,b)=>a.sort_order-b.sort_order).map(r=>String(r.person_id));
