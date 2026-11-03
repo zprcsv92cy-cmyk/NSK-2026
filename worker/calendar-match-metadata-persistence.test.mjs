@@ -63,6 +63,6 @@ test('pool ownership mismatch fails closed before match metadata write',async()=
   if(path==='991001/71/')return Response.json({...team,id:72});
   throw Error('Unexpected request '+path);
  };
- const r=await send(f.lock,base);assert.equal(r.status,403);assert.equal(f.writes,0);globalThis.fetch=old;
+ const r=await send(f.lock,base);assert.equal(r.status,503,'unverifiable canonical team identity fails closed');assert.equal(f.writes,0);globalThis.fetch=old;
  }finally{f.restore()}
 });
