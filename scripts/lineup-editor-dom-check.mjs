@@ -46,6 +46,16 @@ test('per-match edits persist, Match 1 fills untouched matches and failed drafts
  assert(p.$('lineupEditButton').compareDocumentPosition(p.$('lineupSelectors'))&p.w.Node.DOCUMENT_POSITION_PRECEDING);
  assert(p.$('lineupPlayer1').disabled);assert(!p.$('lineupEditButton').disabled);assert(p.$('lineupSaveButton').disabled);
  await p.select(2);p.$('lineupEditButton').click();assert(!p.$('lineupPlayer1').disabled);assert(!p.$('lineupSaveButton').disabled);
+ // A failed save during navigation must keep both the current match and
+ // the user's unsaved choices visible and editable.
+ p.change('lineupPlayer1','4');failing=true;
+ p.w.document.querySelector('[data-match-no="3"]').click();
+ await p.until(()=>!p.w.__nskLineupSwitching);
+ assert.equal(p.$('lineupMatch').value,'2','failed navigation must remain on Match 2');
+ assert.equal(p.$('lineupPlayer1').value,'4','failed save must preserve draft');
+ assert.equal(p.$('lineupPlayer1').disabled,false,'draft remains editable');
+ assert.match(p.$('appError').textContent,/Synthetic save failure/);
+ failing=false;
  const first=clone(configs.get('1')),third=clone(configs.get('3'));
  p.change('lineupPlayer1','4');await new Promise(r=>setTimeout(r,400));assert.equal(writes.length,0,'manual edit must not save intermediate changes');
  await p.save();assert.match(p.$('lineupMsg').textContent,/sparad för Match 2/);assert(p.$('lineupPlayer1').disabled);assert.deepEqual(writes.map(x=>x.config.match_no),[2]);assert.deepEqual(shiftWrites,['2']);assert.deepEqual(configs.get('1'),first);assert.deepEqual(configs.get('3'),third);
