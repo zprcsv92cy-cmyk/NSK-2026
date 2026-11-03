@@ -97,7 +97,21 @@ test('per-match edits persist, Match 1 fills untouched matches and failed drafts
  await new Promise(r=>setTimeout(r,30));
  assert.equal(p.$('lineupConflictComparison').hidden,true,'stale comparison stays hidden after navigation');
  assert.equal(p.$('lineupConflictComparison').textContent,'','stale comparison must not overwrite the next match');
- await p.select(2);assert.equal(p.$('lineupPlayer1').value,'4');
+ // Editing the same match during a slow comparison must also invalidate the result.
+ await p.select(2);p.$('lineupEditButton').click();
+ let releaseDraftCompare;
+ deferredCompare={promise:new Promise(resolve=>{releaseDraftCompare=resolve;})};
+ p.$('lineupCompareButton').hidden=false;
+ p.$('lineupCompareButton').click();
+ await p.until(()=>deferredCompare===null);
+ p.change('lineupPlayer1','5');
+ releaseDraftCompare();
+ await p.until(()=>/Dina val har ändrats under hämtningen/.test(p.$('lineupConflictComparison').textContent));
+ assert.equal(p.$('lineupPlayer1').value,'5','draft remains editable after stale comparison');
+ assert.equal(p.$('lineupCompareButton').disabled,false,'comparison can be rerun');
+ // Discard the comparison-only synthetic draft without triggering a navigation save.
+ p.change('lineupPlayer1','4');
+ await new Promise(r=>setTimeout(r,450));
  p.w.close();p=await page('2');assert.equal(p.$('lineupPlayer1').value,'4');
  p.$('lineupEditButton').click();p.change('lineupPlayer1','5');failing=true;await p.save();assert.match(p.$('appError').textContent,/Synthetic save failure/);assert.equal(p.$('lineupPlayer1').value,'5');assert(!p.$('lineupPlayer1').disabled);assert(!p.$('lineupSaveButton').disabled);assert.equal(writes.length,1);
  failing=false;await p.save();assert.equal(entries.get(102)[0].person_id,5);assert(p.$('lineupPlayer1').disabled);

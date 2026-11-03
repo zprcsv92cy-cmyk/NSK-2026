@@ -1625,7 +1625,7 @@ window.NSK2App = (() => {
     window.__nskLineupLoading=true;window.__nskLineupLoadFailed=false;window.__nskLineupEditing=false;
     updateLineupEditControls();
     setText("lineupMsg","");
-    if(byId('lineupCompareButton'))byId('lineupCompareButton').hidden=true;
+    if(byId('lineupCompareButton')){byId('lineupCompareButton').hidden=true;byId('lineupCompareButton').disabled=false;}
     if(byId('lineupConflictComparison')){byId('lineupConflictComparison').hidden=true;byId('lineupConflictComparison').textContent='';}
     loading(true);
     clearTimeout(window.__nskLineupSaveTimer);
@@ -2114,6 +2114,10 @@ window.NSK2App = (() => {
       const config=await DB.getPoolTeamMatchConfig(draft.poolId,draft.lagNo,draft.matchNo);
       const entries=config?.id?await DB.getLineup(config.id):[];
       if(!stillCurrent())return;
+      if(JSON.stringify(captureLineupSnapshot())!==JSON.stringify(draft)){
+        output.textContent='Dina val har ändrats under hämtningen. Tryck Jämför med senast sparat igen för en aktuell jämförelse.';
+        return;
+      }
       const currentPlayers=(entries||[]).filter(e=>e.person_type==='player').sort((a,b)=>(a.sort_order||0)-(b.sort_order||0)).map(e=>String(e.person_id));
       const name=id=>{const options=byId('lineupGoalie')?.options||[];for(const o of options)if(String(o.value)===String(id))return o.textContent.trim();return id?('Spelare '+id):'Ingen';};
       const lines=[
