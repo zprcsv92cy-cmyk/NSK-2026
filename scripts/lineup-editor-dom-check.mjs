@@ -125,8 +125,13 @@ test('per-match edits persist, Match 1 fills untouched matches and failed drafts
  assert.equal(p.$('lineupOpponent').value,'My unsaved opponent','other unsaved fields remain unchanged');
  assert.equal(writes.length,writesBeforeSelective,'choosing saved value does not write to database');
  assert.equal(playerSavedButton.textContent,'Sparat värde valt','selection is acknowledged');
- p.change('lineupPlayer1','5');p.change('lineupOpponent','Opponent 2');
- failing=true;await p.save();assert.match(p.$('appError').textContent,/Synthetic save failure/);assert.equal(p.$('lineupPlayer1').value,'5');assert(!p.$('lineupPlayer1').disabled);assert(!p.$('lineupSaveButton').disabled);assert.equal(writes.length,1);
+ await p.save();
+ assert.equal(entries.get(102)[0].person_id,4,'explicit save persists the selected saved player');
+ assert.equal(configs.get('2').opponent,'My unsaved opponent','explicit save preserves the other unsaved field');
+ assert(p.$('lineupPlayer1').disabled,'successful explicit save closes editing');
+ p.$('lineupEditButton').click();p.change('lineupPlayer1','5');p.change('lineupOpponent','Opponent 2');
+ const writesBeforeFailure=writes.length;
+ failing=true;await p.save();assert.match(p.$('appError').textContent,/Synthetic save failure/);assert.equal(p.$('lineupPlayer1').value,'5');assert(!p.$('lineupPlayer1').disabled);assert(!p.$('lineupSaveButton').disabled);assert.equal(writes.length,writesBeforeFailure);
  failing=false;await p.save();assert.equal(entries.get(102)[0].person_id,5);assert(p.$('lineupPlayer1').disabled);
  // An incomplete edit stays open and identifies the missing positions.
  p.$('lineupEditButton').click();p.change('lineupPlayer1','');await p.save();assert(!p.$('lineupPlayer1').disabled);assert.match(p.$('lineupMsg').textContent,/Fyll alla spelarplatser/);p.change('lineupPlayer1','4');await p.save();
