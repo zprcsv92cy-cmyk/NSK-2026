@@ -1905,10 +1905,10 @@ window.NSK2App = (() => {
     return shifts;
   }
 
-  async function regenerateShiftSchemaFor(poolId, lagNo, matchNo, knownShifts) {
-    if (typeof DB?.getPool !== "function") return [];
+  async function regenerateShiftSchemaFor(poolId, lagNo, matchNo, knownShifts, knownPool) {
+    if (!knownPool && typeof DB?.getPool !== "function") return [];
     const [pool,row]=await Promise.all([
-      DB.getPool(poolId),
+      knownPool ? Promise.resolve(knownPool) : DB.getPool(poolId),
       typeof DB?.getPoolTeamMatchConfig==='function'?DB.getPoolTeamMatchConfig(poolId,lagNo,matchNo):null
     ]);
     let sourceRow = row;
@@ -2062,7 +2062,7 @@ window.NSK2App = (() => {
             const targetPlayers=existing.filter(x=>x.person_type==='player').sort((a,b)=>a.sort_order-b.sort_order).map(x=>String(x.person_id));
             if(!shifts.length&&String(target?.goalie_player_id)===String(goalie)&&JSON.stringify(targetPlayers)===JSON.stringify(selectedPlayers)){
               message('lineupMsg','Slutför bytesschemat för Match '+n+'…');
-              await regenerateShiftSchemaFor(poolId,lagNo,String(n),shifts);
+              await regenerateShiftSchemaFor(poolId,lagNo,String(n),shifts,pool);
             }
             continue;
           }
@@ -2071,7 +2071,7 @@ window.NSK2App = (() => {
           const copyConfig={pool_id:Number(poolId),lag_no:Number(lagNo),match_no:n,start_time:target?.start_time||null,opponent:target?.opponent||'',plan:target?.plan||'Plan 1',player_count:playerCount,goalie_player_id:Number(goalie),players_on_field:[goalie,...selectedPlayers].map(Number)};
           if(DB.saveFullLineup)await DB.saveFullLineup(copyConfig,selectedPlayers.map(Number),coachIds.map(Number),DB.lineupBase?await DB.lineupBase(target,existing):undefined);else{const copied=await DB.savePoolTeamMatchConfig(copyConfig);await DB.saveLineup(copied.id,selectedPlayers.map(Number),coachIds.map(Number));}
           await DB.saveCoachSelection(poolId,lagNo,String(n),coachIds.map(Number));
-          await regenerateShiftSchemaFor(poolId,lagNo,String(n),shifts);
+          await regenerateShiftSchemaFor(poolId,lagNo,String(n),shifts,pool);
           }
         }
       }
