@@ -36,6 +36,17 @@ test('changing only shift duration is allowed after checked shifts; other struct
 });
 
 
+test('simultaneous lineup saves from the same base never silently overwrite each other',async t=>{
+ const x=await setup(t);x.env.NSK_MULTIUSER_ENABLED='true';
+ const base=lineupSnapshot(x.data.matchkonfiguration[0],x.data.laguppstallningar);
+ const a={config:{...x.config,opponent:'Leader A'},players:[2],coaches:[],base};
+ const b={config:{...x.config,opponent:'Leader B'},players:[2],coaches:[],base};
+ const responses=await Promise.all([x.request('/api/poolspel/10/lineup','POST',a),x.request('/api/poolspel/10/lineup','POST',b)]);
+ assert.deepEqual(responses.map(r=>r.status).sort((a,b)=>a-b),[200,409]);
+ assert(['Leader A','Leader B'].includes(x.data.matchkonfiguration[0].Motståndare));
+ assert.equal((await x.f.db.prepare('SELECT status FROM pool_flow_saves WHERE pool_id=10').first()).status,'ready');
+});
+
 test('multiuser lineup rejects stale editors and missing bases without blocking the match or changing saved data',async t=>{
  const x=await setup(t);x.env.NSK_MULTIUSER_ENABLED='true';
  const base=lineupSnapshot(x.data.matchkonfiguration[0],x.data.laguppstallningar);
