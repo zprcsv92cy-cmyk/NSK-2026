@@ -1790,25 +1790,29 @@ window.NSK2App = (() => {
     if (typeof DB?.listPoolTeamMatchConfigs !== "function") return "";
 
     const rows = await DB.listPoolTeamMatchConfigs(poolId);
+    const otherTeams = rows.filter(row =>
+      String(row.match_no) === String(matchNo) &&
+      String(row.lag_no) !== String(lagNo)
+    );
+    // Read independent opposing-team lineups concurrently, but validate all
+    // of them before allowing a save to prevent duplicate player assignments.
+    const lineups = await Promise.all(otherTeams.map(row =>
+      row.id && typeof DB?.getLineup === "function" ? DB.getLineup(row.id) : Promise.resolve([])
+    ));
 
-    for (const row of rows) {
-      const sameMatch = String(row.match_no) === String(matchNo);
-      const otherLag = String(row.lag_no) !== String(lagNo);
-      if (!sameMatch || !otherLag) continue;
-
+    for (let index = 0; index < otherTeams.length; index++) {
+      const row = otherTeams[index];
       const taken = new Set();
       const rowGoalieId = cleanUUID(row.goalie_player_id);
       if (rowGoalieId) taken.add(String(rowGoalieId));
 
-      const lineup = row.id && typeof DB?.getLineup === "function" ? await DB.getLineup(row.id) : [];
-      lineup
-        .filter((x) => x.person_type === "player")
-        .forEach((x) => taken.add(String(x.person_id)));
+      (lineups[index] || [])
+        .filter(x => x.person_type === "player")
+        .forEach(x => taken.add(String(x.person_id)));
 
       if (goalieId && taken.has(String(goalieId))) {
         return "Vald målvakt används redan i ett annat lag i samma match.";
       }
-
       for (const pid of playerIds) {
         if (taken.has(String(pid))) {
           return "En vald spelare används redan i ett annat lag i samma match.";
