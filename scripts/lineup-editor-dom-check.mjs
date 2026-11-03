@@ -109,6 +109,7 @@ test('per-match edits persist, Match 1 fills untouched matches and failed drafts
  await p.until(()=>/Dina val har ändrats under hämtningen/.test(p.$('lineupConflictComparison').textContent));
  assert.equal(p.$('lineupPlayer1').value,'5','draft remains editable after stale comparison');
  assert.equal(p.$('lineupCompareButton').disabled,false,'comparison can be rerun');
+ p.change('lineupPlayer1','4');
  await p.select(2);assert.equal(p.$('lineupPlayer1').value,'4');
  p.w.close();p=await page('2');assert.equal(p.$('lineupPlayer1').value,'4');
  p.$('lineupEditButton').click();p.change('lineupPlayer1','5');failing=true;await p.save();assert.match(p.$('appError').textContent,/Synthetic save failure/);assert.equal(p.$('lineupPlayer1').value,'5');assert(!p.$('lineupPlayer1').disabled);assert(!p.$('lineupSaveButton').disabled);assert.equal(writes.length,1);
