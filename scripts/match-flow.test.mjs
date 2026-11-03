@@ -21,3 +21,21 @@ test('failed final shift save keeps match open',async()=>{const x=setup(3,2);x.c
 test('cancel whole-pool finish never writes or navigates',async()=>{const x=setup(3,2,true);await x.context.flow.init();x.context.confirm=()=>false;await x.byId('finishWholePool').onclick();assert.equal(x.writes.length,0);assert.equal(x.context.location.href,'');});
 test('whole pool finish warns about other own team and writes only after confirmation',async()=>{const x=setup(3,2,true);await x.context.flow.init();x.context.DB.listShiftSchema=async(pool,lag)=>lag===1?[{done:false}]:x.rows;let message='';x.context.confirm=text=>{message=text;return true;};await x.byId('finishWholePool').onclick();assert.match(message,/Lag 1, match 2/);assert.deepEqual(x.writes,[['10',false]]);assert.equal(x.context.location.href,'../startsida/');});
 test('no shift schema hides next and completion controls',()=>{const x=setup(0);x.context.flow.set(x.data);assert.equal(x.byId('nextShiftPanel').hidden,true);assert.equal(x.byId('nextShiftBtn').hidden,true);assert.equal(x.byId('matchFinishedPanel').hidden,true);});
+
+test('pool finish is blocked while final shift save is pending and becomes available after save succeeds',async()=>{
+ const x=setup(3,2);
+ let resolveWrite;
+ x.context.DB.setShiftDone=()=>new Promise(resolve=>{resolveWrite=resolve;});
+ await x.context.flow.init();
+ const saving=x.byId('nextShiftBtn').handlers.click();
+ assert.equal(typeof resolveWrite,'function');
+ await x.byId('finishWholePool').onclick();
+ assert.equal(x.writes.length,0,'pool must not close during pending shift save');
+ assert.equal(x.context.location.href,'');
+ assert.match(x.byId('appError').textContent,/håller fortfarande på att sparas/);
+ resolveWrite();
+ await saving;
+ await x.byId('finishWholePool').onclick();
+ assert.deepEqual(x.writes,[['10',false]]);
+ assert.equal(x.context.location.href,'../startsida/');
+});

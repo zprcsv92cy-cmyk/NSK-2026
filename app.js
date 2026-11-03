@@ -2825,6 +2825,10 @@ window.NSK2App = (() => {
     }
     byId('finishWholePool').onclick=async()=>{
       if(matchvyCache?.closed)return;
+      if(matchvySaving){
+        setText('appError','Ett byte håller fortfarande på att sparas. Försök avsluta poolspelet igen när sparningen är klar.');
+        return;
+      }
       const button=byId('finishWholePool');button.disabled=true;
       try{
         const configs=await (DB.listPoolMatchPlan?DB.listPoolMatchPlan(poolId):DB.listPoolTeamMatchConfigs(poolId));
