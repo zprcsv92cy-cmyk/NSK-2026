@@ -1644,6 +1644,12 @@ window.NSK2App = (() => {
       ]);
 
       if(!selectedNow())return;
+      // Start lineup reads while the selector controls are being rendered.
+      // Capture failures immediately so an early navigation cannot leave an unhandled rejection.
+      const currentLineupLoad=rowCurrent?.id&&typeof DB?.getLineup==='function'
+        ? capture(DB.getLineup(rowCurrent.id)):Promise.resolve({data:[]});
+      const firstLineupLoad=String(matchNo)!=='1'&&row1?.id&&typeof DB?.getLineup==='function'
+        ? capture(DB.getLineup(row1.id)):Promise.resolve({data:[]});
       const sourceRow = rowCurrent?.goalie_player_id ? rowCurrent : (row1 || rowCurrent);
 
       await renderCoachOptions();
@@ -1678,7 +1684,9 @@ window.NSK2App = (() => {
 
       let lineup = [];
       if (rowCurrent?.id && typeof DB?.getLineup === "function") {
-        lineup = await DB.getLineup(rowCurrent.id);
+        const loaded=await currentLineupLoad;
+        if(loaded.error)throw loaded.error;
+        lineup = loaded.data;
         // Older failed saves left duplicate rows. The Worker now updates the
         // oldest row per position; ignore surplus rows when displaying.
         const byPosition = new Map();
@@ -1705,7 +1713,7 @@ window.NSK2App = (() => {
       const savedEmptyDraft = false;
       if (String(matchNo) !== "1" && !savedEmptyDraft && !isValidLineup(lineup)) {
         const baseLineup = row1?.id && typeof DB?.getLineup === "function"
-          ? await DB.getLineup(row1.id) : [];
+          ? await firstLineupLoad.then(result=>{if(result.error)throw result.error;return result.data;}) : [];
         if(!selectedNow())return;
         if (isValidLineup(baseLineup)) {
           if(!selectedNow())return;
