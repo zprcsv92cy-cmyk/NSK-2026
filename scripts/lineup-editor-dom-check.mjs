@@ -56,6 +56,9 @@ test('per-match edits persist, Match 1 fills untouched matches and failed drafts
  assert.equal(p.$('lineupPlayer1').disabled,false,'draft remains editable');
  assert.match(p.$('appError').textContent,/Synthetic save failure/);
  failing=false;
+ // Re-queue the draft after the first failed save so the next attempt
+ // reaches the synthetic concurrent-edit conflict instead of reusing the old failure.
+ p.change('lineupPlayer1','4');
  // Simulate another editor changing the same match before this draft saves.
  // A rejected concurrent write must never replace the local draft or switch match.
  conflicting=true;
