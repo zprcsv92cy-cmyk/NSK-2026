@@ -16,7 +16,32 @@ concurrency:
   group: nsk-isolated-positive-calendar-e2e
   cancel-in-progress: false
 jobs:
+  validate-request:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Validate explicit isolated E2E request before any write
+        shell: bash
+        env:
+          CONFIRMATION: ${{ inputs.confirmation }}
+          EXPECTED_VERSION: ${{ inputs.expected_version }}
+          REQUESTED_REF: ${{ github.ref }}
+        run: |
+          set -euo pipefail
+          if [[ "$REQUESTED_REF" != "refs/heads/main" ]]; then
+            echo "::error::Choose branch main; isolated calendar E2E cannot run from $REQUESTED_REF"
+            exit 1
+          fi
+          if [[ "$CONFIRMATION" != "ISOLATED_CALENDAR_E2E" ]]; then
+            echo "::error::Confirmation must exactly equal ISOLATED_CALENDAR_E2E (case-sensitive). No test data was written."
+            exit 1
+          fi
+          if [[ ! "$EXPECTED_VERSION" =~ ^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$ ]]; then
+            echo "::error::expected_version must be the reviewed isolated Worker version UUID. No test data was written."
+            exit 1
+          fi
+          echo "Confirmed main branch, explicit E2E opt-in and version UUID format." >> "$GITHUB_STEP_SUMMARY"
   positive-e2e:
+    needs: validate-request
     if: ${{ inputs.confirmation == 'ISOLATED_CALENDAR_E2E' && github.ref == 'refs/heads/main' }}
     runs-on: ubuntu-latest
     environment: isolated-preview
