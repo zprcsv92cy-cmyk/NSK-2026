@@ -2,7 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import {readFileSync} from 'node:fs';
 const source=readFileSync(new URL('../app.js',import.meta.url),'utf8');
-const begin=source.indexOf('        matchSelect.addEventListener("change", async () => {');
+const begin=source.indexOf('        matchSelect.addEventListener("change", async () => {',source.indexOf('async function initShiftPageData()'));
 const end=source.indexOf('\n      }\n\n      byId(\'shiftUndoButton\')',begin);
 assert(begin>=0&&end>begin,'shift selector change handler must be found');
 const handlerSource=source.slice(begin,end);
