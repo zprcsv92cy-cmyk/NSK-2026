@@ -1146,13 +1146,14 @@ window.NSK2App = (() => {
 
       // All squad members must remain available in every match. The match-specific
       // list may be stale/incomplete and otherwise makes a saved ID unselectable.
-      const players = typeof DB?.listPlayers === "function" ? await getPlayersCached() : [];
-
-      const usedSameMatchSet = poolId ? await getUsedPlayersInSameMatch(poolId, lagNo, currentMatchNo) : new Set();
-
-      let matchRow = poolId && typeof DB?.getPoolTeamMatchConfig === "function"
-        ? await DB.getPoolTeamMatchConfig(poolId, lagNo, currentMatchNo)
-        : null;
+      const [players,usedSameMatchSet,initialMatchRow] = await Promise.all([
+        typeof DB?.listPlayers === "function" ? getPlayersCached() : Promise.resolve([]),
+        poolId ? getUsedPlayersInSameMatch(poolId, lagNo, currentMatchNo) : Promise.resolve(new Set()),
+        poolId && typeof DB?.getPoolTeamMatchConfig === "function"
+          ? DB.getPoolTeamMatchConfig(poolId, lagNo, currentMatchNo)
+          : Promise.resolve(null)
+      ]);
+      let matchRow = initialMatchRow;
 
       if (!matchRow && poolId && String(currentMatchNo) !== "1" && typeof DB?.getPoolTeamMatchConfig === "function") {
         matchRow = await DB.getPoolTeamMatchConfig(poolId, lagNo, 1);
