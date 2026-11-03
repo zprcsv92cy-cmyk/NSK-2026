@@ -2188,13 +2188,16 @@ window.NSK2App = (() => {
           // A select change updates its value before the event fires. Restore
           // the loaded match while flushing so pending edits and save status
           // still belong to the match being left, not the requested match.
-          if(matchSelect.dataset.switching==='1'){
+          // Share the navigation lock with the team/match buttons: dropdown
+          // changes must not race a button-triggered save or data load.
+          if(window.__nskLineupSwitching || matchSelect.dataset.switching==='1'){
             matchSelect.value=matchSelect.dataset.loadedMatch || '1';
             return;
           }
           const requestedMatch=matchSelect.value || "1";
           const previousMatch=matchSelect.dataset.loadedMatch || requestedMatch;
           if(requestedMatch===previousMatch)return;
+          window.__nskLineupSwitching=true;
           matchSelect.dataset.switching='1';
           matchSelect.value=previousMatch;
           try{
@@ -2207,6 +2210,7 @@ window.NSK2App = (() => {
             await fillLaguppstallningFormFromSelection();
           }finally{
             delete matchSelect.dataset.switching;
+            window.__nskLineupSwitching=false;
           }
         });
       }
