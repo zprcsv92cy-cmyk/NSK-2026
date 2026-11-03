@@ -72,6 +72,14 @@ test('per-match edits persist, Match 1 fills untouched matches and failed drafts
  assert.match(p.$('lineupMsg').textContent,/Dina val finns kvar här, men är inte sparade/);
  assert.doesNotMatch(p.$('lineupMsg').textContent,/Tryck Spara.*igen/);
  assert.equal(writes.length,0,'conflicted write must not reach persisted state');
+ assert.equal(p.$('lineupCompareButton').hidden,false,'comparison is offered after a conflict');
+ p.$('lineupCompareButton').click();
+ await p.until(()=>/Senast sparat jämfört med dina osparade val/.test(p.$('lineupConflictComparison').textContent));
+ assert.match(p.$('lineupConflictComparison').textContent,/Spelare 1: sparat/);
+ assert.match(p.$('lineupConflictComparison').textContent,/dina val/);
+ assert.match(p.$('lineupConflictComparison').textContent,/Jämförelsen är endast för läsning/);
+ assert.equal(p.$('lineupPlayer1').value,'4','comparison must not discard local draft');
+ assert.equal(writes.length,0,'comparison must not write to storage');
  conflicting=false;
  const first=clone(configs.get('1')),third=clone(configs.get('3'));
  p.change('lineupPlayer1','4');await new Promise(r=>setTimeout(r,400));assert.equal(writes.length,0,'manual edit must not save intermediate changes');
