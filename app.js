@@ -2134,9 +2134,24 @@ window.NSK2App = (() => {
       const summary=document.createElement('p');summary.textContent=differences===0?'Inga skillnader hittades.':differences+' skillnad'+(differences===1?'':'er')+' hittades.';output.append(summary);
       for(const [label,saved,mine] of lines){
         if(saved===mine)continue;
-        const row=document.createElement('p');row.textContent=label+': sparat '+(saved||'–')+' | dina val '+(mine||'–');
-        row.style.fontWeight='bold';
-        output.append(row);
+        const row=document.createElement('div');row.style.cssText='display:flex;align-items:center;justify-content:space-between;gap:8px;flex-wrap:wrap;margin:8px 0;';
+        const detail=document.createElement('span');detail.textContent=label+': sparat '+(saved||'–')+' | dina val '+(mine||'–');detail.style.fontWeight='bold';row.append(detail);
+        const useSaved=document.createElement('button');useSaved.type='button';useSaved.textContent='Använd sparat';
+        useSaved.addEventListener('click',()=>{
+          if(!stillCurrent())return;
+          let target=null,value=null;
+          if(label==='Målvakt'){target=byId('lineupGoalie');value=config?.goalie_player_id??'';}
+          else if(label==='Antal spelare'){target=byId('lineupPlayerCount');value=config?.player_count??'';}
+          else if(/^Spelare \d+$/.test(label)){target=byId('lineupPlayer'+label.slice(8));value=currentPlayers[Number(label.slice(8))-1]??'';}
+          else if(label==='Starttid'){target=byId('lineupStartTime');value=config?.start_time||'';}
+          else if(label==='Motståndare'){target=byId('lineupOpponent');value=config?.opponent||'';}
+          else if(label==='Plan'){target=byId('lineupPlan');value=config?.plan||'';}
+          if(!target||target.disabled)return;
+          target.value=String(value);target.dispatchEvent(new Event('change',{bubbles:true}));
+          useSaved.disabled=true;useSaved.textContent='Sparat värde valt';
+          detail.textContent=label+': sparat värde valt';
+        });
+        row.append(useSaved);output.append(row);
       }
       const warning=document.createElement('p');warning.textContent='Jämförelsen är endast för läsning. Inga ändringar har sparats. Kopiera dina val innan du laddar om.';output.append(warning);
     }catch(error){if(stillCurrent())output.textContent='Kunde inte hämta senaste versionen: '+(error?.message||String(error));}
