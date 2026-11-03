@@ -27,7 +27,7 @@ async function query(sql,params=[]){
   });
   const data=await response.json();
   if(response.status===403) {
-    throw new Error('Isolated D1 access denied (HTTP 403). The GitHub isolated-preview CLOUDFLARE_API_TOKEN requires D1 Write permission for the dedicated test database; verify the token scope before retrying. No calendar match writes have started.');
+    throw new Error('Isolated D1 access denied (HTTP 403). The GitHub isolated-preview CLOUDFLARE_API_TOKEN requires D1 Write permission for the dedicated test database; verify the token scope before retrying. Check the run log to determine whether any earlier isolated test steps completed.');
   }
   assert.ok(response.ok&&data.success&&data.result?.[0]?.success,'Isolated D1 operation failed: '+response.status);
   return data.result[0].results||[];
