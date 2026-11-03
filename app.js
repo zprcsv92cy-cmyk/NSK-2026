@@ -1779,6 +1779,9 @@ window.NSK2App = (() => {
       window.__nskLineupEditing=!rowCurrent?.goalie_player_id&&!window.__nskLineupStarted;
       window.__nskLineupLoading=false;
       loading(false);updateLineupEditControls();
+      // Remember the match whose data actually loaded, so a failed save
+      // cannot leave the selector pointing at another match.
+      if(byId('lineupMatch'))byId('lineupMatch').dataset.loadedMatch=String(matchNo);
       // Do not auto-save when merely opening another match. Save on user changes.
 
     } catch (err) {
@@ -2176,8 +2179,15 @@ window.NSK2App = (() => {
       if (!matchSelect.dataset.bound) {
         matchSelect.dataset.bound = "1";
         matchSelect.addEventListener("change", async () => {
-          if(!await flushLineupChanges())return;
-          setActiveMatchButton(matchSelect.value || "1");
+          const requestedMatch=matchSelect.value || "1";
+          const previousMatch=matchSelect.dataset.loadedMatch || requestedMatch;
+          if(!await flushLineupChanges()){
+            matchSelect.value=previousMatch;
+            setActiveMatchButton(previousMatch);
+            return;
+          }
+          matchSelect.value=requestedMatch;
+          setActiveMatchButton(requestedMatch);
           await fillLaguppstallningFormFromSelection();
         });
       }
