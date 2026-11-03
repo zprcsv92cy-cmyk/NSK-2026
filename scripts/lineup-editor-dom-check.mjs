@@ -113,7 +113,20 @@ test('per-match edits persist, Match 1 fills untouched matches and failed drafts
  p.change('lineupPlayer1','4');
  await new Promise(r=>setTimeout(r,450));
  p.w.close();p=await page('2');assert.equal(p.$('lineupPlayer1').value,'4');
- p.$('lineupEditButton').click();p.change('lineupPlayer1','5');failing=true;await p.save();assert.match(p.$('appError').textContent,/Synthetic save failure/);assert.equal(p.$('lineupPlayer1').value,'5');assert(!p.$('lineupPlayer1').disabled);assert(!p.$('lineupSaveButton').disabled);assert.equal(writes.length,1);
+ p.$('lineupEditButton').click();
+ p.change('lineupPlayer1','5');p.change('lineupOpponent','My unsaved opponent');
+ const writesBeforeSelective= writes.length;
+ p.$('lineupCompareButton').hidden=false;p.$('lineupCompareButton').click();
+ await p.until(()=>p.$('lineupConflictComparison').textContent.includes('Använd sparat'));
+ const playerSavedButton=[...p.$('lineupConflictComparison').querySelectorAll('button')].find(btn=>btn.textContent==='Använd sparat'&&btn.parentElement.textContent.includes('Spelare 1'));
+ assert(playerSavedButton,'saved-value action exists for changed player');
+ playerSavedButton.click();
+ assert.equal(p.$('lineupPlayer1').value,'4','selecting saved player restores only that field');
+ assert.equal(p.$('lineupOpponent').value,'My unsaved opponent','other unsaved fields remain unchanged');
+ assert.equal(writes.length,writesBeforeSelective,'choosing saved value does not write to database');
+ assert.equal(playerSavedButton.textContent,'Sparat värde valt','selection is acknowledged');
+ p.change('lineupPlayer1','5');p.change('lineupOpponent','Opponent 2');
+ failing=true;await p.save();assert.match(p.$('appError').textContent,/Synthetic save failure/);assert.equal(p.$('lineupPlayer1').value,'5');assert(!p.$('lineupPlayer1').disabled);assert(!p.$('lineupSaveButton').disabled);assert.equal(writes.length,1);
  failing=false;await p.save();assert.equal(entries.get(102)[0].person_id,5);assert(p.$('lineupPlayer1').disabled);
  // An incomplete edit stays open and identifies the missing positions.
  p.$('lineupEditButton').click();p.change('lineupPlayer1','');await p.save();assert(!p.$('lineupPlayer1').disabled);assert.match(p.$('lineupMsg').textContent,/Fyll alla spelarplatser/);p.change('lineupPlayer1','4');await p.save();
