@@ -20,3 +20,21 @@ test('Match 1 fills only untouched matches and keeps their independent match inf
  await ctx.save(false,{poolId:'10',lagNo:'1',matchNo:'1',goalie:'1',playerCount:1,players:['2'],coachIds:[],startTime:'10:00',opponent:'First',plan:'Plan 1'});assert.equal(writes.length,2);assert.equal(writes[1][0].match_no,2);assert.equal(writes[1][0].start_time,'12:00');assert.equal(writes[1][0].opponent,'Second');assert.equal(writes[1][0].goalie_player_id,1);assert.equal(ctx.lineupSaveFailed,false);
 });
 test('unfinished lineup saves metadata independently and blocks moving forward',async()=>{let info;const ctx={lineupBases:new Map(),lineupBaseKey:(...ids)=>ids.join(':'),sessionStorage:{getItem:k=>k==='nsk2_pool_id'?'10':'1'},byId:()=>({value:'1'}),setText(){},lineupIncomplete:false,lineupSaveFailed:false,DB:{saveMatchInfo:async data=>{info=data;}}};vm.runInNewContext(section('  async function saveLaguppstallningMatchConfigInternal','  async function initLaguppstallningPage')+';globalThis.save=saveLaguppstallningMatchConfigInternal',ctx);await ctx.save(false,{poolId:'10',lagNo:'1',matchNo:'1',goalie:'1',playerCount:3,players:['2','',''],coachIds:[],startTime:'10:00',opponent:'Away',plan:'Plan 1'});assert.equal(info.opponent,'Away');assert.equal(ctx.lineupIncomplete,true);});
+
+test('Match 1 inheritance skips completed shifts and custom lineups without writing them',async()=>{
+ const configs={2:{id:102,goalie_player_id:null},3:{id:103,goalie_player_id:8},4:{id:104,goalie_player_id:null}},writes=[],regenerated=[];
+ const ctx={lineupBases:new Map(),lineupBaseKey:(...ids)=>ids.join(':'),sessionStorage:{getItem:k=>k==='nsk2_pool_id'?'10':'1'},byId:()=>({value:'1'}),setText(){},lineupIncomplete:false,lineupSaveFailed:false,validateUniquePlayersPerMatch:async()=>'',regenerateShiftSchemaFor:async(_p,_l,m)=>regenerated.push(String(m)),DB:{
+  listShiftSchema:async(_p,_l,m)=>String(m)==='2'?[{done:true}]:[],
+  saveFullLineup:async config=>writes.push(config.match_no),
+  getPool:async()=>({matches:4}),
+  listPoolMatchPlan:async()=>[1,2,3,4].map(match_no=>({lag_no:1,match_no})),
+  getPoolTeamMatchConfig:async(_p,_l,m)=>configs[m],
+  getLineup:async id=>id===103?[{person_type:'player',person_id:9,sort_order:1}]:[],
+  saveCoachSelection:async()=>{}
+ }};
+ vm.runInNewContext(section('  async function saveLaguppstallningMatchConfigInternal','  async function initLaguppstallningPage')+';globalThis.save=saveLaguppstallningMatchConfigInternal',ctx);
+ await ctx.save(false,{poolId:'10',lagNo:'1',matchNo:'1',goalie:'1',playerCount:1,players:['2'],coachIds:[],startTime:'10:00',opponent:'First',plan:'Plan 1'});
+ assert.deepEqual(writes,[1,4],'only Match 1 and untouched Match 4 may be written');
+ assert.deepEqual(regenerated,['1','4'],'no shift regeneration for completed or customized matches');
+ assert.equal(ctx.lineupSaveFailed,false);
+});
