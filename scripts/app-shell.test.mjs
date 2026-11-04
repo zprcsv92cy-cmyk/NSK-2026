@@ -55,3 +55,13 @@ test('saved shirt groups no longer automatically collapse the attendance panel',
  assert.doesNotMatch(groups,/trainingAttendance'\)\.open\s*=\s*false/);
  assert.match(readFileSync(new URL('../traningsgrupper/index.html',import.meta.url),'utf8'),/id="trainingAttendance" open/);
 });
+
+for(const state of [{dirty:true},{writes:1},{}])test('active menu reset protects work '+JSON.stringify(state),async()=>{
+ const messages=[];
+ const context={signedOut:false,route:value=>({slug:value,url:new URL(root.href+value+'/')}),active:{route:{slug:'startsida'},...state},status:message=>messages.push(message),lastRoutes:{},location:{},sequence:0};
+ const begin=shell.indexOf(' async function navigate('),end=shell.indexOf('  const requestId=++sequence;',begin);
+ vm.runInNewContext(shell.slice(begin,end)+'return options; } this.navigate=navigate;',context);
+ const result=await context.navigate('startsida',{fromMenu:true});
+ if(state.dirty||state.writes){assert.equal(result,undefined);assert.match(messages[0],/Spara dina ändringar/);}
+ else {assert.equal(result.reload,true);assert.equal(messages.length,0);}
+});

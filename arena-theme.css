@@ -230,3 +230,11 @@
  html[data-nsk-theme="arena"] .arena-codes-dialog button {min-height:44px;min-width:100px}
 }
 @media print {.arena-codes-button,.arena-codes-dialog{display:none!important}}
+
+@media screen {
+ html[data-nsk-theme="arena"] body #shiftMatchList .match-list-item[aria-pressed="true"] {
+  background:linear-gradient(180deg,#ba1936,#821127);border:2px solid #ffbdca;color:#fff;
+  box-shadow:inset 0 0 0 1px #ffffff26,0 0 0 2px #b1122640;
+ }
+ html[data-nsk-theme="arena"] #shiftMatchList [aria-pressed="true"] .match-list-sub {color:#fff;font-weight:750}
+}

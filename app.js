@@ -2341,8 +2341,11 @@ window.NSK2App = (() => {
 
   function setActiveShiftMatchButton(matchNo) {
     document.querySelectorAll("[data-shift-match-card]").forEach((btn) => {
-      if (btn.dataset.shiftMatchCard === String(matchNo)) btn.classList.add("active-team-btn");
-      else btn.classList.remove("active-team-btn");
+      const selected = btn.dataset.shiftMatchCard === String(matchNo);
+      btn.classList.toggle("active-team-btn", selected);
+      btn.setAttribute("aria-pressed", String(selected));
+      const subtitle = btn.querySelector(".match-list-sub");
+      if (subtitle) subtitle.textContent = selected ? "✓ Vald match" : "Visa bytesschema";
     });
   }
 
@@ -2508,12 +2511,20 @@ window.NSK2App = (() => {
     wrap?.setAttribute('aria-busy','true');
     if(wrap&&!shiftBackgroundRefresh)wrap.innerHTML='<p role="status">Hämtar byten…</p>';
     setText('appError','');
+    setActiveShiftMatchButton(matchNo);
+    setText('bytesschemaTitle', `Match ${matchNo} • Lag ${lagNo}`);
+    setText('shiftHeaderMain', `Match ${matchNo} • Lag ${lagNo}`);
+    if(!shiftBackgroundRefresh){
+    for (const field of ['shiftStart','shiftDate','shiftOpponent','shiftPlan','shiftGoalieName','shiftCoachNames','shiftEquipmentName']) setText(field,'—');
+    setText('matchReadiness','Hämtar matchens uppgifter…');
+    }
+    const coachLoad=getCoachNamesForLag(poolId,lagNo,matchNo).then(data=>({data}),error=>({error}));
     const materialLoad=DB.getPoolMaterial?DB.getPoolMaterial(poolId).then(data=>({data}),error=>({error})):Promise.resolve({data:{name:'—'}});
     let loaded;
-    try{loaded=await Promise.all([DB.getPool(poolId),DB.listPoolTeamMatchConfigs(poolId),getPlayersCached(),getCoachesCached(),DB.listShiftSchema(poolId,lagNo,matchNo),getCoachNamesForLag(poolId,lagNo,matchNo)]);}
+    try{loaded=await Promise.all([DB.getPool(poolId),DB.listPoolTeamMatchConfigs(poolId),getPlayersCached(),getCoachesCached(),DB.listShiftSchema(poolId,lagNo,matchNo)]);}
     catch(error){if(isCurrent()){wrap?.setAttribute('aria-busy','false');if(wrap)wrap.innerHTML='<p>Bytena kunde inte hämtas.</p><button type="button" id="retryShiftLoad">Försök igen</button>';byId('retryShiftLoad')?.addEventListener('click',()=>void renderShiftSchema());setText('appError',error.message==='Failed to fetch'?'Anslutningen till servern misslyckades. Försök igen.':error.message);}return;}
     if(!isCurrent())return;
-    const [pool,configs,players,coaches,rows,coachNames]=loaded;
+    const [pool,configs,players,coaches,rows]=loaded;
     shiftStructure=shiftStructureOf(rows);
     const row=configs.find(r=>String(r.lag_no)===String(lagNo)&&String(r.match_no)===String(matchNo))||null;
     const outfield=(row?.players_on_field||[]).filter(id=>String(id)!==String(row?.goalie_player_id));
@@ -2546,7 +2557,7 @@ window.NSK2App = (() => {
     const goalieName = row?.goalie_player_id ? shortName(playerMap[String(row.goalie_player_id)] || "—") : "—";
     setText("shiftGoalieName", goalieName);
 
-    setText("shiftCoachNames", coachNames);
+    coachLoad.then(result=>{if(isCurrent())setText("shiftCoachNames",result.error?"Kunde inte hämtas":result.data);});
     setActiveShiftTeamButton(lagNo);
     setActiveShiftMatchButton(matchNo);
     const openMatch=byId('openMatchView');

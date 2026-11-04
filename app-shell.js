@@ -37,7 +37,13 @@
  }
  async function navigate(value,options={}){
   if(signedOut)return;
-  let target=route(value);if(options.fromMenu&&target?.slug==='traningsgrupper'&&!target.url.search){const recent=route(lastRoutes.traningsgrupper);if(recent?.slug==='traningsgrupper')target=recent;}if(!target){location.assign(new URL(value,location.href).href);return;}
+  let target=route(value);
+  const reset=options.fromMenu&&active?.route.slug===target?.slug;
+  if(reset){
+   if(active.dirty||active.writes){status('Spara dina ändringar och vänta tills sparningen är klar innan du återställer sidan.');return;}
+   options={...options,reload:true};
+  }
+  if(!reset&&options.fromMenu&&target?.slug==='traningsgrupper'&&!target.url.search){const recent=route(lastRoutes.traningsgrupper);if(recent?.slug==='traningsgrupper')target=recent;}if(!target){location.assign(new URL(value,location.href).href);return;}
   if(options.reloadApp){location.replace(target.url.href);return;}
   const requestId=++sequence;
   if(pending&&!pending.ready&&!pending.dirty&&!pending.writes){remove(pending);pending=null;}
@@ -45,7 +51,8 @@
   if(active&&active.frame.contentDocument?.activeElement?.matches('input,textarea,select'))active.frame.contentDocument.activeElement.blur();
   const ctx=options.context||context();if(options.context&&(flow.has(target.slug)||target.slug==='skapapoolspel'))for(const k of contextKeys.filter(k=>k!=='nsk2_edit_pool_id'||target.slug==='skapapoolspel')){if(ctx[k])sessionStorage.setItem(k,ctx[k]);else sessionStorage.removeItem(k);}
   const key=keyFor(target,ctx);let e=options.entryId?[...entries.values()].find(item=>item.id===options.entryId&&item.route.slug===target.slug):entries.get(key);
-  if(options.reload&&e){remove(e);if(e===active)active=null;e=null;}
+  if(reset)delete saved[key];
+  if(options.reload&&e){remove(e);delete saved[e.key];if(e===active)active=null;e=null;persist();}
   if(e?.stale&&!e.dirty&&!e.writes&&e!==active){remove(e);e=null;}
   if(e?.ready&&!e.restorePending){activate(e,requestId,options);return;}
   if(!e){
