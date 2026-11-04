@@ -2527,10 +2527,10 @@ window.NSK2App = (() => {
     const coachLoad=getCoachNamesForLag(poolId,lagNo,matchNo).then(data=>({data}),error=>({error}));
     const materialLoad=DB.getPoolMaterial?DB.getPoolMaterial(poolId).then(data=>({data}),error=>({error})):Promise.resolve({data:{name:'—'}});
     let loaded;
-    try{loaded=await Promise.all([DB.getPool(poolId),DB.listPoolTeamMatchConfigs(poolId),getPlayersCached(),getCoachesCached(),DB.listShiftSchema(poolId,lagNo,matchNo)]);}
+    try{loaded=await Promise.all([DB.getPool(poolId),DB.listPoolTeamMatchConfigs(poolId),getPlayersCached(),DB.listShiftSchema(poolId,lagNo,matchNo)]);}
     catch(error){if(isCurrent()){wrap?.setAttribute('aria-busy','false');if(wrap)wrap.innerHTML='<p>Bytena kunde inte hämtas.</p><button type="button" id="retryShiftLoad">Försök igen</button>';byId('retryShiftLoad')?.addEventListener('click',()=>void renderShiftSchema());setText('appError',error.message==='Failed to fetch'?'Anslutningen till servern misslyckades. Försök igen.':error.message);}return;}
     if(!isCurrent())return;
-    const [pool,configs,players,coaches,rows]=loaded;
+    const [pool,configs,players,rows]=loaded;
     shiftStructure=shiftStructureOf(rows);
     const row=configs.find(r=>String(r.lag_no)===String(lagNo)&&String(r.match_no)===String(matchNo))||null;
     const outfield=(row?.players_on_field||[]).filter(id=>String(id)!==String(row?.goalie_player_id));
@@ -2547,7 +2547,6 @@ window.NSK2App = (() => {
     const readiness=pool?.active===false?'Avslutat poolspel · Läs- och utskriftsvy':!row?.goalie_player_id?'Laguppställningen saknar målvakt. Öppna Laguppställning för denna match.':expected.size!==Number(row.player_count)?'Laguppställningen saknar spelarval. Öppna Laguppställning för denna match.':outdated?'Bytesschemat behöver räknas om enligt aktuell bytestid.':valid?'Matchen är förberedd · Målvakt, spelare och bytesschema finns.':'Kontrollera matchens spelarval och bytesschema. De sparade uppgifterna stämmer inte överens.';
     setText('matchReadiness',readiness);
     const playerMap=Object.fromEntries(players.map(p=>[String(p.id),p.full_name]));
-    const coachMap=Object.fromEntries(coaches.map(p=>[String(p.id),p.full_name]));
     setText('poolFlowContext',`${pool?.place||pool?.title||'Poolspel'} · ${pool?.pool_date||''} · Lag ${lagNo} · Match ${matchNo}`);
     materialLoad.then(result=>{if(!isCurrent())return;setText('shiftEquipmentName',result.error?'Kunde inte hämtas':result.data.name||'—');});
     wrap?.setAttribute('aria-busy','false');
