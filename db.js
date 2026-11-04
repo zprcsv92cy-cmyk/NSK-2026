@@ -172,7 +172,7 @@ window.DB = (() => {
       const ids=pool.active?played.get(k):new Set(linked(r['Spelare på plan']).map(Number));
       for(const id of ids||[])if(id!==goalie&&result.has(id))result.get(id).player_matches++;
     }
-    return [...result.values()].map(r=>({...r,total_matches:r.goalie_matches+r.player_matches})).sort((a,b)=>b.total_matches-a.total_matches||a.name.localeCompare(b.name,'sv')||a.id-b.id);
+    return [...result.values()].map(r=>({...r,total_matches:r.goalie_matches+r.player_matches})).sort((a,b)=>b.total_matches-a.total_matches||b.player_matches-a.player_matches||a.name.localeCompare(b.name,'sv')||a.id-b.id);
   }
   async function listPlayerCoachMap(){const [map,players,coaches]=await Promise.all([rows('spelaretranare',await teamId()),listPlayers(),listCoaches()]);return map.map(r=>({id:r.id,player_name:players.find(p=>p.id===first(r.Spelare))?.full_name||'',coach_name:coaches.find(c=>c.id===first(r.Tränare))?.full_name||''})).filter(r=>r.player_name)}
   async function adminRequest(path,method,payload){
