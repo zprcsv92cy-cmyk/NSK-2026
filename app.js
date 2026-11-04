@@ -2291,6 +2291,10 @@ window.NSK2App = (() => {
       btn.textContent = `Lag ${i}`;
       btn.dataset.shiftLag = String(i);
       btn.addEventListener("click", async () => {
+        if(shiftToggleSaving){
+          setText("shiftMsg","Vänta tills bytet har sparats innan du byter lag.");
+          return;
+        }
         sessionStorage.setItem("nsk2_lag_nr", String(i));
         const saved=sessionStorage.getItem(`nsk2_team_match_${sessionStorage.getItem('nsk2_pool_id')}_${i}`)||'1';
         if(!syncFlowMatchChoices('shift',saved))return;
