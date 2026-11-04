@@ -1,3 +1,4 @@
+import {parseCollectionMatchScope,matchesCollectionMatchScope} from './collection-match-scope.js';
 // Fail-closed guard for team-owned Baserow collection reads.
 // Wired behind a rollout flag; shared-pool records require a verified Lagnummer owner.
 import { createPersonalRosterIdentityVerifier } from './personal-roster-identity-adapter.js';
@@ -34,6 +35,8 @@ export async function readPersonallyAuthorizedTeamCollection(request, env, {
   const url = new URL(request.url);
   const match = /^\/api\/([a-z]+)$/.exec(url.pathname);
   if (!match || !ALLOWED.has(match[1])) return deny(404, 'Okänd läsväg');
+  let scope;
+  try{scope=parseCollectionMatchScope(url,match[1]);}catch{return deny(400,'Ogiltigt matchval');}
   const teams = url.searchParams.getAll('team_id');
   if (teams.length !== 1 || !/^[1-9]\d*$/.test(teams[0]) ||
       !Number.isSafeInteger(Number(teams[0])) || url.searchParams.has('teamId'))
@@ -83,8 +86,8 @@ export async function readPersonallyAuthorizedTeamCollection(request, env, {
         {headers:{'cache-control':'no-store','x-content-type-options':'nosniff'}});
     }
     const [pools, configs, lineups, shifts] = await Promise.all([
-      readRows('poolspel'), match[1]!=='bytesschema'?readRows('matchkonfiguration'):[],
-      match[1]==='laguppstallningar'?readRows('laguppstallningar'):[], match[1]==='bytesschema'?readRows('bytesschema'):[]
+      readRows('poolspel'), match[1]!=='bytesschema'?readRows('matchkonfiguration',match[1]==='matchkonfiguration'?scope:{}):[],
+      match[1]==='laguppstallningar'?readRows('laguppstallningar',scope):[], match[1]==='bytesschema'?readRows('bytesschema',scope):[]
     ]);
     if (![pools, configs, lineups, shifts].every(Array.isArray))
       throw Error('Incomplete table snapshot');
@@ -132,8 +135,9 @@ export async function readPersonallyAuthorizedTeamCollection(request, env, {
         return poolId !== null && ownsMatch(poolId, s.Lagnummer);
       })
     }[match[1]];
+    const selected=results.filter(row=>matchesCollectionMatchScope(row,match[1],scope));
     return Response.json({
-      ok: true, table: match[1], results, count: results.length, next: null, previous: null
+      ok: true, table: match[1], results:selected, count:selected.length, next: null, previous: null
     }, { headers: { 'cache-control': 'no-store', 'x-content-type-options': 'nosniff' } });
   } catch (error) {
     // Only fixed internal categories; never log rows, tokens or arbitrary error messages.
