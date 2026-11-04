@@ -1,3 +1,4 @@
+import {collectionMatchFilters} from './collection-match-scope.js';
 import {withConcurrentResources} from './concurrent-resources.js';
 import {withConcurrentStaff} from './concurrent-staff.js';
 import {withPagesOrigin} from './pages-migration.js';
@@ -1178,14 +1179,16 @@ var worker_default = { async fetch(req, env) {
       /^\/api\/(?:poolspel|matchkonfiguration|laguppstallningar|bytesschema|spelaretranare)$/.test(url.pathname) &&
       (env.NSK_REQUIRE_SCOPED_COLLECTION_READS !== "false" || req.headers.has("Authorization"))) {
     const tableIds = resolveBaserowTables(env);
-    const readRows = async table => {
+    const readRows = async (table,scope={}) => {
       if (!Object.hasOwn(tableIds, table) || !env.BASEROW_TOKEN)
         throw Error("Baserow collection unavailable");
       const id = tableIds[table];
+      const filters=collectionMatchFilters(table,scope);
+      const selection=filters?"&filters="+encodeURIComponent(JSON.stringify(filters)):"";
       const rows = [];
       for (let page = 1; page <= 100; page++) {
         const endpoint = "https://api.baserow.io/api/database/rows/table/" + id + "/";
-        const result = await fetch(endpoint + "?user_field_names=true&size=200&page=" + page, {
+        const result = await fetch(endpoint + "?user_field_names=true&size=200&page=" + page + selection, {
           headers: { Authorization: "Token " + env.BASEROW_TOKEN }
         });
         if (!result.ok) throw Error("Collection unavailable");
