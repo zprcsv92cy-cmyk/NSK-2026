@@ -2353,6 +2353,7 @@ window.NSK2App = (() => {
   const shiftPending=new Set();
   let shiftUndo=null;
   let shiftRefreshBusy = false;
+  let shiftLoadsInFlight = 0;
   let shiftViewGeneration = 0,shiftDoneVersion=0;
   let shiftStructure=null,shiftBackgroundRefresh=false;
   const shiftStructureOf=rows=>JSON.stringify(rows.map(r=>[r.id,r.shift_no,r.period_no,r.time_left,r.players_json]));
@@ -2393,7 +2394,7 @@ window.NSK2App = (() => {
 
   // Synkronisera enbart avbockningarna. Bygg inte om tabellen under match.
   async function refreshShiftDoneMarks() {
-    if (document.hidden || window.NSKShellActive===false || shiftRefreshBusy || shiftToggleSaving || !byId("shiftTableWrap")) return;
+    if (document.hidden || window.NSKShellActive===false || shiftRefreshBusy || shiftLoadsInFlight > 0 || shiftToggleSaving || !byId("shiftTableWrap")) return;
     const poolId = sessionStorage.getItem("nsk2_pool_id");
     const lagNo = sessionStorage.getItem("nsk2_lag_nr") || "1";
     const matchNo = byId("shiftMatch")?.value || "1";
@@ -2492,7 +2493,12 @@ window.NSK2App = (() => {
   }
 
   async function renderShiftSchema() {
-    return DB.withReadSnapshot?DB.withReadSnapshot(renderShiftSchemaData):renderShiftSchemaData();
+    shiftLoadsInFlight++;
+    try {
+      return await (DB.withReadSnapshot?DB.withReadSnapshot(renderShiftSchemaData):renderShiftSchemaData());
+    } finally {
+      shiftLoadsInFlight--;
+    }
   }
   async function renderShiftSchemaData() {
     const generation=++shiftViewGeneration;
