@@ -3170,7 +3170,7 @@ window.NSK2App = (() => {
 
     try {
       const stats = await DB.listPlayerMatchStats();
-      list.innerHTML = stats.length ? `<table class="player-match-stats"><thead><tr><th scope="col">Namn</th><th scope="col">Målvakt</th><th scope="col">Spelare</th></tr></thead><tbody>${stats.map(r=>`<tr><th scope="row">${esc(r.name)}</th><td>${r.goalie_matches}</td><td>${r.player_matches}</td></tr>`).join('')}</tbody></table>` : '<p>Inga spelare registrerade.</p>';
+      list.innerHTML = stats.length ? `<table class="player-match-stats"><thead><tr><th scope="col">Namn</th><th scope="col">Totalt</th><th scope="col">Utespelare</th><th scope="col">Målvakt</th></tr></thead><tbody>${stats.map(r=>`<tr><th scope="row">${esc(r.name)}</th><td><strong>${r.total_matches}</strong></td><td>${r.player_matches}</td><td>${r.goalie_matches}</td></tr>`).join('')}</tbody></table>` : '<p>Inga spelare registrerade.</p>';
     } catch (err) {
       setText("appError", err?.message || String(err));
     }
