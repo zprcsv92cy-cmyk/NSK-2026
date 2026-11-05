@@ -3,8 +3,22 @@ import assert from 'node:assert/strict';
 import vm from 'node:vm';
 import fs from 'node:fs';
 const source=fs.readFileSync(new URL('../rink-text-parser.js',import.meta.url),'utf8'),context={};vm.runInNewContext(source,context);
-const {parse,location,rink}=context.NskRinkTextParser;
+const {parse,location,rink,gridPoint}=context.NskRinkTextParser;
 const xy=p=>p&&[p.x,p.y];
+test('numbered cells place equipment and start the next movement',()=>{
+ const r=parse('1 däck, sju däck, 9 start. Åk till ruta 8.');
+ assert.equal(r.warnings.length,0);
+ const [first,second,start,route]=r.marks;
+ assert.deepEqual(Array.from(r.marks,m=>m.type),['tire','tire','player','skate']);
+ assert.deepEqual(xy(first),xy(gridPoint(1)));
+ assert.deepEqual(xy(second),xy(gridPoint(7)));
+ assert.deepEqual(xy(start),xy(gridPoint(9)));
+ assert.deepEqual(xy(route),xy(start));
+ assert.deepEqual([route.x2,route.y2],xy(gridPoint(8)));
+ assert.ok(gridPoint(1).x<gridPoint(9).x&&gridPoint(1).y<gridPoint(9).y);
+ assert.equal(parse('10 däck').marks.length,0);
+ assert.match(parse('10 däck').warnings[0],/mellan 1 och 9/);
+});
 test('named landmarks align with the portrait rink image',()=>{
  const cases=[['mellan blålinjerna',240,430],['mittpunkten',240,430],['övre blålinjen',240,301],['nedre blålinjen',240,559],['övre mållinjen',240,78],['nedre mållinjen',240,786],['vänstra tekningspunkten i anfallszon',128,164],['högra tekningscirkeln i försvarszon',353,698],['övre vänstra tekningspunkten i mittzon',128,331],['nedre högra tekningspunkten i mittzon',353,525],['vänster långsarg i höjd med övre blålinjen',50,301],['rödlinjen vid höger långsarg',435,430],['mellan mittpunkten och övre blålinjen',240,365.5]];
  for(const [name,x,y] of cases)assert.deepEqual(xy(location(name)),[x,y],name);
@@ -71,4 +85,24 @@ test('spoken turn commands preserve the approach and treat left and right as dir
 
 test('text-generated skating uses direction colors while passes and shots retain their own styles',()=>{
  const r=parse('En spelare i mittcirkeln. Åk framåt. Åk bakåt. Passning från mittpunkten till övre blålinjen. Skott från slottet i anfallszon till övre målet.');assert.equal(r.warnings.length,0);assert.equal(r.marks[1].color,'#111827');assert.equal(r.marks[2].color,'#7c3aed');assert.equal(r.marks[3].color,'#2563eb');assert.equal(r.marks[4].type,'shot');assert.equal(r.marks[4].color,'#b11226');
+});
+
+test('natural instructions keep the player position through equipment and implicit movement',()=>{
+ const r=parse('Spelare 1 börjar i mittcirkeln och åker till övre blålinjen. En kon i nedre vänstra hörnet. Åk framåt. Spelare 1 skjuter mot övre målet.');
+ assert.equal(r.warnings.length,0);
+ const [player,approach,cone,next,shot]=r.marks;
+ assert.equal(cone.type,'cone');
+ assert.equal(approach.y,player.y);
+ assert.equal(next.y,approach.y2);
+ assert.equal(shot.type,'shot');
+ assert.equal(shot.y,next.y2);
+});
+
+test('a player named as the pass recipient does not become the passer',()=>{
+ const r=parse('Spelare 2 vid nedre blålinjen. Spelare 1 i mittcirkeln. Passa till spelare 2.');
+ assert.equal(r.warnings.length,0);
+ const [recipient,passer,pass]=r.marks;
+ assert.equal(pass.type,'pass');
+ assert.equal(pass.y,passer.y);
+ assert.equal(pass.y2,recipient.y);
 });

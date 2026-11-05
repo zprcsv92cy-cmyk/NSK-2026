@@ -9,7 +9,9 @@
  let marks=[],history=[],future=[],tool='move',drag=null,selectedId=null,draftTimer=0,draftDirty=false,numberEditId=null;
  let tidyPreview=null;
  let textPreview=null;
+ let gridVisible=false;
  let dictation=null;
+ let dictationTimeout;
  let zoom=1,viewX=0,viewY=0,selectionPanelId=null;
  let resetTouchGesture=()=>{};
  const patternTypes={slalom:{label:'Däckslalom',type:'tire',count:4,min:3,max:8,minSpacing:1,spacing:4,width:6},triangle:{label:'Kontriangel',type:'cone',count:3,min:3,max:3,minSpacing:2.5,spacing:5,width:0},players:{label:'Spelarled',type:'player',count:5,min:2,max:12,minSpacing:2.5,spacing:2.5,width:0}};
@@ -454,6 +456,18 @@
   }
   const defs=el('defs',{},s);
   for(const c of palette){const marker=el('marker',{id:'arr-'+c.slice(1),viewBox:'0 0 10 10',refX:9,refY:5,markerWidth:4,markerHeight:4,orient:'auto-start-reverse'},defs);el('path',{d:'M 1 1 L 9 5 L 1 9',fill:'none',stroke:c,'stroke-width':2},marker);}
+  const parser=window.NskRinkTextParser;
+  if(gridVisible&&parser?.grid){
+   const {columns,rows,left,right,top,bottom}=parser.grid;
+   const width=(right-left)/columns,height=(bottom-top)/rows;
+   const layer=el('g',{'data-editor-ui':'numbered-grid','pointer-events':'none'},s);
+   for(let col=1;col<columns;col++)el('line',{x1:left+col*width,y1:top,x2:left+col*width,y2:bottom,stroke:'#475569','stroke-width':2,'stroke-dasharray':'6 5'},layer);
+   for(let row=1;row<rows;row++)el('line',{x1:left,y1:top+row*height,x2:right,y2:top+row*height,stroke:'#475569','stroke-width':2,'stroke-dasharray':'6 5'},layer);
+   for(let i=0;i<columns*rows;i++){
+    const p=parser.gridPoint(i+1);
+    el('text',{x:p.x,y:p.y-height/2+36,fill:'#334155','font-size':26,'font-weight':700,'text-anchor':'middle'},layer).textContent=String(i+1);
+   }
+  }
   if(textPreview){
    const overlay=el('g',{'data-editor-ui':'text-preview','pointer-events':'none'},s);
    for(const m of textPreview.marks)draw(m,overlay);
@@ -739,16 +753,17 @@
   clearTextPreview();remember();marks=proposal.marks;selectedId=null;render();saveDraft();announce(marks.length+' objekt i ritningen.');
  }
  function finishDictation(status){
+  clearTimeout(dictationTimeout);
   dictation=null;
   const button=$('rinkDictate');
   button.disabled=false;button.textContent='Diktera på svenska';button.setAttribute('aria-pressed','false');
   $('rinkDictationStatus').textContent=status;
  }
- function stopDictation(){
+ function stopDictation(status=''){
   if(!dictation)return;
   const recognition=dictation;
-  finishDictation('');
-  recognition.abort();
+  finishDictation(status);
+  try{recognition.abort();}catch{/* The browser may already have ended the session. */}
  }
  function setupDictation(){
   const Recognition=window.SpeechRecognition||window.webkitSpeechRecognition;
@@ -761,9 +776,17 @@
   button.hidden=false;
   hint.textContent='Webbläsaren kan skicka ljudet till sin taltjänst. Läs igenom texten före förhandsvisning.';
   button.onclick=()=>{
-   if(dictation){button.disabled=true;status.textContent='Avslutar dikteringen…';dictation.stop();return;}
+   const retryMessage='Dikteringen svarar inte. Försök igen eller skriv i fältet.';
+   if(dictation){
+    button.disabled=true;status.textContent='Avslutar dikteringen…';
+    clearTimeout(dictationTimeout);
+    dictationTimeout=setTimeout(()=>stopDictation(retryMessage),4000);
+    try{dictation.stop();}catch{stopDictation(retryMessage);}
+    return;
+   }
    const recognition=new Recognition();
    recognition.lang='sv-SE';recognition.interimResults=false;
+   recognition.onstart=()=>{if(dictation===recognition){clearTimeout(dictationTimeout);status.textContent='Lyssnar på svenska…';}};
    let received=false;
    recognition.onresult=event=>{
     if(dictation!==recognition)return;
@@ -775,10 +798,22 @@
     description.value=next;
     saveDraft();received=true;status.textContent='Texten är infogad. Läs igenom den före förhandsvisning.';
    };
-   recognition.onerror=()=>{if(dictation===recognition)finishDictation('Dikteringen kunde inte slutföras. Prova tangentbordets mikrofon eller skriv i fältet.');};
+   recognition.onerror=event=>{
+    if(dictation!==recognition)return;
+    const messages={
+     'not-allowed':'Mikrofonåtkomst nekades. Tillåt mikrofonen för NSK-sidan i webbläsaren och försök igen.',
+     'service-not-allowed':'Webbläsaren tillåter inte taltjänsten här.',
+     'audio-capture':'Ingen mikrofon kunde användas. Kontrollera enhetens mikrofon.',
+     'network':'Webbläsaren fick inget svar från taltjänsten.',
+     'no-speech':'Inget tal uppfattades. Försök igen.',
+     'language-not-supported':'Webbläsarens taltjänst stöder inte svensk diktering.'
+    };
+    finishDictation((messages[event.error]||'Dikteringen kunde inte slutföras.')+' Du kan också använda tangentbordets mikrofon i beskrivningsfältet.');
+   };
    recognition.onend=()=>{if(dictation===recognition)finishDictation(received?status.textContent:'Inget tal uppfattades. Försök igen.');};
    dictation=recognition;
-   button.textContent='Stoppa diktering';button.setAttribute('aria-pressed','true');status.textContent='Lyssnar på svenska…';
+   button.textContent='Stoppa diktering';button.setAttribute('aria-pressed','true');status.textContent='Startar dikteringen…';
+   dictationTimeout=setTimeout(()=>stopDictation(retryMessage),12000);
    try{recognition.start();}catch{finishDictation('Dikteringen kunde inte starta. Prova tangentbordets mikrofon eller skriv i fältet.');}
   };
  }
@@ -870,6 +905,12 @@
    if(textPreview){cancelTextPreview();return;}
    if(tidyPreview)cancelTidyPreview();
    showDrawingSettings();$('rinkTextPanel').open=true;$('rinkDescription').focus();
+  };
+  $('rinkGridToggle').onclick=()=>{
+   gridVisible=!gridVisible;
+   $('rinkGridToggle').setAttribute('aria-pressed',String(gridVisible));
+   $('rinkGridToggle').textContent=gridVisible?'Dölj rutnummer':'Visa rutnummer';
+   render();
   };
   $('rinkCloseSettings').onclick=()=>{stopDictation();$('rinkSettings').hidden=true;$('rinkSettings').open=false;$('rinkStage').scrollIntoView?.({block:'start',behavior:'instant'});};
   $('rinkLoad').onclick=()=>{const saved=readStored(SAVED);if(!saved){announce('Ingen sparad övning finns på denna enhet.');return;}if(marks.length&&JSON.stringify(record())!==JSON.stringify(saved)&&!confirm('Ersätt utkastet med senaste sparade övningen?'))return;applyRecord(saved);saveDraft();closeMenus();announce('Senaste sparade övningen öppnad.');};
