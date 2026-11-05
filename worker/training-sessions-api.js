@@ -153,20 +153,27 @@ export function createTrainingHandler(env,listTeams){
    const raw=await request.text();
    if(raw.length>16000)return fail(413,'Too large');
    let data;try{data=JSON.parse(raw)}catch{return fail(400,'Invalid JSON')}
+   const calendarImport=data?.calendarImport===true;
+   if(calendarImport){
+    if(data.revision!==0)return fail(400,'Invalid calendar import');
+    delete data.calendarImport;
+   }
    if(!validateTrainingPayload(data))return fail(400,'Invalid training');
    const values=[JSON.stringify(data.selected),JSON.stringify(data.selectedCoaches),JSON.stringify(data.goalies),data.goalieCount,JSON.stringify(data.allocation),String(actor.user.id),data.hall||'',data.shirtColorCount||3];
    let result;
    if(data.revision===0){
-    result=await db.prepare('INSERT INTO training_sessions (team_id,training_date,selected_players_json,selected_coaches_json,goalies_json,goalie_count,allocation_json,revision,updated_by,hall,shirt_color_count) VALUES (?,?,?,?,?,?,?,1,?,?,?) ON CONFLICT(team_id,training_date) DO NOTHING')
-      .bind(team[0],dates[0],...values).run();
+    const insert=db.prepare('INSERT INTO training_sessions (team_id,training_date,selected_players_json,selected_coaches_json,goalies_json,goalie_count,allocation_json,revision,updated_by,hall,shirt_color_count) VALUES (?,?,?,?,?,?,?,1,?,?,?) ON CONFLICT(team_id,training_date) DO NOTHING')
+      .bind(team[0],dates[0],...values);
+    if(calendarImport){
+     const mark=db.prepare('INSERT OR IGNORE INTO training_calendar_imports (team_id,training_date) SELECT ?,? WHERE NOT EXISTS (SELECT 1 FROM training_sessions WHERE team_id=? AND training_date=?)')
+       .bind(team[0],dates[0],team[0],dates[0]);
+     [,result]=await db.batch([mark,insert]);
+    }else result=await insert.run();
    }else{
     result=await db.prepare('UPDATE training_sessions SET selected_players_json=?,selected_coaches_json=?,goalies_json=?,goalie_count=?,allocation_json=?,updated_by=?,hall=?,shirt_color_count=?,revision=revision+1,updated_at=CURRENT_TIMESTAMP WHERE team_id=? AND training_date=? AND revision=?')
       .bind(...values,team[0],dates[0],data.revision).run();
    }
    if(!result.meta?.changes)return fail(409,'Concurrent update');
-   if(data.revision===0&&data.calendarImport===true){
-    await db.prepare('INSERT OR IGNORE INTO training_calendar_imports (team_id,training_date) VALUES (?,?)').bind(team[0],dates[0]).run();
-   }
    return Response.json({ok:true,revision:data.revision+1});
   }catch{return fail(503,'Training storage unavailable')}
  };
