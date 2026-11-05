@@ -866,6 +866,11 @@
   for(const check of document.querySelectorAll('[data-rink-category]'))check.addEventListener('change',()=>{for(const option of $('rinkCategory').options)if(option.value===check.value)option.selected=check.checked;saveDraft();});
   $('rinkSave').onclick=saveDrawing;
   $('rinkShowSettings').onclick=()=>{showDrawingSettings();$('rinkTitle').focus();};
+  $('rinkOpenAssistant').onclick=()=>{
+   if(textPreview){cancelTextPreview();return;}
+   if(tidyPreview)cancelTidyPreview();
+   showDrawingSettings();$('rinkTextPanel').open=true;$('rinkDescription').focus();
+  };
   $('rinkCloseSettings').onclick=()=>{stopDictation();$('rinkSettings').hidden=true;$('rinkSettings').open=false;$('rinkStage').scrollIntoView?.({block:'start',behavior:'instant'});};
   $('rinkLoad').onclick=()=>{const saved=readStored(SAVED);if(!saved){announce('Ingen sparad övning finns på denna enhet.');return;}if(marks.length&&JSON.stringify(record())!==JSON.stringify(saved)&&!confirm('Ersätt utkastet med senaste sparade övningen?'))return;applyRecord(saved);saveDraft();closeMenus();announce('Senaste sparade övningen öppnad.');};
   $('rinkExport').onclick=exportImage;$('rinkFromText').onclick=drawFromText;
