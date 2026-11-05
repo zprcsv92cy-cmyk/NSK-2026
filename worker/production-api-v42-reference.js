@@ -655,9 +655,15 @@ var worker_default = { async fetch(req, env) {
       if (!oldResp.ok) return reply({ok:false,error:"Poolspelet saknas"},404);
       const old = await oldResp.json();
       if (!Array.isArray(old.Lag) || !old.Lag.some(t=>Number(typeof t==="object"?t.id:t)===team.id)) return reply({ok:false,error:"Fel lag"},403);
-      const res = await fetch(endpoint,{method:"PATCH",headers:{...auth,"Content-Type":"application/json"},body:JSON.stringify({Status:data.active ? "Planerat" : "Avslutat",Aktiv:data.active})});
+      const status = data.active ? "Planerat" : "Avslutat";
+      const res = await fetch(endpoint,{method:"PATCH",headers:{...auth,"Content-Type":"application/json"},body:JSON.stringify({Status:status,Aktiv:data.active})});
       if (!res.ok) return reply({ok:false,error:"Uppdateringen misslyckades"},502);
-      return reply({ok:true,row:await res.json()});
+      const verification = await fetch(endpoint,{headers:auth,cache:"no-store"});
+      if (!verification.ok) return reply({ok:false,error:"Poolspelets sparade status kunde inte kontrolleras. Ladda om och försök igen."},502);
+      const row = await verification.json();
+      if (Number(row.id) !== id || row.Aktiv !== data.active || (row.Status?.value ?? row.Status) !== status)
+        return reply({ok:false,error:"Poolspelets nya status kunde inte bekräftas. Ladda om och försök igen."},502);
+      return reply({ok:true,row});
     } catch { return reply({ok:false,error:"Databasfel"},502); }
   }
   // Authorized read-only reconciliation preview. Never deletes poolspels.
