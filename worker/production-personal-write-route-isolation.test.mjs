@@ -46,3 +46,47 @@ test('real Worker router rejects unauthenticated personal write paths without ex
     globalThis.fetch = previousFetch;
   }
 });
+
+test('pool finish requires a readback confirming that the pool was closed', async t => {
+  const previousFetch = globalThis.fetch;
+  t.after(() => { globalThis.fetch = previousFetch; });
+  const team = { id: 18, Namn: 'NSK Team 18', Säsong: '2026' };
+  const initial = { id: 42, Lag: [18], Aktiv: true, Status: { value: 'Aktiv' } };
+  const closed = { ...initial, Aktiv: false, Status: { value: 'Avslutat' } };
+  const authDb = {
+    prepare(sql) {
+      return { bind() { return {
+        first: async () => ({ id: 'test-user', display_name: 'Test' }),
+        all: async () => ({ results: sql.includes('auth_team_memberships')
+          ? [{ team_id: team.Namn, role: 'coach' }]
+          : [{ permission: 'pool:finish' }] })
+      }; } };
+    }
+  };
+  for (const persist of [false, true]) {
+    let row = initial;
+    let verified = false;
+    globalThis.fetch = async (url, options = {}) => {
+      const path = new URL(url).pathname;
+      if (path.endsWith('/1255083/')) return Response.json({ results: [team], next: null });
+      assert.ok(path.endsWith('/1255101/42/'), path);
+      if (options.method === 'PATCH') {
+        assert.deepEqual(JSON.parse(options.body), { Status: 'Avslutat', Aktiv: false });
+        if (persist) row = closed;
+        return Response.json(closed);
+      }
+      if (options.cache === 'no-store') verified = true;
+      return Response.json(row);
+    };
+    const response = await worker.fetch(new Request('https://api.example.test/api/poolspel/42/aktiv', {
+      method: 'PATCH',
+      headers: { Authorization: 'Bearer ' + 'a'.repeat(43), 'Content-Type': 'application/json' },
+      body: JSON.stringify({ active: false })
+    }), { ...env, AUTH_DB: authDb });
+    const result = await response.json();
+    assert.equal(verified, true, JSON.stringify(result));
+    assert.equal(response.status, persist ? 200 : 502);
+    if (persist) assert.deepEqual(result.row, closed);
+    else assert.match(result.error, /nya status kunde inte bekräftas/);
+  }
+});
