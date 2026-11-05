@@ -9,6 +9,7 @@
  let marks=[],history=[],future=[],tool='move',drag=null,selectedId=null,draftTimer=0,draftDirty=false,numberEditId=null;
  let tidyPreview=null;
  let textPreview=null;
+ let dictation=null;
  let zoom=1,viewX=0,viewY=0,selectionPanelId=null;
  let resetTouchGesture=()=>{};
  const patternTypes={slalom:{label:'Däckslalom',type:'tire',count:4,min:3,max:8,minSpacing:1,spacing:4,width:6},triangle:{label:'Kontriangel',type:'cone',count:3,min:3,max:3,minSpacing:2.5,spacing:5,width:0},players:{label:'Spelarled',type:'player',count:5,min:2,max:12,minSpacing:2.5,spacing:2.5,width:0}};
@@ -700,6 +701,7 @@
  function readStored(key){try{const value=JSON.parse(localStorage.getItem(key)||'null');return value&&Array.isArray(value.marks)?value:null;}catch{return null;}}
  function defaultGoals(){return $('rinkSvg').dataset.goalTemplate==='movable'?[{id:uuid(),type:'goal',x:240,y:78,color:'#b11226',angle:0},{id:uuid(),type:'goal',x:240,y:786,color:'#b11226',angle:180}]:[];}
  function applyRecord(value){
+  stopDictation();
   marks=safeMarks(value.marks);if(!value.goalsVersion&&!marks.some(m=>m.type==='goal'))marks.push(...defaultGoals());history=[];future=[];selectedId=null;
   $('rinkTitle').value=String(value.title||'').slice(0,100);$('rinkDescription').value=String(value.description||'').slice(0,2000);
   const aliases={'Skridskoteknik':'Skridskoåkning','Passningar':'Passningar och mottagningar','Skott':'Skott och avslut','Målvakter':'Målvaktsträning','Spelsituationer':'Spelförståelse'},categories=(value.categories||[value.category]).map(c=>aliases[c]||c);
@@ -710,6 +712,7 @@
  }
  function restore(){const draft=readStored(DRAFT),saved=draft||readStored(SAVED);if(saved){applyRecord(saved);$('rinkDraftStatus').textContent=draft?'Utkast återställt från denna enhet.':'Senaste sparade övningen öppnad.';}else{marks=defaultGoals();render();}}
  function drawFromText(){
+  stopDictation();
   const text=$('rinkDescription').value.trim();if(!text){announce('Beskriv först övningen.');return;}
   const parser=window.NskRinkTextParser;if(!parser){announce('Texttolkningen kunde inte laddas. Uppdatera sidan.');return;}
   const goals=marks.filter(m=>m.type==='goal'),result=parser.parse(text,$('rinkColor').value,{goals});
@@ -734,6 +737,50 @@
   const proposal=textPreview;
   if(snapshot()!==proposal.base||$('rinkDescription').value.trim()!==proposal.text){cancelTextPreview();announce('Övningen ändrades. Förhandsvisa ritningen igen.');return;}
   clearTextPreview();remember();marks=proposal.marks;selectedId=null;render();saveDraft();announce(marks.length+' objekt i ritningen.');
+ }
+ function finishDictation(status){
+  dictation=null;
+  const button=$('rinkDictate');
+  button.disabled=false;button.textContent='Diktera på svenska';button.setAttribute('aria-pressed','false');
+  $('rinkDictationStatus').textContent=status;
+ }
+ function stopDictation(){
+  if(!dictation)return;
+  const recognition=dictation;
+  finishDictation('');
+  recognition.abort();
+ }
+ function setupDictation(){
+  const Recognition=window.SpeechRecognition||window.webkitSpeechRecognition;
+  const button=$('rinkDictate'),hint=$('rinkDictationHint'),description=$('rinkDescription'),status=$('rinkDictationStatus');
+  hint.hidden=false;
+  if(!Recognition){
+   hint.textContent='Du kan använda mikrofonen på tangentbordet för att diktera i textfältet, om din enhet stöder det.';
+   return;
+  }
+  button.hidden=false;
+  hint.textContent='Webbläsaren kan skicka ljudet till sin taltjänst. Läs igenom texten före förhandsvisning.';
+  button.onclick=()=>{
+   if(dictation){button.disabled=true;status.textContent='Avslutar dikteringen…';dictation.stop();return;}
+   const recognition=new Recognition();
+   recognition.lang='sv-SE';recognition.interimResults=false;
+   let received=false;
+   recognition.onresult=event=>{
+    if(dictation!==recognition)return;
+    const phrase=Array.from(event.results).slice(event.resultIndex).filter(result=>result.isFinal).map(result=>result[0].transcript.trim()).filter(Boolean).join(' ');
+    if(!phrase)return;
+    const existing=description.value.trimEnd(),separator=!existing?'':/[.!?]$/.test(existing)?' ':'. ';
+    const next=(existing+separator+phrase).slice(0,description.maxLength);
+    if(next===existing){status.textContent='Beskrivningen är full.';received=true;return;}
+    description.value=next;
+    saveDraft();received=true;status.textContent='Texten är infogad. Läs igenom den före förhandsvisning.';
+   };
+   recognition.onerror=()=>{if(dictation===recognition)finishDictation('Dikteringen kunde inte slutföras. Prova tangentbordets mikrofon eller skriv i fältet.');};
+   recognition.onend=()=>{if(dictation===recognition)finishDictation(received?status.textContent:'Inget tal uppfattades. Försök igen.');};
+   dictation=recognition;
+   button.textContent='Stoppa diktering';button.setAttribute('aria-pressed','true');status.textContent='Lyssnar på svenska…';
+   try{recognition.start();}catch{finishDictation('Dikteringen kunde inte starta. Prova tangentbordets mikrofon eller skriv i fältet.');}
+  };
  }
  function archiveDrawing(record){
   return new Promise((resolve,reject)=>{
@@ -819,17 +866,19 @@
   for(const check of document.querySelectorAll('[data-rink-category]'))check.addEventListener('change',()=>{for(const option of $('rinkCategory').options)if(option.value===check.value)option.selected=check.checked;saveDraft();});
   $('rinkSave').onclick=saveDrawing;
   $('rinkShowSettings').onclick=()=>{showDrawingSettings();$('rinkTitle').focus();};
-  $('rinkCloseSettings').onclick=()=>{$('rinkSettings').hidden=true;$('rinkSettings').open=false;$('rinkStage').scrollIntoView?.({block:'start',behavior:'instant'});};
+  $('rinkCloseSettings').onclick=()=>{stopDictation();$('rinkSettings').hidden=true;$('rinkSettings').open=false;$('rinkStage').scrollIntoView?.({block:'start',behavior:'instant'});};
   $('rinkLoad').onclick=()=>{const saved=readStored(SAVED);if(!saved){announce('Ingen sparad övning finns på denna enhet.');return;}if(marks.length&&JSON.stringify(record())!==JSON.stringify(saved)&&!confirm('Ersätt utkastet med senaste sparade övningen?'))return;applyRecord(saved);saveDraft();closeMenus();announce('Senaste sparade övningen öppnad.');};
   $('rinkExport').onclick=exportImage;$('rinkFromText').onclick=drawFromText;
   $('rinkTextApply').onclick=applyTextPreview;$('rinkTextCancel').onclick=cancelTextPreview;
+  setupDictation();
+  for(const id of ['rinkSettings','rinkTextPanel'])$(id).addEventListener('toggle',event=>{if(!event.currentTarget.open)stopDictation();});
   $('rinkTextExample').onclick=()=>{$('rinkDescription').value='En spelare i mittcirkeln. Åk framåt. Sväng vänster. Åk bakåt. En kon vid höger tekningspunkt i anfallszon. En målvakt i varje mål. Passning från övre vänstra hörnet till slottet i anfallszon.';saveDraft();};
   $('rinkFullscreen').onclick=()=>setRinkFullscreen(!fullscreenOn);$('rinkFullExit').onclick=()=>setRinkFullscreen(false);$('rinkFullTools').onclick=()=>fullscreenTools($('rinkFullTools').getAttribute('aria-expanded')!=='true');
   for(const event of ['resize','orientationchange'])window.addEventListener(event,syncFullscreenViewport);window.visualViewport?.addEventListener('resize',syncFullscreenViewport);
   window.addEventListener('keydown',event=>{if(event.key==='Escape'&&textPreview){cancelTextPreview();return;}if(event.key==='Escape'&&tidyPreview){cancelTidyPreview();return;}if(event.key==='Escape'&&fullscreenOn){setRinkFullscreen(false);$('rinkFullscreen').focus();}});
   const closePreviews=()=>{if(tidyPreview)cancelTidyPreview();if(textPreview){clearTextPreview();render();}};
   window.addEventListener('beforeprint',closePreviews);
-  const saveOnLeave=()=>{closePreviews();if(drag?.changed)draftDirty=true;resetTouchGesture();flushDraft();};window.addEventListener('pagehide',saveOnLeave);window.addEventListener('nsk:page-hide',saveOnLeave);document.addEventListener('visibilitychange',()=>{if(document.hidden)saveOnLeave();});
+  const saveOnLeave=()=>{stopDictation();closePreviews();if(drag?.changed)draftDirty=true;resetTouchGesture();flushDraft();};window.addEventListener('pagehide',saveOnLeave);window.addEventListener('nsk:page-hide',saveOnLeave);document.addEventListener('visibilitychange',()=>{if(document.hidden)saveOnLeave();});
   restore();
  });
 })();
