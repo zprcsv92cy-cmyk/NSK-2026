@@ -78,7 +78,8 @@
   };
   const resolve=s=>{const goal=/mål(?:bur)?\s*(\d{1,2})\b/.exec(s);if(goal){const p=goalReferences[Number(goal[1])-1];if(!p)warn('Mål '+goal[1]+' behöver placeras först.');return p||null;}const r=/(?:spelare\s*(\d{1,2}|[abc])|första spelaren|andra spelaren|tredje spelaren)/.exec(s);if(r){const key=r[1]?({a:'1',b:'2',c:'3'}[r[1]]||r[1]):/första/.test(r[0])?'1':/andra/.test(r[0])?'2':'3';if(references.has(key))return references.get(key);warn('Spelare '+key+' behöver placeras först.');return null;}return loc(s);};
   const typeOf=w=>/målvakt/.test(w)?'goalie':/mål/.test(w)?'goal':/kon|markör/.test(w)?'cone':/puck/.test(w)?'puck':/däck/.test(w)?'tire':'player';
-  const clauses=input.split(/[,.;!?\n]+|,?\s+(?:sedan|därefter|och sedan|och därefter)\s*|\s+och\s+(?=sväng|svänger|vänd|stanna|passa|skjut|åk|runda|fortsätt|framåt|bakåt|baklänges)/).map(s=>s.trim()).filter(Boolean);
+  const clauses=input.split(/[,.;!?\n]+|\s+(?:och\s+)?(?:sedan|därefter|sen)\s+|\s+och\s+(?=sväng|svänger|vänd|stanna|passa|skjut|åk|runda|fortsätt|framåt|bakåt|baklänges)/)
+   .map(s=>s.trim().replace(/(\bsväng(?:er)?\s+)till\s+(?=(?:vänster|höger)$)/,'$1')).filter(Boolean);
   for(const clause of clauses){
    const before=warnings.length;let touched=false;
    const moving=/(?:passar|passning|passa\b|spelar pucken|skjut(?:er)?|skott|avslut|åk\b|åker|åkning|skridsko|åkväg|driver|runda(?:r)?|runt\b|sväng|svänger|vänd(?:er|ning)?|slalom|framåt|bakåt|baklänges|stanna(?:r)?|stopp|översteg)/.test(clause);

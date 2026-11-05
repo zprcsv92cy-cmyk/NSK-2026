@@ -8,6 +8,7 @@
  const DRAFT='nsk_rink_draft_v2',SAVED='nsk_rink_drawing_v1';
  let marks=[],history=[],future=[],tool='move',drag=null,selectedId=null,draftTimer=0,draftDirty=false,numberEditId=null;
  let tidyPreview=null;
+ let textPreview=null;
  let zoom=1,viewX=0,viewY=0,selectionPanelId=null;
  let resetTouchGesture=()=>{};
  const patternTypes={slalom:{label:'Däckslalom',type:'tire',count:4,min:3,max:8,minSpacing:1,spacing:4,width:6},triangle:{label:'Kontriangel',type:'cone',count:3,min:3,max:3,minSpacing:2.5,spacing:5,width:0},players:{label:'Spelarled',type:'player',count:5,min:2,max:12,minSpacing:2.5,spacing:2.5,width:0}};
@@ -343,6 +344,7 @@
  }
  function updateTidyPreviewSize(){const height=$('rinkTidyPreview').getBoundingClientRect?.().height;if(height>0)document.documentElement.style.setProperty('--rink-preview-height',height+'px');}
  function tidyDrawing(){
+  if(textPreview)return;
   if(tidyPreview||!marks.length){if(!marks.length){const report=$('rinkTidyReport');report.hidden=false;report.textContent='Ingen förändring: rinken är tom.';announce(report.textContent);}return;}
   closeMenus();const target=selected(),routeId=target&&['curve','skate'].includes(target.type)?target.id:null;
   $('rinkTidySelectedOption').disabled=!routeId;$('rinkTidyScope').value=routeId?'selected':'all';$('rinkTidyMode').value='lines';$('rinkTidyRadius').value='100';
@@ -451,6 +453,11 @@
   }
   const defs=el('defs',{},s);
   for(const c of palette){const marker=el('marker',{id:'arr-'+c.slice(1),viewBox:'0 0 10 10',refX:9,refY:5,markerWidth:4,markerHeight:4,orient:'auto-start-reverse'},defs);el('path',{d:'M 1 1 L 9 5 L 1 9',fill:'none',stroke:c,'stroke-width':2},marker);}
+  if(textPreview){
+   const overlay=el('g',{'data-editor-ui':'text-preview','pointer-events':'none'},s);
+   for(const m of textPreview.marks)draw(m,overlay);
+   return;
+  }
   for(const m of marks){
    const changed=tidyPreview&&JSON.stringify(m)!==JSON.stringify(tidyPreview.next.find(n=>n.id===m.id));
    if(changed){const ghost=el('g',{opacity:.22,'pointer-events':'none','data-editor-ui':'tidy-original'},s);draw(m,ghost);}else draw(m,s);
@@ -517,7 +524,7 @@
  let playbackTimer=null;
  function stopPlayback(redraw=true){if(playbackTimer!==null)clearTimeout(playbackTimer);playbackTimer=null;$('rinkPlay').textContent='▶ Spela övningen';$('rinkPlaySelected').textContent='▶ Spela åkväg';if(redraw){rink();if(!tidyPreview)selectionOutline();updateControls();}}
  function playDrawing(onlySelected=false){
-  if(tidyPreview){announce('Välj Använd eller Behåll original före uppspelning.');return;}
+  if(tidyPreview||textPreview){announce('Avsluta förhandsvisningen före uppspelning.');return;}
   if(playbackTimer!==null){stopPlayback();return;}const current=selected(),routes=marks.filter(m=>['curve','skate','pass','shot'].includes(m.type)&&(!onlySelected||m.id===current?.id)).flatMap(m=>{if(!m.shotEnd)return [m];const end=geometry(m).at(-1),target=marks.find(g=>g.id===m.shotEnd.goalId&&g.type==='goal')||m.shotEnd;return [{...m,shotEnd:undefined},{id:m.id+'-play-shot',type:'shot',x:end.x,y:end.y,x2:target.x,y2:target.y,color:'#b11226'}];});if(!routes.length){announce('Rita en åkväg först.');return;}
   closeMenus();selectedId=null;render();const svg=$('rinkSvg'),overlay=el('g',{'data-editor-ui':'playback','pointer-events':'none'},svg);let elapsed=0;
   for(const route of routes){const original=svg.querySelector?.('[data-mark="'+route.id+'"]');if(original)original.style.visibility='hidden';draw(route,overlay);const group=[...overlay.children].at(-1),children=[...group.children],source=children[0];let path=source;if(source?.tagName?.toLowerCase()==='line'){source.setAttribute('visibility','hidden');path=el('path',{d:'M '+route.x+' '+route.y+' L '+route.x2+' '+route.y2,fill:'none',stroke:route.color,'stroke-width':4,'stroke-dasharray':route.type==='pass'?'10 9':'','marker-end':source.getAttribute('marker-end')||''},group);}if(!path||path.tagName?.toLowerCase()!=='path')continue;
@@ -528,9 +535,9 @@
   }
   svg.setCurrentTime?.(0);svg.unpauseAnimations?.();$('rinkPlay').textContent='■ Stoppa';$('rinkPlaySelected').textContent='■ Stoppa';playbackTimer=setTimeout(()=>stopPlayback(),(elapsed+.4)*1000);announce('Spelar från start till avslut. Tryck Spela igen för att stoppa.');
  }
- function render(){if(tidyPreview&&snapshot()!==tidyPreview.base)cancelTidyPreview(false);if(playbackTimer!==null)stopPlayback(false);rink();if(!tidyPreview)selectionOutline();updateControls();}
+ function render(){if(tidyPreview&&snapshot()!==tidyPreview.base)cancelTidyPreview(false);if(textPreview&&snapshot()!==textPreview.base)clearTextPreview();if(playbackTimer!==null)stopPlayback(false);rink();if(!tidyPreview&&!textPreview)selectionOutline();updateControls();}
 
- function cleanSvg(){if(tidyPreview)cancelTidyPreview();if(playbackTimer!==null)stopPlayback();const svg=$('rinkSvg').cloneNode(true);svg.querySelectorAll('[data-editor-ui]').forEach(n=>n.remove());svg.setAttribute('xmlns',NS);svg.setAttribute('viewBox','0 0 '+W+' '+H);svg.setAttribute('width',String(W));svg.setAttribute('height',String(H));return svg;}
+ function cleanSvg(){if(tidyPreview)cancelTidyPreview();if(textPreview){clearTextPreview();render();}if(playbackTimer!==null)stopPlayback();const svg=$('rinkSvg').cloneNode(true);svg.querySelectorAll('[data-editor-ui]').forEach(n=>n.remove());svg.setAttribute('xmlns',NS);svg.setAttribute('viewBox','0 0 '+W+' '+H);svg.setAttribute('width',String(W));svg.setAttribute('height',String(H));return svg;}
  function pos(e,onIce=true){const s=$('rinkSvg'),matrix=s.getScreenCTM();if(!matrix)return null;const p=s.createSVGPoint();p.x=e.clientX;p.y=e.clientY;const v=p.matrixTransform(matrix.inverse());return onIce?{x:clamp(v.x,22,W-22),y:clamp(v.y,20,H-20)}:{x:v.x,y:v.y};}
  function hit(p){
   const matrix=$('rinkSvg').getScreenCTM(),scale=matrix?Math.hypot(matrix.a,matrix.b):1;
@@ -614,7 +621,7 @@
     if(touches.size>=2){s.setPointerCapture(e.pointerId);beginPinch(!pinch);return;}
     if(touchBlocked)return;
    }
-   if(tidyPreview)return;
+   if(tidyPreview||textPreview)return;
    if(pinch||touchBlocked||drag||!e.isPrimary||(e.pointerType==='mouse'&&e.button!==0))return;
    if(playbackTimer!==null)stopPlayback();const p=pos(e);if(!p)return;closeMenus();numberEditId=null;$('rinkTidyReport').hidden=true;announce('');
    if(targetEdit){const m=marks.find(m=>m.id===targetEdit);targetEdit=null;if(m){remember();if(m.shotEnd)m.shotEnd={x:p.x,y:p.y};else{m.x2=p.x;m.y2=p.y;}render();saveDraft();announce('Målpunkt ändrad.');}return;}
@@ -705,10 +712,28 @@
  function drawFromText(){
   const text=$('rinkDescription').value.trim();if(!text){announce('Beskriv först övningen.');return;}
   const parser=window.NskRinkTextParser;if(!parser){announce('Texttolkningen kunde inte laddas. Uppdatera sidan.');return;}
-  const result=parser.parse(text,$('rinkColor').value,{goals:marks.filter(m=>m.type==='goal')});if(!result.marks.length){announce('Ingen ritning skapades. Prova: 2 röda spelare vid nedre vänstra hörnet.');return;}
-  if(marks.some(m=>m.type!=='goal')&&!confirm('Ersätt ritningen med övningen från beskrivningen?'))return;
-  remember();if(!result.marks.some(m=>m.type==='goal'))result.marks.unshift(...marks.filter(m=>m.type==='goal'));marks=safeMarks(result.marks.map(m=>({...m,id:uuid()})));selectedId=null;render();saveDraft();$('rinkSettings').open=false;$('rinkSettings').hidden=true;
-  announce(marks.length+' objekt ritade.'+(result.warnings.length?' Förtydliga: '+result.warnings.slice(0,2).join(' / '):''));
+  const goals=marks.filter(m=>m.type==='goal'),result=parser.parse(text,$('rinkColor').value,{goals});
+  if(!result.marks.length){announce(result.warnings.join(' / ')||'Ingen ritning skapades. Prova: En spelare i mittcirkeln.');return;}
+  if(tidyPreview)cancelTidyPreview(false);
+  if(!result.marks.some(m=>m.type==='goal'))result.marks.unshift(...goals);
+  textPreview={base:snapshot(),text,marks:safeMarks(result.marks.map(m=>({...m,id:uuid()})))};
+  const message='Förhandsvisning. Använd förslaget för att ersätta ritningen. Ångra återställer originalet.';
+  $('rinkTextPreviewStatus').textContent=message+(result.warnings.length?' Förtydliga: '+result.warnings.join(' / '):'');
+  $('rinkSettings').open=false;$('rinkSettings').hidden=true;$('rinkTextPreview').hidden=false;
+  document.body.classList.add('rink-text-previewing');render();announce(message);$('rinkTextApply').focus();
+ }
+ function clearTextPreview(){
+  textPreview=null;$('rinkTextPreview').hidden=true;document.body.classList.remove('rink-text-previewing');
+ }
+ function cancelTextPreview(){
+  if(!textPreview)return;
+  clearTextPreview();render();showDrawingSettings();$('rinkTextPanel').open=true;$('rinkDescription').focus();
+ }
+ function applyTextPreview(){
+  if(!textPreview)return;
+  const proposal=textPreview;
+  if(snapshot()!==proposal.base||$('rinkDescription').value.trim()!==proposal.text){cancelTextPreview();announce('Övningen ändrades. Förhandsvisa ritningen igen.');return;}
+  clearTextPreview();remember();marks=proposal.marks;selectedId=null;render();saveDraft();announce(marks.length+' objekt i ritningen.');
  }
  function archiveDrawing(record){
   return new Promise((resolve,reject)=>{
@@ -797,12 +822,14 @@
   $('rinkCloseSettings').onclick=()=>{$('rinkSettings').hidden=true;$('rinkSettings').open=false;$('rinkStage').scrollIntoView?.({block:'start',behavior:'instant'});};
   $('rinkLoad').onclick=()=>{const saved=readStored(SAVED);if(!saved){announce('Ingen sparad övning finns på denna enhet.');return;}if(marks.length&&JSON.stringify(record())!==JSON.stringify(saved)&&!confirm('Ersätt utkastet med senaste sparade övningen?'))return;applyRecord(saved);saveDraft();closeMenus();announce('Senaste sparade övningen öppnad.');};
   $('rinkExport').onclick=exportImage;$('rinkFromText').onclick=drawFromText;
+  $('rinkTextApply').onclick=applyTextPreview;$('rinkTextCancel').onclick=cancelTextPreview;
   $('rinkTextExample').onclick=()=>{$('rinkDescription').value='En spelare i mittcirkeln. Åk framåt. Sväng vänster. Åk bakåt. En kon vid höger tekningspunkt i anfallszon. En målvakt i varje mål. Passning från övre vänstra hörnet till slottet i anfallszon.';saveDraft();};
   $('rinkFullscreen').onclick=()=>setRinkFullscreen(!fullscreenOn);$('rinkFullExit').onclick=()=>setRinkFullscreen(false);$('rinkFullTools').onclick=()=>fullscreenTools($('rinkFullTools').getAttribute('aria-expanded')!=='true');
   for(const event of ['resize','orientationchange'])window.addEventListener(event,syncFullscreenViewport);window.visualViewport?.addEventListener('resize',syncFullscreenViewport);
-  window.addEventListener('keydown',event=>{if(event.key==='Escape'&&tidyPreview){cancelTidyPreview();return;}if(event.key==='Escape'&&fullscreenOn){setRinkFullscreen(false);$('rinkFullscreen').focus();}});
-  window.addEventListener('beforeprint',()=>{if(tidyPreview)cancelTidyPreview();});
-  const saveOnLeave=()=>{if(tidyPreview)cancelTidyPreview();if(drag?.changed)draftDirty=true;resetTouchGesture();flushDraft();};window.addEventListener('pagehide',saveOnLeave);window.addEventListener('nsk:page-hide',saveOnLeave);document.addEventListener('visibilitychange',()=>{if(document.hidden)saveOnLeave();});
+  window.addEventListener('keydown',event=>{if(event.key==='Escape'&&textPreview){cancelTextPreview();return;}if(event.key==='Escape'&&tidyPreview){cancelTidyPreview();return;}if(event.key==='Escape'&&fullscreenOn){setRinkFullscreen(false);$('rinkFullscreen').focus();}});
+  const closePreviews=()=>{if(tidyPreview)cancelTidyPreview();if(textPreview){clearTextPreview();render();}};
+  window.addEventListener('beforeprint',closePreviews);
+  const saveOnLeave=()=>{closePreviews();if(drag?.changed)draftDirty=true;resetTouchGesture();flushDraft();};window.addEventListener('pagehide',saveOnLeave);window.addEventListener('nsk:page-hide',saveOnLeave);document.addEventListener('visibilitychange',()=>{if(document.hidden)saveOnLeave();});
   restore();
  });
 })();
