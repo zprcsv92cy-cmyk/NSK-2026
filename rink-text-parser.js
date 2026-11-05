@@ -6,13 +6,6 @@
  const amounts={en:1,ett:1,två:2,tre:3,fyra:4,fem:5,sex:6,sju:7,åtta:8,nio:9,tio:10};
  const clamp=(n,a,b)=>Math.max(a,Math.min(b,n));
  const point=(x,y,extra={})=>({x,y,...extra});
- const grid=Object.freeze({columns:30,rows:60,left:22,right:458,top:20,bottom:840});
- function gridPoint(number){
-  if(!Number.isInteger(number)||number<1||number>grid.columns*grid.rows)return null;
-  const index=number-1;
-  return point(grid.left+(index%grid.columns+.5)*(grid.right-grid.left)/grid.columns,
-   grid.top+(Math.floor(index/grid.columns)+.5)*(grid.bottom-grid.top)/grid.rows);
- }
  function normalize(s){return String(s||'').toLocaleLowerCase('sv-SE').replace(/motståndarmål(?:et)?/g,'övre målet').replace(/hemmamål(?:et)?/g,'nedre målet').replace(/lång sarg/g,'långsarg').replace(/kort sarg/g,'kortsarg').replace(/framlänges/g,'framåt').replace(/blå linj/g,'blålinj').replace(/rödlinj/g,'mittlinj').replace(/framför kassen/g,'framför målet').replace(/bakom kassen/g,'bakom målet').replace(/\bkassen\b/g,'målet').replace(/\bmittpunkt(?:en)?\b/g,'mittcirkel').replace(/\s+/g,' ').trim();}
  function zone(t){return /nedre|nedersta|södra|eget|egna|försvars|hemma/.test(t)?'lower':/övre|översta|norra|bortre|motståndar|anfalls/.test(t)?'upper':/mittzon|neutral/.test(t)?'middle':null;}
  function side(t){return /vänst/.test(t)?'left':/högr|höger/.test(t)?'right':null;}
@@ -80,8 +73,6 @@
   };
   const front=(g,d)=>{const a=(g.angle||0)*Math.PI/180;return point(g.x-Math.sin(a)*d,g.y+Math.cos(a)*d);};
   const loc=(s,ctx=context)=>{
-   const cell=/^(?:i\s+)?ruta\s+(\d+|[a-zåäö]+)$/.exec(s.trim());
-   if(cell){const p=gridPoint(amounts[cell[1]]||Number(cell[1]));if(!p)warn('Ange en ruta mellan 1 och 1800.');return p;}
    if(/mål|kassen/.test(s)&&!/mållinj/.test(s)&&goalReferences.length){const z=zone(s)||ctx.zone;if(z==='upper'||z==='lower'){const g=goalReferences[z==='upper'?0:1];if(g){if(/framför|målgård/.test(s))return front(g,28);if(/bakom/.test(s))return front(g,-34);if(/slott/.test(s))return location(s,ctx,warn);return point(g.x,g.y);}}}
    return location(s,ctx,warn);
   };
@@ -90,16 +81,6 @@
   const clauses=input.split(/[,.;!?\n]+|\s+(?:och\s+)?(?:sedan|därefter|sen)\s+|\s+och\s+(?=sväng|vänd|stanna|stannar|passa|passar|skjut|åk|åker|runda|fortsätt|framåt|bakåt|baklänges)/)
    .map(s=>s.trim().replace(/(\bsväng(?:er)?\s+)till\s+(?=(?:vänster|höger)$)/,'$1')).filter(Boolean);
   for(const clause of clauses){
-   const placement=/^(?:ruta\s+)?(\d+|en|ett|två|tre|fyra|fem|sex|sju|åtta|nio|tio)\s+(däck|kon|puck|spelare|start)$/.exec(clause);
-   if(placement){
-    const p=gridPoint(amounts[placement[1]]||Number(placement[1]));
-    if(!p){warn('Ange en ruta mellan 1 och 1800: '+clause);continue;}
-    const type=placement[2]==='start'?'player':typeOf(placement[2]),mark=add(type,p);
-    if(mark&&type==='player'){
-     activePlayer=String(references.size+1);mark.number=activePlayer;references.set(activePlayer,mark);remembered=mark;
-    }
-    continue;
-   }
    const before=warnings.length;let touched=false;
    const moving=/(?:passar|passning|passa\b|spelar pucken|skjut(?:er)?|skott|avslut|åk\b|åker|åkning|skridsko|åkväg|driver|runda(?:r)?|runt\b|sväng|svänger|vänd(?:er|ning)?|slalom|framåt|bakåt|baklänges|stanna(?:r)?|stopp|översteg)/.test(clause);
    const divider=/avdelare|avgränsare|sargdelare/.test(clause);
@@ -183,5 +164,5 @@
   if(marks.length>=150)warn('Maximalt 150 objekt ritades.');
   return {marks,warnings};
  }
- root.NskRinkTextParser=Object.freeze({parse,location:fragment=>location(fragment),rink,grid,gridPoint});
+ root.NskRinkTextParser=Object.freeze({parse,location:fragment=>location(fragment),rink});
 })(typeof window!=='undefined'?window:globalThis);

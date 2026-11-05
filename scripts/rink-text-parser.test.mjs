@@ -3,26 +3,8 @@ import assert from 'node:assert/strict';
 import vm from 'node:vm';
 import fs from 'node:fs';
 const source=fs.readFileSync(new URL('../rink-text-parser.js',import.meta.url),'utf8'),context={};vm.runInNewContext(source,context);
-const {parse,location,rink,gridPoint}=context.NskRinkTextParser;
+const {parse,location,rink}=context.NskRinkTextParser;
 const xy=p=>p&&[p.x,p.y];
-test('numbered cells place equipment and start the next movement',()=>{
- const r=parse('1 däck, sju däck, 9 start. Åk till ruta 8.');
- assert.equal(r.warnings.length,0);
- const [first,second,start,route]=r.marks;
- assert.deepEqual(Array.from(r.marks,m=>m.type),['tire','tire','player','skate']);
- assert.deepEqual(xy(first),xy(gridPoint(1)));
- assert.deepEqual(xy(second),xy(gridPoint(7)));
- assert.deepEqual(xy(start),xy(gridPoint(9)));
- assert.deepEqual(xy(route),xy(start));
- assert.deepEqual([route.x2,route.y2],xy(gridPoint(8)));
- assert.equal(gridPoint(1).y,gridPoint(30).y);
- assert.equal(gridPoint(1).x,gridPoint(31).x);
- assert.ok(Math.abs((gridPoint(2).x-gridPoint(1).x)-436/30)<1e-10);
- assert.ok(Math.abs((gridPoint(31).y-gridPoint(1).y)-820/60)<1e-10);
- assert.ok(gridPoint(1800));
- assert.equal(parse('1801 däck').marks.length,0);
- assert.match(parse('1801 däck').warnings[0],/mellan 1 och 1800/);
-});
 test('named landmarks align with the portrait rink image',()=>{
  const cases=[['mellan blålinjerna',240,430],['mittpunkten',240,430],['övre blålinjen',240,301],['nedre blålinjen',240,559],['övre mållinjen',240,78],['nedre mållinjen',240,786],['vänstra tekningspunkten i anfallszon',128,164],['högra tekningscirkeln i försvarszon',353,698],['övre vänstra tekningspunkten i mittzon',128,331],['nedre högra tekningspunkten i mittzon',353,525],['vänster långsarg i höjd med övre blålinjen',50,301],['rödlinjen vid höger långsarg',435,430],['mellan mittpunkten och övre blålinjen',240,365.5]];
  for(const [name,x,y] of cases)assert.deepEqual(xy(location(name)),[x,y],name);
