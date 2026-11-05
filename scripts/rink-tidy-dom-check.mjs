@@ -17,9 +17,14 @@ for(const p of ['rink-route-planner.js','rink-text-parser.js','rink-drawer.js'])
 await new Promise(r=>w.document.addEventListener('DOMContentLoaded',r));
 const $=id=>w.document.getElementById(id);
 $('rinkGridToggle').click();
-assert.deepEqual([...$('rinkSvg').querySelectorAll('[data-editor-ui="numbered-grid"] text')].map(el=>el.textContent),['1','2','3','4','5','6','7','8','9']);
+assert.equal($('rinkSvg').querySelectorAll('[data-editor-ui="numbered-grid"] line').length,88);
+assert.equal($('rinkSvg').querySelector('[data-grid-labels] text').textContent,'1');
+for(let i=0;i<4;i++)$('rinkZoomIn').click();
+const detailed=[...$('rinkSvg').querySelectorAll('[data-grid-labels] text')];
+assert.equal(Number(detailed[1].textContent)-Number(detailed[0].textContent),1);
 $('rinkGridToggle').click();
 assert.equal($('rinkSvg').querySelector('[data-editor-ui="numbered-grid"]'),null);
+$("rinkZoomReset").click();
 $("rinkOpenAssistant").click();assert.equal($("rinkTextPanel").open,true);assert.equal(w.document.activeElement,$("rinkDescription"));
 $('rinkDescription').value='En spelare i mittcirkeln';
 assert.equal($('rinkDictate').hidden,false);$('rinkDictate').click();
