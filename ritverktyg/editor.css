@@ -116,7 +116,7 @@ body.rink-fullscreen .arena-scroll{padding:0!important;overflow:hidden!important
 .rink-tidy-preview>div{display:flex;gap:8px;max-width:520px;margin:auto}
 .rink-tidy-preview button{flex:1;min-height:44px;margin:0;padding:8px;border:1px solid #607386;border-radius:8px;background:#202b39;color:#fff;font:inherit;font-size:.9rem}
 #rinkTidyApply{background:#a90920;border-color:#e95e76;font-weight:700}
-body.rink-tidy-previewing .draw-tools,body.rink-tidy-previewing .draw-status{display:none!important}
+body.rink-tidy-previewing .draw-tools,body.rink-tidy-previewing .draw-status,body.rink-text-previewing .draw-tools,body.rink-text-previewing .draw-status{display:none!important}
 body.rink-fullscreen .rink-tidy-preview{position:absolute;bottom:0;left:0;right:0}
 body.rink-fullscreen.rink-tidy-previewing .rink-container{bottom:var(--rink-preview-height,188px)}
 @media print{.rink-tidy-preview{display:none!important}}
