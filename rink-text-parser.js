@@ -6,7 +6,7 @@
  const amounts={en:1,ett:1,två:2,tre:3,fyra:4,fem:5,sex:6,sju:7,åtta:8,nio:9,tio:10};
  const clamp=(n,a,b)=>Math.max(a,Math.min(b,n));
  const point=(x,y,extra={})=>({x,y,...extra});
- const grid=Object.freeze({columns:3,rows:3,left:28,right:452,top:22,bottom:838});
+ const grid=Object.freeze({columns:30,rows:60,left:22,right:458,top:20,bottom:840});
  function gridPoint(number){
   if(!Number.isInteger(number)||number<1||number>grid.columns*grid.rows)return null;
   const index=number-1;
@@ -81,7 +81,7 @@
   const front=(g,d)=>{const a=(g.angle||0)*Math.PI/180;return point(g.x-Math.sin(a)*d,g.y+Math.cos(a)*d);};
   const loc=(s,ctx=context)=>{
    const cell=/^(?:i\s+)?ruta\s+(\d+|[a-zåäö]+)$/.exec(s.trim());
-   if(cell){const p=gridPoint(amounts[cell[1]]||Number(cell[1]));if(!p)warn('Ange en ruta mellan 1 och 9.');return p;}
+   if(cell){const p=gridPoint(amounts[cell[1]]||Number(cell[1]));if(!p)warn('Ange en ruta mellan 1 och 1800.');return p;}
    if(/mål|kassen/.test(s)&&!/mållinj/.test(s)&&goalReferences.length){const z=zone(s)||ctx.zone;if(z==='upper'||z==='lower'){const g=goalReferences[z==='upper'?0:1];if(g){if(/framför|målgård/.test(s))return front(g,28);if(/bakom/.test(s))return front(g,-34);if(/slott/.test(s))return location(s,ctx,warn);return point(g.x,g.y);}}}
    return location(s,ctx,warn);
   };
@@ -93,7 +93,7 @@
    const placement=/^(?:ruta\s+)?(\d+|en|ett|två|tre|fyra|fem|sex|sju|åtta|nio|tio)\s+(däck|kon|puck|spelare|start)$/.exec(clause);
    if(placement){
     const p=gridPoint(amounts[placement[1]]||Number(placement[1]));
-    if(!p){warn('Ange en ruta mellan 1 och 9: '+clause);continue;}
+    if(!p){warn('Ange en ruta mellan 1 och 1800: '+clause);continue;}
     const type=placement[2]==='start'?'player':typeOf(placement[2]),mark=add(type,p);
     if(mark&&type==='player'){
      activePlayer=String(references.size+1);mark.number=activePlayer;references.set(activePlayer,mark);remembered=mark;
