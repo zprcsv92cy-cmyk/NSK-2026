@@ -6,6 +6,13 @@
  const amounts={en:1,ett:1,två:2,tre:3,fyra:4,fem:5,sex:6,sju:7,åtta:8,nio:9,tio:10};
  const clamp=(n,a,b)=>Math.max(a,Math.min(b,n));
  const point=(x,y,extra={})=>({x,y,...extra});
+ const grid=Object.freeze({columns:3,rows:3,left:28,right:452,top:22,bottom:838});
+ function gridPoint(number){
+  if(!Number.isInteger(number)||number<1||number>grid.columns*grid.rows)return null;
+  const index=number-1;
+  return point(grid.left+(index%grid.columns+.5)*(grid.right-grid.left)/grid.columns,
+   grid.top+(Math.floor(index/grid.columns)+.5)*(grid.bottom-grid.top)/grid.rows);
+ }
  function normalize(s){return String(s||'').toLocaleLowerCase('sv-SE').replace(/motståndarmål(?:et)?/g,'övre målet').replace(/hemmamål(?:et)?/g,'nedre målet').replace(/lång sarg/g,'långsarg').replace(/kort sarg/g,'kortsarg').replace(/framlänges/g,'framåt').replace(/blå linj/g,'blålinj').replace(/rödlinj/g,'mittlinj').replace(/framför kassen/g,'framför målet').replace(/bakom kassen/g,'bakom målet').replace(/\bkassen\b/g,'målet').replace(/\bmittpunkt(?:en)?\b/g,'mittcirkel').replace(/\s+/g,' ').trim();}
  function zone(t){return /nedre|nedersta|södra|eget|egna|försvars|hemma/.test(t)?'lower':/övre|översta|norra|bortre|motståndar|anfalls/.test(t)?'upper':/mittzon|neutral/.test(t)?'middle':null;}
  function side(t){return /vänst/.test(t)?'left':/högr|höger/.test(t)?'right':null;}
@@ -61,7 +68,7 @@
  const objectPattern='utespelare|spelare|målvakter|målvakt|puckar|puck|koner|kon|markörer|markör|däck|backar|back|vänsterback|högerback|center|vänsterforward|högerforward|målburar|målbur|mål';
  const matcher=new RegExp('(?:(\\d{1,2}|en|ett|två|tre|fyra|fem|sex|sju|åtta|nio|tio)\\s+)?(?:(röda?|blåa?|svarta?|gröna?)\\s+)?('+objectPattern+')(?![a-zåäö])','g');
  function parse(description,defaultColor='#b11226',options={}){
-  const input=normalize(String(description||'').replace(/\n+/g,'. ')).slice(0,3000),marks=[],warnings=[],references=new Map();let remembered=null,heading=point(0,-1),context={};let goalReferences=(options.goals||[]).filter(g=>Number.isFinite(g.x)&&Number.isFinite(g.y)),declaredGoals=false;
+  const input=normalize(String(description||'').replace(/\n+/g,'. ')).slice(0,3000),marks=[],warnings=[],references=new Map();let remembered=null,activePlayer=null,heading=point(0,-1),context={};let goalReferences=(options.goals||[]).filter(g=>Number.isFinite(g.x)&&Number.isFinite(g.y)),declaredGoals=false;
   const warn=s=>{if(!warnings.includes(s))warnings.push(s);};
   const add=(type,p,color=defaultColor,end,extra={})=>{
    if(marks.length>=150)return null;
@@ -73,14 +80,26 @@
   };
   const front=(g,d)=>{const a=(g.angle||0)*Math.PI/180;return point(g.x-Math.sin(a)*d,g.y+Math.cos(a)*d);};
   const loc=(s,ctx=context)=>{
+   const cell=/^(?:i\s+)?ruta\s+(\d+|[a-zåäö]+)$/.exec(s.trim());
+   if(cell){const p=gridPoint(amounts[cell[1]]||Number(cell[1]));if(!p)warn('Ange en ruta mellan 1 och 9.');return p;}
    if(/mål|kassen/.test(s)&&!/mållinj/.test(s)&&goalReferences.length){const z=zone(s)||ctx.zone;if(z==='upper'||z==='lower'){const g=goalReferences[z==='upper'?0:1];if(g){if(/framför|målgård/.test(s))return front(g,28);if(/bakom/.test(s))return front(g,-34);if(/slott/.test(s))return location(s,ctx,warn);return point(g.x,g.y);}}}
    return location(s,ctx,warn);
   };
   const resolve=s=>{const goal=/mål(?:bur)?\s*(\d{1,2})\b/.exec(s);if(goal){const p=goalReferences[Number(goal[1])-1];if(!p)warn('Mål '+goal[1]+' behöver placeras först.');return p||null;}const r=/(?:spelare\s*(\d{1,2}|[abc])|första spelaren|andra spelaren|tredje spelaren)/.exec(s);if(r){const key=r[1]?({a:'1',b:'2',c:'3'}[r[1]]||r[1]):/första/.test(r[0])?'1':/andra/.test(r[0])?'2':'3';if(references.has(key))return references.get(key);warn('Spelare '+key+' behöver placeras först.');return null;}return loc(s);};
   const typeOf=w=>/målvakt/.test(w)?'goalie':/mål/.test(w)?'goal':/kon|markör/.test(w)?'cone':/puck/.test(w)?'puck':/däck/.test(w)?'tire':'player';
-  const clauses=input.split(/[,.;!?\n]+|\s+(?:och\s+)?(?:sedan|därefter|sen)\s+|\s+och\s+(?=sväng|svänger|vänd|stanna|passa|skjut|åk|runda|fortsätt|framåt|bakåt|baklänges)/)
+  const clauses=input.split(/[,.;!?\n]+|\s+(?:och\s+)?(?:sedan|därefter|sen)\s+|\s+och\s+(?=sväng|vänd|stanna|stannar|passa|passar|skjut|åk|åker|runda|fortsätt|framåt|bakåt|baklänges)/)
    .map(s=>s.trim().replace(/(\bsväng(?:er)?\s+)till\s+(?=(?:vänster|höger)$)/,'$1')).filter(Boolean);
   for(const clause of clauses){
+   const placement=/^(?:ruta\s+)?(\d+|en|ett|två|tre|fyra|fem|sex|sju|åtta|nio|tio)\s+(däck|kon|puck|spelare|start)$/.exec(clause);
+   if(placement){
+    const p=gridPoint(amounts[placement[1]]||Number(placement[1]));
+    if(!p){warn('Ange en ruta mellan 1 och 9: '+clause);continue;}
+    const type=placement[2]==='start'?'player':typeOf(placement[2]),mark=add(type,p);
+    if(mark&&type==='player'){
+     activePlayer=String(references.size+1);mark.number=activePlayer;references.set(activePlayer,mark);remembered=mark;
+    }
+    continue;
+   }
    const before=warnings.length;let touched=false;
    const moving=/(?:passar|passning|passa\b|spelar pucken|skjut(?:er)?|skott|avslut|åk\b|åker|åkning|skridsko|åkväg|driver|runda(?:r)?|runt\b|sväng|svänger|vänd(?:er|ning)?|slalom|framåt|bakåt|baklänges|stanna(?:r)?|stopp|översteg)/.test(clause);
    const divider=/avdelare|avgränsare|sargdelare/.test(clause);
@@ -108,9 +127,9 @@
      for(const p of positions)for(let k=0;k<perPosition;k++){
       const m=add(type,point(p.x+(k%4-(Math.min(perPosition,4)-1)/2)*(type==='goal'?70:28),p.y+Math.floor(k/4)*30),color);
       if(m&&type==='goal'){m.angle=/mot varandra/.test(clause)&&n>1?(m.x<240?270:90):orientation?({vänster:90,höger:270,uppåt:180,nedåt:0}[orientation[1]]):p.y>430?180:0;if(!declaredGoals){goalReferences=[];declaredGoals=true;}goalReferences.push(m);}
-      if(m&&type==='player'){const key=number?number[1]:String(references.size+1);m.number=key;references.set(key,m);}
+      if(m&&type==='player'){const key=number?number[1]:String(references.size+1);m.number=key;references.set(key,m);activePlayer=key;remembered=m;}
      }
-     remembered=positions.at(-1);context=localContext;touched=true;
+     if(!activePlayer)remembered=positions.at(-1);context=localContext;touched=true;
     }
    }
    if(moving||divider){
@@ -118,7 +137,11 @@
     const backwards=/bakåt|baklänges/.test(clause),turn=/sväng|svänger|vänd|runda(?:r)?|runt\b|slalom/.test(clause),stop=/stanna(?:r)?|stopp/.test(clause),crossover=/översteg/.test(clause);
     const fromTo=/(?:från|ifrån)\s+(.+?)\s+(?:till|mot)\s+(.+)/.exec(clause),from=/(?:från|ifrån)\s+(.+?)(?=\s+(?:framåt|bakåt|baklänges|sväng|och|runt|i slalom)|$)/.exec(clause),actor=/(spelare\s*(?:\d{1,2}|[abc])|första spelaren|andra spelaren|tredje spelaren)/.exec(clause);
     const destination=/(?:till|mot)\s+(.+)/.exec(clause);
-    let a=fromTo?resolve(fromTo[1]):from?resolve(from[1]):actor?resolve(actor[1]):remembered;
+    const subject=actor&&(!destination||actor.index<destination.index)?actor[1]:null;
+    const ref=subject&&/(\d{1,2}|[abc])$/.exec(subject);
+    const playerKey=subject?(ref?({a:'1',b:'2',c:'3'}[ref[1]]||ref[1]):/första/.test(subject)?'1':/andra/.test(subject)?'2':'3'):activePlayer;
+    const rememberMovement=end=>{remembered=end;if(playerKey){activePlayer=playerKey;references.set(playerKey,end);}};
+    let a=fromTo?resolve(fromTo[1]):from?resolve(from[1]):subject?resolve(subject):remembered;
     let b=fromTo?resolve(fromTo[2]):destination?resolve(destination[1]):null;
     if(isShot&&!destination&&!fromTo)b=point(240,localContext.zone==='lower'?rink.goalLower:rink.goalUpper);
     const around=/(?:runt|runda(?:r)?)\s+(.+)/.exec(clause);
@@ -126,7 +149,7 @@
      let c;
      if(/cirkel/.test(around[1]))c=location(around[1],localContext,warn);
      else {const type=/däck/.test(around[1])?'tire':'cone',number=/(\d{1,2})/.exec(around[1]),objects=marks.filter(m=>m.type===type);const target=number?objects[Number(number[1])-1]:objects.length===1?objects[0]:null;if(target)c=point(target.x,target.y,{radius:32});else warn('Ange vilken '+(type==='tire'?'däck':'kon')+' som ska rundas, till exempel kon 1.');}
-     if(c){const radius=c.radius||70,start=Math.atan2((a?.y??c.y)-(c.y),(a?.x??c.x+radius)-c.x),direction=/medurs/.test(clause)&&!/moturs/.test(clause)?1:-1,pts=[];for(let k=0;k<=32;k++){const angle=start+direction*k/32*Math.PI*2;pts.push(point(c.x+radius*Math.cos(angle),c.y+radius*Math.sin(angle)));}if(a&&Math.hypot(a.x-pts[0].x,a.y-pts[0].y)>16)pts.unshift(point(a.x,a.y));const m=add('curve',pts[0],defaultColor,null,{points:pts,...(backwards?{motion:'backward'}:{}),...(crossover?{movementLabel:'Översteg'}:{})});if(m){remembered=pts.at(-1);touched=true;}}
+     if(c){const radius=c.radius||70,start=Math.atan2((a?.y??c.y)-(c.y),(a?.x??c.x+radius)-c.x),direction=/medurs/.test(clause)&&!/moturs/.test(clause)?1:-1,pts=[];for(let k=0;k<=32;k++){const angle=start+direction*k/32*Math.PI*2;pts.push(point(c.x+radius*Math.cos(angle),c.y+radius*Math.sin(angle)));}if(a&&Math.hypot(a.x-pts[0].x,a.y-pts[0].y)>16)pts.unshift(point(a.x,a.y));const m=add('curve',pts[0],defaultColor,null,{points:pts,...(backwards?{motion:'backward'}:{}),...(crossover?{movementLabel:'Översteg'}:{})});if(m){rememberMovement(pts.at(-1));touched=true;}}
     }else{
      if(!a&&/framåt|bakåt|baklänges|sväng/.test(clause)){warn('Ange var rörelsen börjar, till exempel: Åk framåt från mittpunkten.');}
      if(turn&&!around&&!destination&&!fromTo&&!/vänst|höger|högra|vänd|slalom/.test(clause)){warn('Ange sväng vänster, sväng höger eller ett mål för svängen.');a=null;}
@@ -150,7 +173,7 @@
        else pts.push(point(a.x+heading.x*55,a.y+heading.y*55),point(b.x-heading.x*20,b.y-heading.y*20));
        pts.push(point(b.x,b.y));type='curve';extra.points=pts;
       }
-      add(type,a,isPass?'#2563eb':defaultColor,b,extra);if(!isPass&&!isShot&&!divider){const len=Math.hypot(b.x-a.x,b.y-a.y);if(!backwards)heading=point((b.x-a.x)/len,(b.y-a.y)/len);remembered=b;if(actor){const ref=/(\d{1,2}|[abc])$/.exec(actor[1]);const key=ref?({a:'1',b:'2',c:'3'}[ref[1]]||ref[1]):/första/.test(actor[1])?'1':/andra/.test(actor[1])?'2':'3';references.set(key,b);}}touched=true;
+      add(type,a,isPass?'#2563eb':defaultColor,b,extra);if(!isPass&&!isShot&&!divider){const len=Math.hypot(b.x-a.x,b.y-a.y);if(!backwards)heading=point((b.x-a.x)/len,(b.y-a.y)/len);rememberMovement(b);}touched=true;
      }
     }
     if(!touched&&warnings.length===before)warn('Förtydliga start och mål för rörelsen: '+clause.slice(0,100));
@@ -160,5 +183,5 @@
   if(marks.length>=150)warn('Maximalt 150 objekt ritades.');
   return {marks,warnings};
  }
- root.NskRinkTextParser=Object.freeze({parse,location:fragment=>location(fragment),rink});
+ root.NskRinkTextParser=Object.freeze({parse,location:fragment=>location(fragment),rink,grid,gridPoint});
 })(typeof window!=='undefined'?window:globalThis);
