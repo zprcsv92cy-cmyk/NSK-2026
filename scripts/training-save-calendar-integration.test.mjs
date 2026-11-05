@@ -7,6 +7,29 @@ import {createTrainingHandler} from '../worker/training-sessions-api.js';
 import {withConcurrentResources} from '../worker/concurrent-resources.js';
 import {trainingClientFixture} from './helpers/training-client-fixture.mjs';
 import {trainingSnapshot} from '../concurrency-merge.mjs';
+test('calendar import saves a dated training once and does not mark a pre-existing manual session',async t=>{
+ const f=await fixture(t);
+ for(const path of ['20261022_training_sessions.sql','20261023_training_hall_colors.sql','20261023_training_calendar_imports.sql'])
+  for(const sql of readFileSync(new URL('../migrations/'+path,import.meta.url),'utf8').replace(/^--.*$/gm,'').split(';').filter(s=>s.trim()))await f.db.prepare(sql).run();
+ await f.db.prepare('INSERT INTO auth_user_permissions VALUES(?,?)').bind(f.root,'lineup:edit').run();
+ const env={...f.env,NSK_MULTIUSER_ENABLED:'true'};
+ const handler=withConcurrentResources(createTrainingHandler(env,async()=>[{id:18,Namn:'NSK Team 18','Säsong':'2026'}]));
+ const call=(date,payload)=>handler(new Request('https://test/api/training?team_id=18&date='+date,{
+  method:payload?'PUT':'GET',
+  headers:{Authorization:'Bearer '+f.tokens.root,...(payload?{'Content-Type':'application/json'}:{})},
+  body:payload?JSON.stringify(payload):undefined
+ }),env);
+ const draft={...trainingSnapshot(),hall:'Lilla Hallen',revision:0};
+ const imported={...draft,calendarImport:true};
+ assert.equal((await call('2026-11-15',imported)).status,200);
+ assert.equal((await call('2026-11-15',imported)).status,409);
+ assert.deepEqual((await(await call('2026-11-15')).json()).session,{...draft,revision:1});
+ assert.equal((await call('2026-11-16',{...draft,hall:'Stora hallen'})).status,200);
+ assert.equal((await call('2026-11-16',imported)).status,409);
+ assert.equal((await(await call('2026-11-16')).json()).session.hall,'Stora hallen');
+ const marked=await f.db.prepare('SELECT training_date FROM training_calendar_imports').all();
+ assert.deepEqual(marked.results,[{training_date:'2026-11-15'}]);
+});
 test('real authenticated training save uses nested revision and calendar reads the saved attendance and colors',async t=>{
  const f=await fixture(t);for(const path of ['20261022_training_sessions.sql','20261023_training_hall_colors.sql'])for(const sql of readFileSync(new URL('../migrations/'+path,import.meta.url),'utf8').split(';').filter(s=>s.trim()))await f.db.prepare(sql).run();
  await f.db.prepare('INSERT INTO auth_user_permissions VALUES(?,?)').bind(f.root,'lineup:edit').run();
