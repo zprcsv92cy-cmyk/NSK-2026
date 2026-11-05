@@ -59,6 +59,16 @@ test('imperative instructions support turning, rounding and shooting',()=>{
  const cone=parse('En kon i mittcirkeln. Runda kon 1.');assert.equal(cone.warnings.length,0);assert.equal(cone.marks.at(-1).type,'curve');
 });
 
+test('spoken turn commands preserve the approach and treat left and right as directions',()=>{
+ for(const side of ['vänster','höger']){
+  const expected=parse('En spelare i mittcirkeln. Åk framåt. Sväng '+side+'. Åk bakåt.');
+  const spoken=parse('En spelare i mittcirkeln. Åk framåt och sen sväng till '+side+' och sen åk bakåt.');
+  assert.deepEqual(spoken,expected);
+  assert.deepEqual(Array.from(spoken.marks,mark=>mark.type),['player','skate','curve','skate']);
+  assert.equal(spoken.warnings.length,0);
+ }
+});
+
 test('text-generated skating uses direction colors while passes and shots retain their own styles',()=>{
  const r=parse('En spelare i mittcirkeln. Åk framåt. Åk bakåt. Passning från mittpunkten till övre blålinjen. Skott från slottet i anfallszon till övre målet.');assert.equal(r.warnings.length,0);assert.equal(r.marks[1].color,'#111827');assert.equal(r.marks[2].color,'#7c3aed');assert.equal(r.marks[3].color,'#2563eb');assert.equal(r.marks[4].type,'shot');assert.equal(r.marks[4].color,'#b11226');
 });
