@@ -2,7 +2,7 @@ import {planCalendarReconciliation} from './svenskalag-calendar-reconcile.js';
 
 // Call only after the dedicated migration has been applied. The cache is
 // intentionally separate from manually maintained training and pool data.
-export async function syncCalendarCache(db,teamId,items){
+export async function syncCalendarCache(db,teamId,items,today){
  if(!db||typeof db.prepare!=='function'||String(teamId)!=='NSK Team 18')
   throw new TypeError('Invalid team or database');
  if(!Array.isArray(items)||items.length>500)throw new TypeError('Invalid feed');
@@ -19,5 +19,13 @@ export async function syncCalendarCache(db,teamId,items){
    .bind(JSON.stringify(item),item.date,String(teamId),key).run();
   updated+=result.meta?.changes||0;
  }
- return {created,updated,preserved:plan.preserve.length,deleted:0};
+ let deleted=0;
+ const trainingDates=items.filter(item=>item?.type==='training'&&/^\d{4}-\d{2}-\d{2}$/.test(item.date)).map(item=>item.date).sort();
+ // A feed without trainings does not establish which dates it covers.
+ if(/^\d{4}-\d{2}-\d{2}$/.test(today)&&trainingDates.length){
+  const result=await db.prepare("DELETE FROM svenskalag_calendar_events WHERE team_id=? AND event_type='training' AND source='svenskalag' AND manually_edited=0 AND event_date>? AND event_date<=? AND event_date NOT IN (SELECT value FROM json_each(?))")
+   .bind(String(teamId),today,trainingDates.at(-1),JSON.stringify(trainingDates)).run();
+  deleted=result.meta?.changes||0;
+ }
+ return {created,updated,preserved:plan.preserve.length,deleted};
 }
