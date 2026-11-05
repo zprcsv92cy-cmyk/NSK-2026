@@ -16,5 +16,5 @@ export async function runSvenskalagScheduledSync(env,now=new Date()){
  const today=new Intl.DateTimeFormat('sv-SE',{timeZone:'Europe/Stockholm',year:'numeric',month:'2-digit',day:'2-digit'}).format(now);
  const items=parseSvenskalagIcal(body,today);
  // Never infer an empty feed as an instruction to delete existing activities.
- return syncCalendarCache(env.AUTH_DB,env.NSK_SVENSKALAG_TEAM_ID,items);
+ return syncCalendarCache(env.AUTH_DB,env.NSK_SVENSKALAG_TEAM_ID,items,today);
 }
