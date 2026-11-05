@@ -9,7 +9,6 @@
  let marks=[],history=[],future=[],tool='move',drag=null,selectedId=null,draftTimer=0,draftDirty=false,numberEditId=null;
  let tidyPreview=null;
  let textPreview=null;
- let gridVisible=false;
  let dictation=null;
  let dictationTimeout;
  let zoom=1,viewX=0,viewY=0,selectionPanelId=null;
@@ -400,9 +399,8 @@
   viewport();window.NSKShellHost?.fullscreen?.(window,on);
   if(on)window.requestAnimationFrame?.(syncFullscreenViewport);
  }
- const maxZoom=()=>gridVisible?6:3;
- function viewport(){$('rinkSvg').setAttribute('viewBox',[viewX,viewY,W/zoom,H/zoom].join(' '));$('rinkZoomLabel').textContent=Math.round(zoom*100)+'%';$('rinkZoomOut').disabled=zoom===1;$('rinkZoomIn').disabled=zoom===maxZoom();drawGridLabels();}
- function changeZoom(next){const cx=viewX+W/zoom/2,cy=viewY+H/zoom/2;zoom=clamp(next,1,maxZoom());viewX=clamp(cx-W/zoom/2,0,W-W/zoom);viewY=clamp(cy-H/zoom/2,0,H-H/zoom);viewport();}
+ function viewport(){$('rinkSvg').setAttribute('viewBox',[viewX,viewY,W/zoom,H/zoom].join(' '));$('rinkZoomLabel').textContent=Math.round(zoom*100)+'%';$('rinkZoomOut').disabled=zoom===1;$('rinkZoomIn').disabled=zoom===3;}
+ function changeZoom(next){const cx=viewX+W/zoom/2,cy=viewY+H/zoom/2;zoom=clamp(next,1,3);viewX=clamp(cx-W/zoom/2,0,W-W/zoom);viewY=clamp(cy-H/zoom/2,0,H-H/zoom);viewport();}
  const el=(tag,props={},parent)=>{const n=document.createElementNS(NS,tag);for(const [k,v] of Object.entries(props))n.setAttribute(k,v);if(parent)parent.append(n);return n;};
  const clamp=(v,a,b)=>Math.max(a,Math.min(b,v));
  const snapshot=()=>JSON.stringify(marks);
@@ -446,23 +444,6 @@
   ($('rinkSymbolSummary').querySelector?.('span')||$('rinkSymbolSummary')).textContent=['player','goal','goalie','puck','cone','tire'].includes(next)?names[next]:'Symboler';
   ($('rinkLineSummary').querySelector?.('span')||$('rinkLineSummary')).textContent=({curve:'Åkväg',skate:'Rak åkväg',pass:'Passning',shot:'Skott','divider-yellow':'Avdelare','divider-blue':'Avdelare'})[next]||'Linjer';announce('');
  }
- function drawGridLabels(){
-  if(!gridVisible)return;
-  const labels=$('rinkSvg').querySelector('[data-grid-labels]');
-  if(!labels)return;
-  const parser=window.NskRinkTextParser,{columns,rows,left,right,top,bottom}=parser.grid;
-  const width=(right-left)/columns,height=(bottom-top)/rows,step=zoom>=3?1:5;
-  const firstCol=Math.max(0,Math.floor((viewX-left)/width)),lastCol=Math.min(columns-1,Math.floor((viewX+W/zoom-left)/width));
-  const firstRow=Math.max(0,Math.floor((viewY-top)/height)),lastRow=Math.min(rows-1,Math.floor((viewY+H/zoom-top)/height));
-  const range=[firstCol,lastCol,firstRow,lastRow,step].join(',');
-  if(labels.getAttribute('data-range')===range)return;
-  labels.setAttribute('data-range',range);labels.replaceChildren();
-  for(let row=firstRow;row<=lastRow;row++)for(let col=firstCol;col<=lastCol;col++){
-   if(row%step||col%step)continue;
-   const number=row*columns+col+1,p=parser.gridPoint(number);
-   el('text',{x:p.x,y:p.y+2,fill:'#172554',stroke:'white','stroke-width':.9,'paint-order':'stroke','font-size':step===1?5:10,'font-weight':700,'text-anchor':'middle'},labels).textContent=String(number);
-  }
- }
  function rink(){
   const s=$('rinkSvg');s.replaceChildren();
   // Embedded IHS rink template with NSK crest; editor coordinates remain 480 × 860.
@@ -474,16 +455,6 @@
   }
   const defs=el('defs',{},s);
   for(const c of palette){const marker=el('marker',{id:'arr-'+c.slice(1),viewBox:'0 0 10 10',refX:9,refY:5,markerWidth:4,markerHeight:4,orient:'auto-start-reverse'},defs);el('path',{d:'M 1 1 L 9 5 L 1 9',fill:'none',stroke:c,'stroke-width':2},marker);}
-  const parser=window.NskRinkTextParser;
-  if(gridVisible&&parser?.grid){
-   const {columns,rows,left,right,top,bottom}=parser.grid;
-   const width=(right-left)/columns,height=(bottom-top)/rows;
-   const layer=el('g',{'data-editor-ui':'numbered-grid','pointer-events':'none'},s);
-   for(let col=1;col<columns;col++)el('line',{x1:left+col*width,y1:top,x2:left+col*width,y2:bottom,stroke:'#475569','stroke-width':.65,opacity:.65},layer);
-   for(let row=1;row<rows;row++)el('line',{x1:left,y1:top+row*height,x2:right,y2:top+row*height,stroke:'#475569','stroke-width':.65,opacity:.65},layer);
-   el('g',{'data-grid-labels':'true'},layer);
-   drawGridLabels();
-  }
   if(textPreview){
    const overlay=el('g',{'data-editor-ui':'text-preview','pointer-events':'none'},s);
    for(const m of textPreview.marks)draw(m,overlay);
@@ -636,7 +607,7 @@
    pinch={zoom,distance:middle.distance,anchor};touchBlocked=true;closeMenus();$('rinkTidyReport').hidden=true;announce('');document.body.classList.toggle('rink-gesturing',true);
   }
   function movePinch(){
-   const middle=midpoint();zoom=clamp(pinch.zoom*middle.distance/pinch.distance,1,maxZoom());viewport();const at=pos(middle,false);if(!at)return;
+   const middle=midpoint();zoom=clamp(pinch.zoom*middle.distance/pinch.distance,1,3);viewport();const at=pos(middle,false);if(!at)return;
    viewX=clamp(viewX+pinch.anchor.x-at.x,0,W-W/zoom);viewY=clamp(viewY+pinch.anchor.y-at.y,0,H-H/zoom);viewport();
   }
   function finishTouch(e){
@@ -921,13 +892,6 @@
    if(textPreview){cancelTextPreview();return;}
    if(tidyPreview)cancelTidyPreview();
    showDrawingSettings();$('rinkTextPanel').open=true;$('rinkDescription').focus();
-  };
-  $('rinkGridToggle').onclick=()=>{
-   gridVisible=!gridVisible;
-   $('rinkGridToggle').setAttribute('aria-pressed',String(gridVisible));
-   $('rinkGridToggle').textContent=gridVisible?'Dölj rutnummer':'Visa rutnummer';
-   if(zoom>maxZoom())changeZoom(maxZoom());
-   render();viewport();
   };
   $('rinkCloseSettings').onclick=()=>{stopDictation();$('rinkSettings').hidden=true;$('rinkSettings').open=false;$('rinkStage').scrollIntoView?.({block:'start',behavior:'instant'});};
   $('rinkLoad').onclick=()=>{const saved=readStored(SAVED);if(!saved){announce('Ingen sparad övning finns på denna enhet.');return;}if(marks.length&&JSON.stringify(record())!==JSON.stringify(saved)&&!confirm('Ersätt utkastet med senaste sparade övningen?'))return;applyRecord(saved);saveDraft();closeMenus();announce('Senaste sparade övningen öppnad.');};
