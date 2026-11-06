@@ -125,6 +125,18 @@ test('cancelled movement restores the diagram and history, and leaving mid-drag 
  f.node('rinkUndo').onclick();f.flush();assert.equal(f.draft().marks.length,0);f.node('rinkRedo').onclick();f.flush();assert.equal(f.draft().marks[0].x,100);
  f.pointer('pointerdown',100,100);f.pointer('pointermove',180,190);f.leave();assert.equal(f.draft().marks[0].x,180);assert.equal(f.draft().marks[0].y,190);
 });
+test('zoomed touch drawing and moving use the release point even without a final move event',()=>{
+ const f=editor();viewTransform(f);
+ f.choose('cone');f.pointer('pointerdown',240,430);f.pointer('pointerup',240,430);
+ f.node('rinkZoomIn').onclick();f.node('rinkZoomIn').onclick();
+ f.choose('move');f.pointer('pointerdown',240,430);f.pointer('pointermove',260,450);f.pointer('pointerup',280,490);f.flush();
+ const cone=f.draft().marks[0];assert.deepEqual([cone.x,cone.y],[260,460]);
+ for(const tool of ['skate','pass','shot']){
+  f.choose(tool);f.pointer('pointerdown',280,490);f.pointer('pointermove',300,510);f.pointer('pointerup',320,550);f.flush();
+  const line=f.draft().marks.at(-1);assert.deepEqual([line.type,line.x,line.y,line.x2,line.y2],[tool,260,460,280,490]);
+  f.node('rinkUndo').onclick();f.flush();assert.deepEqual(f.draft().marks,[cone]);
+ }
+});
 test('empty drafts override old manual drawings; malformed geometry is filtered and quota failures remain visible',()=>{
  const one={id:'old',type:'player',x:100,y:100,color:'#b11226'};
  const f=editor({[SAVED]:JSON.stringify({marks:[one]}),[DRAFT]:JSON.stringify({marks:[],title:'Tomt utkast'})});f.node('rinkTitle').emit('input');f.flush();assert.equal(f.draft().marks.length,0);
