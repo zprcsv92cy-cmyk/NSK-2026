@@ -910,6 +910,10 @@
   window.addEventListener('keydown',event=>{
    if(event.key==='Escape'&&textPreview){cancelTextPreview();return;}
    if(event.key==='Escape'&&tidyPreview){cancelTidyPreview();return;}
+   if(event.key==='Escape'){
+    const menu=document.querySelector?.('[data-tool-menu][open]');
+    if(menu){event.preventDefault();closeMenus();menu.querySelector('summary')?.focus({preventScroll:true});return;}
+   }
    if(event.key==='Escape'&&fullscreenOn){setRinkFullscreen(false);$('rinkFullscreen').focus();return;}
    if(!event.key||event.defaultPrevented||event.repeat||event.altKey||drag||textPreview||tidyPreview||
     event.target?.closest?.('input,textarea,select,[contenteditable]'))return;
