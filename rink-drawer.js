@@ -617,6 +617,12 @@
    if(!touches.size){touchStart=null;touchBlocked=false;document.body.classList.toggle('rink-gesturing',false);}
    return consumed;
   }
+  function moveDraggedMarks(e,p){
+   if(!drag.changed&&Math.hypot(e.clientX-drag.startX,e.clientY-drag.startY)<drag.threshold)return false;
+   if(!drag.changed){remember();drag.changed=true;}
+   moveMarks(patternMembers(drag.m),p.x-drag.p.x,p.y-drag.p.y);drag.p=p;routePoint=null;
+   return true;
+  }
   s.addEventListener('pointerdown',e=>{
    if(e.pointerType==='touch'){
     if(!touches.size)touchStart={marks:snapshot(),history:history.slice(),future:future.slice(),selectedId,targetEdit,routePoint};
@@ -662,9 +668,7 @@
     if(!drag.changed){remember();drag.changed=true;}
     resizeDivider(drag,p);
    }else if(drag.moving){
-    if(!drag.changed&&Math.hypot(e.clientX-drag.startX,e.clientY-drag.startY)<drag.threshold)return;
-    if(!drag.changed){remember();drag.changed=true;}
-    moveMarks(patternMembers(drag.m),p.x-drag.p.x,p.y-drag.p.y);drag.p=p;routePoint=null;
+    if(!moveDraggedMarks(e,p))return;
    }else if(drag.m.points){const last=drag.m.points.at(-1);if(Math.hypot(p.x-last.x,p.y-last.y)>=3&&drag.m.points.length<500)drag.m.points.push({...p});}else{if(isDivider(drag.m)){drag.m.x=drag.p.x;drag.m.y=drag.p.y;}drag.m.x2=p.x;drag.m.y2=p.y;if(isDivider(drag.m))fitDivider(drag.m);}
    if(!dragFramePending){
     dragFramePending=true;
@@ -675,7 +679,12 @@
   const end=(e,cancelled=false)=>{
    if(!drag||e.pointerId!==drag.id)return;
    if(drag.pan){drag=null;return;}
-   if(!cancelled&&!drag.moving&&drag.m.points){const p=pos(e);if(p&&drag.m.points.length<500)drag.m.points.push(p);}
+   const release=cancelled?null:pos(e);
+   if(release){
+    if(drag.moving)moveDraggedMarks(e,release);
+    else if(drag.m.points){if(drag.m.points.length<500)drag.m.points.push(release);}
+    else if(drag.resize===undefined&&!isDivider(drag.m)){drag.m.x2=release.x;drag.m.y2=release.y;}
+   }
    if(cancelled||(drag.m.points&&!drag.m.points.some(p=>Math.hypot(p.x-drag.m.x,p.y-drag.m.y)>=3))){marks=JSON.parse(drag.before);history=drag.history;future=drag.future;selectedId=null;}
    if(!cancelled&&drag.resize!==undefined){const p=pos(e);if(p&&drag.changed)resizeDivider(drag,p);}
    if(!cancelled&&drag.resize===undefined&&!drag.moving&&isDivider(drag.m)){const p=pos(e);if(p){drag.m.x=drag.p.x;drag.m.y=drag.p.y;drag.m.x2=p.x;drag.m.y2=p.y;fitDivider(drag.m);}}
