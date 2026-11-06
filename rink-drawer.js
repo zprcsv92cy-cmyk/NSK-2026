@@ -13,6 +13,7 @@
  let dictationTimeout;
  let zoom=1,viewX=0,viewY=0,selectionPanelId=null;
  let resetTouchGesture=()=>{};
+ let dragFramePending=false;
  const patternTypes={slalom:{label:'Däckslalom',type:'tire',count:4,min:3,max:8,minSpacing:1,spacing:4,width:6},triangle:{label:'Kontriangel',type:'cone',count:3,min:3,max:3,minSpacing:2.5,spacing:5,width:0},players:{label:'Spelarled',type:'player',count:5,min:2,max:12,minSpacing:2.5,spacing:2.5,width:0}};
  const patternFields=['patternId','patternType','patternIndex','patternCount','patternSpacing','patternWidth','patternAngle','patternBoard','patternOffset'];
  const patternMembers=m=>m?.patternId?marks.filter(p=>p.patternId===m.patternId):m?[m]:[];
@@ -663,7 +664,11 @@
     if(!drag.changed&&Math.hypot(e.clientX-drag.startX,e.clientY-drag.startY)<drag.threshold)return;
     if(!drag.changed){remember();drag.changed=true;}
     moveMarks(patternMembers(drag.m),p.x-drag.p.x,p.y-drag.p.y);drag.p=p;routePoint=null;
-   }else if(drag.m.points){const last=drag.m.points.at(-1);if(Math.hypot(p.x-last.x,p.y-last.y)>=3&&drag.m.points.length<500)drag.m.points.push({...p});}else{if(isDivider(drag.m)){drag.m.x=drag.p.x;drag.m.y=drag.p.y;}drag.m.x2=p.x;drag.m.y2=p.y;if(isDivider(drag.m))fitDivider(drag.m);}render();
+   }else if(drag.m.points){const last=drag.m.points.at(-1);if(Math.hypot(p.x-last.x,p.y-last.y)>=3&&drag.m.points.length<500)drag.m.points.push({...p});}else{if(isDivider(drag.m)){drag.m.x=drag.p.x;drag.m.y=drag.p.y;}drag.m.x2=p.x;drag.m.y2=p.y;if(isDivider(drag.m))fitDivider(drag.m);}
+   if(!dragFramePending){
+    dragFramePending=true;
+    window.requestAnimationFrame(()=>{dragFramePending=false;if(drag)render();});
+   }
   });
   function resizeDivider(d,p){const m=d.m;m.x=d.anchor.x;m.y=d.anchor.y;m.x2=p.x;m.y2=p.y;m.lengthMetres=clamp(dividerLength(m),.25,60);fitDivider(m);if(d.resize===0){[m.x,m.x2]=[m.x2,m.x];[m.y,m.y2]=[m.y2,m.y];}}
   const end=(e,cancelled=false)=>{
@@ -902,7 +907,23 @@
   $('rinkTextExample').onclick=()=>{$('rinkDescription').value='En spelare i mittcirkeln. Åk framåt. Sväng vänster. Åk bakåt. En kon vid höger tekningspunkt i anfallszon. En målvakt i varje mål. Passning från övre vänstra hörnet till slottet i anfallszon.';saveDraft();};
   $('rinkFullscreen').onclick=()=>setRinkFullscreen(!fullscreenOn);$('rinkFullExit').onclick=()=>setRinkFullscreen(false);$('rinkFullTools').onclick=()=>fullscreenTools($('rinkFullTools').getAttribute('aria-expanded')!=='true');
   for(const event of ['resize','orientationchange'])window.addEventListener(event,syncFullscreenViewport);window.visualViewport?.addEventListener('resize',syncFullscreenViewport);
-  window.addEventListener('keydown',event=>{if(event.key==='Escape'&&textPreview){cancelTextPreview();return;}if(event.key==='Escape'&&tidyPreview){cancelTidyPreview();return;}if(event.key==='Escape'&&fullscreenOn){setRinkFullscreen(false);$('rinkFullscreen').focus();}});
+  window.addEventListener('keydown',event=>{
+   if(event.key==='Escape'&&textPreview){cancelTextPreview();return;}
+   if(event.key==='Escape'&&tidyPreview){cancelTidyPreview();return;}
+   if(event.key==='Escape'&&fullscreenOn){setRinkFullscreen(false);$('rinkFullscreen').focus();return;}
+   if(!event.key||event.defaultPrevented||event.repeat||event.altKey||drag||textPreview||tidyPreview||
+    event.target?.closest?.('input,textarea,select,[contenteditable]'))return;
+   const key=event.key.toLowerCase();
+   if(event.ctrlKey||event.metaKey){
+    if(key==='z'||key==='y'){
+     event.preventDefault();$(key==='y'||event.shiftKey?'rinkRedo':'rinkUndo').click();
+    }
+    return;
+   }
+   if(event.shiftKey)return;
+   const next=({v:'move',a:'curve',k:'cone'})[key];
+   if(next){event.preventDefault();setTool(next);}
+  });
   const closePreviews=()=>{if(tidyPreview)cancelTidyPreview();if(textPreview){clearTextPreview();render();}};
   window.addEventListener('beforeprint',closePreviews);
   const saveOnLeave=()=>{stopDictation();closePreviews();if(drag?.changed)draftDirty=true;resetTouchGesture();flushDraft();};window.addEventListener('pagehide',saveOnLeave);window.addEventListener('nsk:page-hide',saveOnLeave);document.addEventListener('visibilitychange',()=>{if(document.hidden)saveOnLeave();});
