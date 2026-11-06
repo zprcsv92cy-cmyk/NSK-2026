@@ -74,6 +74,11 @@ const {asymmetricSlalom}=await import('./fixtures/asymmetric-slalom.mjs'),[strok
 w.confirm=()=>true;let uid=0;w.crypto.randomUUID=()=> 'asym-ui-'+(++uid);$('rinkClear').click();
 const svg=$('rinkSvg');svg.getScreenCTM=()=>({a:1,b:0,inverse:()=>({})});svg.createSVGPoint=()=>({x:0,y:0,matrixTransform(){return {x:this.x,y:this.y};}});svg.setPointerCapture=()=>{};
 const pointer=(type,p)=>{const e=new w.Event(type,{bubbles:true,cancelable:true});for(const [key,value] of Object.entries({clientX:p.x,clientY:p.y,pointerId:1,isPrimary:true,pointerType:'mouse',button:0}))Object.defineProperty(e,key,{value});svg.dispatchEvent(e);};
+w.document.querySelector('[data-tool="tire"]').click();
+$('rinkSymbolsMenu').open=true;
+pointer('pointerdown',tires[0]);pointer('pointerup',tires[0]);
+assert.equal($('rinkSymbolsMenu').open,false);
+assert.equal(svg.querySelectorAll('[data-mark]').length,0);
 for(const tire of tires){w.document.querySelector('[data-tool="tire"]').click();pointer('pointerdown',tire);pointer('pointerup',tire);}
 w.document.querySelector('[data-tool="curve"]').click();pointer('pointerdown',stroke.points[0]);for(const p of stroke.points.slice(1,-1))pointer('pointermove',p);pointer('pointerup',stroke.points.at(-1));await new Promise(r=>setTimeout(r,300));
 const before=JSON.parse(w.localStorage.getItem('nsk_rink_draft_v2')).marks;

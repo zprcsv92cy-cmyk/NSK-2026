@@ -626,7 +626,8 @@
    }
    if(tidyPreview||textPreview)return;
    if(pinch||touchBlocked||drag||!e.isPrimary||(e.pointerType==='mouse'&&e.button!==0))return;
-   if(playbackTimer!==null)stopPlayback();const p=pos(e);if(!p)return;closeMenus();numberEditId=null;$('rinkTidyReport').hidden=true;announce('');
+   if(document.querySelector?.('[data-tool-menu][open]')){closeMenus();return;}
+   if(playbackTimer!==null)stopPlayback();const p=pos(e);if(!p)return;numberEditId=null;$('rinkTidyReport').hidden=true;announce('');
    if(targetEdit){const m=marks.find(m=>m.id===targetEdit);targetEdit=null;if(m){remember();if(m.shotEnd)m.shotEnd={x:p.x,y:p.y};else{m.x2=p.x;m.y2=p.y;}render();saveDraft();announce('Målpunkt ändrad.');}return;}
    if(tool==='pan'){drag={id:e.pointerId,pan:true,startX:e.clientX,startY:e.clientY,x:viewX,y:viewY,scale:Math.hypot(s.getScreenCTM().a,s.getScreenCTM().b)};s.setPointerCapture(e.pointerId);return;}
    if(tool==='erase'){const m=hit(p);if(m){remember();const ids=new Set(patternMembers(m).map(p=>p.id));marks=marks.filter(a=>!ids.has(a.id));selectedId=null;render();saveDraft();}return;}
