@@ -82,9 +82,14 @@ body.rink-fullscreen .arena-scroll{padding:0!important;overflow:hidden!important
 
 /* Recognizable equipment, short labels and consistent touch targets. */
 .rink-icon{display:block;width:42px;height:42px;flex:none;margin:auto;color:#f4f5f7;pointer-events:none}
-.draw-mode-row{grid-template-columns:repeat(6,minmax(0,1fr))}
+.draw-mode-row{grid-template-columns:repeat(8,minmax(0,1fr))}
 .draw-mode-row>button,.draw-mode-row>details>summary{display:flex;flex-direction:column;justify-content:center;align-items:center;gap:3px;min-height:60px}
 .draw-mode-row .rink-icon{width:25px;height:25px;margin:0}
+@media(max-width:580px){
+ .draw-mode-row{grid-template-columns:repeat(4,minmax(0,1fr))}
+ .draw-mode-row>button,.draw-mode-row>details>summary{min-height:48px;padding:4px}
+ .draw-mode-row .rink-icon{width:21px;height:21px}
+}
 .draw-tools .rink-symbol-picker{grid-template-columns:repeat(3,minmax(0,1fr));max-width:520px;max-height:min(430px,65dvh)}
 .rink-symbol-picker>button,.draw-tool-menu>div>button:has(>.rink-icon){display:flex;align-items:center;justify-content:center;gap:6px;min-height:70px;padding:6px}
 .draw-tool-menu>div>button>.rink-icon{width:42px;height:42px;margin:0}
