@@ -685,7 +685,11 @@
     else if(drag.m.points){if(drag.m.points.length<500)drag.m.points.push(release);}
     else if(drag.resize===undefined&&!isDivider(drag.m)){drag.m.x2=release.x;drag.m.y2=release.y;}
    }
-   if(cancelled||(drag.m.points&&!drag.m.points.some(p=>Math.hypot(p.x-drag.m.x,p.y-drag.m.y)>=3))){marks=JSON.parse(drag.before);history=drag.history;future=drag.future;selectedId=null;}
+   const {m}=drag;
+   const emptyStroke=!drag.moving&&(m.points
+    ?!m.points.some(p=>Math.hypot(p.x-m.x,p.y-m.y)>=3)
+    :['skate','pass','shot'].includes(m.type)&&Math.hypot(m.x2-m.x,m.y2-m.y)<3);
+   if(cancelled||emptyStroke){marks=JSON.parse(drag.before);history=drag.history;future=drag.future;selectedId=null;}
    if(!cancelled&&drag.resize!==undefined){const p=pos(e);if(p&&drag.changed)resizeDivider(drag,p);}
    if(!cancelled&&drag.resize===undefined&&!drag.moving&&isDivider(drag.m)){const p=pos(e);if(p){drag.m.x=drag.p.x;drag.m.y=drag.p.y;drag.m.x2=p.x;drag.m.y2=p.y;fitDivider(drag.m);}}
    if(!cancelled&&drag.changed&&drag.m.type==='goal')alignGoal(drag.m);if(!cancelled&&drag.changed&&isDivider(drag.m))snapDivider(drag.m);const changed=drag.changed;drag=null;render();if(changed)saveDraft();
