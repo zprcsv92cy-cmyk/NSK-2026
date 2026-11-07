@@ -137,6 +137,18 @@ test('zoomed touch drawing and moving use the release point even without a final
   f.node('rinkUndo').onclick();f.flush();assert.deepEqual(f.draft().marks,[cone]);
  }
 });
+test('short line taps leave the drawing and redo history intact',()=>{
+ const f=editor();
+ f.choose('cone');f.pointer('pointerdown',200,300);f.pointer('pointerup',200,300);
+ f.node('rinkUndo').onclick();
+ for(const tool of ['curve','skate','pass','shot']){
+  f.choose(tool);f.pointer('pointerdown',100,200);f.pointer('pointerup',101,201);f.flush();
+  assert.deepEqual(f.draft().marks,[],tool);
+  assert.equal(f.node('rinkUndo').disabled,true,tool);
+  assert.equal(f.node('rinkRedo').disabled,false,tool);
+ }
+ f.node('rinkRedo').onclick();f.flush();assert.equal(f.draft().marks[0].type,'cone');
+});
 test('empty drafts override old manual drawings; malformed geometry is filtered and quota failures remain visible',()=>{
  const one={id:'old',type:'player',x:100,y:100,color:'#b11226'};
  const f=editor({[SAVED]:JSON.stringify({marks:[one]}),[DRAFT]:JSON.stringify({marks:[],title:'Tomt utkast'})});f.node('rinkTitle').emit('input');f.flush();assert.equal(f.draft().marks.length,0);
