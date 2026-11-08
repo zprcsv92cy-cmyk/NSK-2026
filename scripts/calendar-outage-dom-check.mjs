@@ -17,3 +17,23 @@ test('calendar alias consolidation and removal work while optional match summari
   [...active().querySelectorAll('button')].find(b=>b.textContent==='Ta bort').click();await until(()=>archived().querySelectorAll('details').length===1);assert.equal(active().querySelectorAll('details').length,0);assert.deepEqual(writes[0].keys.sort(),keys.sort());assert.equal(writes[0].hidden,true);
  }finally{w.close();}
 });
+
+test('training cards render before pools and survive saved-session rendering without refetching',async()=>{
+ const dom=new JSDOM('<div id="svenskalagSavedEvents"></div><div id="activityList"></div>',{url:'https://isolated.example.test/startsida/',runScripts:'outside-only'});const w=dom.window;
+ let release;const pools=new Promise(resolve=>{release=resolve;});let reads=0;
+ try{
+  await new Promise(resolve=>w.document.addEventListener('DOMContentLoaded',resolve,{once:true}));
+  w.Auth={init:async()=>({}),activeTeam:()=> 'NSK Team 18',getToken:()=> 'synthetic'};
+  w.DB={listPools:()=>pools};w.NSKTrainingCards={actions:()=>'<button>Planera</button>',reorder:()=>{}};
+  w.nskVersionRoot=()=>new URL('https://isolated.example.test/');w.TestCalendar={reconcileCalendarPools};
+  w.fetch=async input=>{reads++;const url=new URL(input);return Response.json(url.pathname==='/api/lag'?{results:[{id:18,Namn:'NSK Team 18','Säsong':'2026'}]}:{items:[{type:'training',date:'2099-11-08',hall:'Lilla hallen',startTime:'17:00',endTime:'18:00'}]});};
+  w.eval(readFileSync(new URL('../svenskalag-home.js',import.meta.url),'utf8').replace("await import(new URL('calendar-pool-reconcile.mjs?v='+encodeURIComponent(window.NSK_VERSION||'1'),nskVersionRoot()).href)",'window.TestCalendar'));
+  for(let i=0;i<100&&!w.document.querySelector('[data-svenskalag-training]');i++)await new Promise(resolve=>setTimeout(resolve,5));
+  assert.match(w.document.querySelector('#activityList').textContent,/Lilla hallen/);assert.equal(reads,2);
+  w.document.querySelector('#activityList').innerHTML='<details data-date="2099-11-08"><span class="nsk-pool-hall">Hall ej vald</span><span class="nsk-training-time"></span></details>';
+  w.dispatchEvent(new w.Event('nsk:saved-trainings-rendered'));
+  assert.equal(w.document.querySelectorAll('#activityList details').length,1);
+  assert.match(w.document.querySelector('#activityList').textContent,/Lilla hallen/);assert.match(w.document.querySelector('#activityList').textContent,/17:00–18:00/);assert.equal(reads,2);
+  release([]);await new Promise(resolve=>setTimeout(resolve,20));
+ }finally{release([]);w.close();}
+});
