@@ -143,6 +143,9 @@
   let viewportBound=false;
   function bindMobileViewport(){
     if(viewportBound)return;viewportBound=true;
+    // Embedded pages fill their iframe. Only the outer document owns keyboard
+    // sizing; fixed inner bodies can be clipped a second time by iOS.
+    if(window.NSKShellHost)return;
     let frame=0;
     const sync=()=>{
       frame=0;
