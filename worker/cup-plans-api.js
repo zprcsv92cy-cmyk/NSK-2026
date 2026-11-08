@@ -1,6 +1,7 @@
 import {createPersonalRosterIdentityVerifier} from './personal-roster-identity-adapter.js';
 import {mapTrustedMembershipsToLegacyTeams} from './production-team-id-map.js';
 import {authorizeTeamFeature} from './team-authorization-policy.js';
+import {discoverStoredCups} from './cup-nightly-sync.js';
 import {cupAddress,importCuponline,limitedCupBody,validCup} from './cuponline-import.js';
 const reply=(status,data)=>Response.json(data,{status,headers:{'Cache-Control':'private, no-store'}});
 export function createCupPlansHandler(env,listTeams,{verifyIdentity=createPersonalRosterIdentityVerifier(env),fetcher=fetch}={}){
@@ -17,6 +18,11 @@ export function createCupPlansHandler(env,listTeams,{verifyIdentity=createPerson
    const canEdit=authorizeTeamFeature(access,teams[0],'pool').allowed;
    if(request.method!=='GET'&&!canEdit)return reply(403,{ok:false,error:'Behörighet att skapa poolspel krävs för att planera cuper.'});
    const db=env.AUTH_DB;
+   if(request.method==='GET'&&url.searchParams.get('action')==='discover'){
+    const ages=url.searchParams.getAll('age'),offsets=url.searchParams.getAll('offset'),offset=Number(offsets[0]||0);
+    if(ages.length!==1||!/^U(?:9|1[0-8])$/.test(ages[0])||offsets.length>1||!Number.isSafeInteger(offset)||offset<0||offset>1000)return reply(400,{ok:false,error:'Välj en åldersklass mellan U9 och U18.'});
+    try{return reply(200,{ok:true,...await discoverStoredCups(db,ages[0],offset)});}catch{return reply(502,{ok:false,error:'Cuponlines cuplista kunde inte hämtas just nu. Försök igen senare eller lägg till en cup via dess adress.'});}
+   }
    if(request.method==='GET'){
     const rows=await db.prepare('SELECT cup_json,notes,status,revision,updated_at FROM cup_plans WHERE team_id=? ORDER BY updated_at DESC LIMIT 100').bind(teams[0]).all();
     return reply(200,{ok:true,canEdit,plans:(rows.results||[]).map(row=>({cup:JSON.parse(row.cup_json),notes:row.notes,status:row.status,revision:row.revision,updatedAt:row.updated_at}))});

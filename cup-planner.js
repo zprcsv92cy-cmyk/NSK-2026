@@ -2,16 +2,35 @@
 (()=>{
  const $=id=>document.getElementById(id),base=()=>String(window.APP_CONFIG?.API_URL||'').replace(/\/$/,'');
  let teamId='',session=null,plans=[],canEdit=false,draft=null,busy=false,dirty=false;
+ let searchBusy=false,searchAge='',nextOffset=null;
  const node=(tag,text,className)=>{const el=document.createElement(tag);if(text!==undefined)el.textContent=text;if(className)el.className=className;return el;};
  const message=text=>$('cupStatus').textContent=text;
  function sameSession(){return session&&Auth.getToken()===session.token&&Auth.activeTeam()===session.team;}
- async function api(method,body){
+ async function api(method,body,query=''){
   if(!sameSession())throw Error('Inloggningen eller lagvalet ändrades. Öppna sidan igen.');
-  const response=await fetch(base()+'/api/cups?team_id='+encodeURIComponent(teamId),{method,headers:{Authorization:'Bearer '+session.token,...(body?{'Content-Type':'application/json'}:{})},cache:'no-store',signal:AbortSignal.timeout(45000),...(body?{body:JSON.stringify(body)}:{})});
+  const response=await fetch(base()+'/api/cups?team_id='+encodeURIComponent(teamId)+query,{method,headers:{Authorization:'Bearer '+session.token,...(body?{'Content-Type':'application/json'}:{})},cache:'no-store',signal:AbortSignal.timeout(45000),...(body?{body:JSON.stringify(body)}:{})});
   const data=await response.json().catch(()=>({}));if(!sameSession())throw Error('Inloggningen eller lagvalet ändrades. Öppna sidan igen.');
   if(!response.ok||data.ok!==true)throw Error(data.error||'Cupplaneraren kunde inte nås. Försök igen.');return data;
  }
- function setBusy(value){busy=value;for(const el of document.querySelectorAll('#cupImportForm button,#cupSaveForm input,#cupSaveForm select,#cupSaveForm textarea,#cupSaveForm button,#cupList button,#cupReload'))el.disabled=value||(!canEdit&&el.id!=='cupReload');}
+ function setBusy(value){busy=value;$('cupFind').disabled=value||searchBusy;$('cupMore').disabled=value||searchBusy;for(const el of document.querySelectorAll('#cupImportForm button,#cupSaveForm input,#cupSaveForm select,#cupSaveForm textarea,#cupSaveForm button,#cupList button,#cupReload'))el.disabled=value||(!canEdit&&el.id!=='cupReload');}
+ function setSearchBusy(value){searchBusy=value;$('cupFind').disabled=value||busy;$('cupAge').disabled=value;$('cupMore').disabled=value||busy;}
+ function searchCard(item){
+  const card=node('article',undefined,'card'),cup=item.cup;card.append(node('h3',cup?.name||item.name));
+  const facts=node('dl',undefined,'cup-facts');for(const [title,value]of [['Datum',[cup?.startDate||item.startDate,(cup?.endDate||item.endDate)!==(cup?.startDate||item.startDate)?cup?.endDate||item.endDate:''].filter(Boolean).join(' – ')],['Ort',cup?.place||item.place],['Klass',item.age]]){const part=node('div');part.append(node('dt',title),node('dd',value||'Inte angivet'));facts.append(part);}card.append(facts,node('h4','Avgifter'),node('p',item.fees.length?item.fees.join('\n'):(item.detailError?'Avgifterna kunde inte hämtas.':'Inga avgifter kunde avläsas. Se cupinformationen på Cuponline.'),'cup-source-text'));
+  const teams=node('details');teams.append(node('summary',item.teamsAvailable?'Anmälda lag ('+(cup?.teams.length||0)+' hämtade)':'Anmälda lag – uppgifter saknas'));
+  if(item.teamsAvailable&&cup?.teams.length){const list=node('ul');for(const name of cup.teams)list.append(node('li',name));teams.append(list);}else teams.append(node('p','Inga lag kunde läsas. Kontrollera originalet på Cuponline.'));card.append(teams);
+  if(item.detailError)card.append(node('p',item.detailError,'cup-warning'));
+  const actions=node('div',undefined,'cup-actions'),source=node('a','Öppna på Cuponline');source.href=item.sourceUrl;source.target='_blank';source.rel='noopener noreferrer';actions.append(source);
+  if(canEdit){const add=node('button',plans.some(p=>p.cup.cupId===item.cupId)?'Öppna planering':'Planera cup');add.type='button';add.onclick=()=>{if(busy)return;if(!cup){void preview(item.sourceUrl);return;}const saved=plans.find(p=>p.cup.cupId===item.cupId);if(openEditor({cup,notes:saved?.notes||'',status:saved?.status||'Planerad',revision:saved?.revision||0}))markDirty();};actions.append(add);}card.append(actions);return card;
+ }
+ async function findCups(append=false){
+  if(searchBusy||busy||!teamId)return;
+  const age=$('cupAge').value,offset=append?nextOffset:0;if(append&&(offset===null||age!==searchAge))return;
+  setSearchBusy(true);$('cupSearchStatus').textContent='Hämtar kommande '+age+'-cuper…';if(!append){$('cupSearchResults').replaceChildren();nextOffset=null;$('cupMore').hidden=true;}
+  try{const data=await api('GET',undefined,'&action=discover&age='+encodeURIComponent(age)+'&offset='+offset);searchAge=age;for(const item of data.items)$('cupSearchResults').append(searchCard(item));nextOffset=data.nextOffset;$('cupMore').hidden=nextOffset===null;$('cupSearchStatus').textContent=data.total?data.total+' kommande cuper matchar '+age+'. Visar '+$('cupSearchResults').children.length+'.':'Inga kommande cuper märkta '+age+' hittades hos Cuponline.';if(data.notice)$('cupSearchStatus').textContent+=' '+data.notice;}
+  catch(error){$('cupSearchStatus').textContent=error.message;}
+  finally{setSearchBusy(false);}
+ }
  function markDirty(){dirty=true;window.NSKShellHost?.dirty(window);}
  function clearDirty(){dirty=false;window.NSKShellHost?.clean(window);}
  function cupView(cup){
@@ -45,12 +64,14 @@
   try{const data=await api('POST',{url}),saved=existing||plans.find(p=>p.cup.cupId===data.cup.cupId);const plan={cup:data.cup,notes:existing?$('cupNotes').value:saved?.notes||'',status:existing?$('cupPlanStatus').value:saved?.status||'Planerad',revision:saved?.revision||0};clearDirty();openEditor(plan);markDirty();message('Cupuppgifterna är hämtade. Granska och spara planeringen.');}catch(error){message(error.message);}finally{setBusy(false);}
  }
  document.addEventListener('DOMContentLoaded',async()=>{
+  $('cupAge').replaceChildren();for(let age=9;age<=18;age++){const option=node('option','U'+age);option.value='U'+age;$('cupAge').append(option);}$('cupAge').value='U9';
+  $('cupSearchForm').addEventListener('submit',event=>{event.preventDefault();void findCups();});$('cupAge').addEventListener('change',()=>void findCups());$('cupMore').onclick=()=>void findCups(true);
   $('cupImportForm').addEventListener('submit',event=>{event.preventDefault();void preview($('cupUrl').value.trim());});
   for(const id of ['cupNotes','cupPlanStatus'])$(id).addEventListener('input',markDirty);
   $('cupCancel').onclick=()=>{if(busy||(dirty&&!confirm('Lämna osparade ändringar?')))return;draft=null;$('cupEditor').hidden=true;clearDirty();};
   $('cupRefresh').onclick=()=>{if(draft)void preview(draft.cup.sourceUrl,draft);};
   $('cupReload').onclick=async()=>{if(busy)return;setBusy(true);try{await load();message('Listan är uppdaterad.');}catch(error){message(error.message);}finally{setBusy(false);}};
   $('cupSaveForm').addEventListener('submit',async event=>{event.preventDefault();if(!draft||busy||!canEdit)return;setBusy(true);try{const result=await api('PUT',{cup:draft.cup,notes:$('cupNotes').value,status:$('cupPlanStatus').value,revision:draft.revision});draft.revision=result.revision;draft.notes=$('cupNotes').value;draft.status=$('cupPlanStatus').value;clearDirty();message('Cupplaneringen är sparad.');try{await load();}catch{message('Cupplaneringen är sparad, men listan kunde inte uppdateras.');}}catch(error){message(error.message);}finally{setBusy(false);}});
-  try{await Auth.init();session={token:Auth.getToken(),team:Auth.activeTeam()};if(!session.token||!session.team)throw Error('Logga in och välj lag.');const response=await fetch(base()+'/api/lag',{headers:{Authorization:'Bearer '+session.token},cache:'no-store',signal:AbortSignal.timeout(15000)});if(!response.ok)throw Error('Lagkopplingen kunde inte hämtas.');const data=await response.json(),teams=(data.results||[]).filter(t=>t.Namn===session.team&&String(t['Säsong'])==='2026');if(!sameSession()||teams.length!==1)throw Error('Lagkopplingen kunde inte verifieras.');teamId=String(teams[0].id);await load();message('');}catch(error){message(error.message);}
+  try{await Auth.init();session={token:Auth.getToken(),team:Auth.activeTeam()};if(!session.token||!session.team)throw Error('Logga in och välj lag.');const response=await fetch(base()+'/api/lag',{headers:{Authorization:'Bearer '+session.token},cache:'no-store',signal:AbortSignal.timeout(15000)});if(!response.ok)throw Error('Lagkopplingen kunde inte hämtas.');const data=await response.json(),teams=(data.results||[]).filter(t=>t.Namn===session.team&&String(t['Säsong'])==='2026');if(!sameSession()||teams.length!==1)throw Error('Lagkopplingen kunde inte verifieras.');teamId=String(teams[0].id);await load();message('');void findCups();}catch(error){message(error.message);}
  });
 })();
