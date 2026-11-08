@@ -30,7 +30,7 @@ async function cached(key,loader,cache){
  try{const hit=await cache?.match(request);if(hit)return await hit.json();}catch{}
  const data=await loader();try{if(cache)await cache.put(request,Response.json(data,{headers:{'Cache-Control':'public, max-age=300'}}));}catch{}return data;
 }
-async function readDirectory(fetcher){
+export async function readCupDirectory(fetcher){
  async function read(url){const response=await fetcher(url,{redirect:'manual',headers:{Accept:'text/html'},signal:AbortSignal.timeout(12000)});if(!response.ok||!/text\/html/i.test(response.headers.get('content-type')||''))throw Error('Cuplistan kunde inte läsas.');return boundedText(response);}
  const entry=await read(ENTRY);
  const hasSearch=[...entry.matchAll(/<a\b([^>]*)>/gi)].some(m=>{try{const url=new URL(attr(m[1],'href'),ENTRY);return ['cuponline.se','www.cuponline.se'].includes(url.hostname)&&url.protocol==='https:'&&url.pathname.toLowerCase()==='/web/sok-cup.aspx';}catch{return false;}});
@@ -48,7 +48,7 @@ export function cupFees(info){
 }
 export async function discoverCups(age,offset=0,{fetcher=fetch,cache=globalThis.caches?.default,now=new Date()}={}){
  if(!/^U(?:[7-9]|1[0-9]|20)$/.test(age)||!Number.isSafeInteger(offset)||offset<0||offset>1000)throw Error('Välj en åldersklass mellan U7 och U20.');
- const directory=await cached('directory-desktop-v1',()=>readDirectory(fetcher),cache),today=now.toLocaleDateString('sv-SE',{timeZone:'Europe/Stockholm',year:'numeric',month:'2-digit',day:'2-digit'});
+ const directory=await cached('directory-desktop-v1',()=>readCupDirectory(fetcher),cache),today=now.toLocaleDateString('sv-SE',{timeZone:'Europe/Stockholm',year:'numeric',month:'2-digit',day:'2-digit'});
  const items=directory.items.filter(cup=>cup.startDate>=today&&matchesCupAge(cup.age,age)).sort((a,b)=>a.startDate.localeCompare(b.startDate)||a.name.localeCompare(b.name,'sv'));
  const selected=items.slice(offset,offset+PAGE_SIZE),results=await Promise.all(selected.map(async item=>{
   try{const cup=await cached('cup-v1-'+item.cupId,()=>importCuponline(item.sourceUrl,fetcher),cache);return {...item,cup,fees:cupFees(cup.info),detailError:'',teamsAvailable:!cup.warnings.some(w=>w.startsWith('Lagen'))};}
