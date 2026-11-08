@@ -2,10 +2,18 @@
 (() => {
  const root=new URL('./',document.currentScript.src),pages=new Set(['startsida','truppen','traningsgrupper','ovningsarkiv','ritverktyg','skapapoolspel','malvaktsstatistik','materialforvaltare','mittkonto','skills','anvandare','lag','laguppstallning','bytesschema','matchvy']);
  const flow=new Set(['lag','laguppstallning','bytesschema','matchvy']),KEY='nsk_shell_ui_v1',contextKeys=['nsk2_pool_id','nsk2_lag_nr','nsk2_match_no','nsk2_edit_pool_id'];
+ const standalone=window.navigator?.standalone===true||window.matchMedia?.('(display-mode: standalone)')?.matches===true;
  history.scrollRestoration='manual';
  const entries=new Map();let active=null,pending=null,sequence=0,viewSequence=0,scope='',saved={},lastRoutes={},saveTimer=0,signedOut=false;
  const status=(text)=>{const node=document.getElementById('shellStatus');node.textContent=text;node.hidden=!text;};
  function route(value){try{const url=new URL(value,location.href);if(url.origin!==root.origin||!url.pathname.startsWith(root.pathname))return null;const slug=url.pathname.slice(root.pathname.length).replace(/\/index\.html$/,'/').replace(/\/$/,'');if(!pages.has(slug))return null;url.pathname=root.pathname+slug+'/';return {url,slug};}catch{return null;}}
+ function historyUrl(r){
+  if(!standalone)return r.url;
+  const url=new URL('startsida/',root);
+  if(r.slug!=='startsida'||r.url.search||r.url.hash)url.searchParams.set('view',r.url.pathname+r.url.search+r.url.hash);
+  return url;
+ }
+ function currentRoute(){const url=new URL(location.href);return route((url.pathname===root.pathname+'startsida/'||url.pathname===root.pathname+'app/')&&url.searchParams.get('view')||url.href);}
  const context=()=>Object.fromEntries(contextKeys.map(k=>[k,sessionStorage.getItem(k)||'']));
  const keyFor=(r,ctx)=>r.url.pathname+r.url.search+(flow.has(r.slug)?JSON.stringify([ctx.nsk2_pool_id,ctx.nsk2_lag_nr,ctx.nsk2_match_no]):r.slug==='skapapoolspel'?':edit='+ctx.nsk2_edit_pool_id:'');
  const find=source=>[...entries.values()].find(e=>e.frame.contentWindow===source);
@@ -26,7 +34,8 @@
   if(requestId!==sequence||signedOut)return;
   if(active&&active!==e){remember(active.frame.contentWindow);active.frame.contentWindow.NSKShellActive=false;active.frame.contentWindow.dispatchEvent(new Event('nsk:page-hide'));active.frame.dataset.active='false';active.frame.inert=true;active.frame.setAttribute('aria-hidden','true');}
   const returning=e.everActive;active=e;pending=null;e.everActive=true;e.used=Date.now();e.frame.contentWindow.NSKShellActive=true;e.frame.dataset.active='true';e.frame.inert=false;e.frame.setAttribute('aria-hidden','false');
-  if(options.history!==false&&(options.replace||location.href!==e.route.url.href)){const method=options.replace?'replaceState':'pushState';history[method]({nskShell:true,entryId:e.id,context:e.context},'',e.route.url.pathname+e.route.url.search+e.route.url.hash);}
+  const address=historyUrl(e.route);
+  if(options.history!==false&&(options.replace||location.href!==address.href)){const method=options.replace?'replaceState':'pushState';history[method]({nskShell:true,entryId:e.id,context:e.context},'',address.pathname+address.search+address.hash);}
   lastRoutes[e.route.slug]=e.route.url.pathname+e.route.url.search+e.route.url.hash;persist();
   selection(e);restore(e.frame.contentWindow);
   if(e.route.slug==='traningsgrupper'){const attendance=e.frame.contentDocument?.getElementById('trainingAttendance');if(attendance)attendance.open=true;}
@@ -87,10 +96,10 @@
   const link=event.target.closest?.('a[href]');if(event.defaultPrevented||!link||event.button!==0||event.metaKey||event.ctrlKey||event.altKey||event.shiftKey||link.target&&link.target!=='_self'||link.hasAttribute('download'))return;
   if(!route(link.href))return;event.preventDefault();void navigate(link.href,{focus:true,fromMenu:true});
  });
- window.addEventListener('popstate',event=>void navigate(location.href,{history:false,entryId:event.state?.entryId,context:event.state?.context}));
+ window.addEventListener('popstate',event=>void navigate(currentRoute()?.url.href||new URL('startsida/',root).href,{history:false,entryId:event.state?.entryId,context:event.state?.context}));
  window.addEventListener('pagehide',()=>{if(signedOut||!Auth.getToken())return;if(active)remember(active.frame.contentWindow);clearTimeout(saveTimer);try{sessionStorage.setItem(KEY,JSON.stringify({scope,lastRoutes,views:saved}));}catch{}});
  async function start(){
-  const initial=new URL(location.href).searchParams.get('view'),target=route(initial||location.href)||route(new URL('startsida/',root));
+  const target=currentRoute()||route(new URL('startsida/',root));
   try{const identity=await Auth.init();if(!identity||!Auth.activeTeam()){signedOutNow();return;}
    const digest=await crypto.subtle.digest('SHA-256',new TextEncoder().encode(JSON.stringify([Auth.getToken(),identity.user.id,Auth.activeTeam(),identity.permissions,identity.memberships,window.NSK_VERSION])));scope=Array.from(new Uint8Array(digest),b=>b.toString(16).padStart(2,'0')).join('');
    try{const old=JSON.parse(sessionStorage.getItem(KEY)||'null');if(old?.scope===scope&&old.views&&typeof old.views==='object'){saved=old.views;lastRoutes=old.lastRoutes||{};}}catch{}

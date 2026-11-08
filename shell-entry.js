@@ -7,7 +7,7 @@
   const path=location.pathname.slice(root.pathname.length).replace(/\/index\.html$/,'/').replace(/\/$/,'');
   if(location.pathname.startsWith(root.pathname)&&pages.has(path)){
    document.documentElement.style.visibility='hidden';
-   const url=new URL('app/',root);url.searchParams.set('view',location.pathname+location.search+location.hash);location.replace(url.href);
+   const url=new URL('app/',root),view=new URL(location.href).searchParams.get('view');url.searchParams.set('view',path==='startsida'&&view?view:location.pathname+location.search+location.hash);location.replace(url.href);
   }
   return;
  }

@@ -41,7 +41,7 @@ test('failed writes release their saving guard without reporting a confirmed cha
 // Exercise the real activation path after retained detail state has been restored.
 for(const returning of [false,true])test('training attendance opens on '+(returning?'retained menu/calendar return':'initial calendar/menu entry'),()=>{
  const panel={open:false},events=[];
- const context={sequence:1,signedOut:false,active:null,pending:null,lastRoutes:{},Date,Event:class{constructor(type){this.type=type;}},clearTimeout(){},document:{querySelector:()=>null},persist(){},selection(){},restore(){panel.open=false;},status(){},prune(){},remember(){}};
+ const context={sequence:1,signedOut:false,active:null,pending:null,lastRoutes:{},Date,Event:class{constructor(type){this.type=type;}},clearTimeout(){},document:{querySelector:()=>null},historyUrl:r=>r.url,persist(){},selection(){},restore(){panel.open=false;},status(){},prune(){},remember(){}};
  const e={everActive:returning,route:{slug:'traningsgrupper',url:new URL(root.href+'traningsgrupper/?date=2026-11-02')},frame:{dataset:{},setAttribute(){},contentWindow:{dispatchEvent:event=>events.push(event.type)},contentDocument:{getElementById:id=>id==='trainingAttendance'?panel:null,dispatchEvent:event=>events.push(event.type)}}};
  const code=shell.slice(shell.indexOf(' function activate('),shell.indexOf(' async function navigate('));
  vm.runInNewContext(code+'this.run=activate;',context);context.run(e,1,{history:false});
@@ -64,4 +64,25 @@ for(const state of [{dirty:true},{writes:1},{}])test('active menu reset protects
  const result=await context.navigate('startsida',{fromMenu:true});
  if(state.dirty||state.writes){assert.equal(result,undefined);assert.match(messages[0],/Spara dina ändringar/);}
  else {assert.equal(result.reload,true);assert.equal(messages.length,0);}
+});
+
+for(const standalone of [false,true])test('shell history keeps route, query and hash across back and reload in '+(standalone?'standalone':'browser')+' mode',()=>{
+ const location={href:root.href+'app/'};
+ const helpers=Function('root','pages','location','standalone',routeSource+'return {route,historyUrl,currentRoute};')(root,pages,location,standalone);
+ for(const path of ['startsida/','truppen/?player=24#card','ritverktyg/?exercise=19','laguppstallning/?match=3']){
+  const route=helpers.route(root.href+path),address=helpers.historyUrl(route);
+  if(standalone)assert.equal(address.pathname,root.pathname+'startsida/');
+  else assert.equal(address.href,route.url.href);
+  location.href=address.href;
+  assert.equal(helpers.currentRoute().url.href,route.url.href);
+ }
+ location.href=root.href+'startsida/?view='+encodeURIComponent('https://evil.test/truppen/');
+ assert.equal(helpers.currentRoute(),null);
+});
+test('calendar shell reload preserves the requested view instead of wrapping it in another calendar route',()=>{
+ let redirected='';const location={href:root.href+'startsida/?view='+encodeURIComponent(root.pathname+'truppen/?player=24#card'),pathname:root.pathname+'startsida/'};
+ location.replace=url=>redirected=url;
+ const window={};window.parent=window;
+ vm.runInNewContext(entry,{window,document:{currentScript:{src:root.href+'shell-entry.js'},documentElement:{style:{}}},location,URL});
+ assert.equal(new URL(redirected).searchParams.get('view'),root.pathname+'truppen/?player=24#card');
 });
