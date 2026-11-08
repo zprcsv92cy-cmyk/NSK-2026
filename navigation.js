@@ -164,7 +164,9 @@
       for(const [name,value] of Object.entries(values)){
         if(document.documentElement.style.getPropertyValue(name)!==value)document.documentElement.style.setProperty(name,value);
       }
-      if(keyboard)revealEditor();
+      // Field switches can happen without a new keyboard resize (for example
+      // Name to Email), including iOS modes with equal viewport heights.
+      if(mobile&&editing&&unzoomed)revealEditor();
       if(mobile&&!editing&&unzoomed&&window.scrollY!==0)window.scrollTo({top:0,left:0,behavior:'instant'});
     };
     const schedule=()=>{if(!frame)frame=requestAnimationFrame(sync);};

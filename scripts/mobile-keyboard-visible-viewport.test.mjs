@@ -51,3 +51,9 @@ test('embedded editor leaves viewport sizing exclusively to its outer shell',()=
  const f=fixture({embedded:true});
  assert.equal(f.styles.size,0);assert.equal(f.classes.size,0);assert.equal(f.scroll.scrollTop,0);
 });
+
+test('email field below view is revealed when keyboard gap detection is false',()=>{
+ const f=fixture({height:800,offset:0});
+ assert(!f.classes.has('nsk-keyboard-open'));
+ assert.equal(f.scroll.scrollTop,160);
+});
