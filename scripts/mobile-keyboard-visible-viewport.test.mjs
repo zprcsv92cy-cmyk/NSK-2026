@@ -21,7 +21,7 @@ function fixture({editing=true,nested=true,zoom=1,height=390,offset=60}={}){
 test('keyboard inside iframe uses visible height and pan and reveals field',()=>{
  const f=fixture();assert.equal(f.styles.get('--nsk-app-height'),'390px');assert.equal(f.styles.get('--nsk-app-top'),'60px');assert(f.classes.has('nsk-keyboard-open'));assert.equal(f.scroll.scrollTop,160);
 });
-test('keyboard dismissal restores full height and menu even if input stays focused',()=>{
+test('keyboard dismissal restores full height even if input stays focused',()=>{
  const f=fixture();f.window.visualViewport.height=800;f.window.visualViewport.offsetTop=0;f.resize();assert.equal(f.styles.get('--nsk-app-height'),'800px');assert.equal(f.styles.get('--nsk-app-top'),'0px');assert(!f.classes.has('nsk-keyboard-open'));
 });
 test('pinch zoom is not mistaken for keyboard',()=>{
@@ -34,4 +34,15 @@ test('non-editing viewport and desktop preserve normal navigation',()=>{
 test('direct editors supported and inner frames do not shrink twice',()=>{
  const f=fixture({nested:false});assert(f.classes.has('nsk-keyboard-open'));
  const g=fixture();g.window.parent={};g.resize();assert.equal(g.styles.get('--nsk-app-height'),'800px');assert(!g.classes.has('nsk-keyboard-open'));
+});
+
+test('iOS equal viewport heights still hide menu during iframe editing and restore on blur',()=>{
+ const f=fixture();f.window.innerHeight=390;f.window.visualViewport.height=390;f.resize();
+ assert(!f.classes.has('nsk-keyboard-open'));assert(f.classes.has('nsk-mobile-editing'));
+ f.inner.activeElement=f.body;f.resize();assert(!f.classes.has('nsk-mobile-editing'));
+});
+test('mobile focus hides menu before keyboard resize; desktop and child frames do not',()=>{
+ const f=fixture({height:800,offset:0});assert(f.classes.has('nsk-mobile-editing'));
+ f.window.innerWidth=1200;f.resize();assert(!f.classes.has('nsk-mobile-editing'));
+ const g=fixture();g.window.parent={};g.resize();assert(!g.classes.has('nsk-mobile-editing'));
 });
