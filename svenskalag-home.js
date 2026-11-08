@@ -210,59 +210,8 @@
  }
  let calendarReady=false;
  let showGeneration=0;
- async function show(){
-  const generation=++showGeneration;calendarReady=false;
-  const root=document.getElementById('svenskalagSavedEvents');
-  if(!root)return;
-  try{
-   await Auth.init();
-   const team=Auth.activeTeam(),token=Auth.getToken();
-   if(team!=='NSK Team 18'){root.textContent='Kalendern gäller NSK Team 18.';return;}
-   if(!token){root.textContent='Logga in för att se kalendern.';return;}
-   const base=String(window.APP_CONFIG?.API_URL||'https://nsk-api.peter-hasselberg.workers.dev').replace(/\/$/,'');
-   const headers={Authorization:'Bearer '+token};
-   const response=await fetch(base+'/api/lag',{headers,cache:'no-store'});
-   if(!response.ok)throw Error('Kunde inte läsa lag');
-   const data=await response.json();
-   const teams=Array.isArray(data.results)?data.results:Array.isArray(data)?data:[];
-   const matched=teams.filter(t=>t.Namn===team&&String(t['Säsong'])==='2026');
-   if(matched.length!==1)throw Error('Lagkopplingen saknas');
-   const events=await fetch(base+'/api/training?team_id='+encodeURIComponent(matched[0].id)+'&action=svenskalag-saved&training_history=1&include_removed=1',{headers,cache:'no-store'});
-   if(!events.ok)throw Error('Kalendern kunde inte läsas');
-   const result=await events.json();let items=Array.isArray(result.items)?result.items:[];
-   if(!items.length){root.textContent='Inga kommande kalenderaktiviteter importerade ännu.';renderUpcomingCalendarPools([]);}
-   let existingPools=[];
-   try{existingPools=await DB.listPools();}
-   catch(error){
-    root.textContent='Kunde inte kontrollera sparade poolspel. Kalenderimporten är tillfälligt spärrad för att undvika dubbletter.';
-    renderUpcomingCalendarPools([]);
-    return;
-   }
-   let links=new Map(),summaries=new Map();
-   try{
-    const relevant=existingPools.filter(p=>items.some(item=>item.type==='pool'&&calendarDate(item.date)===calendarDate(p.pool_date)));
-    try{summaries=typeof DB.listPoolMatchSummaries==='function'&&relevant.length?await DB.listPoolMatchSummaries(relevant.map(p=>p.id)):new Map();}catch(error){console.warn('Matchuppgifter kunde inte hämtas för kalenderkopplingen',error);}
-    const {reconcileCalendarPools}=await import(new URL('calendar-pool-reconcile.mjs?v='+encodeURIComponent(window.NSK_VERSION||'1'),nskVersionRoot()).href);
-    const reconciled=reconcileCalendarPools(items,existingPools,summaries);items=reconciled.items;links=reconciled.links;
-   }catch(error){console.warn('Kalenderkopplingen kunde inte kontrolleras',error);}
-   if(generation!==showGeneration)return;
-   calendarReady=true;
-   poolMatchContext={pools:existingPools,items,links,summaries,teamId:matched[0].id};
-   for(const hall of document.querySelectorAll('[data-pool-hall-id]')){
-    if(hall.dataset.gathering)continue;
-    const pool=existingPools.find(pool=>String(pool.id)===hall.dataset.poolHallId);
-    const event=pool&&items.find(item=>item.type==='pool'&&samePool(pool,item));
-    if(!event)continue;
-    if(event.notice){const card=hall.closest('details')?.querySelector('.nsk-pool-content');if(card&&!card.querySelector('[data-calendar-notice]')){const warning=document.createElement('p');warning.dataset.calendarNotice='1';warning.className='small';warning.setAttribute('role','alert');warning.textContent=event.notice;card.prepend(warning);}}
-    const gathering=nskPoolGathering(matchesForPool(event,items.filter(item=>item.type==='match')).map(match=>match.startTime));
-    if(gathering){hall.dataset.gathering=gathering;hall.textContent=[pool.hall,gathering].filter(Boolean).join(' • ');}
-   }
-   latestCompletionItems=[items,existingPools];renderCompletionButtons(items,existingPools);
-   const calendarPools=items.filter(item=>item.type==='pool'&&!existingPools.some(p=>samePool(p,item)));
-   const calendarOthers=items.filter(item=>item.type!=='pool');
-   const calendarTrainings=calendarOthers.filter(item=>item.type==='training');
-   const calendarOtherEvents=calendarOthers.filter(item=>item.type!=='training');
-   window.addEventListener('nsk:saved-trainings-rendered',()=>{show();},{once:true});
+ let trainingSnapshot=null;
+ function renderCalendarTrainings(calendarTrainings){
    const trainingBox=document.getElementById('activityList')||document.getElementById('savedTrainingsList');
    const today=new Date().toLocaleDateString('sv-SE',{year:'numeric',month:'2-digit',day:'2-digit'});
    const upcomingCalendarTrainings=calendarTrainings;
@@ -302,6 +251,67 @@
     window.NSKTrainingCards.reorder(trainingBox);
     if(upcomingCalendarTrainings.length){const empty=Array.from(trainingBox.children).find(node=>node.tagName!=='DETAILS');if(empty&&/Inga gemensamt sparade träningar/.test(empty.textContent||''))empty.remove();}
    }
+ }
+ window.addEventListener('nsk:saved-trainings-rendered',()=>{
+  const snapshot=trainingSnapshot;
+  if(snapshot&&snapshot.team===Auth.activeTeam()&&snapshot.token===Auth.getToken())renderCalendarTrainings(snapshot.items);
+ });
+ async function show(){
+  const generation=++showGeneration;calendarReady=false;trainingSnapshot=null;
+  const root=document.getElementById('svenskalagSavedEvents');
+  if(!root)return;
+  try{
+   await Auth.init();
+   const team=Auth.activeTeam(),token=Auth.getToken();
+   if(team!=='NSK Team 18'){root.textContent='Kalendern gäller NSK Team 18.';return;}
+   if(!token){root.textContent='Logga in för att se kalendern.';return;}
+   const base=String(window.APP_CONFIG?.API_URL||'https://nsk-api.peter-hasselberg.workers.dev').replace(/\/$/,'');
+   const headers={Authorization:'Bearer '+token};
+   const response=await fetch(base+'/api/lag',{headers,cache:'no-store'});
+   if(!response.ok)throw Error('Kunde inte läsa lag');
+   const data=await response.json();
+   const teams=Array.isArray(data.results)?data.results:Array.isArray(data)?data:[];
+   const matched=teams.filter(t=>t.Namn===team&&String(t['Säsong'])==='2026');
+   if(matched.length!==1)throw Error('Lagkopplingen saknas');
+   const events=await fetch(base+'/api/training?team_id='+encodeURIComponent(matched[0].id)+'&action=svenskalag-saved&training_history=1&include_removed=1',{headers,cache:'no-store'});
+   if(!events.ok)throw Error('Kalendern kunde inte läsas');
+   const result=await events.json();let items=Array.isArray(result.items)?result.items:[];
+   if(generation!==showGeneration||Auth.activeTeam()!==team||Auth.getToken()!==token)return;
+   trainingSnapshot={team,token,items:items.filter(item=>item.type==='training')};
+   renderCalendarTrainings(trainingSnapshot.items);
+   if(!items.length){root.textContent='Inga kommande kalenderaktiviteter importerade ännu.';renderUpcomingCalendarPools([]);}
+   let existingPools=[];
+   try{existingPools=await DB.listPools();}
+   catch(error){
+    root.textContent='Kunde inte kontrollera sparade poolspel. Kalenderimporten är tillfälligt spärrad för att undvika dubbletter.';
+    renderUpcomingCalendarPools([]);
+    return;
+   }
+   let links=new Map(),summaries=new Map();
+   try{
+    const relevant=existingPools.filter(p=>items.some(item=>item.type==='pool'&&calendarDate(item.date)===calendarDate(p.pool_date)));
+    try{summaries=typeof DB.listPoolMatchSummaries==='function'&&relevant.length?await DB.listPoolMatchSummaries(relevant.map(p=>p.id)):new Map();}catch(error){console.warn('Matchuppgifter kunde inte hämtas för kalenderkopplingen',error);}
+    const {reconcileCalendarPools}=await import(new URL('calendar-pool-reconcile.mjs?v='+encodeURIComponent(window.NSK_VERSION||'1'),nskVersionRoot()).href);
+    const reconciled=reconcileCalendarPools(items,existingPools,summaries);items=reconciled.items;links=reconciled.links;
+   }catch(error){console.warn('Kalenderkopplingen kunde inte kontrolleras',error);}
+   if(generation!==showGeneration)return;
+   calendarReady=true;
+   poolMatchContext={pools:existingPools,items,links,summaries,teamId:matched[0].id};
+   for(const hall of document.querySelectorAll('[data-pool-hall-id]')){
+    if(hall.dataset.gathering)continue;
+    const pool=existingPools.find(pool=>String(pool.id)===hall.dataset.poolHallId);
+    const event=pool&&items.find(item=>item.type==='pool'&&samePool(pool,item));
+    if(!event)continue;
+    if(event.notice){const card=hall.closest('details')?.querySelector('.nsk-pool-content');if(card&&!card.querySelector('[data-calendar-notice]')){const warning=document.createElement('p');warning.dataset.calendarNotice='1';warning.className='small';warning.setAttribute('role','alert');warning.textContent=event.notice;card.prepend(warning);}}
+    const gathering=nskPoolGathering(matchesForPool(event,items.filter(item=>item.type==='match')).map(match=>match.startTime));
+    if(gathering){hall.dataset.gathering=gathering;hall.textContent=[pool.hall,gathering].filter(Boolean).join(' • ');}
+   }
+   latestCompletionItems=[items,existingPools];renderCompletionButtons(items,existingPools);
+   const calendarPools=items.filter(item=>item.type==='pool'&&!existingPools.some(p=>samePool(p,item)));
+   const calendarOthers=items.filter(item=>item.type!=='pool');
+   const calendarTrainings=calendarOthers.filter(item=>item.type==='training');
+   const calendarOtherEvents=calendarOthers.filter(item=>item.type!=='training');
+   const trainingBox=document.getElementById('activityList')||document.getElementById('savedTrainingsList');
    if(calendarOtherEvents.length)root.innerHTML=calendarOtherEvents.map(item=>{
     const kind={pool:'Poolspel',match:'Match'}[item.type]||'Aktivitet';
     const detail=item.type==='match'?[item.startTime,item.opponent].filter(Boolean).join(' • '):(item.place||'Plats ej angiven');
