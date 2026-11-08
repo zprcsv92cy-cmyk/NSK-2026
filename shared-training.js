@@ -114,16 +114,33 @@
     }
     throw Error('För många sidor i truppsvaret');
   }
-  async function listEquipment(){
+  async function loadStaff(){
     const session=captureSession();
     const id=await resolveTeam();
     assertSession(session);
     const {response,data}=await fetchJson(base()+'/api/lagpersonal?team_id='+encodeURIComponent(id),{headers:{Authorization:'Bearer '+session.token},cache:'no-store'});
     assertSession(session);
-    if(!response.ok||!data.ok)throw Error('Materialförvaltare kunde inte hämtas');
-    const coaches=(data.results||[]).some(p=>p.coach_id)?await roster('tranare'):[];
+    if(!response.ok||!data.ok)throw Error('Lagpersonal kunde inte hämtas');
+    return data.results||[];
+  }
+  let pendingStaff=null;
+  function readStaff(){
+    const key=JSON.stringify(captureSession());
+    if(pendingStaff?.key===key)return pendingStaff.promise;
+    const promise=loadStaff(),entry={key,promise};pendingStaff=entry;
+    const clear=()=>{if(pendingStaff===entry)pendingStaff=null;};promise.then(clear,clear);
+    return promise;
+  }
+  async function listLeaders(){
+    const session=captureSession(),people=await readStaff();assertSession(session);
+    return people.filter(person=>['leader','Lagledare'].includes(person.role)).map(person=>({id:String(person.id),full_name:person.name}));
+  }
+  async function listEquipment(){
+    const session=captureSession(),people=await readStaff();
     assertSession(session);
-    return (data.results||[]).filter(person=>['equipment','Materialförvaltare'].includes(person.role)).map(person=>({id:String(person.id),coach_id:person.coach_id,full_name:coaches.find(c=>Number(c.id)===person.coach_id)?.full_name||person.name})).sort((a,b)=>a.full_name.localeCompare(b.full_name,'sv'));
+    const coaches=people.some(p=>p.coach_id)?await roster('tranare'):[];
+    assertSession(session);
+    return people.filter(person=>['equipment','Materialförvaltare'].includes(person.role)).map(person=>({id:String(person.id),coach_id:person.coach_id,full_name:coaches.find(c=>Number(c.id)===Number(person.coach_id))?.full_name||person.name})).sort((a,b)=>a.full_name.localeCompare(b.full_name,'sv'));
   }
   async function calendarTrainings(){
     const session=captureSession();
@@ -162,6 +179,6 @@
     }));
     return halls.size===1?[...halls][0]:'';
   }
-  window.SharedTraining={listWithTeam,snapshotSession:async data=>(await concurrency()).trainingSnapshot(data),mergeDraft:async(base,desired,current)=>(await concurrency()).mergeTraining(base,desired,current,true),listEquipment,upcomingDates,calendarTrainings,calendarHall,list:()=>request(),get:date=>request(date),save:(date,data)=>request(date,data),remove,
+  window.SharedTraining={listLeaders,listWithTeam,snapshotSession:async data=>(await concurrency()).trainingSnapshot(data),mergeDraft:async(base,desired,current)=>(await concurrency()).mergeTraining(base,desired,current,true),listEquipment,upcomingDates,calendarTrainings,calendarHall,list:()=>request(),get:date=>request(date),save:(date,data)=>request(date,data),remove,
     listPlayers:()=>roster('spelare'),listCoaches:()=>roster('tranare')};
 })();

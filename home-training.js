@@ -101,7 +101,7 @@
           const session=data.session;
           if(!session)throw Error('Träningen finns inte längre');
           const groups=Array.isArray(session.allocation)?session.allocation.length:0;
-          info.textContent=(session.selected||[]).length+' spelare • '+(session.selectedCoaches||[]).length+' tränare • '+(Number(session.goalieCount)||0)+' målvakter • '+groups+' grupper';
+          info.textContent=(session.selected||[]).length+' spelare • '+(session.selectedCoaches||[]).filter(id=>!String(id).startsWith('equipment:')).length+' tränare • '+(session.selectedCoaches||[]).filter(id=>String(id).startsWith('equipment:')).length+' materialförvaltare • '+(Number(session.goalieCount)||0)+' målvakter • '+groups+' grupper';
           delete details.dataset.loaded;
         }catch(error){delete details.dataset.loaded;info.textContent=error.message||'Kunde inte hämta träningsuppgifter';}
       },{capture:true,signal:eventRoot._trainingToggleAbort.signal});

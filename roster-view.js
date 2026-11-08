@@ -19,9 +19,10 @@
   }
   function select(index){selected=index;for(const [i,group] of groups.entries()){group.panel.hidden=i!==index;group.button.setAttribute('aria-selected',String(i===index));group.button.tabIndex=i===index?0:-1;}refresh();}
   tabs.addEventListener('keydown',event=>{let next;if(event.key==='ArrowRight')next=(selected+1)%groups.length;else if(event.key==='ArrowLeft')next=(selected+groups.length-1)%groups.length;else if(event.key==='Home')next=0;else if(event.key==='End')next=groups.length-1;else return;event.preventDefault();select(next);groups[next].button.focus();});
-  for(const [panel,label] of [[playerPanel,'spelare'],[coachPanel,'tränare']]){
-   const row=panel.querySelector('.roster-add-row');if(!row)continue;
-   const details=document.createElement('details');details.className='roster-add no-print';const summary=document.createElement('summary');summary.textContent='＋ Lägg till '+label;row.before(details);details.append(summary,row);panel.append(details);
+  const staffLabels={leaderList:'lagledare',fitnessList:'fysansvarig',equipmentList:'materialförvaltare'};
+  for(const [panel,label] of [[playerPanel,'spelare'],[coachPanel,'tränare'],...staff.map(list=>[list.closest('section'),staffLabels[list.id]])]){
+   const rows=[...panel.querySelectorAll('.roster-add-row')];if(!rows.length)continue;
+   const details=document.createElement('details');details.className='roster-add no-print';const summary=document.createElement('summary');summary.textContent='＋ Lägg till '+label;details.append(summary,...rows);panel.append(details);
   }
   const setText=(node,value)=>{if(node&&node.textContent!==value)node.textContent=value;};
   function refresh(){
@@ -29,7 +30,7 @@
    for(const [index,group] of groups.entries()){
     const rows=group.lists.flatMap(list=>[...list.querySelectorAll('.person-row')]);setText(group.button,group.label+' ('+(!rows.length&&index<2&&document.body.dataset.rosterLoading==='true'?'…':rows.length)+')');
     for(const row of rows){
-     const button=row.querySelector('[data-roster-name]');const name=button?.querySelector('.roster-name')?.textContent||row.querySelector('summary')?.textContent||'';
+     const button=row.querySelector('[data-roster-name]');const name=button?.querySelector('.roster-name')?.textContent||row.querySelector('.inline-name-input')?.value||row.querySelector('summary')?.textContent||'';
      const hide=!!term&&!name.toLocaleLowerCase('sv').includes(term);if(row.hidden!==hide)row.hidden=hide;
      if(hide)row.dataset.rosterSearchHidden='true';else delete row.dataset.rosterSearchHidden;
      if(index===selected&&!hide)matches++;
