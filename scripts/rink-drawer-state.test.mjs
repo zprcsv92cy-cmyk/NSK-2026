@@ -398,7 +398,7 @@ test('player queues follow the boards through a corner with stable spacing and r
 });
 test('slalom width handles stretch and tighten across either orientation in one undoable drag',()=>{
  for(const angle of [0,90]){const f=editor();f.node('rinkSlalom').onclick();if(angle){f.node('rinkPatternAngle').value=String(angle);f.node('rinkPatternAngle').onchange();}f.flush();const before=f.draft().marks,center={x:before.reduce((s,m)=>s+m.x,0)/4,y:before.reduce((s,m)=>s+m.y,0)/4},ux=angle?0:436/30,uy=angle?820/60:0;
- f.pointer('pointerdown',center.x+3*ux,center.y+3*uy);f.pointer('pointermove',center.x+6*ux,center.y+6*uy);f.pointer('pointerup',center.x+6*ux,center.y+6*uy);f.flush();const wide=f.draft().marks;assert.ok(wide.every(m=>Math.abs(m.patternWidth-12)<1e-6));assert.ok(wide.every(m=>m.patternSpacing===4&&m.patternCount===4));f.node('rinkUndo').onclick();f.flush();assert.deepEqual(f.draft().marks,before);
+ f.pointer('pointerdown',center.x+3*ux,center.y+3*uy);f.pointer('pointermove',center.x+6*ux,center.y+6*uy);f.pointer('pointerup',center.x+6*ux,center.y+6*uy);f.flush();const wide=f.draft().marks;assert.ok(wide.every(m=>m.x2===undefined&&m.y2===undefined));const reloaded=editor(Object.fromEntries(f.storage));reloaded.leave();assert.deepEqual(reloaded.draft().marks,wide);assert.ok(wide.every(m=>Math.abs(m.patternWidth-12)<1e-6));assert.ok(wide.every(m=>m.patternSpacing===4&&m.patternCount===4));f.node('rinkUndo').onclick();f.flush();assert.deepEqual(f.draft().marks,before);
  f.pointer('pointerdown',before[0].x,before[0].y);f.pointer('pointerup',before[0].x,before[0].y);f.pointer('pointerdown',center.x+3*ux,center.y+3*uy);f.pointer('pointermove',center.x+1*ux,center.y+1*uy);f.pointer('pointerup',center.x+1*ux,center.y+1*uy);f.flush();assert.ok(f.draft().marks.every(m=>Math.abs(m.patternWidth-2)<1e-6));
  }
 });
@@ -505,4 +505,14 @@ test('placing asymmetric tires and drawing a sloppy stroke through pointer input
  const radii=tires.map(t=>{const radius=Math.min(...fit.points.map(p=>Math.hypot(p.x-t.x,p.y-t.y)));assert.ok(fit.points.filter(p=>Math.abs(Math.hypot(p.x-t.x,p.y-t.y)-radius)<1e-6).length>=8);return radius;});assert.ok(Math.max(...radii)-Math.min(...radii)<1e-6);
  assert.deepEqual(fit.points[0],route.points[0]);assert.deepEqual(fit.points.at(-1),route.points.at(-1));assert.notDeepEqual(fit.points,route.points);
  f.node('rinkUndo').onclick();f.flush();assert.deepEqual(f.draft().marks,before);f.node('rinkRedo').onclick();f.flush();assert.deepEqual(f.draft().marks,after);
+});
+
+test('restoring point symbols removes stray line endpoints from earlier saves',()=>{
+ const tire={id:'legacy-tire',type:'tire',x:200,y:300,x2:240,y2:350,color:'#111827'};
+ const f=editor({[DRAFT]:JSON.stringify({goalsVersion:1,marks:[tire]})});
+ f.node('rinkTitle').emit('input');f.leave();
+ assert.equal(f.draft().marks.length,1);
+ assert.equal(f.draft().marks[0].x2,undefined);
+ assert.equal(f.draft().marks[0].y2,undefined);
+ assert.equal(f.draft().marks[0].x,200);
 });
