@@ -4,6 +4,7 @@
   "description": "NSK lagapp för poolspel, laguppställning och bytesschema.",
   "start_url": "./startsida/?v=873",
   "display": "standalone",
+  "scope": "./",
   "background_color": "#000000",
   "theme_color": "#c8102e",
   "version": "1.0",
