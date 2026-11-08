@@ -246,15 +246,18 @@ html[data-nsk-theme="arena"] .roster-role-section>h3{margin:0;font-size:1rem}
 html[data-nsk-theme="arena"] .roster-role-section>#leaderList,html[data-nsk-theme="arena"] .roster-role-section>#fitnessList,html[data-nsk-theme="arena"] .roster-role-section>#equipmentList{display:contents!important}
 html[data-nsk-theme="arena"] body.roster-page .roster-person-summary{display:flex;align-items:center;gap:11px;min-height:62px;padding:9px 0;font-weight:700;flex:1;min-width:0}
 
-/* Keep event labels aligned independently of icon insertion order. */
+/* Align calendar metadata with the date, keeping icons in their own gutter. */
 @media screen {
- html[data-nsk-theme="arena"] body.home-page #activityList .nsk-pool-name{position:relative;padding-left:43px}
- html[data-nsk-theme="arena"] body.home-page #activityList .calendar-kind{display:block;margin-left:-43px;margin-bottom:5px;font-size:10px;line-height:1.3;font-weight:500;letter-spacing:.6px}
- html[data-nsk-theme="arena"] body.home-page #activityList .arena-activity-icon{position:absolute;float:none;left:0;top:18px;margin:0;width:32px;height:38px}
+ html[data-nsk-theme="arena"] body.home-page #activityList .nsk-pool-name{position:relative;padding-left:43px;min-height:48px}
+ html[data-nsk-theme="arena"] body.home-page #activityList .calendar-kind{display:block;margin-left:-43px;margin-bottom:5px;font-size:12px;line-height:1.3;font-weight:750;letter-spacing:.6px}
+ html[data-nsk-theme="arena"] body.home-page #activityList .arena-activity-icon{position:absolute;float:none;left:0;top:21px;margin:0;width:32px;height:26px}
+ html[data-nsk-theme="arena"] body.home-page #activityList .nsk-pool-name .arena-icon{height:26px}
+ html[data-nsk-theme="arena"] body.home-page #activityList :is(.nsk-pool-hall,.nsk-training-time){padding-left:43px;box-sizing:border-box}
  html[data-nsk-theme="arena"] body.home-page #activityList details[data-date] .calendar-kind{color:var(--arena-blue,#76b8ed)}
 }
 @media screen and (max-width:600px){
  html[data-nsk-theme="arena"] body.home-page #activityList .nsk-pool-name{padding-left:31px}
+ html[data-nsk-theme="arena"] body.home-page #activityList :is(.nsk-pool-hall,.nsk-training-time){padding-left:31px}
  html[data-nsk-theme="arena"] body.home-page #activityList .calendar-kind{margin-left:-31px}
  html[data-nsk-theme="arena"] body.home-page #activityList .arena-activity-icon{width:24px}
 }
