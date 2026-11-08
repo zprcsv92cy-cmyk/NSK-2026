@@ -25,6 +25,8 @@ jobs:
         run: NSK_JSDOM_MODULE="$RUNNER_TEMP/training-dom/node_modules/jsdom/lib/api.js" node scripts/training-settings-dom-check.mjs
       - name: Verify roster search and training role identity
         run: NSK_JSDOM_MODULE="$RUNNER_TEMP/training-dom/node_modules/jsdom/lib/api.js" node scripts/roster-training-roles-dom-check.mjs
+      - name: Verify cup planner import, persistence and permissions
+        run: NSK_JSDOM_MODULE="$RUNNER_TEMP/training-dom/node_modules/jsdom/lib/api.js" node scripts/cup-planner-dom-check.mjs
       - name: Verify per-match lineup edit, save, reload and failure recovery
         run: NSK_JSDOM_MODULE="$RUNNER_TEMP/training-dom/node_modules/jsdom/lib/api.js" node scripts/lineup-editor-dom-check.mjs
       - name: Verify shift check and uncheck through UI, client and production lock
