@@ -68,6 +68,14 @@
     if(payload!==undefined){window.NSKViewCache?.clear();try{sessionStorage.removeItem('nsk_view_cache_v1');}catch{}}
     return data;
   }
+  async function listWithTeam(){
+    const session=captureSession();
+    const id=await resolveTeam();
+    assertSession(session);
+    const data=await request();
+    assertSession(session);
+    return {teamId:String(id),sessions:Array.isArray(data.sessions)?data.sessions:[]};
+  }
   async function remove(date,revision){
     const session=captureSession();
     if(!/^\d{4}-\d{2}-\d{2}$/.test(date)||!Number.isSafeInteger(revision)||revision<1)
@@ -154,6 +162,6 @@
     }));
     return halls.size===1?[...halls][0]:'';
   }
-  window.SharedTraining={snapshotSession:async data=>(await concurrency()).trainingSnapshot(data),mergeDraft:async(base,desired,current)=>(await concurrency()).mergeTraining(base,desired,current,true),listEquipment,upcomingDates,calendarTrainings,calendarHall,list:()=>request(),get:date=>request(date),save:(date,data)=>request(date,data),remove,
+  window.SharedTraining={listWithTeam,snapshotSession:async data=>(await concurrency()).trainingSnapshot(data),mergeDraft:async(base,desired,current)=>(await concurrency()).mergeTraining(base,desired,current,true),listEquipment,upcomingDates,calendarTrainings,calendarHall,list:()=>request(),get:date=>request(date),save:(date,data)=>request(date,data),remove,
     listPlayers:()=>roster('spelare'),listCoaches:()=>roster('tranare')};
 })();
