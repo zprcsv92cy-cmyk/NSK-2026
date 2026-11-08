@@ -32,7 +32,7 @@ test('shirt edits and two unnamed keepers survive reload, later naming and anoth
    throw Error('Unexpected request: '+input);
   };
   w.eval(read('shared-training.js'));
-  Object.assign(w.SharedTraining,{snapshotSession:async data=>trainingSnapshot(data),mergeDraft:async(b,d,c)=>mergeTraining(b,d,c,true),listPlayers:async()=>['1','2','3','4','5'].map(id=>({id,full_name:'Player '+id})),listCoaches:async()=>[],listEquipment:async()=>[],calendarTrainings:async()=>[],calendarHall:async()=>''});
+  Object.assign(w.SharedTraining,{snapshotSession:async data=>trainingSnapshot(data),mergeDraft:async(b,d,c)=>mergeTraining(b,d,c,true),listPlayers:async()=>['1','2','3','4','5'].map(id=>({id,full_name:'Player '+id})),listCoaches:async()=>[],listEquipment:async()=>[],listLeaders:async()=>[],calendarTrainings:async()=>[],calendarHall:async()=>''});
   w.eval(read('training-groups.js'));w.document.dispatchEvent(new w.Event('DOMContentLoaded'));
   const get=id=>w.document.getElementById(id);
   async function until(check){for(let i=0;i<100;i++){if(check())return;await new Promise(resolve=>setTimeout(resolve,10));}throw Error(get('trainingStatus').textContent);}
