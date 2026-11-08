@@ -127,24 +127,45 @@
     }catch{return true;}
     return false;
   }
+  // Follow the visible viewport, including Safari's keyboard pan, rather than
+  // the layout viewport which can remain full height behind the keyboard.
+  function revealEditor(doc=document){
+    try{
+      const element=doc.activeElement;
+      if(element?.tagName==='IFRAME'){if(element.contentDocument)revealEditor(element.contentDocument);return;}
+      if(!element?.matches('input,textarea,select,[contenteditable]:not([contenteditable="false"])'))return;
+      const scroll=element.closest('.arena-scroll');if(!scroll)return;
+      const field=element.getBoundingClientRect(),bounds=scroll.getBoundingClientRect();
+      if(field.bottom>bounds.bottom-16)scroll.scrollTop+=field.bottom-bounds.bottom+16;
+      else if(field.top<bounds.top+16)scroll.scrollTop+=field.top-bounds.top-16;
+    }catch{}
+  }
   let viewportBound=false;
   function bindMobileViewport(){
     if(viewportBound)return;viewportBound=true;
     let frame=0;
     const sync=()=>{
       frame=0;
-      const height=Math.round(window.innerHeight)+'px';
-      if(document.documentElement.style.getPropertyValue('--nsk-app-height')!==height)document.documentElement.style.setProperty('--nsk-app-height',height);
-      const editing=editingViewport();
-      // Safari can leave the root document panned after dismissing its keyboard.
-      // Only the inner content is scrollable; do not reset that content or a zoomed page.
-      if(window.innerWidth<=760&&!editing&&(!window.visualViewport||Math.abs(window.visualViewport.scale-1)<0.01)&&window.scrollY!==0)window.scrollTo({top:0,left:0,behavior:'instant'});
+      const viewport=window.visualViewport;
+      const unzoomed=!viewport||Math.abs(viewport.scale-1)<0.01;
+      const mobile=window.innerWidth<=760,editing=editingViewport();
+      // Inner iframe viewports do not report the outer keyboard dimensions.
+      const keyboard=mobile&&editing&&unzoomed&&window.parent===window&&
+        !!viewport&&window.innerHeight-viewport.height>120;
+      document.documentElement.classList.toggle('nsk-keyboard-open',keyboard);
+      const values={'--nsk-app-height':Math.round(keyboard?viewport.height:window.innerHeight)+'px',
+        '--nsk-app-top':Math.round(keyboard?viewport.offsetTop:0)+'px'};
+      for(const [name,value] of Object.entries(values)){
+        if(document.documentElement.style.getPropertyValue(name)!==value)document.documentElement.style.setProperty(name,value);
+      }
+      if(keyboard)revealEditor();
+      if(mobile&&!editing&&unzoomed&&window.scrollY!==0)window.scrollTo({top:0,left:0,behavior:'instant'});
     };
     const schedule=()=>{if(!frame)frame=requestAnimationFrame(sync);};
     for(const event of ['resize','orientationchange','pageshow','scroll'])window.addEventListener(event,schedule,{passive:true});
     window.visualViewport?.addEventListener('resize',schedule,{passive:true});
     window.visualViewport?.addEventListener('scroll',schedule,{passive:true});
-    document.addEventListener('focusout',()=>{schedule();setTimeout(schedule,150);setTimeout(schedule,500);});
+    for(const event of ['focusin','focusout'])document.addEventListener(event,()=>{schedule();setTimeout(schedule,150);setTimeout(schedule,500);});
     sync();
   }
   function mountCodes(){
