@@ -65,3 +65,4 @@ export function validCup(cup){
  const strings=(items,max,count)=>Array.isArray(items)&&items.length<=count&&items.every(s=>typeof s==='string'&&s.length<=max);
  return strings(cup.teams,300,128)&&strings(cup.scheduleHeaders,300,15)&&strings(cup.warnings,300,4)&&Array.isArray(cup.schedule)&&cup.schedule.length<=200&&cup.schedule.every(row=>strings(row,300,15));
 }
+export {boundedText,cupText as textFromCupHtml,attr as cupAttribute,element as cupElement};
