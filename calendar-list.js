@@ -14,6 +14,12 @@
     if(name&&!name.querySelector('.calendar-kind')){
       const label=document.createElement('span');label.className='calendar-kind';label.textContent=training?'Träning':'Poolspel';name.prepend(label);
     }
+    if(training&&name){
+      const label=name.querySelector('.calendar-kind');
+      const group=/^(?:17\/18|18\/19|18)$/.test(row.dataset.trainingGroup||'')?row.dataset.trainingGroup:'';
+      const text='Träning'+(group?' '+group:'');
+      if(label&&label.textContent!==text)label.textContent=text;
+    }
     // Keep the date intact without preventing long event names from wrapping.
     if(name&&!name.querySelector('.calendar-date')){
       for(const node of [...name.childNodes]){

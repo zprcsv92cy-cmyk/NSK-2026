@@ -174,7 +174,7 @@ test('plain Is for explicit U9 Team 18 is training with times; other teams and n
  ['SUMMARY:Hockeyfritids // Nyköpings Sportklubb','DTSTART:20261030T180000'],
  ['SUMMARY:FOTOGRAFERING // U9 Team 18 - Nyköpings Sportklubb','DTSTART:20261031T180000']
  ];
- assert.deepEqual(parseSvenskalagIcal(ical(events),'2026-10-25'),[{type:'training',date:'2026-10-28',hall:'Stora hallen',startTime:'18:00',endTime:'19:15'}]);
+ assert.deepEqual(parseSvenskalagIcal(ical(events),'2026-10-25'),[{type:'training',date:'2026-10-28',hall:'Stora hallen',startTime:'18:00',endTime:'19:15',trainingGroup:'18'}]);
 });
 test('identical training entries do not imply multiple sessions',()=>{
  const event=['SUMMARY:Träning','DTSTART:20261111T180000','DTEND:20261111T191500','LOCATION:Lilla Hallen'];
@@ -191,4 +191,11 @@ test('fixture overview provenance is explicit and never replaces an independentl
  const explicit=['SUMMARY:Poolspel','DTSTART:20261108T120000','LOCATION:Smehallen B'];
  const derived=parseSvenskalagIcal(ical([match]),'2026-10-29').find(x=>x.type==='pool');assert.equal(derived.fixtureOverview,true);
  for(const events of [[match,explicit],[explicit,match]]){const pool=parseSvenskalagIcal(ical(events),'2026-10-29').filter(x=>x.type==='pool');assert.equal(pool.length,1);assert.notEqual(pool[0].fixtureOverview,true);}
+});
+
+test('imports explicit training groups without mistaking times or unknown groups for a group',()=>{
+ for(const [title,group] of [['Is','18'],['Is 17/18','17/18'],['Is 18 / 19','18/19'],['Is 18','18'],['Träning 18','18'],['Träning',''],['Träning 18:00',''],['Träning 2018','']]){
+  const [item]=parseSvenskalagIcal(ical([['SUMMARY:'+title,'DTSTART:20261109T175500']]),'2026-11-08');
+  assert.equal(item.trainingGroup||'',group,title);
+ }
 });
