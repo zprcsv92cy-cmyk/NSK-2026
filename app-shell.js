@@ -81,7 +81,7 @@
   e.timeout=setTimeout(()=>{if(pending===e&&requestId===sequence){status('Sidan tar längre tid att öppna. Du kan välja en annan sida.');}},15000);
  }
  function ready(source){const e=find(source);if(!e||e.document===source.document)return;const loaded=route(source.location.href);if(!loaded||loaded.url.pathname!==e.route.url.pathname||loaded.url.search!==e.route.url.search)return;e.document=source.document;e.ready=true;restore(source);settle(e);if(!e.restorePending)activate(e,e.requestId,e.everActive?{...e.options,history:false}:e.options);}
- function signedOutNow(){if(signedOut)return;signedOut=true;sequence++;clearTimeout(saveTimer);try{sessionStorage.removeItem(KEY);}catch{}for(const e of entries.values())e.frame.remove();entries.clear();const login=new URL('login/',root);if(active)login.searchParams.set('next',active.route.url.pathname+active.route.url.search);location.replace(login.href);}
+ function signedOutNow(){if(signedOut)return;signedOut=true;sequence++;clearTimeout(saveTimer);try{sessionStorage.removeItem(KEY);}catch{}for(const e of entries.values())e.frame.remove();entries.clear();const login=new URL('startsida/login/',root);if(active)login.searchParams.set('next',active.route.url.pathname+active.route.url.search);location.replace(login.href);}
  window.NSKAppShell={navigate,ready,remember,restore,signedOut:signedOutNow,
   reading(source,delta){const e=find(source);if(e){e.reads=Math.max(0,e.reads+delta);if(e.reads)clearTimeout(e.restoreTimer);else settle(e);}},
   writing(source,delta){const e=find(source);if(e){e.writes=Math.max(0,e.writes+delta);if(!e.writes)prune();}},

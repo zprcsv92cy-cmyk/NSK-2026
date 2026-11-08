@@ -3,7 +3,7 @@
 (() => {
   const root = document.documentElement;
   root.style.visibility = 'hidden';
-  const loginUrl = new URL('../login/', location.href);
+  const loginUrl = new URL('./startsida/login/', document.currentScript.src);
   const original = location.pathname + location.search;
   loginUrl.searchParams.set('next', original);
   function redirect() { location.replace(loginUrl.href); }
