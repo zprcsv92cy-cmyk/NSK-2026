@@ -64,7 +64,7 @@
   try{const data=await api('POST',{url}),saved=existing||plans.find(p=>p.cup.cupId===data.cup.cupId);const plan={cup:data.cup,notes:existing?$('cupNotes').value:saved?.notes||'',status:existing?$('cupPlanStatus').value:saved?.status||'Planerad',revision:saved?.revision||0};clearDirty();openEditor(plan);markDirty();message('Cupuppgifterna är hämtade. Granska och spara planeringen.');}catch(error){message(error.message);}finally{setBusy(false);}
  }
  document.addEventListener('DOMContentLoaded',async()=>{
-  $('cupAge').replaceChildren();for(let age=7;age<=20;age++){const option=node('option','U'+age);option.value='U'+age;$('cupAge').append(option);}$('cupAge').value='U9';
+  $('cupAge').replaceChildren();for(let age=9;age<=18;age++){const option=node('option','U'+age);option.value='U'+age;$('cupAge').append(option);}$('cupAge').value='U9';
   $('cupSearchForm').addEventListener('submit',event=>{event.preventDefault();void findCups();});$('cupAge').addEventListener('change',()=>void findCups());$('cupMore').onclick=()=>void findCups(true);
   $('cupImportForm').addEventListener('submit',event=>{event.preventDefault();void preview($('cupUrl').value.trim());});
   for(const id of ['cupNotes','cupPlanStatus'])$(id).addEventListener('input',markDirty);
