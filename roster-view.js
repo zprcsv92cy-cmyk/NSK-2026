@@ -5,8 +5,23 @@
   if(!players||!coaches)return;
   const staff=['leaderList','fitnessList','equipmentList'].map(id=>document.getElementById(id)).filter(Boolean);
   const playerPanel=players.closest('section'),coachPanel=coaches.closest('section');
-  const other=document.createElement('div');other.className='roster-other';other.id='roster-other';
-  coachPanel.after(other);for(const list of staff)other.append(list.closest('section'));
+  const other=document.createElement('section');other.className='card roster-card roster-other';other.id='roster-other';
+  const heading=document.createElement('h2');heading.textContent='Övriga';other.append(heading);
+  const staffLabels={leaderList:'Lagledare',fitnessList:'Fysansvarig',equipmentList:'Materialförvaltare'};
+  const staffLists=document.createElement('div');staffLists.className='roster-other-list';other.append(staffLists);
+  const staffAdd=document.createElement('details');staffAdd.className='roster-add no-print';
+  const staffSummary=document.createElement('summary');staffSummary.textContent='＋ Lägg till person';staffAdd.append(staffSummary);
+  const roleLabel=document.createElement('label');roleLabel.textContent='Funktion';const roleSelect=document.createElement('select');roleSelect.id='rosterStaffRole';roleLabel.append(roleSelect);staffAdd.append(roleLabel);
+  const roleForms=[];
+  for(const list of staff){
+   const section=list.closest('section'),form=document.createElement('div');form.dataset.staffRole=list.id;
+   form.append(...section.querySelectorAll('.roster-add-row'));staffAdd.append(form);roleForms.push(form);
+   const option=document.createElement('option');option.value=list.id;option.textContent=staffLabels[list.id];roleSelect.append(option);
+   list.setAttribute('aria-label',staffLabels[list.id]);staffLists.append(list);section.remove();
+  }
+  const otherEmpty=document.createElement('p');otherEmpty.className='muted-note';otherEmpty.textContent='Inga personer ännu.';staffLists.append(otherEmpty);
+  const selectRole=()=>{for(const form of roleForms)form.hidden=form.dataset.staffRole!==roleSelect.value;};
+  roleSelect.addEventListener('change',selectRole);selectRole();other.append(staffAdd);coachPanel.after(other);
   const toolbar=document.createElement('div');toolbar.className='roster-toolbar no-print';
   toolbar.innerHTML='<div class="roster-tabs" role="tablist" aria-label="Roll i truppen"></div><label for="rosterNameSearch">Sök namn<input type="search" id="rosterNameSearch" placeholder="Sök namn" autocomplete="off"></label><p id="rosterSearchStatus" class="small" role="status" aria-live="polite" hidden></p>';
   playerPanel.before(toolbar);
@@ -19,8 +34,7 @@
   }
   function select(index){selected=index;for(const [i,group] of groups.entries()){group.panel.hidden=i!==index;group.button.setAttribute('aria-selected',String(i===index));group.button.tabIndex=i===index?0:-1;}refresh();}
   tabs.addEventListener('keydown',event=>{let next;if(event.key==='ArrowRight')next=(selected+1)%groups.length;else if(event.key==='ArrowLeft')next=(selected+groups.length-1)%groups.length;else if(event.key==='Home')next=0;else if(event.key==='End')next=groups.length-1;else return;event.preventDefault();select(next);groups[next].button.focus();});
-  const staffLabels={leaderList:'lagledare',fitnessList:'fysansvarig',equipmentList:'materialförvaltare'};
-  for(const [panel,label] of [[playerPanel,'spelare'],[coachPanel,'tränare'],...staff.map(list=>[list.closest('section'),staffLabels[list.id]])]){
+  for(const [panel,label] of [[playerPanel,'spelare'],[coachPanel,'tränare']]){
    const rows=[...panel.querySelectorAll('.roster-add-row')];if(!rows.length)continue;
    const details=document.createElement('details');details.className='roster-add no-print';const summary=document.createElement('summary');summary.textContent='＋ Lägg till '+label;details.append(summary,...rows);panel.append(details);
   }
@@ -37,6 +51,8 @@
      if(button){const [kind,id]=button.dataset.rosterName.split(':');const badge=button.querySelector('.roster-shirt');if(badge&&window.PersonPhotos){let image=badge.querySelector('img');if(!image){badge.replaceChildren();image=document.createElement('img');image.alt='';image.width=image.height=36;badge.append(image);}window.PersonPhotos.mount(image,button.dataset.rosterTeam,kind,id);}const card=window.PersonCards?.summary?.(button.dataset.rosterTeam,kind,id);if(card){setText(button.querySelector('.roster-meta'),[card.position,card.hand].filter(Boolean).join(' · ')||(kind==='player'?'Spelarkort':'Tränarkort'));setText(button.querySelector('.roster-shirt-number'),kind==='player'?card.number||'':'');}}
     }
    }
+   otherEmpty.hidden=staff.some(list=>list.querySelector('.person-row'));
+   for(const list of staff)for(const note of list.querySelectorAll('.muted-note'))note.hidden=true;
    message.hidden=!term;setText(message,term?(matches?matches+(matches===1?' träff':' träffar'):'Inga namn matchar sökningen.'):'');
   }
   let queued=false;const schedule=()=>{if(queued)return;queued=true;queueMicrotask(()=>{queued=false;refresh();});};

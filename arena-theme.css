@@ -238,3 +238,8 @@
  }
  html[data-nsk-theme="arena"] #shiftMatchList [aria-pressed="true"] .match-list-sub {color:#fff;font-weight:750}
 }
+
+/* Other roster roles share the trainer list presentation without opening a person card. */
+html[data-nsk-theme="arena"] .roster-other-list{display:grid;gap:8px}
+html[data-nsk-theme="arena"] .roster-other-list>#leaderList,html[data-nsk-theme="arena"] .roster-other-list>#fitnessList,html[data-nsk-theme="arena"] .roster-other-list>#equipmentList{display:contents!important}
+html[data-nsk-theme="arena"] body.roster-page .roster-person-summary{display:flex;align-items:center;gap:11px;min-height:62px;padding:9px 0;font-weight:700;flex:1;min-width:0}
