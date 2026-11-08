@@ -17,9 +17,10 @@
    const section=list.closest('section'),form=document.createElement('div');form.dataset.staffRole=list.id;
    form.append(...section.querySelectorAll('.roster-add-row'));staffAdd.append(form);roleForms.push(form);
    const option=document.createElement('option');option.value=list.id;option.textContent=staffLabels[list.id];roleSelect.append(option);
-   list.setAttribute('aria-label',staffLabels[list.id]);staffLists.append(list);section.remove();
+   const group=document.createElement('section');group.className='roster-role-section';
+   const title=document.createElement('h3');title.id='roster-heading-'+list.id;title.textContent=list.id==='fitnessList'?'Fysansvariga':staffLabels[list.id];group.setAttribute('aria-labelledby',title.id);
+   list.setAttribute('aria-label',title.textContent);group.append(title,list);staffLists.append(group);section.remove();
   }
-  const otherEmpty=document.createElement('p');otherEmpty.className='muted-note';otherEmpty.textContent='Inga personer ännu.';staffLists.append(otherEmpty);
   const selectRole=()=>{for(const form of roleForms)form.hidden=form.dataset.staffRole!==roleSelect.value;};
   roleSelect.addEventListener('change',selectRole);selectRole();other.append(staffAdd);coachPanel.after(other);
   const toolbar=document.createElement('div');toolbar.className='roster-toolbar no-print';
@@ -51,8 +52,6 @@
      if(button){const [kind,id]=button.dataset.rosterName.split(':');const badge=button.querySelector('.roster-shirt');if(badge&&window.PersonPhotos){let image=badge.querySelector('img');if(!image){badge.replaceChildren();image=document.createElement('img');image.alt='';image.width=image.height=36;badge.append(image);}window.PersonPhotos.mount(image,button.dataset.rosterTeam,kind,id);}const card=window.PersonCards?.summary?.(button.dataset.rosterTeam,kind,id);if(card){setText(button.querySelector('.roster-meta'),[card.position,card.hand].filter(Boolean).join(' · ')||(kind==='player'?'Spelarkort':'Tränarkort'));setText(button.querySelector('.roster-shirt-number'),kind==='player'?card.number||'':'');}}
     }
    }
-   otherEmpty.hidden=staff.some(list=>list.querySelector('.person-row'));
-   for(const list of staff)for(const note of list.querySelectorAll('.muted-note'))note.hidden=true;
    message.hidden=!term;setText(message,term?(matches?matches+(matches===1?' träff':' träffar'):'Inga namn matchar sökningen.'):'');
   }
   let queued=false;const schedule=()=>{if(queued)return;queued=true;queueMicrotask(()=>{queued=false;refresh();});};
