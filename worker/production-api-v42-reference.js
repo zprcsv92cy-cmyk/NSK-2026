@@ -10,6 +10,7 @@ import {createPrivateSkillsHandler,readSkillsRoster} from './private-skills-api.
 import {createPersonPhotosHandler} from './person-photos-api.js';
 import { createEquipmentHandler } from './equipment-api.js';
 import { fetchBaserowRead as fetch } from './baserow-read-fetch.js';
+import {runCupNightlySync} from './cup-nightly-sync.js';
 import { runSvenskalagScheduledSync } from './svenskalag-scheduled-sync.js';
 import { runChangingRoomCheck } from './rbok-changing-rooms.js';
 import {createCupPlansHandler} from './cup-plans-api.js';
@@ -1286,6 +1287,7 @@ worker_default.fetch=withPagesOrigin(worker_default.fetch);
 // Preserve the existing fetch handler; scheduled sync is separately gated.
 worker_default.scheduled = async (_event,env,ctx) => {
  const job=(async()=>{
+  if(_event?.cron==='* * * * *'){await runCupNightlySync(env);return;}
   // Preserve the calendar's existing six-hour schedule.
   if(!_event?.cron||_event.cron==='15 */6 * * *'){const results=await Promise.allSettled([runSvenskalagScheduledSync(env),syncSweHockey(env)]);if(results.some(r=>r.status==='rejected'))console.warn('A calendar source could not be refreshed');}
   await runChangingRoomCheck(env);
