@@ -28,3 +28,14 @@ test('account navigation uses the current version on every page instead of a fix
   assert.ok(html.includes('navigation.js?v=')&&html.includes('window.NSK_VERSION'),folder);
  }
 });
+
+test('calendar-scoped login returns to the requested view without leaving its path in standalone mode',()=>{
+ for(const prefix of ['/', '/NSK-2026/']){
+  const origin='https://example.test',next=prefix+'truppen/?player=24#card';
+  const location={origin,href:origin+prefix+'startsida/login.html',search:'?next='+encodeURIComponent(next)};
+  const result=Function('location','URL','URLSearchParams','window',destinationSource+'return destination();')(location,URL,URLSearchParams,{navigator:{standalone:true}});
+  const target=new URL(result);assert.equal(target.pathname,prefix+'startsida/');assert.equal(target.searchParams.get('view'),next);
+  location.search='?next='+encodeURIComponent(prefix+'startsida/login.html');
+  assert.equal(Function('location','URL','URLSearchParams','window',destinationSource+'return destination();')(location,URL,URLSearchParams,{navigator:{standalone:true}}),origin+prefix+'startsida/');
+ }
+});
