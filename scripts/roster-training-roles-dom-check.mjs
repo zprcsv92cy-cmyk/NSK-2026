@@ -10,6 +10,8 @@ test('Other roster roles share trainer-style rows without cards and a single add
  const dom=new JSDOM(`<body>${section('playersList','Spelare')}${section('coachesList','Tränare')}${section('leaderList','Lagledare')}${section('fitnessList','Fysansvarig')}${section('equipmentList','Materialförvaltare','<div class="roster-add-row"><select><option>Tränare</option></select></div>')}</body>`,{runScripts:'outside-only'});const w=dom.window;
  try{await ready(w);w.eval(read('roster-view.js'));w.document.getElementById('roster-tab-2').click();
   assert.equal(w.document.querySelectorAll('#roster-other details.roster-add').length,1);assert.equal(w.document.querySelectorAll('#roster-other section.card').length,0);assert.equal(w.document.querySelectorAll('#equipmentList').length,1);
+  assert.deepEqual([...w.document.querySelectorAll('#roster-other .roster-role-section>h3')].map(node=>node.textContent),['Lagledare','Fysansvariga','Materialförvaltare']);
+  for(const id of ['leaderList','fitnessList','equipmentList'])assert.equal(w.document.getElementById(id).closest('.roster-role-section').querySelectorAll('.person-row').length,1);
   const add=w.document.querySelector('#roster-other details.roster-add');assert.equal(add.open,false);
   const role=w.document.getElementById('rosterStaffRole');assert.equal(role.options.length,3);role.value='equipmentList';role.dispatchEvent(new w.Event('change'));
   const material=add.querySelector('[data-staff-role=equipmentList]');assert.equal(material.hidden,false);assert.equal(material.querySelectorAll('.roster-add-row').length,2);assert.equal(add.querySelector('[data-staff-role=leaderList]').hidden,true);
