@@ -222,6 +222,7 @@
      const hallName=String(item.hall||item.place||'').trim().toLocaleLowerCase('sv-SE');
      const saved=savedSessions.find(s=>s.date===item.date);
      if(saved){
+      saved.node.dataset.trainingGroup=item.trainingGroup||'';
       const hall=saved.node.querySelector('.nsk-pool-hall');
       if(hall&&(saved.hall==='hall ej vald'||!saved.hall)&&calendarTrainings.filter(event=>event.date===item.date).length===1){hall.textContent=item.hall||item.place||'Hall ej vald';hall.dataset.roomHall=hall.textContent;saved.hall=hallName;}
       const time=saved.node.querySelector('.nsk-training-time');
@@ -229,7 +230,7 @@
       if(time&&!time.textContent.trim()&&matching.length===1&&(saved.hall===hallName||saved.hall==='hall ej vald'))time.textContent=[item.startTime,item.endTime].filter(Boolean).join('–');
       continue;
      }
-     const row=document.createElement('details');row.className='nsk-pool-row';row.dataset.svenskalagTraining='1';row.dataset.date=item.date;
+     const row=document.createElement('details');row.className='nsk-pool-row';row.dataset.svenskalagTraining='1';row.dataset.date=item.date;row.dataset.trainingGroup=item.trainingGroup||'';
      const summary=document.createElement('summary');summary.className='nsk-pool-summary';
      const name=document.createElement('span');name.className='nsk-pool-name';const day=new Date(item.date+'T12:00:00');
      const weekday=Number.isNaN(day.getTime())?'Träning':day.toLocaleDateString('sv-SE',{weekday:'long'});

@@ -82,8 +82,9 @@ export function parseSvenskalagIcal(text,today){
         const lower=title.toLocaleLowerCase('sv-SE');
         const exclude=/hockeyfritids|fotografering|intresseanmälan|intresseanmäl|anmälan|inställt|cancelled|canceled|lagfoto/.test(lower);
         const date=stockholmDate(event.DTSTART||'');
-        const plainIce=/^is\s*\/\/\s*u\s*9\s+team\s*18\s*[-–]\s*nyköpings\s+(?:sk|sportklubb)$/iu.test(title);
-        const training=plainIce||/(^|[^\p{L}])träning([^\p{L}]|$)|(^|[^\p{L}])is\s*1[789]\s*\/\s*1[789]([^\p{L}]|$)/iu.test(lower);
+        const plainIce=/^is$/iu.test(title)||/^is\s*\/\/\s*u\s*9\s+team\s*18\s*[-–]\s*nyköpings\s+(?:sk|sportklubb)$/iu.test(title);
+        const trainingGroup=title.match(/(?:^|[^\p{L}\d])(?:is|träning)\s*(?:team\s*)?(17\s*\/\s*18|18\s*\/\s*19|18)(?![\d/:])/iu)?.[1]?.replace(/\s/g,'')||(plainIce?'18':'');
+        const training=!!trainingGroup||plainIce||/(^|[^\p{L}])träning([^\p{L}]|$)|(^|[^\p{L}])is\s*1[789]\s*\/\s*1[789]([^\p{L}]|$)/iu.test(lower);
         const pool=!/^(?:match|träningsmatch)\s*(?::|[-–]|\s+(?:mot|vs\.?|versus)\b)/iu.test(title)
           && /(^|[^\p{L}])poolspel([^\p{L}]|$)/iu.test(lower);
         const opponent=!pool&&!training?calendarOpponent(title):'';
@@ -96,7 +97,7 @@ export function parseSvenskalagIcal(text,today){
           const hasLilla=/\blilla\s+hallen\b/.test(hallText);
           const hasStora=/\bstora\s+hallen\b/.test(hallText);
           const hall=hasLilla!==hasStora?(hasLilla?'Lilla Hallen':'Stora hallen'):'';
-          items.push(pool?{type:'pool',date,place,hall:''}:training?{type:'training',date,hall,startTime,endTime}:{type:'match',date,startTime,opponent,place});
+          items.push(pool?{type:'pool',date,place,hall:''}:training?{type:'training',date,hall,startTime,endTime,...(trainingGroup?{trainingGroup}:{})}:{type:'match',date,startTime,opponent,place});
           // Explicit U9 pool fixture groups also supply future pool cards, even without a standalone pool event.
           if(opponent&&place&&title.split(/\s+[-–]\s+/u).length===3&&/poolspel/iu.test(title)&&/(?:^|\W)u\s*9(?:\W|$)/iu.test(title))
             items.push({type:'pool',date,place,hall:'',fixtureOverview:true});
