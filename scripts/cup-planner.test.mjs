@@ -40,3 +40,9 @@ test('frontend package and persistent navigation include the cup planner',()=>{
  for(const path of ['navigation.js','app-shell.js','shell-entry.js','account-access.js','scripts/assemble-frontend.mjs'])assert.match(readFileSync(new URL('../'+path,import.meta.url),'utf8'),/cupplanerare/);
  assert.match(readFileSync(new URL('../worker/production-api-v42-reference.js',import.meta.url),'utf8'),/createCupPlansHandler/);
 });
+
+test('cup discovery requires team authorization, validates age and serves stored results without fetching sources',async t=>{
+ const f=await setup(t);for(const sql of readFileSync(new URL('../migrations/20261108_cup_nightly.sql',import.meta.url),'utf8').split(';').filter(s=>s.trim()))await f.db.prepare(sql).run();
+ const get=(query,user='user',team=18)=>f.handler(new Request('https://test.invalid/api/cups?team_id='+team+'&action=discover&'+query,{headers:user?{Authorization:'Bearer '+f.tokens[user]}:{}}));
+ assert.equal((await get('age=U9',null)).status,401);assert.equal((await get('age=U9','user',19)).status,403);assert.equal((await get('age=U8')).status,400);assert.equal((await get('age=U19')).status,400);assert.equal((await get('age=U9&offset=-1')).status,400);assert.equal((await get('age=U9&age=U10')).status,400);assert.equal((await get('age=U9')).status,200);assert.equal(f.fetches.length,0);
+});
