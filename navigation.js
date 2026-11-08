@@ -146,6 +146,11 @@
     // Embedded pages fill their iframe. Only the outer document owns keyboard
     // sizing; fixed inner bodies can be clipped a second time by iOS.
     if(window.NSKShellHost)return;
+    if(document.documentElement.dataset?.nskNativeForm==='true'){
+      const syncNative=()=>document.documentElement.classList.toggle('nsk-mobile-editing',window.innerWidth<=760&&editingViewport());
+      for(const event of ['focusin','focusout'])document.addEventListener(event,()=>setTimeout(syncNative,0));
+      window.addEventListener('resize',syncNative,{passive:true});syncNative();return;
+    }
     let frame=0;
     const sync=()=>{
       frame=0;
