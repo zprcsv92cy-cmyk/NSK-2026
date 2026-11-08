@@ -6,5 +6,6 @@ const files='pool-schedule-editor.js pool-schedule-model.mjs calendar-pool-recon
 const folders='skills app aktivera anvandare bytesschema lag laguppstallning login malvaktsstatistik matchvy mittkonto skapapoolspel startsida truppen traningsgrupper ovningsarkiv ritverktyg materialforvaltare slipning'.split(' ');
 for(const item of [...files,...folders])fs.cpSync(path.join(root,item),path.join(out,item),{recursive:true});
 // Keep one login template while providing an entry inside legacy calendar installations.
-fs.copyFileSync(path.join(root,'login/index.html'),path.join(out,'startsida/login.html'));
+fs.mkdirSync(path.join(out,'startsida/login'),{recursive:true});
+fs.writeFileSync(path.join(out,'startsida/login/index.html'),fs.readFileSync(path.join(root,'login/index.html'),'utf8').replaceAll('../','../../'));
 }
