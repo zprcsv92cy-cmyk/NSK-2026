@@ -683,7 +683,7 @@
    if(release){
     if(drag.moving)moveDraggedMarks(e,release);
     else if(drag.m.points){if(drag.m.points.length<500)drag.m.points.push(release);}
-    else if(drag.resize===undefined&&!isDivider(drag.m)){drag.m.x2=release.x;drag.m.y2=release.y;}
+    else if(['skate','pass','shot'].includes(drag.m.type)){drag.m.x2=release.x;drag.m.y2=release.y;}
    }
    const {m}=drag;
    const emptyStroke=!drag.moving&&(m.points
@@ -704,7 +704,7 @@
    if(m.directionBoundary&&['skate','curve'].includes(m.type))n.directionBoundary=true;
    if(m.type==='curve'&&m.routeStyle==='planned')n.routeStyle='planned';
    if(m.type==='curve'){n.points=m.points.map(p=>({x:clamp(p.x,22,W-22),y:clamp(p.y,20,H-20)}));n.x=n.points[0].x;n.y=n.points[0].y;}
-   if(m.x2!==undefined){n.x2=clamp(m.x2,22,W-22);n.y2=clamp(m.y2,20,H-20);}
+   if(m.x2!==undefined&&['curve','skate','pass','shot','divider','divider-yellow','divider-blue'].includes(m.type)){n.x2=clamp(m.x2,22,W-22);n.y2=clamp(m.y2,20,H-20);}
    if(m.labelOffset&&Number.isFinite(m.labelOffset.x)&&Number.isFinite(m.labelOffset.y)&&Math.abs(m.labelOffset.x)<=60&&Math.abs(m.labelOffset.y)<=60)n.labelOffset={x:m.labelOffset.x,y:m.labelOffset.y};
    if(m.type==='goal')n.angle=Number.isFinite(m.angle)&&m.angle>=0&&m.angle<=360?m.angle%360:0;
    if(['skate','curve'].includes(m.type)){n.motion=m.motion==='backward'?'backward':'forward';n.color=skatingColor(n);if(['Stopp','Översteg'].includes(m.movementLabel))n.movementLabel=m.movementLabel;}
