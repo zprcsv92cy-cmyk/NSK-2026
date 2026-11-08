@@ -9,20 +9,16 @@
   const heading=document.createElement('h2');heading.textContent='Övriga';other.append(heading);
   const staffLabels={leaderList:'Lagledare',fitnessList:'Fysansvarig',equipmentList:'Materialförvaltare'};
   const staffLists=document.createElement('div');staffLists.className='roster-other-list';other.append(staffLists);
-  const staffAdd=document.createElement('details');staffAdd.className='roster-add no-print';
-  const staffSummary=document.createElement('summary');staffSummary.textContent='＋ Lägg till person';staffAdd.append(staffSummary);
-  const roleLabel=document.createElement('label');roleLabel.textContent='Funktion';const roleSelect=document.createElement('select');roleSelect.id='rosterStaffRole';roleLabel.append(roleSelect);staffAdd.append(roleLabel);
-  const roleForms=[];
   for(const list of staff){
-   const section=list.closest('section'),form=document.createElement('div');form.dataset.staffRole=list.id;
-   form.append(...section.querySelectorAll('.roster-add-row'));staffAdd.append(form);roleForms.push(form);
-   const option=document.createElement('option');option.value=list.id;option.textContent=staffLabels[list.id];roleSelect.append(option);
+   const section=list.closest('section');
+   const staffAdd=document.createElement('details');staffAdd.className='roster-add no-print';
+   const staffSummary=document.createElement('summary');staffSummary.textContent='＋ Lägg till '+staffLabels[list.id].toLocaleLowerCase('sv-SE');
+   staffAdd.append(staffSummary,...section.querySelectorAll('.roster-add-row'));
    const group=document.createElement('section');group.className='roster-role-section';
    const title=document.createElement('h3');title.id='roster-heading-'+list.id;title.textContent=list.id==='fitnessList'?'Fysansvariga':staffLabels[list.id];group.setAttribute('aria-labelledby',title.id);
-   list.setAttribute('aria-label',title.textContent);group.append(title,list);staffLists.append(group);section.remove();
+   list.setAttribute('aria-label',title.textContent);group.append(title,list,staffAdd);staffLists.append(group);section.remove();
   }
-  const selectRole=()=>{for(const form of roleForms)form.hidden=form.dataset.staffRole!==roleSelect.value;};
-  roleSelect.addEventListener('change',selectRole);selectRole();other.append(staffAdd);coachPanel.after(other);
+  coachPanel.after(other);
   const toolbar=document.createElement('div');toolbar.className='roster-toolbar no-print';
   toolbar.innerHTML='<div class="roster-tabs" role="tablist" aria-label="Roll i truppen"></div><label for="rosterNameSearch">Sök namn<input type="search" id="rosterNameSearch" placeholder="Sök namn" autocomplete="off"></label><p id="rosterSearchStatus" class="small" role="status" aria-live="polite" hidden></p>';
   playerPanel.before(toolbar);
