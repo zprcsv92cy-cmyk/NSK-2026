@@ -25,19 +25,20 @@ export function createTrainingHandler(env,listTeams){
   try{
    const actor=await createPersonalRosterIdentityVerifier(env)(token);
    if(!actor)return fail(401,'Invalid session');
-   const access=mapTrustedMembershipsToLegacyTeams(actor,await listTeams());
+   const trustedTeams=await listTeams();
+   const access=mapTrustedMembershipsToLegacyTeams(actor,trustedTeams);
    if(!access.memberships.some(m=>m.team_id===team[0])||!access.permissions.includes('read'))return fail(403,'No team access');
    const db=env.AUTH_DB;
    if(request.method==='GET'&&url.searchParams.get('action')==='changing-rooms'){
     if(dates.length)return fail(400,'Board is team-scoped');
-    if(!(await listTeams()).some(t=>String(t.id)===team[0]&&t.Namn==='NSK Team 18'&&String(t['Säsong'])==='2026'))return fail(403,'Wrong team');
+    if(!(trustedTeams).some(t=>String(t.id)===team[0]&&t.Namn==='NSK Team 18'&&String(t['Säsong'])==='2026'))return fail(403,'Wrong team');
     try{return Response.json(await readChangingRooms(env),{headers:{'cache-control':'private, no-store'}});}
     catch{return fail(502,'Omklädningsrummen kunde inte kontrolleras');}
    }
    if(request.method==='POST'&&url.searchParams.get('action')==='svenskalag-refresh'){
     if(dates.length)return fail(400,'Calendar is team-scoped');
     if(!authorizeTeamFeature(access,team[0],'lineup').allowed)return fail(403,'Edit permission required');
-    const trusted=await listTeams();
+    const trusted=trustedTeams;
     if(!trusted.some(t=>String(t.id)===team[0]&&t.Namn==='NSK Team 18'&&String(t['Säsong'])==='2026'))return fail(403,'Wrong team');
     if(request.headers.get('content-length')&&Number(request.headers.get('content-length'))>0)return fail(400,'No body allowed');
     try{
@@ -52,22 +53,22 @@ export function createTrainingHandler(env,listTeams){
    }
    if(['GET','POST'].includes(request.method)&&url.searchParams.get('action')==='pool-removal-state'){
     if(request.method==='POST'&&!authorizeTeamFeature(access,team[0],'pool').allowed)return fail(403,'Pool edit permission required');
-    if(!(await listTeams()).some(t=>String(t.id)===team[0]&&t.Namn==='NSK Team 18'&&String(t['Säsong'])==='2026'))return fail(403,'Wrong team');
+    if(!(trustedTeams).some(t=>String(t.id)===team[0]&&t.Namn==='NSK Team 18'&&String(t['Säsong'])==='2026'))return fail(403,'Wrong team');
     return savedPoolRemovalState(db,request);
    }
    if(request.method==='POST'&&url.searchParams.get('action')==='calendar-pool-schedule'){
     if(!authorizeTeamFeature(access,team[0],'pool').allowed)return fail(403,'Pool edit permission required');
-    if(!(await listTeams()).some(t=>String(t.id)===team[0]&&t.Namn==='NSK Team 18'&&String(t['Säsong'])==='2026'))return fail(403,'Wrong team');
+    if(!(trustedTeams).some(t=>String(t.id)===team[0]&&t.Namn==='NSK Team 18'&&String(t['Säsong'])==='2026'))return fail(403,'Wrong team');
     return editCalendarPoolSchedule(db,request);
    }
    if(request.method==='POST'&&url.searchParams.get('action')==='calendar-pool-visibility'){
     if(!authorizeTeamFeature(access,team[0],'pool').allowed)return fail(403,'Pool edit permission required');
-    if(!(await listTeams()).some(t=>String(t.id)===team[0]&&t.Namn==='NSK Team 18'&&String(t['Säsong'])==='2026'))return fail(403,'Wrong team');
+    if(!(trustedTeams).some(t=>String(t.id)===team[0]&&t.Namn==='NSK Team 18'&&String(t['Säsong'])==='2026'))return fail(403,'Wrong team');
     return changeCalendarPoolVisibility(db,request);
    }
    if(request.method==='GET'&&url.searchParams.get('action')==='svenskalag-saved'){
     if(dates.length)return fail(400,'Calendar is team-scoped');
-    const trusted=await listTeams();
+    const trusted=trustedTeams;
     if(!trusted.some(t=>String(t.id)===team[0]&&t.Namn==='NSK Team 18'&&String(t['Säsong'])==='2026'))return fail(403,'Wrong team');
     const result=await db.prepare("SELECT event_key,event_type,event_date,event_json FROM svenskalag_calendar_events WHERE team_id=? AND (event_date>=? OR (event_type='training' AND ?=1) OR json_extract(event_json,'$.calendarHidden')=1) ORDER BY event_date DESC,event_key LIMIT 500")
       .bind('NSK Team 18',new Intl.DateTimeFormat('sv-SE',{timeZone:'Europe/Stockholm',year:'numeric',month:'2-digit',day:'2-digit'}).format(new Date()),url.searchParams.get('training_history')==='1'?1:0).all();
