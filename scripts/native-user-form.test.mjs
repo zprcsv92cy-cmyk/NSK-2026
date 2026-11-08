@@ -13,7 +13,7 @@ test('direct user form remains a native document without shell redirect',()=>{
 });
 test('shell users navigation opens top-level form before iframe state is changed',async()=>{
  let destination;
- const context={signedOut:false,route:()=>({slug:'anvandare',url:new URL('https://example.test/site/anvandare/')}),location:{assign:url=>destination=url}};
+ const context={signedOut:false,standalone:false,route:()=>({slug:'anvandare',url:new URL('https://example.test/site/anvandare/')}),location:{assign:url=>destination=url}};
  const start=shell.indexOf(' async function navigate('),end=shell.indexOf('  const reset=',start);
  vm.runInNewContext(shell.slice(start,end)+'} this.navigate=navigate;',context);
  await context.navigate('anvandare');
