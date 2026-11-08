@@ -54,6 +54,7 @@
   }
   if(!reset&&options.fromMenu&&target?.slug==='traningsgrupper'&&!target.url.search){const recent=route(lastRoutes.traningsgrupper);if(recent?.slug==='traningsgrupper')target=recent;}if(!target){location.assign(new URL(value,location.href).href);return;}
   if(options.reloadApp){location.replace(target.url.href);return;}
+  if(options.fromMenu&&!options.reload&&pending&&!pending.ready&&pending.key===keyFor(target,context())){if(options.focus)pending.options.focus=true;return;}
   const requestId=++sequence;
   if(pending&&!pending.ready&&!pending.dirty&&!pending.writes){remove(pending);pending=null;}
   // Flush focused inline editors before leaving; their page remains alive during saving.
