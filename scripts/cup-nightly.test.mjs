@@ -1,0 +1,21 @@
+import test from 'node:test';import assert from 'node:assert/strict';import{readFileSync}from'node:fs';import{fixture}from'./helpers/auth-d1-fixture.mjs';import{runCupNightlySync,discoverStoredCups,cupClock}from'../worker/cup-nightly-sync.js';
+const read=p=>readFileSync(new URL('../'+p,import.meta.url),'utf8');
+async function setup(t){const f=await fixture(t);for(const p of ['migrations/20261108_cup_plans.sql','migrations/20261108_cup_nightly.sql'])for(const sql of read(p).split(';').filter(s=>s.trim()))await f.db.prepare(sql).run();return f;}
+const start='<meta property="og:title" content="Cup U9"><meta name="description" content="Spelas 2027-04-03 - 2027-04-03"><span id="ctl00_cup_players_age">U9</span><div id="cuponline-main"><div class="editor-container"><p>Lagavgift 3000 kr</p></div></div>';
+const directory='<tr><td><a href="/start.aspx?cupid=39900">Cup U9</a></td><td>U9</td><td>3 apr 2027</td><td>NSK</td><td>Ishockey</td><td>Nyköping</td></tr>';
+function source(calls,{fail=false,teamFail=false}={}){return async url=>{calls.push(url);if(fail)throw Error('offline');return new Response(url.includes('default.aspx')?'<a href="/web/Sok-cup.aspx">Sök cup</a>':url.includes('sok-cup.aspx')?directory:url.includes('start.aspx')?start:url.includes('teams.aspx')?'<a href="teamView.aspx?cupid=39900&id=1">NSK Vit</a>':'<div id="cuponline-main"></div>',{status:teamFail&&url.includes('teams.aspx')?503:200,headers:{'Content-Type':'text/html'}});};}
+test('nightly clock follows Swedish winter and summer time',()=>{assert.equal(cupClock(new Date('2026-11-08T01:00Z')).hour,2);assert.equal(cupClock(new Date('2026-07-08T00:00Z')).hour,2);});
+test('bootstrap persists U9–U18 directory; ordinary searches never fetch and a completed day does not refresh again',async t=>{
+ const f=await setup(t),calls=[],now=new Date('2026-11-08T07:00Z');const r=await runCupNightlySync(f.env,{now,fetcher:source(calls)});assert.equal(r.done,true);assert.equal(calls.length,6);
+ const found=await discoverStoredCups(f.db,'U9',0,now);assert.equal(found.total,1);assert.equal(found.items[0].cup.teams[0],'NSK Vit');assert.deepEqual(found.items[0].fees,['Lagavgift 3000 kr']);
+ await runCupNightlySync(f.env,{now:new Date('2026-11-08T08:00Z'),fetcher:source(calls)});assert.equal(calls.length,6);await runCupNightlySync(f.env,{now:new Date('2026-11-09T00:00Z'),fetcher:source(calls)});assert.equal(calls.length,6);
+ await runCupNightlySync(f.env,{now:new Date('2026-11-09T01:00Z'),fetcher:source(calls)});assert.equal(calls.length,12);
+});
+test('planned cup refresh changes only teams, preserves notes/status and prevents a stale save overwriting refreshed teams',async t=>{
+ const f=await setup(t),calls=[],now=new Date('2026-11-08T07:00Z');await runCupNightlySync(f.env,{now,fetcher:source(calls)});const c=(await discoverStoredCups(f.db,'U9',0,now)).items[0].cup;c.teams=['Old Team'];c.name='Own title';
+ await f.db.prepare('INSERT INTO cup_plans(team_id,cup_id,cup_json,notes,status,updated_by) VALUES(?,?,?,?,?,?)').bind('18','39900',JSON.stringify(c),'Keep my notes','Anmäld',f.root).run();
+ await runCupNightlySync(f.env,{now:new Date('2026-11-09T01:00Z'),fetcher:source(calls)});const row=await f.db.prepare('SELECT * FROM cup_plans').first();assert.equal(row.notes,'Keep my notes');assert.equal(row.status,'Anmäld');assert.equal(row.revision,2);assert.equal(JSON.parse(row.cup_json).name,'Own title');assert.deepEqual(JSON.parse(row.cup_json).teams,['NSK Vit']);
+ await runCupNightlySync(f.env,{now:new Date('2026-11-10T01:00Z'),fetcher:source(calls,{teamFail:true})});assert.deepEqual(JSON.parse((await f.db.prepare('SELECT cup_json FROM cup_plans').first()).cup_json).teams,['NSK Vit']);
+ await assert.rejects(runCupNightlySync(f.env,{now:new Date('2026-11-11T01:00Z'),fetcher:source(calls,{fail:true})}));assert.equal((await discoverStoredCups(f.db,'U9',0,new Date('2026-11-11'))).total,1);
+});
+test('active lease prevents overlapping refreshes',async t=>{const f=await setup(t),now=new Date('2026-11-08T01:00Z');await f.db.prepare("INSERT INTO cup_sync_state VALUES(1,'','[]','[]',0,'2026-11-08T02:00:00.000Z','other','','')").run();const calls=[];assert.equal((await runCupNightlySync(f.env,{now,fetcher:source(calls)})).skipped,'locked');assert.equal(calls.length,0);});
