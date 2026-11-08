@@ -1,6 +1,6 @@
 // Keep each page's existing scripts isolated while the outer navigation stays mounted.
 (() => {
- const root=new URL('./',document.currentScript.src),pages=new Set(['startsida','truppen','traningsgrupper','ovningsarkiv','ritverktyg','skapapoolspel','malvaktsstatistik','materialforvaltare','mittkonto','skills','anvandare','lag','laguppstallning','bytesschema','matchvy']);
+ const root=new URL('./',document.currentScript.src),pages=new Set(['startsida','truppen','traningsgrupper','ovningsarkiv','cupplanerare','ritverktyg','skapapoolspel','malvaktsstatistik','materialforvaltare','mittkonto','skills','anvandare','lag','laguppstallning','bytesschema','matchvy']);
  let host;try{host=window.parent!==window?window.parent.NSKAppShell:null;}catch{}
  if(!host){
   if(window.parent!==window)return;

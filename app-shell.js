@@ -1,6 +1,6 @@
 // Persistent chrome and isolated, retained page documents. No database responses are cached here.
 (() => {
- const root=new URL('./',document.currentScript.src),pages=new Set(['startsida','truppen','traningsgrupper','ovningsarkiv','ritverktyg','skapapoolspel','malvaktsstatistik','materialforvaltare','mittkonto','skills','anvandare','lag','laguppstallning','bytesschema','matchvy']);
+ const root=new URL('./',document.currentScript.src),pages=new Set(['startsida','truppen','traningsgrupper','ovningsarkiv','cupplanerare','ritverktyg','skapapoolspel','malvaktsstatistik','materialforvaltare','mittkonto','skills','anvandare','lag','laguppstallning','bytesschema','matchvy']);
  const flow=new Set(['lag','laguppstallning','bytesschema','matchvy']),KEY='nsk_shell_ui_v1',contextKeys=['nsk2_pool_id','nsk2_lag_nr','nsk2_match_no','nsk2_edit_pool_id'];
  const standalone=window.navigator?.standalone===true||window.matchMedia?.('(display-mode: standalone)')?.matches===true;
  history.scrollRestoration='manual';

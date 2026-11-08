@@ -2,7 +2,7 @@
 (() => {
   const entries = [
     ['startsida','Kalender'],['truppen','Truppen'],['traningsgrupper','Träningsplanering'],
-    ['ovningsarkiv','Övningsarkiv'],['ritverktyg','Ritverktyg'],
+    ['ovningsarkiv','Övningsarkiv'],['cupplanerare','Cupplanerare'],['ritverktyg','Ritverktyg'],
     ['skapapoolspel','Skapa poolspel'],['malvaktsstatistik','Statistik'],
     ['materialforvaltare','Materialförvaltare'],['mittkonto','Mitt konto']
   ];

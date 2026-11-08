@@ -9,7 +9,7 @@ test('shared frontend package includes account and match flows but excludes back
  const out=fs.mkdtempSync(path.join(os.tmpdir(),'nsk-package-'));
  t.after(()=>fs.rmSync(out,{recursive:true,force:true}));
  assembleFrontend(fileURLToPath(new URL('../',import.meta.url)),out);
- for(const file of ['startsida/login/index.html','person-photos.js','account-access.js','account-users.js','aktivera/index.html','login/index.html','db.js','laguppstallning/index.html','bytesschema/index.html','matchvy/index.html','sharpening-link-manager.js','concurrency-merge.mjs'])assert.ok(fs.statSync(path.join(out,file)).size,file);
+ for(const file of ['cupplanerare/index.html','cup-planner.js','startsida/login/index.html','person-photos.js','account-access.js','account-users.js','aktivera/index.html','login/index.html','db.js','laguppstallning/index.html','bytesschema/index.html','matchvy/index.html','sharpening-link-manager.js','concurrency-merge.mjs'])assert.ok(fs.statSync(path.join(out,file)).size,file);
  assert.equal(fs.readFileSync(path.join(out,'startsida/login/index.html'),'utf8'),fs.readFileSync(path.join(out,'login/index.html'),'utf8').replaceAll('../','../../'));
  for(const file of ['worker','migrations','scripts','.git','wrangler.api.production.toml','login-patch.js','admin-mode.js'])assert.equal(fs.existsSync(path.join(out,file)),false,file);
 });

@@ -26,6 +26,7 @@ on:
       - 'mittkonto/**'
       - 'materialforvaltare/**'
       - 'skapapoolspel/**'
+      - 'cupplanerare/**'
       - 'startsida/**'
       - 'truppen/**'
       - 'traningsgrupper/**'
