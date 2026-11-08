@@ -38,7 +38,7 @@ function responseFixture(changeStage,changeKind){
  return {api:context.window.SharedTraining,calls,clears:()=>clears};
 }
 for(const stage of ['response','body'])test(`training operations discard stale ${stage} after a session or team change`,async()=>{
- for(const kind of ['session','team'])for(const [operation,args] of [['listWithTeam',[]],['get',['2026-10-31']],['save',['2026-10-31',{selected:[]}]],['remove',['2026-10-31',1]],['listPlayers',[]],['listCoaches',[]],['listEquipment',[]],['calendarTrainings',[]],['calendarHall',['2026-10-31']]]){
+ for(const kind of ['session','team'])for(const [operation,args] of [['listWithTeam',[]],['get',['2026-10-31']],['save',['2026-10-31',{selected:[]}]],['remove',['2026-10-31',1]],['listPlayers',[]],['listCoaches',[]],['listEquipment',[]],['listLeaders',[]],['calendarTrainings',[]],['calendarHall',['2026-10-31']]]){
   const f=responseFixture(stage,kind);
   await assert.rejects(f.api[operation](...args),/ändrades/,`${operation}: ${kind} changed during ${stage}`);
   assert.equal(f.clears(),0,'stale response must not invalidate the new session cache');
@@ -49,4 +49,16 @@ test('a session change while resuming a cached team lookup blocks writes before 
  const f=fixture();await f.api.get('2026-10-31');const before=f.calls.length;
  const pending=f.api.save('2026-10-31',{selected:[]});f.token('session-b');
  await assert.rejects(pending,/ändrades/);assert.equal(f.calls.length,before);
+});
+
+test('training role lists share one staff request and retain a coach link without counting leaders as material staff',async()=>{
+ const calls=[];
+ const context={window:{},Auth:{activeTeam:()=> 'NSK Team 18',getToken:()=> 'synthetic'},fetch:async url=>{
+  calls.push(url);
+  const results=url.includes('/api/lagpersonal?')?[{id:'l',role:'Lagledare',name:'Lisa Ledare'},{id:'e',role:'Materialförvaltare',name:'Old Name',coach_id:'8'}]:url.includes('/api/tranare?')?[{id:8,Namn:'Patrik Tränare',Lag:[18]}]:[{id:18,Namn:'NSK Team 18','Säsong':'2026'}];
+  return {ok:true,json:async()=>({ok:true,results,next:null})};
+ }};
+ vm.runInNewContext(source,context);
+ const [leaders,equipment]=await Promise.all([context.window.SharedTraining.listLeaders(),context.window.SharedTraining.listEquipment()]);
+ assert.equal(calls.filter(url=>url.includes('/api/lagpersonal?')).length,1);assert.equal(leaders.length,1);assert.equal(leaders[0].full_name,'Lisa Ledare');assert.equal(equipment.length,1);assert.equal(equipment[0].full_name,'Patrik Tränare');assert.equal(equipment[0].coach_id,'8');
 });
