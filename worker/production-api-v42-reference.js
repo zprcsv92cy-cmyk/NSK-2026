@@ -12,6 +12,7 @@ import { createEquipmentHandler } from './equipment-api.js';
 import { fetchBaserowRead as fetch } from './baserow-read-fetch.js';
 import { runSvenskalagScheduledSync } from './svenskalag-scheduled-sync.js';
 import { runChangingRoomCheck } from './rbok-changing-rooms.js';
+import {createCupPlansHandler} from './cup-plans-api.js';
 import { createTrainingHandler } from './training-sessions-api.js';
 import { readPersonallyAuthorizedTeams } from './production-team-read.js';
 import { authorizePersonalWorkerWrite } from './personal-roster-worker-adapter.js';
@@ -373,6 +374,12 @@ var worker_default = { async fetch(req, env) {
     for(const [key,value] of Object.entries(cors))headers.set(key,value);
     headers.set("Access-Control-Allow-Methods","GET,PUT,OPTIONS");
     return new Response(response.body,{status:response.status,headers});
+  }
+  if (url.pathname === "/api/cups") {
+    if(req.method==="OPTIONS")return new Response(null,{status:204,headers:{...cors,"Access-Control-Allow-Methods":"GET,POST,PUT,DELETE,OPTIONS","Cache-Control":"no-store"}});
+    const response=await createCupPlansHandler(env,()=>listTrustedRosterTeams(env))(req);
+    const headers=new Headers(response.headers);for(const [key,value]of Object.entries(cors))headers.set(key,value);
+    headers.set("Access-Control-Allow-Methods","GET,POST,PUT,DELETE,OPTIONS");return new Response(response.body,{status:response.status,headers});
   }
   if (url.pathname === "/api/training") {
     if (req.method === "OPTIONS") return new Response(null,{status:204,headers:{...cors,"Access-Control-Allow-Methods":"GET,PUT,POST,DELETE,OPTIONS","Cache-Control":"no-store"}});
