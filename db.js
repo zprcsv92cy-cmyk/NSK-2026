@@ -157,7 +157,8 @@ window.DB = (() => {
     }
     return [...matches.values()];
   }
-  async function listPlayerMatchStats(){
+  async function listPlayerMatchStats(){return withReadSnapshot(listPlayerMatchStatsData);}
+  async function listPlayerMatchStatsData(){
     const team=await teamId();
     const [pools,players,configs,shifts]=await Promise.all([listPools(),listPlayers(),rows('matchkonfiguration',team),rows('bytesschema',team)]);
     const owned=new Map(pools.filter(p=>!p.deleting).map(p=>[Number(p.id),p]));
