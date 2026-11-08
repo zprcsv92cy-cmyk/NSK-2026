@@ -15,3 +15,9 @@ test('public directory cache is shared across age queries without retaining sess
  const fetcher=async url=>{reads++;return new Response(url.includes('default.aspx')?'<a href="/web/Sok-cup.aspx">Sök cup</a>':row(40000,'U10'),{headers:{'Content-Type':'text/html'}});};
  await discoverCups('U9',0,{fetcher,cache,now:new Date('2026-11-08')});await discoverCups('U8',0,{fetcher,cache,now:new Date('2026-11-08')});assert.equal(reads,2);assert.equal(entries.size,1);assert([...entries.keys()].every(key=>!key.includes('team')&&!key.includes('token')));
 });
+
+test('fees handle wrapped minimum-player counts, extra leaders and duplicate headings',()=>{
+ assert.deepEqual(cupFees('AVGIFTER\nAnmälningsavgift/lagavgift:\n2000 SEK/lag (3 st ledare ingår)\nDeltagaravgift (minst 7\nst per lag): 300 SEK/spelare\nExtra ledare: 200 SEK\nper ledare.'),['Anmälningsavgift/lagavgift: 2000 SEK/lag (3 st ledare ingår)','Deltagaravgift (minst 7 st per lag): 300 SEK/spelare','Extra ledare: 200 SEK']);
+ assert.deepEqual(cupFees('Avgifter: Lagavgift 3000 kr\nLagavgift 3000 kr'),['Lagavgift 3000 kr']);
+ assert.deepEqual(cupFees('Prisvärt hotell\nAnmälningsavgift meddelas senare\nKontakt\nSpelaravgift 395 kr'),['Spelaravgift 395 kr']);
+});
