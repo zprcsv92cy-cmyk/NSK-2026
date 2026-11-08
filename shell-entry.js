@@ -1,6 +1,9 @@
 // Keep each page's existing scripts isolated while the outer navigation stays mounted.
 (() => {
  const root=new URL('./',document.currentScript.src),pages=new Set(['startsida','truppen','traningsgrupper','ovningsarkiv','cupplanerare','ritverktyg','skapapoolspel','malvaktsstatistik','materialforvaltare','mittkonto','skills','anvandare','lag','laguppstallning','bytesschema','matchvy']);
+ // User administration uses native document scrolling for iOS form editing.
+ const nativeUsers=window.parent===window&&location.pathname===new URL('anvandare/',root).pathname;
+ if(nativeUsers){document.documentElement.dataset.nskNativeForm='true';return;}
  let host;try{host=window.parent!==window?window.parent.NSKAppShell:null;}catch{}
  if(!host){
   if(window.parent!==window)return;
