@@ -153,6 +153,9 @@
       const keyboard=mobile&&editing&&unzoomed&&window.parent===window&&
         !!viewport&&window.innerHeight-viewport.height>120;
       document.documentElement.classList.toggle('nsk-keyboard-open',keyboard);
+      // iOS standalone mode may shrink both viewport heights equally. Hide the
+      // menu on editor focus as well, before keyboard dimensions are reported.
+      document.documentElement.classList.toggle('nsk-mobile-editing',mobile&&editing&&window.parent===window);
       const values={'--nsk-app-height':Math.round(keyboard?viewport.height:window.innerHeight)+'px',
         '--nsk-app-top':Math.round(keyboard?viewport.offsetTop:0)+'px'};
       for(const [name,value] of Object.entries(values)){
