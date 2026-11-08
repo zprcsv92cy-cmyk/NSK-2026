@@ -38,7 +38,7 @@ function responseFixture(changeStage,changeKind){
  return {api:context.window.SharedTraining,calls,clears:()=>clears};
 }
 for(const stage of ['response','body'])test(`training operations discard stale ${stage} after a session or team change`,async()=>{
- for(const kind of ['session','team'])for(const [operation,args] of [['get',['2026-10-31']],['save',['2026-10-31',{selected:[]}]],['remove',['2026-10-31',1]],['listPlayers',[]],['listCoaches',[]],['listEquipment',[]],['calendarTrainings',[]],['calendarHall',['2026-10-31']]]){
+ for(const kind of ['session','team'])for(const [operation,args] of [['listWithTeam',[]],['get',['2026-10-31']],['save',['2026-10-31',{selected:[]}]],['remove',['2026-10-31',1]],['listPlayers',[]],['listCoaches',[]],['listEquipment',[]],['calendarTrainings',[]],['calendarHall',['2026-10-31']]]){
   const f=responseFixture(stage,kind);
   await assert.rejects(f.api[operation](...args),/ändrades/,`${operation}: ${kind} changed during ${stage}`);
   assert.equal(f.clears(),0,'stale response must not invalidate the new session cache');

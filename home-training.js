@@ -3,18 +3,12 @@
   const escapeHtml=s=>String(s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
   let currentContext=null;
   async function loadSessions(base,token,team){
-      const teamResponse=await fetch(base+'/api/lag',{headers:{Authorization:'Bearer '+token},cache:'no-store'});
-      if(!teamResponse.ok)throw Object.assign(Error('Kunde inte läsa lag'),{status:teamResponse.status});
-      const teamData=await teamResponse.json();
-      const teams=Array.isArray(teamData.results)?teamData.results:Array.isArray(teamData)?teamData:[];
-      const matches=teams.filter(t=>t.Namn===team&&String(t['Säsong'])==='2026');
-      if(matches.length!==1)throw Error('Lagkopplingen saknas');
-      const response=await fetch(base+'/api/training?team_id='+encodeURIComponent(matches[0].id),{headers:{Authorization:'Bearer '+token},cache:'no-store'});
-      if(!response.ok)throw Object.assign(Error('Gemensamma träningar är ännu inte aktiverade'),{status:response.status});
-      const data=await response.json();
-      const calendar=await SharedTraining.calendarTrainings().catch(()=>[]);
-      const sessions=(Array.isArray(data.sessions)?data.sessions:[]).map(session=>window.NSKTrainingCards.enrich(session,calendar));
-    return {teamId:String(matches[0].id),sessions};
+    const [data,calendar]=await Promise.all([
+      SharedTraining.listWithTeam(),
+      SharedTraining.calendarTrainings().catch(()=>[])
+    ]);
+    if(Auth.getToken()!==token||Auth.activeTeam()!==team)throw Error('Inloggningen eller lagvalet ändrades. Försök igen.');
+    return {teamId:data.teamId,sessions:data.sessions.map(session=>window.NSKTrainingCards.enrich(session,calendar))};
   }
   async function render(viewData = null){
     const root=document.getElementById('savedTrainingsList');

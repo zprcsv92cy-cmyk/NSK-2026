@@ -86,3 +86,12 @@ test('calendar shell reload preserves the requested view instead of wrapping it 
  vm.runInNewContext(entry,{window,document:{currentScript:{src:root.href+'shell-entry.js'},documentElement:{style:{}}},location,URL});
  assert.equal(new URL(redirected).searchParams.get('view'),root.pathname+'truppen/?player=24#card');
 });
+
+for(const sameContext of [true,false])test('repeated menu click '+(sameContext?'reuses loading view':'keeps distinct match context separate'),async()=>{
+ const pending={ready:false,key:'truppen:match-1',options:{focus:false}},target={slug:'truppen',url:new URL(root.href+'truppen/')};
+ const context={signedOut:false,active:{route:{slug:'startsida'}},pending,lastRoutes:{},route:()=>target,context:()=>({match:sameContext?1:2}),keyFor:(_route,ctx)=>'truppen:match-'+ctx.match};
+ const begin=shell.indexOf(' async function navigate('),end=shell.indexOf('  const requestId=++sequence;',begin);
+ vm.runInNewContext(shell.slice(begin,end)+'return "new-navigation"; } this.navigate=navigate;',context);
+ const result=await context.navigate(root.href+'truppen/',{fromMenu:true,focus:true});
+ assert.equal(result,sameContext?undefined:'new-navigation');assert.equal(pending.options.focus,sameContext);
+});
