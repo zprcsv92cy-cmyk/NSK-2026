@@ -34,7 +34,7 @@ test('calendar-scoped login returns to the requested view without leaving its pa
   const origin='https://example.test',next=prefix+'truppen/?player=24#card';
   const location={origin,pathname:prefix+'startsida/login/',href:origin+prefix+'startsida/login/',search:'?next='+encodeURIComponent(next)};
   const result=Function('location','URL','URLSearchParams','window',destinationSource+'return destination();')(location,URL,URLSearchParams,{navigator:{standalone:true}});
-  const target=new URL(result);assert.equal(target.pathname,prefix+'startsida/');assert.equal(target.searchParams.get('view'),next);
+  const target=new URL(result);assert.equal(target.pathname,prefix+'startsida/app/');assert.equal(target.searchParams.get('view'),next);
   location.search='?next='+encodeURIComponent(prefix+'startsida/login/');
   assert.equal(Function('location','URL','URLSearchParams','window',destinationSource+'return destination();')(location,URL,URLSearchParams,{navigator:{standalone:true}}),origin+prefix+'startsida/');
  }

@@ -2,15 +2,27 @@
 (() => {
  const root=new URL('./',document.currentScript.src),pages=new Set(['startsida','truppen','traningsgrupper','ovningsarkiv','cupplanerare','ritverktyg','skapapoolspel','malvaktsstatistik','materialforvaltare','mittkonto','skills','anvandare','lag','laguppstallning','bytesschema','matchvy']);
  // User administration uses native document scrolling for iOS form editing.
- const nativeUsers=window.parent===window&&location.pathname===new URL('anvandare/',root).pathname;
- if(nativeUsers){document.documentElement.dataset.nskNativeForm='true';return;}
+ const standalone=window.navigator?.standalone===true||window.matchMedia?.('(display-mode: standalone)')?.matches===true;
+ const nativePath=new URL(standalone?'startsida/anvandare/':'anvandare/',root).pathname;
+ const nativeUsers=window.parent===window&&[new URL('anvandare/',root).pathname,new URL('startsida/anvandare/',root).pathname].includes(location.pathname);
+ if(nativeUsers){
+  if(standalone&&location.pathname!==nativePath){location.replace(new URL(nativePath+location.search,location.origin).href);return;}
+  document.documentElement.dataset.nskNativeForm='true';
+  if(standalone)document.addEventListener('click',event=>{
+   const link=event.target.closest?.('a[href]');if(event.defaultPrevented||!link||event.button!==0||event.metaKey||event.ctrlKey||event.shiftKey||event.altKey||link.target||link.hasAttribute('download'))return;
+   const target=new URL(link.href);if(target.origin!==root.origin||!target.pathname.startsWith(root.pathname))return;
+   const slug=target.pathname.slice(root.pathname.length).replace(/\/$/,'');if(!pages.has(slug))return;
+   event.preventDefault();const next=new URL(slug==='anvandare'?'startsida/anvandare/':'startsida/app/',root);
+   if(slug!=='anvandare')next.searchParams.set('view',target.pathname+target.search+target.hash);location.assign(next.href);
+  });return;
+ }
  let host;try{host=window.parent!==window?window.parent.NSKAppShell:null;}catch{}
  if(!host){
   if(window.parent!==window)return;
   const path=location.pathname.slice(root.pathname.length).replace(/\/index\.html$/,'/').replace(/\/$/,'');
   if(location.pathname.startsWith(root.pathname)&&pages.has(path)){
    document.documentElement.style.visibility='hidden';
-   const url=new URL('app/',root),view=new URL(location.href).searchParams.get('view');url.searchParams.set('view',path==='startsida'&&view?view:location.pathname+location.search+location.hash);location.replace(url.href);
+   const url=new URL(standalone?'startsida/app/':'app/',root),view=new URL(location.href).searchParams.get('view');url.searchParams.set('view',path==='startsida'&&view?view:location.pathname+location.search+location.hash);location.replace(url.href);
   }
   return;
  }
