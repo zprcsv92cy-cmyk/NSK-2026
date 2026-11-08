@@ -1254,5 +1254,6 @@ button#personCardAvatar:focus-visible{outline:3px solid #ed4361;outline-offset:4
  body.nsk-arena{top:var(--nsk-app-top,0px);bottom:auto}
  html.nsk-keyboard-open body.nsk-arena .arena-brand,
  html.nsk-keyboard-open body.nsk-arena .mainmenu,
- html.nsk-keyboard-open body.nsk-arena>.arena-bottom{display:none!important}
+ html.nsk-keyboard-open body.nsk-arena>.arena-bottom,
+ html.nsk-mobile-editing body.nsk-arena>.arena-bottom{display:none!important}
 }
