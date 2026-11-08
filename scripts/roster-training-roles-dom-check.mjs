@@ -2,19 +2,22 @@ import test from 'node:test';import assert from 'node:assert/strict';import {rea
 const {JSDOM}=await import(pathToFileURL(process.env.NSK_JSDOM_MODULE));
 const read=path=>readFileSync(new URL('../'+path,import.meta.url),'utf8');
 async function ready(w){await new Promise(resolve=>w.document.addEventListener('DOMContentLoaded',resolve,{once:true}));}
-test('Other roster roles share trainer-style rows without cards and a single add form with role choice',async()=>{
+test('Other roster roles share trainer-style rows without cards and separate add controls for each role',async()=>{
  const staffTemplate=read('truppen/index.html').match(/rows\.map\(r=>`(<details[^`]*data-view-key="staff:[^`]+)`\)/)[1];
  const staffRow=Function('r','role','esc','allowed','return `'+staffTemplate+'`;')({id:'synthetic',full_name:'Lagledare Person'},'leader',String,true);
  assert.match(staffRow,/class="roster-name"/);assert.match(staffRow,/class="roster-meta">Lagledare/);assert.doesNotMatch(staffRow,/data-roster-name|person-card-open|aria-haspopup|Tränarkort/);
  const section=(id,name,extra='')=>`<section><h2>${name}</h2><div class="roster-add-row"><input aria-label="Namn ${name}"><button>Lägg till</button></div>${extra}<div id="${id}"><details class="person-row"><summary>${name} Person</summary><input class="inline-name-input" value="${name} Person"></details></div></section>`;
  const dom=new JSDOM(`<body>${section('playersList','Spelare')}${section('coachesList','Tränare')}${section('leaderList','Lagledare')}${section('fitnessList','Fysansvarig')}${section('equipmentList','Materialförvaltare','<div class="roster-add-row"><select><option>Tränare</option></select></div>')}</body>`,{runScripts:'outside-only'});const w=dom.window;
  try{await ready(w);w.eval(read('roster-view.js'));w.document.getElementById('roster-tab-2').click();
-  assert.equal(w.document.querySelectorAll('#roster-other details.roster-add').length,1);assert.equal(w.document.querySelectorAll('#roster-other section.card').length,0);assert.equal(w.document.querySelectorAll('#equipmentList').length,1);
+  assert.equal(w.document.querySelectorAll('#roster-other details.roster-add').length,3);assert.equal(w.document.querySelectorAll('#roster-other section.card').length,0);assert.equal(w.document.querySelectorAll('#equipmentList').length,1);
   assert.deepEqual([...w.document.querySelectorAll('#roster-other .roster-role-section>h3')].map(node=>node.textContent),['Lagledare','Fysansvariga','Materialförvaltare']);
   for(const id of ['leaderList','fitnessList','equipmentList'])assert.equal(w.document.getElementById(id).closest('.roster-role-section').querySelectorAll('.person-row').length,1);
-  const add=w.document.querySelector('#roster-other details.roster-add');assert.equal(add.open,false);
-  const role=w.document.getElementById('rosterStaffRole');assert.equal(role.options.length,3);role.value='equipmentList';role.dispatchEvent(new w.Event('change'));
-  const material=add.querySelector('[data-staff-role=equipmentList]');assert.equal(material.hidden,false);assert.equal(material.querySelectorAll('.roster-add-row').length,2);assert.equal(add.querySelector('[data-staff-role=leaderList]').hidden,true);
+  for(const [id,label] of [['leaderList','lagledare'],['fitnessList','fysansvarig'],['equipmentList','materialförvaltare']]){
+   const group=w.document.getElementById(id).closest('.roster-role-section'),add=group.querySelector('details.roster-add');
+   assert.equal(add.open,false);assert.equal(add.querySelector('summary').textContent,'＋ Lägg till '+label);assert.equal(add.querySelectorAll('.roster-add-row').length,id==='equipmentList'?2:1);
+   add.open=true;assert.equal(add.open,true);
+  }
+  assert.equal(w.document.getElementById('rosterStaffRole'),null);
   const search=w.document.getElementById('rosterNameSearch');search.value='lagledare';search.dispatchEvent(new w.Event('input'));
   assert.equal(w.document.querySelector('#leaderList .person-row').hidden,false);assert.equal(w.document.querySelector('#equipmentList .person-row').hidden,true);assert.equal(w.document.getElementById('rosterSearchStatus').textContent,'1 träff');
  }finally{w.close();}
