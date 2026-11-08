@@ -9,7 +9,8 @@
   if(!raw||!raw.startsWith('/')||raw.startsWith('//')||raw.includes('\\'))return fallback.href;
   const target=new URL(raw,location.origin),root=appRoot.pathname,slug=target.pathname.startsWith(root)?target.pathname.slice(root.length).split('/')[0]:'';
   if(target.origin!==location.origin||!['app','skills','materialforvaltare','startsida','truppen','skapapoolspel','malvaktsstatistik','bytesschema','matchvy','lag','laguppstallning','anvandare','mittkonto','traningsgrupper','ovningsarkiv','cupplanerare','ritverktyg'].includes(slug)||target.pathname===root+'startsida/login/')return fallback.href;
-  if(typeof window!=='undefined'&&(window.navigator?.standalone===true||window.matchMedia?.('(display-mode: standalone)')?.matches===true)){fallback.searchParams.set('view',target.pathname+target.search+target.hash);return fallback.href;}
+  if(typeof window!=='undefined'&&(window.navigator?.standalone===true||window.matchMedia?.('(display-mode: standalone)')?.matches===true)){if(target.pathname===root+'anvandare/'||target.pathname===root+'startsida/anvandare/')return new URL('startsida/anvandare/',appRoot).href;
+   const app=new URL('startsida/app/',appRoot);app.searchParams.set('view',target.pathname===root+'app/'?new URL(target.href).searchParams.get('view')||fallback.pathname:target.pathname+target.search+target.hash);return app.href;}
   return target.href;
  }
  if($('loginForm')){
