@@ -37,3 +37,19 @@ test('training import marks both coach and material roles, counts one person and
   assert.deepEqual([...writes[0].selectedCoaches].sort(),['8','equipment:material-8']);assert.equal(writes[0].selected.length,1);assert.match(get('trainingImportStatus').textContent,/2 deltagare markerade/);
  }finally{w.close();}
 });
+
+test('staff permission refresh preserves typing and open forms while revocation and session changes still lock controls',async()=>{
+ const dom=new JSDOM('<details id="add" open>'+['leader','fitness','equipment'].map(id=>`<input id="${id}Input"><button id="${id}Add">Lägg till</button><div id="${id}List"></div>`).join('')+'<select id="equipmentCoach"></select><button id="equipmentCoachAdd">Tilldela</button></details><p id="truppenMsg"></p>',{runScripts:'outside-only'}),w=dom.window;
+ try{await ready(w);let token='synthetic-a',verify=async()=>true;w.Auth={init:async()=>({}),getToken:()=>token,activeTeam:()=> 'NSK Team 18'};w.NSKRosterCanEdit=()=>verify();
+  const html=read('truppen/index.html'),start=html.indexOf(' let syncSequence=0'),end=html.indexOf(" document.addEventListener('DOMContentLoaded',async()=>{const coachSelect",start);
+  w.eval("(()=>{const roles=[['leader','leader'],['fitness','fitness'],['equipment','equipment']];let allowed=false;const pendingAdds=new Set(),pendingEdits=new Set();"+html.slice(start,end)+"window.syncStaffForTest=sync;})();");
+  await w.syncStaffForTest();const input=w.document.getElementById('leaderInput');input.value='Påbörjat namn';input.focus();
+  const observer=new w.MutationObserver(()=>{});observer.observe(input,{attributes:true,attributeFilter:['disabled']});let release,announce;const entered=new Promise(resolve=>announce=resolve);verify=()=>{announce();return new Promise(resolve=>release=resolve);};
+  const refresh=w.syncStaffForTest();await entered;
+  assert.equal(input.disabled,false);assert.equal(w.document.activeElement,input);assert.equal(observer.takeRecords().length,0);assert.equal(input.value,'Påbörjat namn');assert.equal(w.document.getElementById('add').open,true);
+  release(false);await refresh;assert.equal(input.disabled,true);assert.equal(w.document.getElementById('equipmentCoachAdd').disabled,true);assert.equal(input.value,'Påbörjat namn');observer.disconnect();
+  token='synthetic-b';const oldEntered=new Promise(resolve=>announce=resolve);verify=()=>{announce();return new Promise(resolve=>release=resolve);};const old=w.syncStaffForTest();await oldEntered;const finishOld=release;
+  token='synthetic-c';verify=async()=>true;await w.syncStaffForTest();assert.equal(input.disabled,false);finishOld(false);await old;assert.equal(input.disabled,false);
+  verify=async()=>{throw Error('offline');};await w.syncStaffForTest();assert.equal(input.disabled,true);assert.match(w.document.getElementById('truppenMsg').textContent,/Behörigheten kunde inte kontrolleras/);
+ }finally{w.close();}
+});
