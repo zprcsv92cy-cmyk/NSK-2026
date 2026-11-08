@@ -33,3 +33,12 @@ test('all staff roles share one authorized read and a later reload is fresh',asy
  assert.equal(result[0][0].full_name,'Ledare');assert.equal(result[1].length,0);assert.equal(result[2][0].full_name,'Material');
  await sandbox.window.DB.listStaff('equipment');assert.equal(requests.filter(u=>u.includes('/lagpersonal?')).length,2);
 });
+test('statistics uses one team lookup per load while a later reload remains fresh',async()=>{
+ const calls=[];
+ const context={window:{APP_CONFIG:{API_URL:'https://api.invalid',REQUIRE_SCOPED_ROSTER_READS:true,REQUIRE_SCOPED_COLLECTION_READS:true},Auth:{getToken:()=> 'synthetic'}},URL,console,fetch:async url=>{calls.push(url);return {ok:true,json:async()=>({ok:true,results:url.includes('/lag?')?[{id:18,Namn:'NSK Team 18','Säsong':'2026'}]:[],next:null})};}};
+ vm.runInNewContext(readFileSync(new URL('../db.js',import.meta.url),'utf8'),context);
+ await context.window.DB.listPlayerMatchStats();
+ assert.equal(calls.filter(url=>url.includes('/lag?')).length,1);
+ assert.equal(calls.length,5);
+ await context.window.DB.listPlayerMatchStats();assert.equal(calls.filter(url=>url.includes('/lag?')).length,2);assert.equal(calls.length,10);
+});
