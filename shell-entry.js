@@ -39,6 +39,11 @@
    if(!pages.has(slug)){if(['https:','http:'].includes(url.protocol)){event.preventDefault();window.NSKNavigate(url.href);}return;}if(url.pathname===location.pathname&&url.search===location.search&&url.hash)return;
    event.preventDefault();window.NSKNavigate(url.href);
   });
+  // Focus events do not bubble out of an iframe to the outer shell.
+  for(const event of ['focusin','focusout'])document.addEventListener(event,()=>{
+   window.parent.dispatchEvent(new window.parent.Event('resize'));
+   setTimeout(()=>window.parent.dispatchEvent(new window.parent.Event('resize')),150);
+  });
   document.addEventListener('input',event=>{if(event.target.matches('input:not([type=password]):not([type=search]),textarea,select')&&!event.target.matches('#lineupMatch,#shiftMatch,#trainingCalendar,#trainingDate,#skillsPlayer,#skillsMode,#skillsDate,#skillsColors,#skillsPool,#skillsOwnTeam,#skillsMatch,#equipmentStatusFilter,#exerciseCategory,#exerciseSource,#exerciseAge'))host.dirty(window);});
   document.addEventListener('change',()=>setTimeout(()=>{host.contextChanged(window);host.remember(window);},0));
   document.addEventListener('click',()=>setTimeout(()=>{host.contextChanged(window);host.remember(window);},0));
