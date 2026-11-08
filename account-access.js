@@ -5,10 +5,10 @@
   const data=await response.json().catch(()=>({}));if(!response.ok)throw Error(data.error||'Tjänsten kunde inte nås. Försök igen.');return data;
  }
  function destination(){
-  const fallback=new URL('../startsida/',location.href),raw=new URLSearchParams(location.search).get('next');
+  const appRoot=new URL(location.pathname?.endsWith('/startsida/login/')?'../../':'../',location.href),fallback=new URL('startsida/',appRoot),raw=new URLSearchParams(location.search).get('next');
   if(!raw||!raw.startsWith('/')||raw.startsWith('//')||raw.includes('\\'))return fallback.href;
-  const target=new URL(raw,location.origin),root=new URL('../',location.href).pathname,slug=target.pathname.startsWith(root)?target.pathname.slice(root.length).split('/')[0]:'';
-  if(target.origin!==location.origin||!['app','skills','materialforvaltare','startsida','truppen','skapapoolspel','malvaktsstatistik','bytesschema','matchvy','lag','laguppstallning','anvandare','mittkonto','traningsgrupper','ovningsarkiv','ritverktyg'].includes(slug)||target.pathname===root+'startsida/login.html')return fallback.href;
+  const target=new URL(raw,location.origin),root=appRoot.pathname,slug=target.pathname.startsWith(root)?target.pathname.slice(root.length).split('/')[0]:'';
+  if(target.origin!==location.origin||!['app','skills','materialforvaltare','startsida','truppen','skapapoolspel','malvaktsstatistik','bytesschema','matchvy','lag','laguppstallning','anvandare','mittkonto','traningsgrupper','ovningsarkiv','ritverktyg'].includes(slug)||target.pathname===root+'startsida/login/')return fallback.href;
   if(typeof window!=='undefined'&&(window.navigator?.standalone===true||window.matchMedia?.('(display-mode: standalone)')?.matches===true)){fallback.searchParams.set('view',target.pathname+target.search+target.hash);return fallback.href;}
   return target.href;
  }
@@ -52,7 +52,7 @@
    event.preventDefault();const message=$('changePasswordMessage'),submit=$('changePasswordSubmit');
    if($('changeNewPassword').value!==$('changeConfirmPassword').value){message.textContent='Lösenorden stämmer inte överens.';return;}
    submit.disabled=true;message.textContent='Ändrar lösenord…';
-   try{await request('/api/auth/change-password',{current_password:$('currentPassword').value,password:$('changeNewPassword').value},window.Auth.getToken());await window.Auth.logout();message.textContent='Lösenordet är ändrat. Logga in igen.';setTimeout(()=>location.replace(new URL('../startsida/login.html',location.href).href),1000);}
+   try{await request('/api/auth/change-password',{current_password:$('currentPassword').value,password:$('changeNewPassword').value},window.Auth.getToken());await window.Auth.logout();message.textContent='Lösenordet är ändrat. Logga in igen.';setTimeout(()=>location.replace(new URL('../startsida/login/',location.href).href),1000);}
    catch(error){message.textContent=error.message;}
    finally{for(const id of ['currentPassword','changeNewPassword','changeConfirmPassword'])$(id).value='';submit.disabled=false;}
   });
