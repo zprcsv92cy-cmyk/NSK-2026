@@ -47,6 +47,7 @@
  async function navigate(value,options={}){
   if(signedOut)return;
   let target=route(value);
+  if(target?.slug==='anvandare'){location.assign(target.url.href);return;}
   const reset=options.fromMenu&&active?.route.slug===target?.slug;
   if(reset){
    if(active.dirty||active.writes){status('Spara dina ändringar och vänta tills sparningen är klar innan du återställer sidan.');return;}
