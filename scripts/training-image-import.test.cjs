@@ -142,9 +142,17 @@ test('desktop table skips the response tabs and ignores a leading OCR table bord
 
 test('Kommer matches equipment managers separately and excludes Kan ej',()=>{
  const vm=require('node:vm');
- const start=js.indexOf('  const normalized =');const end=js.indexOf('  async function ',start);
+ const start=js.indexOf('  const normalized =');const end=js.indexOf('  async function readImageText()',start);
  const context={players:[],coaches:[],equipment:[{id:'12345678-1234-1234-1234-123456789abc',full_name:'Anna Testsson'}]};
  vm.runInNewContext(js.slice(start,end)+';this.parse=importCandidates;',context);
  const matched=context.parse('Anmälda\nKommer 0+1\nNamn\nAnna Testsson | Materialare\nKan ej\nErik Exempelsson');
  assert.equal(matched.length,1);assert.equal(matched[0].kind,'equipment');assert.equal(matched[0].full_name,'Anna Testsson');
+});
+
+test('a coach with material duties is one safe import match carrying both roles; leaders are recognized separately',()=>{
+ const vm=require('node:vm'),start=js.indexOf('  const normalized ='),end=js.indexOf('  async function readImageText()',start);
+ const context={players:[{id:1,full_name:'Anna Spelare'}],coaches:[{id:8,full_name:'Patrik Tränare'}],equipment:[{id:'material-8',coach_id:8,full_name:'Patrik Tränare'},{id:'material-9',full_name:'Erik Material'}],leaders:[{id:'leader-1',full_name:'Lisa Lagledare'}]};
+ vm.runInNewContext(js.slice(start,end)+';this.parse=importCandidates;',context);
+ const matches=context.parse('Anmälda\nKommer 1+3\nAnna Spelare\nPatrik Tränare\nErik Material\nLisa Lagledare\nKan ej\nAnnan Person');
+ assert.equal(matches.length,4);const coach=matches.find(p=>p.kind==='coach');assert.equal(coach.id,8);assert.deepEqual([...coach.equipmentIds],['material-8']);assert.equal(matches.filter(p=>p.kind==='equipment').length,1);assert.equal(matches.filter(p=>p.kind==='leader').length,1);assert(matches.every(p=>p.exact));
 });
