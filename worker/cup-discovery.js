@@ -39,13 +39,20 @@ export async function readCupDirectory(fetcher){
  return {source:ENTRY,indexSource:DESKTOP,notice:'',items};
 }
 export function cupFees(info){
- const lines=String(info).split('\n').map(s=>s.trim()).filter(Boolean),found=[];
- for(let i=0;i<lines.length;i++)if(/avgift|kostnad|pris/i.test(lines[i])){
-  const line=/\d/.test(lines[i])?lines[i]:lines[i]+' '+(lines[i+1]||'');
-  if(/\d/.test(line)&&/(\bkr\b|\bsek\b|\beuro\b|€|:-)/i.test(line)&&!found.includes(line))found.push(line.slice(0,700));
+ const lines=String(info).split('\n').map(s=>s.replace(/\s+/g,' ').trim()).filter(Boolean),found=[];
+ const label=/avgift|kostnad|\bpriser?\b|extra\s+ledar/i,money=/\d[\d .,]*\s*(?:kr(?:onor)?\b|sek\b|eur\b|euro\b|€|:-)/i;
+ for(let i=0;i<lines.length;i++){
+  if(!label.test(lines[i])||/^(?:avgifter|kostnader|priser)\s*:?$/i.test(lines[i]))continue;
+  let line=lines[i];
+  for(let j=1;j<=3&&!money.test(line)&&i+j<lines.length;j++){
+   if(label.test(lines[i+j]))break;
+   line+=' '+lines[i+j];
+  }
+  if(money.test(line))found.push(line.slice(0,700));
  }
- return found.slice(0,8);
+ return [...new Set(found)].filter((line,i,all)=>!all.some((other,j)=>i!==j&&line.length>other.length&&line.endsWith(other))).slice(0,8);
 }
+
 export async function discoverCups(age,offset=0,{fetcher=fetch,cache=globalThis.caches?.default,now=new Date()}={}){
  if(!/^U(?:[7-9]|1[0-9]|20)$/.test(age)||!Number.isSafeInteger(offset)||offset<0||offset>1000)throw Error('Välj en åldersklass mellan U7 och U20.');
  const directory=await cached('directory-desktop-v1',()=>readCupDirectory(fetcher),cache),today=now.toLocaleDateString('sv-SE',{timeZone:'Europe/Stockholm',year:'numeric',month:'2-digit',day:'2-digit'});
