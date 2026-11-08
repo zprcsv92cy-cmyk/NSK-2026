@@ -8,4 +8,11 @@ for(const item of [...files,...folders])fs.cpSync(path.join(root,item),path.join
 // Keep one login template while providing an entry inside legacy calendar installations.
 fs.mkdirSync(path.join(out,'startsida/login'),{recursive:true});
 fs.writeFileSync(path.join(out,'startsida/login/index.html'),fs.readFileSync(path.join(root,'login/index.html'),'utf8').replaceAll('../','../../'));
+
+// Keep full-document navigation under the installed calendar start path on iOS.
+for(const [source,target] of [['app','startsida/app'],['anvandare','startsida/anvandare']]){
+ fs.mkdirSync(path.join(out,target),{recursive:true});
+ const html=fs.readFileSync(path.join(root,source,'index.html'),'utf8');
+ fs.writeFileSync(path.join(out,target,'index.html'),html.replace('<head>','<head><base href="../../'+source+'/">'));
+}
 }
