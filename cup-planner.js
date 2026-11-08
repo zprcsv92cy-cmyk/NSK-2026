@@ -15,13 +15,15 @@
  function setBusy(value){busy=value;$('cupFind').disabled=value||searchBusy;$('cupMore').disabled=value||searchBusy;for(const el of document.querySelectorAll('#cupImportForm button,#cupSaveForm input,#cupSaveForm select,#cupSaveForm textarea,#cupSaveForm button,#cupList button,#cupReload'))el.disabled=value||(!canEdit&&el.id!=='cupReload');}
  function setSearchBusy(value){searchBusy=value;$('cupFind').disabled=value||busy;$('cupAge').disabled=value;$('cupMore').disabled=value||busy;}
  function searchCard(item){
-  const card=node('article',undefined,'card'),cup=item.cup;card.append(node('h3',cup?.name||item.name));
-  const facts=node('dl',undefined,'cup-facts');for(const [title,value]of [['Datum',[cup?.startDate||item.startDate,(cup?.endDate||item.endDate)!==(cup?.startDate||item.startDate)?cup?.endDate||item.endDate:''].filter(Boolean).join(' – ')],['Ort',cup?.place||item.place],['Klass',item.age]]){const part=node('div');part.append(node('dt',title),node('dd',value||'Inte angivet'));facts.append(part);}card.append(facts,node('h4','Avgifter'),node('p',item.fees.length?item.fees.join('\n'):(item.detailError?'Avgifterna kunde inte hämtas.':'Inga avgifter kunde avläsas. Se cupinformationen på Cuponline.'),'cup-source-text'));
+  const card=node('details',undefined,'card cup-result'),cup=item.cup,summary=node('summary'),heading=node('strong',cup?.name||item.name);
+  const start=cup?.startDate||item.startDate,end=cup?.endDate||item.endDate;
+  summary.append(heading,node('span',[[start,end!==start?end:''].filter(Boolean).join(' – '),cup?.place||item.place,item.age].filter(Boolean).join(' • '),'cup-result-meta'),node('span',(item.teamsAvailable?(cup?.teams.length||0)+' lag • ':'')+'Avgifter och detaljer','cup-result-hint'),node('span','⌄','cup-result-chevron'));card.append(summary);const content=node('div',undefined,'cup-result-content');
+  content.append(node('h4','Avgifter'),node('p',item.fees.length?item.fees.join('\n'):(item.detailError?'Avgifterna kunde inte hämtas.':'Inga avgifter kunde avläsas. Se cupinformationen på Cuponline.'),'cup-source-text'));
   const teams=node('details');teams.append(node('summary',item.teamsAvailable?'Anmälda lag ('+(cup?.teams.length||0)+' hämtade)':'Anmälda lag – uppgifter saknas'));
-  if(item.teamsAvailable&&cup?.teams.length){const list=node('ul');for(const name of cup.teams)list.append(node('li',name));teams.append(list);}else teams.append(node('p','Inga lag kunde läsas. Kontrollera originalet på Cuponline.'));card.append(teams);
-  if(item.detailError)card.append(node('p',item.detailError,'cup-warning'));
+  if(item.teamsAvailable&&cup?.teams.length){const list=node('ul');for(const name of cup.teams)list.append(node('li',name));teams.append(list);}else teams.append(node('p','Inga lag kunde läsas. Kontrollera originalet på Cuponline.'));content.append(teams);
+  if(item.detailError)content.append(node('p',item.detailError,'cup-warning'));
   const actions=node('div',undefined,'cup-actions'),source=node('a','Öppna på Cuponline');source.href=item.sourceUrl;source.target='_blank';source.rel='noopener noreferrer';actions.append(source);
-  if(canEdit){const add=node('button',plans.some(p=>p.cup.cupId===item.cupId)?'Öppna planering':'Planera cup');add.type='button';add.onclick=()=>{if(busy)return;if(!cup){void preview(item.sourceUrl);return;}const saved=plans.find(p=>p.cup.cupId===item.cupId);if(openEditor({cup,notes:saved?.notes||'',status:saved?.status||'Planerad',revision:saved?.revision||0}))markDirty();};actions.append(add);}card.append(actions);return card;
+  if(canEdit){const add=node('button',plans.some(p=>p.cup.cupId===item.cupId)?'Öppna planering':'Planera cup');add.type='button';add.onclick=()=>{if(busy)return;if(!cup){void preview(item.sourceUrl);return;}const saved=plans.find(p=>p.cup.cupId===item.cupId);if(openEditor({cup,notes:saved?.notes||'',status:saved?.status||'Planerad',revision:saved?.revision||0}))markDirty();};actions.append(add);}content.append(actions);card.append(content);return card;
  }
  async function findCups(append=false){
   if(searchBusy||busy||!teamId)return;
