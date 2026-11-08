@@ -13,7 +13,7 @@
   if(r.slug!=='startsida'||r.url.search||r.url.hash)url.searchParams.set('view',r.url.pathname+r.url.search+r.url.hash);
   return url;
  }
- function currentRoute(){const url=new URL(location.href);return route((url.pathname===root.pathname+'startsida/'||url.pathname===root.pathname+'app/')&&url.searchParams.get('view')||url.href);}
+ function currentRoute(){const url=new URL(location.href);return route((url.pathname===root.pathname+'startsida/'||url.pathname===root.pathname+'app/'||url.pathname===root.pathname+'startsida/app/')&&url.searchParams.get('view')||url.href);}
  const context=()=>Object.fromEntries(contextKeys.map(k=>[k,sessionStorage.getItem(k)||'']));
  const keyFor=(r,ctx)=>r.url.pathname+r.url.search+(flow.has(r.slug)?JSON.stringify([ctx.nsk2_pool_id,ctx.nsk2_lag_nr,ctx.nsk2_match_no]):r.slug==='skapapoolspel'?':edit='+ctx.nsk2_edit_pool_id:'');
  const find=source=>[...entries.values()].find(e=>e.frame.contentWindow===source);
@@ -47,7 +47,7 @@
  async function navigate(value,options={}){
   if(signedOut)return;
   let target=route(value);
-  if(target?.slug==='anvandare'){location.assign(target.url.href);return;}
+  if(target?.slug==='anvandare'){location.assign(standalone?new URL('startsida/anvandare/',root).href:target.url.href);return;}
   const reset=options.fromMenu&&active?.route.slug===target?.slug;
   if(reset){
    if(active.dirty||active.writes){status('Spara dina ändringar och vänta tills sparningen är klar innan du återställer sidan.');return;}
