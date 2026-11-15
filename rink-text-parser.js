@@ -78,13 +78,31 @@
   };
   const resolve=s=>{const goal=/mål(?:bur)?\s*(\d{1,2})\b/.exec(s);if(goal){const p=goalReferences[Number(goal[1])-1];if(!p)warn('Mål '+goal[1]+' behöver placeras först.');return p||null;}const r=/(?:spelare\s*(\d{1,2}|[abc])|första spelaren|andra spelaren|tredje spelaren)/.exec(s);if(r){const key=r[1]?({a:'1',b:'2',c:'3'}[r[1]]||r[1]):/första/.test(r[0])?'1':/andra/.test(r[0])?'2':'3';if(references.has(key))return references.get(key);warn('Spelare '+key+' behöver placeras först.');return null;}return loc(s);};
   const typeOf=w=>/målvakt/.test(w)?'goalie':/mål/.test(w)?'goal':/kon|markör/.test(w)?'cone':/puck/.test(w)?'puck':/däck/.test(w)?'tire':'player';
-  const clauses=input.split(/[,.;!?\n]+|\s+(?:och\s+)?(?:sedan|därefter|sen)\s+|\s+och\s+(?=sväng|vänd|stanna|stannar|passa|passar|skjut|åk|åker|runda|fortsätt|framåt|bakåt|baklänges)/)
+  const clauses=input.split(/[,.;!?\n]+|\s+(?:och\s+)?(?:sedan|därefter|sen)\s+|\s+och\s+(?=(?:(?:en|ett)\s+)?spelarled\b|sväng|vänd|stanna|stannar|passa|passar|skjut|åk|åker|runda|fortsätt|framåt|bakåt|baklänges)/)
    .map(s=>s.trim().replace(/(\bsväng(?:er)?\s+)till\s+(?=(?:vänster|höger)$)/,'$1')).filter(Boolean);
   for(const clause of clauses){
    const before=warnings.length;let touched=false;
    const moving=/(?:passar|passning|passa\b|spelar pucken|skjut(?:er)?|skott|avslut|åk\b|åker|åkning|skridsko|åkväg|driver|runda(?:r)?|runt\b|sväng|svänger|vänd(?:er|ning)?|slalom|framåt|bakåt|baklänges|stanna(?:r)?|stopp|översteg)/.test(clause);
    const divider=/avdelare|avgränsare|sargdelare/.test(clause);
    const localContext={...context};if(zone(clause))localContext.zone=zone(clause);
+   const lineup=/^(?:en\s+|ett\s+)?spelarled(?:et)?\s+(.+)$/.exec(clause);
+   if(lineup){
+    const phrase=lineup[1],opposite=/mitt emot|mittemot/.test(phrase);
+    const end=zone(phrase)||context.zone||'lower';
+    const flank=side(phrase)||(opposite?(context.side==='right'?'left':'right'):'left');
+    const onLine=/mållinj|blålinj|mittlinj/.test(phrase);
+    const position=onLine?location(phrase.replace(/förlängda?/g,''),{zone:end,side:flank},warn):null;
+    if(!position){warn('Ange mållinjen, blålinjen eller mittlinjen för spelarledet.');continue;}
+    const amount=/\bmed\s+(\d{1,2}|en|två|tre|fyra|fem|sex|sju|åtta|nio|tio)\s+spelare/.exec(phrase)?.[1];
+    const count=clamp(amounts[amount]||Number(amount)||3,1,7);
+    for(let i=0;i<count;i++){
+     const player=add('player',point(flank==='left'?48+i*26:432-i*26,position.y),defaultColor);
+     if(!player)break;
+     const key=String(references.size+1);
+     player.number=key;references.set(key,player);activePlayer=key;remembered=player;
+    }
+    context={zone:end,side:flank};continue;
+   }
    // Object clauses have their own location; action subjects refer to already placed players.
    if(!moving&&!divider){
     const found=[...clause.matchAll(matcher)].filter(m=>typeOf(m[3])!=='goal'||m[1]||m.index===0||/^(?:placera|lägg till|ställ)\s*$/.test(clause.slice(0,m.index)));
