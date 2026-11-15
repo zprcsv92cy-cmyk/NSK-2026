@@ -39,6 +39,9 @@
  const status=document.getElementById('poolSelectionStatus');
  const choices=document.getElementById('poolSelectionPlayers');
  const output=document.getElementById('poolSelectionResult');
+ const participants=document.getElementById('poolParticipants');
+ const participantCount=document.getElementById('poolParticipantCount');
+ const settings=document.getElementById('poolSelectionSettings');
  let history;
  function session(){return JSON.stringify([Auth.activeTeam(),Auth.getToken()]);}
  async function init(){
@@ -107,6 +110,11 @@
   });
   if(rows.some(({checkbox})=>checkbox===focused)&&document.activeElement!==focused)focused.focus({preventScroll:true});
  }
+ function updateSelectionSettings(){
+  const count=choices.querySelectorAll('input:checked').length;
+  participantCount.textContent='Spelare som kan delta ('+count+')';
+  settings.hidden=settings.disabled=!count;
+ }
  open.addEventListener('click',async()=>{
   open.disabled=true;
   status.textContent='Hämtar matchhistorik och träningsnärvaro…';
@@ -137,7 +145,10 @@
    status.textContent=players.length
     ? attendance.length+' träningar med sparad spelarnärvaro. Markera vilka som kan delta.'
     : 'Det finns inga spelare i truppen.';
+   participants.open=true;
+   form.reset();
    updatePlayerScores();
+   updateSelectionSettings();
    form.hidden=!players.length;
   }catch(error){status.textContent=error.message||'Uttagningsunderlaget kunde inte hämtas.';}
   finally{open.disabled=false;}
@@ -205,10 +216,14 @@
   clearImportReview();
   importText.value='';
   importStatus.textContent=selected.size+' deltagare importerade. De visas överst i poängordning.';
+  importImages.closest('details').open=false;
+  participants.open=true;
+  updateSelectionSettings();
+  settings.querySelector('[name="places"]').focus();
  });
  form.addEventListener('input',event=>{
   if(['teams','places','player'].includes(event.target.name))output.replaceChildren();
-  if(event.target.name==='player')updatePlayerScores();
+  if(event.target.name==='player'){updatePlayerScores();updateSelectionSettings();}
  });
  form.addEventListener('submit',event=>{
   event.preventDefault();
@@ -234,7 +249,9 @@
    return;
   }
   const trainingCount=history.attendance.length;
-  const ranked=selectionScores().filter(player=>ids.has(String(player.id))).sort(compareScores);
+  const scores=selectionScores();
+  const ranked=scores.filter(player=>ids.has(String(player.id))).sort(compareScores);
+  participants.open=false;
   status.textContent=trainingCount?'Viktning 70 % spelade matcher och 30 % träningsnärvaro.':'Spelade matcher avgör eftersom träningsnärvaro saknas.';
   const groups=Array.from({length:teams+1},(_,index)=>{
    const heading=document.createElement('h3');
@@ -247,13 +264,36 @@
    groups.forEach(({name,heading,list})=>{
     heading.textContent=name+' ('+list.children.length+')';
    });
-   const selected=ranked.length-groups[teams].list.children.length;
+   const selected=groups.slice(0,teams).reduce((sum,group)=>sum+group.list.children.length,0);
    count.textContent=selected+' av '+places+' önskade spelare uttagna'+(selected===places?'.':'. Justera uttagningen till '+places+' spelare.');
   }
-  output.replaceChildren(count,...groups.flatMap(({heading,list})=>[heading,list]));
-  ranked.forEach((player,index)=>{
+  const addLabel=document.createElement('label');
+  const addPlayer=document.createElement('select');
+  const addButton=document.createElement('button');
+  addButton.type='button';
+  addButton.textContent='Lägg till';
+  addButton.disabled=true;
+  addLabel.append('Lägg till spelare ',addPlayer);
+  const empty=document.createElement('option');
+  empty.value='';
+  empty.textContent='Välj spelare';
+  addPlayer.append(empty);
+  const remaining=scores.filter(player=>!ids.has(String(player.id))).sort((a,b)=>a.name.localeCompare(b.name,'sv'));
+  for(const player of remaining){
+   const option=document.createElement('option');
+   option.value=String(player.id);
+   option.textContent=player.name;
+   addPlayer.append(option);
+  }
+  const addControls=document.createElement('p');
+  addControls.append(addLabel,' ',addButton);
+  addControls.hidden=!remaining.length;
+  output.replaceChildren(count,addControls,...groups.flatMap(({heading,list})=>[heading,list]));
+  function smallestTeam(){
+   return groups.slice(0,teams).reduce((smallest,group,index)=>group.list.children.length<groups[smallest].list.children.length?index:smallest,0);
+  }
+  function renderPlayer(player,destination){
    const row=document.createElement('li');
-   const destination=index<places?index%teams:teams;
    const name=document.createElement('strong');
    name.textContent=player.name+' · '+scoreLabel(player);
    const detail=document.createElement('div');
@@ -268,15 +308,38 @@
     option.textContent=groupIndex===teams?'Reserv':name;
     move.append(option);
    });
-   move.value=String(destination);
-   move.addEventListener('change',()=>{
-    groups[Number(move.value)].list.append(row);
-    move.focus();
+   const membership=document.createElement('button');
+   membership.type='button';
+   membership.setAttribute('aria-label','Ändra uttagning för '+player.name);
+   function assign(groupIndex){
+    move.value=String(groupIndex);
+    groups[groupIndex].list.append(row);
+    membership.textContent=groupIndex===teams?'Ta ut':'Ta bort från laget';
     updateCounts();
+   }
+   move.addEventListener('change',()=>{
+    assign(Number(move.value));
+    move.focus();
    });
-   row.append(move);
-   groups[destination].list.append(row);
+   membership.addEventListener('click',()=>{
+    assign(Number(move.value)===teams?smallestTeam():teams);
+    membership.focus();
+   });
+   row.append(move,' ',membership);
+   assign(destination);
+  }
+  addPlayer.addEventListener('change',()=>{addButton.disabled=!addPlayer.value;});
+  addButton.addEventListener('click',()=>{
+   const player=remaining.find(candidate=>String(candidate.id)===addPlayer.value);
+   if(!player)return;
+   renderPlayer(player,smallestTeam());
+   addPlayer.selectedOptions[0].remove();
+   addPlayer.value='';
+   addButton.disabled=true;
+   if(addPlayer.options.length===1){addControls.hidden=true;output.tabIndex=-1;output.focus();}
+   else addPlayer.focus();
   });
+  ranked.forEach((player,index)=>renderPlayer(player,index<places?index%teams:teams));
   updateCounts();
  });
  init().catch(error=>console.error('Kunde inte öppna uttagningen:',error));

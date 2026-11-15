@@ -87,8 +87,6 @@
       <button id="poolSelectionOpen" type="button" class="nsk-action nsk-action--primary">Föreslå uttagning</button>
       <p id="poolSelectionStatus" role="status"></p>
       <form id="poolSelectionForm" hidden>
-        <label>Antal lag <input name="teams" type="number" min="1" value="1" required inputmode="numeric"></label>
-        <label>Totalt antal spelare <input name="places" type="number" min="1" required inputmode="numeric"></label>
         <details>
           <summary>Importera från SvenskaLag</summary>
           <p><label for="selectionImportImages">Välj skärmbilder</label> <input id="selectionImportImages" type="file" accept="image/*" multiple></p>
@@ -99,11 +97,16 @@
           <p id="selectionImportStatus" role="status"></p>
           <div id="selectionImportReview"></div>
         </details>
-        <fieldset>
-          <legend>Spelare som kan delta</legend>
+        <details id="poolParticipants" open>
+          <summary id="poolParticipantCount">Spelare som kan delta</summary>
           <div id="poolSelectionPlayers"></div>
+        </details>
+        <fieldset id="poolSelectionSettings" hidden disabled>
+          <legend>Skapa lagförslag</legend>
+          <label>Totalt antal spelare <input name="places" type="number" min="1" required inputmode="numeric"></label>
+          <label>Antal lag <input name="teams" type="number" min="1" required inputmode="numeric"></label>
+          <button type="submit">Visa förslag</button>
         </fieldset>
-        <button type="submit">Visa förslag</button>
       </form>
       <div id="poolSelectionResult" aria-live="polite"></div>
     </section>
