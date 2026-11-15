@@ -731,19 +731,51 @@
   $('rinkSettingsSummary').textContent=$('rinkTitle').value.trim()||'Övningens uppgifter';render();
  }
  function restore(){const draft=readStored(DRAFT),saved=draft||readStored(SAVED);if(saved){applyRecord(saved);$('rinkDraftStatus').textContent=draft?'Utkast återställt från denna enhet.':'Senaste sparade övningen öppnad.';}else{marks=defaultGoals();render();}}
+ function showTextFeedback(message=''){
+  const feedback=$('rinkTextFeedback');
+  if(feedback){feedback.textContent=message;feedback.hidden=!message;}
+  announce(message);
+ }
  function drawFromText(){
   stopDictation();
-  const text=$('rinkDescription').value.trim();if(!text){announce('Beskriv först övningen.');return;}
-  const parser=window.NskRinkTextParser;if(!parser){announce('Texttolkningen kunde inte laddas. Uppdatera sidan.');return;}
-  const goals=marks.filter(m=>m.type==='goal'),result=parser.parse(text,$('rinkColor').value,{goals});
-  if(!result.marks.length){announce(result.warnings.join(' / ')||'Ingen ritning skapades. Prova: En spelare i mittcirkeln.');return;}
+  showTextFeedback();
+  const text=$('rinkDescription').value.trim();
+  if(!text){showTextFeedback('Beskriv först övningen.');return;}
+  const parser=window.NskRinkTextParser;
+  if(!parser){showTextFeedback('Texttolkningen kunde inte laddas. Uppdatera sidan.');return;}
+  const goals=marks.filter(m=>m.type==='goal');
+  let result,previewMarks;
+  try{
+   result=parser.parse(text,$('rinkColor').value,{goals});
+   if(result.marks.length){
+    const proposed=result.marks.some(m=>m.type==='goal')?result.marks:[...goals,...result.marks];
+    previewMarks=safeMarks(proposed.map(m=>({...m,id:uuid()})));
+   }
+  }catch(error){
+   console.error('Ritassistentens förhandsvisning misslyckades',error);
+   showTextFeedback('Förhandsvisningen kunde inte skapas. Prova en kortare beskrivning eller tryck Visa exempel.');
+   return;
+  }
+  if(!previewMarks?.length){
+   showTextFeedback(result.warnings.join(' / ')||'Ingen ritning skapades. Prova: En spelare i mittcirkeln.');
+   return;
+  }
   if(tidyPreview)cancelTidyPreview(false);
-  if(!result.marks.some(m=>m.type==='goal'))result.marks.unshift(...goals);
-  textPreview={base:snapshot(),text,marks:safeMarks(result.marks.map(m=>({...m,id:uuid()})))};
+  textPreview={base:snapshot(),text,marks:previewMarks};
   const message='Förhandsvisning. Använd förslaget för att ersätta ritningen. Ångra återställer originalet.';
   $('rinkTextPreviewStatus').textContent=message+(result.warnings.length?' Förtydliga: '+result.warnings.join(' / '):'');
   $('rinkSettings').open=false;$('rinkSettings').hidden=true;$('rinkTextPreview').hidden=false;
-  document.body.classList.add('rink-text-previewing');render();announce(message);$('rinkTextApply').focus();
+  document.body.classList.add('rink-text-previewing');
+  try{render();}
+  catch(error){
+   console.error('Kunde inte rita förhandsvisningen',error);
+   clearTextPreview();showDrawingSettings();$('rinkTextPanel').open=true;
+   showTextFeedback('Förhandsvisningen kunde inte visas. Uppdatera sidan och försök igen.');
+   return;
+  }
+  announce(message);
+  $('rinkTextApply').focus({preventScroll:true});
+  $('rinkStage').scrollIntoView?.({block:'start',behavior:'instant'});
  }
  function clearTextPreview(){
   textPreview=null;$('rinkTextPreview').hidden=true;document.body.classList.remove('rink-text-previewing');
