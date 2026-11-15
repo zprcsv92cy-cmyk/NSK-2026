@@ -76,20 +76,36 @@
    return {...player,present,trainingCount,points,matchScore,trainingScore};
   });
  }
+ function scoreLabel(player){
+  return formatPoints.format(player.matchScore+player.trainingScore)+'/100 poäng';
+ }
+ function compareScores(a,b){
+  return b.points-a.points||String(a.last_match||'').localeCompare(b.last_match||'')||a.total_matches-b.total_matches||a.name.localeCompare(b.name,'sv');
+ }
  function describeScore(player){
-  const total=formatPoints.format(player.matchScore+player.trainingScore);
   const match=formatPoints.format(player.matchScore)+'/'+(player.trainingCount?70:100)+' matchpoäng';
   const training=player.trainingCount
    ? formatPoints.format(player.trainingScore)+'/30 träningspoäng ('+player.present+'/'+player.trainingCount+' träningar)'
    : 'träningsnärvaro saknas';
-  return total+'/100 poäng · '+player.total_matches+' matcher · '+match+' · '+training;
+  return player.total_matches+' matcher · '+match+' · '+training;
  }
  function updatePlayerScores(){
   if(!history)return;
   const scores=new Map(selectionScores().map(player=>[String(player.id),player]));
-  choices.querySelectorAll('[data-score-player]').forEach(detail=>{
-   detail.textContent=describeScore(scores.get(detail.dataset.scorePlayer));
+  const focused=document.activeElement;
+  const rows=[...choices.children].map(row=>{
+   const checkbox=row.querySelector('input');
+   const player=scores.get(checkbox.value);
+   row.querySelector('[data-player-name]').textContent=player.name+' · '+scoreLabel(player);
+   row.querySelector('[data-player-detail]').textContent=describeScore(player);
+   return {row,checkbox,player};
   });
+  rows.sort((a,b)=>Number(b.checkbox.checked)-Number(a.checkbox.checked)||
+   (a.checkbox.checked?compareScores(a.player,b.player):a.player.name.localeCompare(b.player.name,'sv')));
+  rows.forEach(({row},index)=>{
+   if(choices.children[index]!==row)choices.insertBefore(row,choices.children[index]||null);
+  });
+  if(rows.some(({checkbox})=>checkbox===focused)&&document.activeElement!==focused)focused.focus({preventScroll:true});
  }
  open.addEventListener('click',async()=>{
   open.disabled=true;
@@ -109,10 +125,12 @@
     input.type='checkbox';
     input.name='player';
     input.value=player.id;
-    label.append(input,' '+player.name);
+    const name=document.createElement('span');
+    name.dataset.playerName='';
+    label.append(input,' ',name);
     const detail=document.createElement('div');
     detail.className='small';
-    detail.dataset.scorePlayer=player.id;
+    detail.dataset.playerDetail='';
     row.append(label,detail);
     return row;
    }));
@@ -186,7 +204,7 @@
   updatePlayerScores();
   clearImportReview();
   importText.value='';
-  importStatus.textContent=selected.size+' spelare markerade som tillgängliga.';
+  importStatus.textContent=selected.size+' deltagare importerade. De visas överst i poängordning.';
  });
  form.addEventListener('input',event=>{
   if(['teams','places','player'].includes(event.target.name))output.replaceChildren();
@@ -216,7 +234,7 @@
    return;
   }
   const trainingCount=history.attendance.length;
-  const ranked=selectionScores().filter(player=>ids.has(String(player.id))).sort((a,b)=>b.points-a.points||String(a.last_match||'').localeCompare(b.last_match||'')||a.total_matches-b.total_matches||a.name.localeCompare(b.name,'sv'));
+  const ranked=selectionScores().filter(player=>ids.has(String(player.id))).sort(compareScores);
   status.textContent=trainingCount?'Viktning 70 % spelade matcher och 30 % träningsnärvaro.':'Spelade matcher avgör eftersom träningsnärvaro saknas.';
   const groups=Array.from({length:teams+1},(_,index)=>{
    const heading=document.createElement('h3');
@@ -237,7 +255,7 @@
    const row=document.createElement('li');
    const destination=index<places?index%teams:teams;
    const name=document.createElement('strong');
-   name.textContent=player.name;
+   name.textContent=player.name+' · '+scoreLabel(player);
    const detail=document.createElement('div');
    detail.className='small';
    detail.textContent=describeScore(player);
