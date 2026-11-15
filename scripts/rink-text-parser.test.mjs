@@ -92,3 +92,16 @@ test('a player named as the pass recipient does not become the passer',()=>{
  assert.equal(pass.y,passer.y);
  assert.equal(pass.y2,recipient.y);
 });
+
+test('player leaves the first line, passes to the second and skates after the pass',()=>{
+ const result=parse('Spelarled på förlängd mållinje och spelarled mitt emot på blålinje. Första spelare tar puck och åker tre meter rakt fram och passar förste spelare i andra ledet. Acceleration till andra ledet.');
+ assert.equal(result.warnings.length,0);
+ const first=result.marks[0];
+ const recipient=result.marks[3];
+ const [puck,approach,pass,follow]=result.marks.slice(6);
+ assert.equal(puck.type,'puck');
+ assert.deepEqual(xy(approach),xy(first));
+ assert.deepEqual([approach.x2,approach.y2],[first.x,first.y-42]);
+ assert.deepEqual([pass.type,pass.x,pass.y,pass.x2,pass.y2],['pass',approach.x2,approach.y2,recipient.x,recipient.y]);
+ assert.deepEqual([follow.type,follow.x,follow.y,follow.x2,follow.y2],['skate',pass.x,pass.y,recipient.x,recipient.y]);
+});
