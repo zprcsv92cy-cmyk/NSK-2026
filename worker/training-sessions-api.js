@@ -61,6 +61,18 @@ export function createTrainingHandler(env,listTeams){
     if(!(trustedTeams).some(t=>String(t.id)===team[0]&&t.Namn==='NSK Team 18'&&String(t['Säsong'])==='2026'))return fail(403,'Wrong team');
     return editCalendarPoolSchedule(db,request);
    }
+   if(request.method==='POST'&&url.searchParams.get('action')==='calendar-training-remove'){
+    if(!authorizeTeamFeature(access,team[0],'lineup').allowed)return fail(403,'Edit permission required');
+    if(!trustedTeams.some(t=>String(t.id)===team[0]&&t.Namn==='NSK Team 18'&&String(t['Säsong'])==='2026'))return fail(403,'Wrong team');
+    const input=await request.text();
+    if(input.length>512)return fail(413,'Too large');
+    let body;try{body=JSON.parse(input);}catch{return fail(400,'Invalid JSON');}
+    if(typeof body?.date!=='string'||!/^20\d{2}-\d{2}-\d{2}$/.test(body.date))return fail(400,'Invalid training date');
+    const result=await db.prepare("UPDATE svenskalag_calendar_events SET event_json=json_set(event_json,'$.calendarHidden',json('true')),manually_edited=1,updated_at=CURRENT_TIMESTAMP WHERE team_id=? AND event_key=? AND event_type='training' AND source='svenskalag'")
+     .bind('NSK Team 18','training:'+body.date).run();
+    if(!result.meta?.changes)return fail(404,'Kalenderträningen finns inte längre.');
+    return Response.json({ok:true,removed:true},{headers:{'cache-control':'no-store'}});
+   }
    if(request.method==='POST'&&url.searchParams.get('action')==='calendar-pool-visibility'){
     if(!authorizeTeamFeature(access,team[0],'pool').allowed)return fail(403,'Pool edit permission required');
     if(!(trustedTeams).some(t=>String(t.id)===team[0]&&t.Namn==='NSK Team 18'&&String(t['Säsong'])==='2026'))return fail(403,'Wrong team');

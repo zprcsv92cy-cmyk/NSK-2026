@@ -211,7 +211,7 @@
  let calendarReady=false;
  let showGeneration=0;
  let trainingSnapshot=null;
- function renderCalendarTrainings(calendarTrainings){
+ function renderCalendarTrainings(calendarTrainings,context){
    const trainingBox=document.getElementById('activityList')||document.getElementById('savedTrainingsList');
    const today=new Date().toLocaleDateString('sv-SE',{year:'numeric',month:'2-digit',day:'2-digit'});
    const upcomingCalendarTrainings=calendarTrainings;
@@ -241,6 +241,31 @@
      summary.append(name,hall,time,arrow);
      const content=document.createElement('div');content.className='nsk-pool-content';
      content.innerHTML=window.NSKTrainingCards.actions(item.date,item.hall||'');
+     if(context?.canRemove){
+      const actions=document.createElement('div');actions.className='nsk-training-delete-row';
+      const remove=document.createElement('button');remove.type='button';remove.className='nsk-training-delete';remove.textContent='Ta bort';
+      const status=document.createElement('p');status.className='small';status.setAttribute('role','status');
+      remove.addEventListener('click',async()=>{
+       if(Auth.activeTeam()!==context.team||Auth.getToken()!==context.token)return;
+       if(!confirm('Ta bort kalenderträningen '+item.date+' för hela laget?'))return;
+       remove.disabled=true;
+       try{
+        const response=await fetch(context.url+'&action=calendar-training-remove',{
+         method:'POST',headers:{Authorization:'Bearer '+context.token,'Content-Type':'application/json'},
+         body:JSON.stringify({date:item.date}),cache:'no-store'
+        });
+        const result=await response.json();
+        if(!response.ok||result.removed!==true)throw Error(result.error||'Kalenderträningen kunde inte tas bort.');
+        window.NSKViewCache?.clear();
+        if(trainingSnapshot===context){
+         context.items=context.items.filter(training=>training.date!==item.date);
+         renderCalendarTrainings(context.items,context);
+        }
+       }catch(error){status.textContent=error.message||'Kalenderträningen kunde inte tas bort.';}
+       finally{remove.disabled=false;}
+      });
+      actions.append(remove,status);content.append(actions);
+     }
      row.append(summary,content);const pastTitle=trainingBox.querySelector('#pastTrainingsTitle');trainingBox.append(row);
     }
     const pastTitle=trainingBox.querySelector('#pastTrainingsTitle');
@@ -255,7 +280,7 @@
  }
  window.addEventListener('nsk:saved-trainings-rendered',()=>{
   const snapshot=trainingSnapshot;
-  if(snapshot&&snapshot.team===Auth.activeTeam()&&snapshot.token===Auth.getToken())renderCalendarTrainings(snapshot.items);
+  if(snapshot&&snapshot.team===Auth.activeTeam()&&snapshot.token===Auth.getToken())renderCalendarTrainings(snapshot.items,snapshot);
  });
  async function show(){
   const generation=++showGeneration;calendarReady=false;trainingSnapshot=null;
@@ -278,8 +303,8 @@
    if(!events.ok)throw Error('Kalendern kunde inte läsas');
    const result=await events.json();let items=Array.isArray(result.items)?result.items:[];
    if(generation!==showGeneration||Auth.activeTeam()!==team||Auth.getToken()!==token)return;
-   trainingSnapshot={team,token,items:items.filter(item=>item.type==='training')};
-   renderCalendarTrainings(trainingSnapshot.items);
+   trainingSnapshot={team,token,url:base+'/api/training?team_id='+encodeURIComponent(matched[0].id),canRemove:Auth.can?.('lineup:edit',team)===true,items:items.filter(item=>item.type==='training')};
+   renderCalendarTrainings(trainingSnapshot.items,trainingSnapshot);
    if(!items.length){root.textContent='Inga kommande kalenderaktiviteter importerade ännu.';renderUpcomingCalendarPools([]);}
    let existingPools=[];
    try{existingPools=await DB.listPools();}
