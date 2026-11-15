@@ -120,21 +120,45 @@
    return {...player,present,points};
   }).sort((a,b)=>b.points-a.points||String(a.last_match||'').localeCompare(b.last_match||'')||a.total_matches-b.total_matches||a.name.localeCompare(b.name,'sv'));
   status.textContent=trainingCount?'Viktning 70 % spelade matcher och 30 % träningsnärvaro.':'Spelade matcher avgör eftersom träningsnärvaro saknas.';
-  const lists=Array.from({length:teams+1},()=>document.createElement('ol'));
+  const groups=Array.from({length:teams+1},(_,index)=>{
+   const heading=document.createElement('h3');
+   const list=document.createElement('ol');
+   return {name:index<teams?'Lag '+(index+1):'Reserver',heading,list};
+  });
+  const count=document.createElement('p');
+  count.setAttribute('role','status');
+  function updateCounts(){
+   groups.forEach(({name,heading,list})=>{
+    heading.textContent=name+' ('+list.children.length+')';
+   });
+   const selected=ranked.length-groups[teams].list.children.length;
+   count.textContent=selected+' av '+places+' önskade spelare uttagna'+(selected===places?'.':'. Justera uttagningen till '+places+' spelare.');
+  }
+  output.replaceChildren(count,...groups.flatMap(({heading,list})=>[heading,list]));
   ranked.forEach((player,index)=>{
    const row=document.createElement('li');
    const attendance=trainingCount ? player.present+'/'+trainingCount+' träningar' : 'närvaro saknas';
    const score=trainingCount ? player.points/(10*trainingCount) : player.points;
-   row.textContent=player.name+' · '+player.total_matches+' matcher · '+attendance+' · '+score.toLocaleString('sv-SE',{maximumFractionDigits:2})+' poäng';
-   lists[index<places?index%teams:teams].append(row);
+   const destination=index<places?index%teams:teams;
+   row.textContent=player.name+' · '+player.total_matches+' matcher · '+attendance+' · '+score.toLocaleString('sv-SE',{maximumFractionDigits:2})+' poäng ';
+   const move=document.createElement('select');
+   move.setAttribute('aria-label','Flytta '+player.name);
+   groups.forEach(({name},groupIndex)=>{
+    const option=document.createElement('option');
+    option.value=groupIndex;
+    option.textContent=groupIndex===teams?'Reserv':name;
+    move.append(option);
+   });
+   move.value=String(destination);
+   move.addEventListener('change',()=>{
+    groups[Number(move.value)].list.append(row);
+    move.focus();
+    updateCounts();
+   });
+   row.append(move);
+   groups[destination].list.append(row);
   });
-  output.replaceChildren();
-  lists.forEach((list,index)=>{
-   if(!list.children.length)return;
-   const heading=document.createElement('h3');
-   heading.textContent=index<teams?'Lag '+(index+1)+' ('+list.children.length+')':'Reserver';
-   output.append(heading,list);
-  });
+  updateCounts();
  });
  init().catch(error=>console.error('Kunde inte öppna uttagningen:',error));
 })();
