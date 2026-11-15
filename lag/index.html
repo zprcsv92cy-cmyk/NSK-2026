@@ -50,12 +50,27 @@
       <div id="activeTeam" class="listrow"></div>
     </section>
 
+    <section class="card" id="poolSelection" hidden>
+      <button id="poolSelectionOpen" type="button" class="nsk-action nsk-action--primary">Föreslå uttagning</button>
+      <p id="poolSelectionStatus" role="status"></p>
+      <form id="poolSelectionForm" hidden>
+        <label>Antal platser <input name="places" type="number" min="1" required inputmode="numeric"></label>
+        <fieldset>
+          <legend>Spelare som kan delta</legend>
+          <div id="poolSelectionPlayers"></div>
+        </fieldset>
+        <button type="submit">Visa förslag</button>
+      </form>
+      <div id="poolSelectionResult" aria-live="polite"></div>
+    </section>
+
     <div id="appError" class="small"></div>
     <script>
       document.write('<script src="../config.js?v=' + window.NSK_VERSION + '"><\/script>');
       document.write('<script src="../auth.js?v=' + window.NSK_VERSION + '"><\/script>');
       document.write('<script src="../db.js?v=' + window.NSK_VERSION + '"><\/script>');
       document.write('<script src="../app.js?v=' + window.NSK_VERSION + '"><\/script>');
+      document.write('<script src="../shared-training.js?v=' + window.NSK_VERSION + '"><\/script>');
       document.write('<script src="../pool-team-editor.js?v=' + window.NSK_VERSION + '"><\/script>');
     </script>
   </div>
