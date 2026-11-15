@@ -58,6 +58,39 @@
   }
   return attendance;
  }
+ const formatPoints=new Intl.NumberFormat('sv-SE',{maximumFractionDigits:1});
+ function selectionScores(){
+  const trainingCount=history.attendance.length;
+  const selected=new Set(new FormData(form).getAll('player'));
+  const candidates=history.players.filter(player=>selected.has(String(player.id)));
+  const baseline=candidates.length?candidates:history.players;
+  const least=Math.min(...baseline.map(player=>player.total_matches));
+  return history.players.map(player=>{
+   const present=history.attendance.filter(training=>training.has(String(player.id))).length;
+   const rotation=Math.max(0,100-20*Math.max(0,player.total_matches-least));
+   const matchPoints=trainingCount?7*rotation:rotation;
+   const trainingPoints=300*present;
+   const points=trainingCount?matchPoints*trainingCount+trainingPoints:rotation;
+   const matchScore=trainingCount?matchPoints/10:rotation;
+   const trainingScore=trainingCount?trainingPoints/(10*trainingCount):0;
+   return {...player,present,trainingCount,points,matchScore,trainingScore};
+  });
+ }
+ function describeScore(player){
+  const total=formatPoints.format(player.matchScore+player.trainingScore);
+  const match=formatPoints.format(player.matchScore)+'/'+(player.trainingCount?70:100)+' matchpoäng';
+  const training=player.trainingCount
+   ? formatPoints.format(player.trainingScore)+'/30 träningspoäng ('+player.present+'/'+player.trainingCount+' träningar)'
+   : 'träningsnärvaro saknas';
+  return total+'/100 poäng · '+player.total_matches+' matcher · '+match+' · '+training;
+ }
+ function updatePlayerScores(){
+  if(!history)return;
+  const scores=new Map(selectionScores().map(player=>[String(player.id),player]));
+  choices.querySelectorAll('[data-score-player]').forEach(detail=>{
+   detail.textContent=describeScore(scores.get(detail.dataset.scorePlayer));
+  });
+ }
  open.addEventListener('click',async()=>{
   open.disabled=true;
   status.textContent='Hämtar matchhistorik och träningsnärvaro…';
@@ -77,12 +110,16 @@
     input.name='player';
     input.value=player.id;
     label.append(input,' '+player.name);
-    row.append(label);
+    const detail=document.createElement('div');
+    detail.className='small';
+    detail.dataset.scorePlayer=player.id;
+    row.append(label,detail);
     return row;
    }));
    status.textContent=players.length
     ? attendance.length+' träningar med sparad spelarnärvaro. Markera vilka som kan delta.'
     : 'Det finns inga spelare i truppen.';
+   updatePlayerScores();
    form.hidden=!players.length;
   }catch(error){status.textContent=error.message||'Uttagningsunderlaget kunde inte hämtas.';}
   finally{open.disabled=false;}
@@ -146,12 +183,14 @@
   if(!selected.size){importStatus.textContent='Markera minst en rad att importera.';return;}
   choices.querySelectorAll('input').forEach(input=>{input.checked=selected.has(input.value);});
   output.replaceChildren();
+  updatePlayerScores();
   clearImportReview();
   importText.value='';
   importStatus.textContent=selected.size+' spelare markerade som tillgängliga.';
  });
  form.addEventListener('input',event=>{
   if(['teams','places','player'].includes(event.target.name))output.replaceChildren();
+  if(event.target.name==='player')updatePlayerScores();
  });
  form.addEventListener('submit',event=>{
   event.preventDefault();
@@ -176,14 +215,8 @@
    status.textContent='Markera minst '+places+' spelare som kan delta eller sänk det totala antalet spelare.';
    return;
   }
-  const least=Math.min(...candidates.map(player=>player.total_matches));
   const trainingCount=history.attendance.length;
-  const ranked=candidates.map(player=>{
-   const present=history.attendance.filter(training=>training.has(String(player.id))).length;
-   const rotation=Math.max(0,100-20*(player.total_matches-least));
-   const points=trainingCount ? 7*rotation*trainingCount+300*present : rotation;
-   return {...player,present,points};
-  }).sort((a,b)=>b.points-a.points||String(a.last_match||'').localeCompare(b.last_match||'')||a.total_matches-b.total_matches||a.name.localeCompare(b.name,'sv'));
+  const ranked=selectionScores().filter(player=>ids.has(String(player.id))).sort((a,b)=>b.points-a.points||String(a.last_match||'').localeCompare(b.last_match||'')||a.total_matches-b.total_matches||a.name.localeCompare(b.name,'sv'));
   status.textContent=trainingCount?'Viktning 70 % spelade matcher och 30 % träningsnärvaro.':'Spelade matcher avgör eftersom träningsnärvaro saknas.';
   const groups=Array.from({length:teams+1},(_,index)=>{
    const heading=document.createElement('h3');
@@ -202,10 +235,13 @@
   output.replaceChildren(count,...groups.flatMap(({heading,list})=>[heading,list]));
   ranked.forEach((player,index)=>{
    const row=document.createElement('li');
-   const attendance=trainingCount ? player.present+'/'+trainingCount+' träningar' : 'närvaro saknas';
-   const score=trainingCount ? player.points/(10*trainingCount) : player.points;
    const destination=index<places?index%teams:teams;
-   row.textContent=player.name+' · '+player.total_matches+' matcher · '+attendance+' · '+score.toLocaleString('sv-SE',{maximumFractionDigits:2})+' poäng ';
+   const name=document.createElement('strong');
+   name.textContent=player.name;
+   const detail=document.createElement('div');
+   detail.className='small';
+   detail.textContent=describeScore(player);
+   row.append(name,detail);
    const move=document.createElement('select');
    move.setAttribute('aria-label','Flytta '+player.name);
    groups.forEach(({name},groupIndex)=>{
