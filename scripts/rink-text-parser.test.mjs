@@ -98,6 +98,11 @@ test('player leaves the first line, passes to the second and skates after the pa
  assert.equal(result.warnings.length,0);
  const first=result.marks[0];
  const recipient=result.marks[3];
+ assert.notEqual(first.patternId,recipient.patternId);
+ for(const offset of [0,3]){
+  const group=result.marks.slice(offset,offset+3);
+  assert.ok(group.every((player,index)=>player.patternId===group[0].patternId&&player.patternIndex===index&&player.patternCount===3&&player.patternType==='players'));
+ }
  const [puck,approach,pass,follow]=result.marks.slice(6);
  assert.equal(puck.type,'puck');
  assert.deepEqual(xy(approach),xy(first));
