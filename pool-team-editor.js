@@ -87,7 +87,72 @@
   }catch(error){status.textContent=error.message||'Uttagningsunderlaget kunde inte hämtas.';}
   finally{open.disabled=false;}
  });
- form.addEventListener('input',()=>output.replaceChildren());
+ const importImages=document.getElementById('selectionImportImages');
+ const importText=document.getElementById('selectionImportText');
+ const importRead=document.getElementById('selectionImportRead');
+ const importApply=document.getElementById('selectionImportApply');
+ const importStatus=document.getElementById('selectionImportStatus');
+ const importReview=document.getElementById('selectionImportReview');
+ function clearImportReview(){
+  importReview.replaceChildren();
+  importApply.disabled=true;
+  importStatus.textContent='';
+ }
+ importImages.addEventListener('change',clearImportReview);
+ importText.addEventListener('input',clearImportReview);
+ open.addEventListener('click',clearImportReview);
+ importRead.addEventListener('click',async()=>{
+  if(!history||history.current!==session())return;
+  const source=history;
+  clearImportReview();
+  importRead.disabled=importImages.disabled=importText.disabled=open.disabled=true;
+  const roster=source.players.map(player=>({id:player.id,full_name:player.name,kind:'player'}));
+  const parse=text=>window.NSKAttendanceImport.importCandidates(text,roster);
+  const updateStatus=message=>{importStatus.textContent=message;};
+  const pasted=importText.value;
+  let detected='';
+  let imageError='';
+  try{
+   detected=await window.NSKAttendanceImport.recognizeImages(importImages.files,parse,updateStatus);
+  }catch(error){imageError=(error.message||'Bilden kunde inte läsas.')+' ';}
+  finally{
+   importImages.value='';
+   importRead.disabled=importImages.disabled=importText.disabled=open.disabled=false;
+  }
+  if(history!==source||source.current!==session()||!section.isConnected)return;
+  const matches=new Map();
+  for(const pass of [pasted,...detected.split('\n__OCR_PASS__\n')]){
+   for(const player of parse(pass))matches.set(String(player.id),player);
+  }
+  for(const player of matches.values()){
+   const row=document.createElement('div');
+   const label=document.createElement('label');
+   const input=document.createElement('input');
+   input.type='checkbox';
+   input.checked=true;
+   input.value=player.id;
+   label.append(input,' '+player.full_name);
+   row.append(label);
+   importReview.append(row);
+  }
+  const expected=/kommer\s*(\d+)\s*\+\s*\d+/i.exec(pasted+'\n'+detected);
+  const sourceCount=expected?' SvenskaLag visar '+expected[1]+' anmälda spelare.':'';
+  importApply.disabled=!matches.size;
+  updateStatus(imageError+matches.size+' spelare matchade.'+sourceCount+' Kontrollera listan före import.');
+ });
+ importApply.addEventListener('click',()=>{
+  if(!history||history.current!==session())return;
+  const selected=new Set([...importReview.querySelectorAll('input:checked')].map(input=>input.value));
+  if(!selected.size){importStatus.textContent='Markera minst en rad att importera.';return;}
+  choices.querySelectorAll('input').forEach(input=>{input.checked=selected.has(input.value);});
+  output.replaceChildren();
+  clearImportReview();
+  importText.value='';
+  importStatus.textContent=selected.size+' spelare markerade som tillgängliga.';
+ });
+ form.addEventListener('input',event=>{
+  if(['teams','places','player'].includes(event.target.name))output.replaceChildren();
+ });
  form.addEventListener('submit',event=>{
   event.preventDefault();
   if(!history||history.current!==session()){
