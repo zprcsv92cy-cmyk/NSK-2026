@@ -42,6 +42,9 @@
  const participants=document.getElementById('poolParticipants');
  const participantCount=document.getElementById('poolParticipantCount');
  const settings=document.getElementById('poolSelectionSettings');
+ const includeFuture=document.getElementById('poolIncludeFutureTraining');
+ const futureStatus=document.getElementById('poolFutureTrainingStatus');
+ const submit=settings.querySelector('button[type="submit"]');
  let history;
  function session(){return JSON.stringify([Auth.activeTeam(),Auth.getToken()]);}
  async function init(){
@@ -49,9 +52,7 @@
   const current=session();
   if(await Auth.checkTeamFeature('lineup')&&session()===current)section.hidden=false;
  }
- async function trainingsBefore(date){
-  const {sessions}=await SharedTraining.listWithTeam();
-  const dates=sessions.filter(training=>training.date<date&&training.players>0).map(training=>training.date);
+ async function readAttendance(dates){
   const attendance=[];
   for(let offset=0;offset<dates.length;offset+=8){
    const batch=await Promise.all(dates.slice(offset,offset+8).map(SharedTraining.get));
@@ -61,15 +62,27 @@
   }
   return attendance;
  }
+ async function trainingHistory(date){
+  const {sessions}=await SharedTraining.listWithTeam();
+  const dates=sessions.filter(training=>training.players>0).map(training=>training.date);
+  return {
+   past:await readAttendance(dates.filter(day=>day<date)),
+   futureDates:dates.filter(day=>day>=date)
+  };
+ }
+ function countedAttendance(){
+  return includeFuture.checked?[...history.past,...(history.future||[])]:history.past;
+ }
  const formatPoints=new Intl.NumberFormat('sv-SE',{maximumFractionDigits:1});
  function selectionScores(){
-  const trainingCount=history.attendance.length;
+  const attendance=countedAttendance();
+  const trainingCount=attendance.length;
   const selected=new Set(new FormData(form).getAll('player'));
   const candidates=history.players.filter(player=>selected.has(String(player.id)));
   const baseline=candidates.length?candidates:history.players;
   const least=Math.min(...baseline.map(player=>player.total_matches));
   return history.players.map(player=>{
-   const present=history.attendance.filter(training=>training.has(String(player.id))).length;
+   const present=attendance.filter(training=>training.has(String(player.id))).length;
    const rotation=Math.max(0,100-20*Math.max(0,player.total_matches-least));
    const matchPoints=trainingCount?7*rotation:rotation;
    const trainingPoints=300*present;
@@ -123,9 +136,9 @@
   try{
    const current=session();
    const date=new Date().toLocaleDateString('sv-SE',{timeZone:'Europe/Stockholm'});
-   const [players,attendance]=await Promise.all([DB.listPoolSelectionStats(date),trainingsBefore(date)]);
+   const [players,training]=await Promise.all([DB.listPoolSelectionStats(date),trainingHistory(date)]);
    if(current!==session()||!section.isConnected)return;
-   history={current,players,attendance};
+   history={current,players,...training};
    choices.replaceChildren(...[...players].sort((a,b)=>a.name.localeCompare(b.name,'sv')).map(player=>{
     const row=document.createElement('div');
     const label=document.createElement('label');
@@ -143,15 +156,37 @@
     return row;
    }));
    status.textContent=players.length
-    ? attendance.length+' träningar med sparad spelarnärvaro. Markera vilka som kan delta.'
+    ? training.past.length+' tidigare träningar med sparad spelarnärvaro. Markera vilka som kan delta.'
     : 'Det finns inga spelare i truppen.';
    participants.open=true;
    form.reset();
+   futureStatus.textContent='';
    updatePlayerScores();
    updateSelectionSettings();
    form.hidden=!players.length;
   }catch(error){status.textContent=error.message||'Uttagningsunderlaget kunde inte hämtas.';}
   finally{open.disabled=false;}
+ });
+ includeFuture.addEventListener('change',async()=>{
+  if(!history||history.current!==session())return;
+  const source=history;
+  if(includeFuture.checked&&!source.future){
+   includeFuture.disabled=submit.disabled=open.disabled=true;
+   futureStatus.textContent='Hämtar närvaro för kommande träningar…';
+   try{source.future=await readAttendance(source.futureDates);}
+   catch{
+    includeFuture.checked=false;
+    futureStatus.textContent='Närvaron kunde inte hämtas. Försök igen.';
+    updatePlayerScores();
+    return;
+   }finally{includeFuture.disabled=submit.disabled=open.disabled=false;}
+  }
+  if(source!==history||source.current!==session()||!section.isConnected)return;
+  futureStatus.textContent=includeFuture.checked
+   ? source.future.length+' kommande träningar med sparad närvaro räknas med.'
+   : '';
+  updatePlayerScores();
+  output.replaceChildren();
  });
  const importImages=document.getElementById('selectionImportImages');
  const importText=document.getElementById('selectionImportText');
@@ -227,6 +262,7 @@
  });
  form.addEventListener('submit',event=>{
   event.preventDefault();
+  if(submit.disabled)return;
   if(!history||history.current!==session()){
    status.textContent='Lagvalet eller inloggningen har ändrats. Hämta underlaget igen.';
    return;
@@ -248,7 +284,7 @@
    status.textContent='Markera minst '+places+' spelare som kan delta eller sänk det totala antalet spelare.';
    return;
   }
-  const trainingCount=history.attendance.length;
+  const trainingCount=countedAttendance().length;
   const scores=selectionScores();
   const ranked=scores.filter(player=>ids.has(String(player.id))).sort(compareScores);
   participants.open=false;
