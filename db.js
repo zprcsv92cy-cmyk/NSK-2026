@@ -158,11 +158,11 @@ window.DB = (() => {
     return [...matches.values()];
   }
   async function listPlayerMatchStats(){return withReadSnapshot(listPlayerMatchStatsData);}
-  async function listPoolSelectionStats(pool){return withReadSnapshot(()=>listPlayerMatchStatsData(pool));}
-  async function listPlayerMatchStatsData(selectionPool){
+  async function listPoolSelectionStats(date){return withReadSnapshot(()=>listPlayerMatchStatsData(date));}
+  async function listPlayerMatchStatsData(selectionDate){
     const team=await teamId();
     const [pools,players,configs,shifts]=await Promise.all([listPools(),listPlayers(),rows('matchkonfiguration',team),rows('bytesschema',team)]);
-    const owned=new Map(pools.filter(p=>!p.deleting&&(!selectionPool||(!p.removed&&!p.removedPermanent&&String(p.id)!==String(selectionPool.id)&&p.pool_date&&p.pool_date<=selectionPool.pool_date))).map(p=>[Number(p.id),p]));
+    const owned=new Map(pools.filter(p=>!p.deleting&&(!selectionDate||(!p.removed&&!p.removedPermanent&&p.pool_date&&p.pool_date<=selectionDate))).map(p=>[Number(p.id),p]));
     const result=new Map(players.map(p=>[Number(p.id),{id:Number(p.id),name:p.full_name,goalie_matches:0,player_matches:0}]));
     const key=r=>`${first(r.Poolspel)}:${num(r.Lagnummer,1)}:${num(r.Matchnummer,1)}`;
     const played=new Map();
@@ -175,7 +175,7 @@ window.DB = (() => {
         if(!result.has(player))return;
         const stats=result.get(player);
         stats[role]++;
-        if(selectionPool&&(!stats.last_match||pool.pool_date>stats.last_match))stats.last_match=pool.pool_date;
+        if(selectionDate&&(!stats.last_match||pool.pool_date>stats.last_match))stats.last_match=pool.pool_date;
       }
       record(goalie,'goalie_matches');
       const ids=pool.active?played.get(k):new Set(linked(r['Spelare på plan']).map(Number));
