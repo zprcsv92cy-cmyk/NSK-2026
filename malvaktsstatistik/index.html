@@ -105,6 +105,8 @@
           <legend>Skapa lagförslag</legend>
           <label>Totalt antal spelare <input name="places" type="number" min="1" required inputmode="numeric"></label>
           <label>Antal lag <input name="teams" type="number" min="1" required inputmode="numeric"></label>
+          <label><input id="poolIncludeFutureTraining" type="checkbox" aria-describedby="poolFutureTrainingStatus"> Räkna med kommande träningar med sparad närvaro</label>
+          <p id="poolFutureTrainingStatus" role="status" class="small"></p>
           <button type="submit">Visa förslag</button>
         </fieldset>
       </form>
