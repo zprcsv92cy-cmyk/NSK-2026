@@ -7,6 +7,21 @@
  const clamp=(n,a,b)=>Math.max(a,Math.min(b,n));
  const point=(x,y,extra={})=>({x,y,...extra});
  function normalize(s){return String(s||'').toLocaleLowerCase('sv-SE').replace(/motståndarmål(?:et)?/g,'övre målet').replace(/hemmamål(?:et)?/g,'nedre målet').replace(/lång sarg/g,'långsarg').replace(/kort sarg/g,'kortsarg').replace(/framlänges/g,'framåt').replace(/blå linj/g,'blålinj').replace(/rödlinj/g,'mittlinj').replace(/framför kassen/g,'framför målet').replace(/bakom kassen/g,'bakom målet').replace(/\bkassen\b/g,'målet').replace(/\bmittpunkt(?:en)?\b/g,'mittcirkel').replace(/\s+/g,' ').trim();}
+ function normalizeInstructions(description){
+  return normalize(String(description||'').replace(/\n+/g,'. '))
+   .replace(/\b(?:spelarkö(?:n)?|kö med spelare|led med spelare|spelare på led)(?=\s|[.,;!?]|$)/g,'spelarled')
+   .replace(/\bpå andra sidan\b/g,'mitt emot')
+   .replace(/\b(?:förlängningen av mållinjen|mållinjens förlängning)\b/g,'förlängd mållinje')
+   .replace(/\b(?:blåa? linjen|blåa? linjerna)\b/g,match=>match.replace(/blåa? /,'blå'))
+   .replace(/\b(?:åker|åk) baklänges\b/g,'åk bakåt')
+   .replace(/\b(?:passar|passa|passning) pucken\b/g,'passa')
+   .replace(/\b(?:skjuter|skjut) pucken\b/g,'skjut')
+   .replace(/\s+(?:och\s+)?(?:avsluta(?:r)?\s+med\s+)?(?=skott på mål\b)/g,'. ')
+   .replace(/\s+(?:och\s+)?(?:går|fortsätter)\s+(?=(?:framåt|bakåt|till|mot)\b)/g,'. åk ')
+   .replace(/\s+(?=(?:som|de|spelaren)\s+(?:åker|åk|passar|skjuter)\b)/g,'. ')
+   .replace(/(^|[.!?]\s*)(?:som|de|spelaren)\s+(?=åker|åk|passar|skjuter)/g,'$1')
+   .replace(/((?:placera|ställ|lägg)\s+[^.!?;,]+?)\s+(?=(?:åk|åker|passa|passar|skjut|skjuter)\b)/g,'$1. ');
+ }
  function zone(t){return /nedre|nedersta|södra|eget|egna|försvars|hemma/.test(t)?'lower':/övre|översta|norra|bortre|motståndar|anfalls/.test(t)?'upper':/mittzon|neutral/.test(t)?'middle':null;}
  function side(t){return /vänst/.test(t)?'left':/högr|höger/.test(t)?'right':null;}
  function location(fragment,context={},report=()=>{}){
@@ -61,7 +76,7 @@
  const objectPattern='utespelare|spelare|målvakter|målvakt|puckar|puck|koner|kon|markörer|markör|däck|backar|back|vänsterback|högerback|center|vänsterforward|högerforward|målburar|målbur|mål';
  const matcher=new RegExp('(?:(\\d{1,2}|en|ett|två|tre|fyra|fem|sex|sju|åtta|nio|tio)\\s+)?(?:(röda?|blåa?|svarta?|gröna?)\\s+)?('+objectPattern+')(?![a-zåäö])','g');
  function parse(description,defaultColor='#b11226',options={}){
-  const input=normalize(String(description||'').replace(/\n+/g,'. ')).slice(0,3000),marks=[],warnings=[],references=new Map();let remembered=null,activePlayer=null,heading=point(0,-1),context={};let goalReferences=(options.goals||[]).filter(g=>Number.isFinite(g.x)&&Number.isFinite(g.y)),declaredGoals=false;
+  const input=normalizeInstructions(description).slice(0,3000),marks=[],warnings=[],references=new Map();let remembered=null,activePlayer=null,heading=point(0,-1),context={};let goalReferences=(options.goals||[]).filter(g=>Number.isFinite(g.x)&&Number.isFinite(g.y)),declaredGoals=false;
   const warn=s=>{if(!warnings.includes(s))warnings.push(s);};
   const add=(type,p,color=defaultColor,end,extra={})=>{
    if(marks.length>=150)return null;
@@ -76,9 +91,9 @@
    if(/mål|kassen/.test(s)&&!/mållinj/.test(s)&&goalReferences.length){const z=zone(s)||ctx.zone;if(z==='upper'||z==='lower'){const g=goalReferences[z==='upper'?0:1];if(g){if(/framför|målgård/.test(s))return front(g,28);if(/bakom/.test(s))return front(g,-34);if(/slott/.test(s))return location(s,ctx,warn);return point(g.x,g.y);}}}
    return location(s,ctx,warn);
   };
-  const resolve=s=>{const goal=/mål(?:bur)?\s*(\d{1,2})\b/.exec(s);if(goal){const p=goalReferences[Number(goal[1])-1];if(!p)warn('Mål '+goal[1]+' behöver placeras först.');return p||null;}const r=/(?:spelare\s*(\d{1,2}|[abc])|första spelaren|andra spelaren|tredje spelaren)/.exec(s);if(r){const key=r[1]?({a:'1',b:'2',c:'3'}[r[1]]||r[1]):/första/.test(r[0])?'1':/andra/.test(r[0])?'2':'3';if(references.has(key))return references.get(key);warn('Spelare '+key+' behöver placeras först.');return null;}return loc(s);};
+  const resolve=(s,ctx=context)=>{const goal=/mål(?:bur)?\s*(\d{1,2})\b/.exec(s);if(goal){const p=goalReferences[Number(goal[1])-1];if(!p)warn('Mål '+goal[1]+' behöver placeras först.');return p||null;}const r=/(?:spelare\s*(\d{1,2}|[abc])|första spelaren|andra spelaren|tredje spelaren)/.exec(s);if(r){const key=r[1]?({a:'1',b:'2',c:'3'}[r[1]]||r[1]):/första/.test(r[0])?'1':/andra/.test(r[0])?'2':'3';if(references.has(key))return references.get(key);warn('Spelare '+key+' behöver placeras först.');return null;}return loc(s,ctx);};
   const typeOf=w=>/målvakt/.test(w)?'goalie':/mål/.test(w)?'goal':/kon|markör/.test(w)?'cone':/puck/.test(w)?'puck':/däck/.test(w)?'tire':'player';
-  const clauses=input.split(/[,.;!?\n]+|\s+(?:och\s+)?(?:sedan|därefter|sen)\s+|\s+och\s+(?=(?:(?:en|ett)\s+)?spelarled\b|sväng|vänd|stanna|stannar|passa|passar|skjut|åk|åker|runda|fortsätt|framåt|bakåt|baklänges)/)
+  const clauses=input.split(/[,.;!?\n]+|\s+(?:och\s+)?(?:sedan|därefter|sen)\s+|\s+och\s+(?=(?:(?:en|ett)\s+)?spelarled\b|sväng|vänd|stanna|stannar|passa|passar|skjut|skjuter|skott|åk|åker|runda|fortsätt|framåt|bakåt|baklänges)/)
    .map(s=>s.trim().replace(/(\bsväng(?:er)?\s+)till\s+(?=(?:vänster|höger)$)/,'$1')).filter(Boolean);
   for(const clause of clauses){
    const before=warnings.length;let touched=false;
@@ -140,9 +155,27 @@
     const ref=subject&&/(\d{1,2}|[abc])$/.exec(subject);
     const playerKey=subject?(ref?({a:'1',b:'2',c:'3'}[ref[1]]||ref[1]):/första/.test(subject)?'1':/andra/.test(subject)?'2':'3'):activePlayer;
     const rememberMovement=end=>{remembered=end;if(playerKey){activePlayer=playerKey;references.set(playerKey,end);}};
-    let a=fromTo?resolve(fromTo[1]):from?resolve(from[1]):subject?resolve(subject):remembered;
-    let b=fromTo?resolve(fromTo[2]):destination?resolve(destination[1]):null;
-    if(isShot&&!destination&&!fromTo)b=point(240,localContext.zone==='lower'?rink.goalLower:rink.goalUpper);
+    const target=fromTo?.[2]||destination?.[1];
+    const waypoints=target?.split(/\s+via\s+/);
+    let a=fromTo?resolve(fromTo[1],localContext):from?resolve(from[1],localContext):subject?resolve(subject):remembered;
+    let b=target?resolve(waypoints[0],localContext):null;
+    if(a&&b&&waypoints.length>1&&!isPass&&!isShot&&!divider&&!turn){
+     const stops=waypoints.slice(1).map(place=>resolve(place,localContext));
+     if(stops.every(Boolean)){
+      for(const next of [...stops,b]){
+       const dx=next.x-a.x,dy=next.y-a.y,length=Math.hypot(dx,dy);
+       if(length<=4)continue;
+       add('skate',a,defaultColor,next,{motion:backwards?'backward':'forward'});
+       if(!backwards)heading=point(dx/length,dy/length);
+       a=next;
+      }
+      rememberMovement(b);continue;
+     }
+    }
+    if(isShot&&!destination&&!fromTo){
+     const lowerGoal=zone(clause)==='lower'||(!zone(clause)&&heading.y>0.1);
+     b=goalReferences[lowerGoal?1:0]||point(240,lowerGoal?rink.goalLower:rink.goalUpper);
+    }
     const around=/(?:runt|runda(?:r)?)\s+(.+)/.exec(clause);
     if(around&&/cirkel|kon|däck/.test(around[1])){
      let c;
