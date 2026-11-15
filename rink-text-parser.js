@@ -76,7 +76,7 @@
  const objectPattern='utespelare|spelare|målvakter|målvakt|puckar|puck|koner|kon|markörer|markör|däck|backar|back|vänsterback|högerback|center|vänsterforward|högerforward|målburar|målbur|mål';
  const matcher=new RegExp('(?:(\\d{1,2}|en|ett|två|tre|fyra|fem|sex|sju|åtta|nio|tio)\\s+)?(?:(röda?|blåa?|svarta?|gröna?)\\s+)?('+objectPattern+')(?![a-zåäö])','g');
  function parse(description,defaultColor='#b11226',options={}){
-  const input=normalizeInstructions(description).slice(0,3000),marks=[],warnings=[],references=new Map();let remembered=null,activePlayer=null,heading=point(0,-1),context={};let goalReferences=(options.goals||[]).filter(g=>Number.isFinite(g.x)&&Number.isFinite(g.y)),declaredGoals=false;
+  const input=normalizeInstructions(description).slice(0,3000),marks=[],warnings=[],references=new Map(),lineFronts=[];let remembered=null,activePlayer=null,heading=point(0,-1),context={};let goalReferences=(options.goals||[]).filter(g=>Number.isFinite(g.x)&&Number.isFinite(g.y)),declaredGoals=false;
   const warn=s=>{if(!warnings.includes(s))warnings.push(s);};
   const add=(type,p,color=defaultColor,end,extra={})=>{
    if(marks.length>=150)return null;
@@ -91,13 +91,32 @@
    if(/mål|kassen/.test(s)&&!/mållinj/.test(s)&&goalReferences.length){const z=zone(s)||ctx.zone;if(z==='upper'||z==='lower'){const g=goalReferences[z==='upper'?0:1];if(g){if(/framför|målgård/.test(s))return front(g,28);if(/bakom/.test(s))return front(g,-34);if(/slott/.test(s))return location(s,ctx,warn);return point(g.x,g.y);}}}
    return location(s,ctx,warn);
   };
-  const resolve=(s,ctx=context)=>{const goal=/mål(?:bur)?\s*(\d{1,2})\b/.exec(s);if(goal){const p=goalReferences[Number(goal[1])-1];if(!p)warn('Mål '+goal[1]+' behöver placeras först.');return p||null;}const r=/(?:spelare\s*(\d{1,2}|[abc])|första spelaren|andra spelaren|tredje spelaren)/.exec(s);if(r){const key=r[1]?({a:'1',b:'2',c:'3'}[r[1]]||r[1]):/första/.test(r[0])?'1':/andra/.test(r[0])?'2':'3';if(references.has(key))return references.get(key);warn('Spelare '+key+' behöver placeras först.');return null;}return loc(s,ctx);};
+  function lineFront(phrase){
+   const line=/(?:första|andra|tredje)\s+(?:spelar)?led(?:et)?|(?:spelar)?led\s+[1-9]/.exec(phrase)?.[0];
+   if(!line)return null;
+   const index=/första/.test(line)?0:/andra/.test(line)?1:/tredje/.test(line)?2:Number(line.at(-1))-1;
+   const key=lineFronts[index];
+   if(!key)warn('Placera '+line+' först.');
+   return {key,position:references.get(key)};
+  }
+  const resolve=(s,ctx=context)=>{const front=lineFront(s);if(front)return front.position||null;const goal=/mål(?:bur)?\s*(\d{1,2})\b/.exec(s);if(goal){const p=goalReferences[Number(goal[1])-1];if(!p)warn('Mål '+goal[1]+' behöver placeras först.');return p||null;}const r=/(?:spelare\s*(\d{1,2}|[abc])|först[ae] spelare(?:n)?|andra spelare(?:n)?|tredje spelare(?:n)?)/.exec(s);if(r){const key=r[1]?({a:'1',b:'2',c:'3'}[r[1]]||r[1]):/första/.test(r[0])?'1':/andra/.test(r[0])?'2':'3';if(references.has(key))return references.get(key);warn('Spelare '+key+' behöver placeras först.');return null;}return loc(s,ctx);};
   const typeOf=w=>/målvakt/.test(w)?'goalie':/mål/.test(w)?'goal':/kon|markör/.test(w)?'cone':/puck/.test(w)?'puck':/däck/.test(w)?'tire':'player';
   const clauses=input.split(/[,.;!?\n]+|\s+(?:och\s+)?(?:sedan|därefter|sen)\s+|\s+och\s+(?=(?:(?:en|ett)\s+)?spelarled\b|sväng|vänd|stanna|stannar|passa|passar|skjut|skjuter|skott|åk|åker|runda|fortsätt|framåt|bakåt|baklänges)/)
    .map(s=>s.trim().replace(/(\bsväng(?:er)?\s+)till\s+(?=(?:vänster|höger)$)/,'$1')).filter(Boolean);
   for(const clause of clauses){
    const before=warnings.length;let touched=false;
-   const moving=/(?:passar|passning|passa\b|spelar pucken|skjut(?:er)?|skott|avslut|åk\b|åker|åkning|skridsko|åkväg|driver|runda(?:r)?|runt\b|sväng|svänger|vänd(?:er|ning)?|slalom|framåt|bakåt|baklänges|stanna(?:r)?|stopp|översteg)/.test(clause);
+   const pickup=/^(först[ae] spelare(?:n)?(?: i (?:första|andra|tredje) ledet)?|spelare\s+\d{1,2})\s+(?:tar|hämtar|plockar upp)\s+(?:en\s+)?puck(?:en)?$/.exec(clause);
+   if(pickup){
+    const actor=pickup[1],front=lineFront(actor);
+    const key=front?front.key:(/^först/.test(actor)?lineFronts[0]||'1':actor.split(' ').at(-1));
+    const start=references.get(key);
+    if(start){
+     activePlayer=key;remembered=start;heading=point(0,-1);
+     add('puck',point(start.x,start.y-15),'#111827');
+    }else if(warnings.length===before)warn('Placera spelaren innan pucken hämtas.');
+    continue;
+   }
+   const moving=/(?:passar|passning|passa\b|spelar pucken|skjut(?:er)?|skott|avslut|åk\b|åker|åkning|skridsko|åkväg|acceler(?:ation|era|erar)|driver|runda(?:r)?|runt\b|sväng|svänger|vänd(?:er|ning)?|slalom|framåt|bakåt|baklänges|stanna(?:r)?|stopp|översteg)/.test(clause);
    const divider=/avdelare|avgränsare|sargdelare/.test(clause);
    const localContext={...context};if(zone(clause))localContext.zone=zone(clause);
    const lineup=/^(?:en\s+|ett\s+)?spelarled(?:et)?\s+(.+)$/.exec(clause);
@@ -114,6 +133,7 @@
      const player=add('player',point(flank==='left'?48+i*26:432-i*26,position.y),defaultColor);
      if(!player)break;
      const key=String(references.size+1);
+     if(i===0)lineFronts.push(key);
      player.number=key;references.set(key,player);activePlayer=key;remembered=player;
     }
     context={zone:end,side:flank};continue;
@@ -149,13 +169,14 @@
    if(moving||divider){
     const isPass=/passar|passning|passa\b|spelar pucken/.test(clause),isShot=/skjut(?:er)?|skott|avslut/.test(clause);
     const backwards=/bakåt|baklänges/.test(clause),turn=/sväng|svänger|vänd|runda(?:r)?|runt\b|slalom/.test(clause),stop=/stanna(?:r)?|stopp/.test(clause),crossover=/översteg/.test(clause);
-    const fromTo=/(?:från|ifrån)\s+(.+?)\s+(?:till|mot)\s+(.+)/.exec(clause),from=/(?:från|ifrån)\s+(.+?)(?=\s+(?:framåt|bakåt|baklänges|sväng|och|runt|i slalom)|$)/.exec(clause),actor=/(spelare\s*(?:\d{1,2}|[abc])|första spelaren|andra spelaren|tredje spelaren)/.exec(clause);
+    const fromTo=/(?:från|ifrån)\s+(.+?)\s+(?:till|mot)\s+(.+)/.exec(clause),from=/(?:från|ifrån)\s+(.+?)(?=\s+(?:framåt|bakåt|baklänges|sväng|och|runt|i slalom)|$)/.exec(clause),actor=/(spelare\s*(?:\d{1,2}|[abc])|först[ae] spelare(?:n)?|andra spelare(?:n)?|tredje spelare(?:n)?)/.exec(clause);
     const destination=/(?:till|mot)\s+(.+)/.exec(clause);
-    const subject=actor&&(!destination||actor.index<destination.index)?actor[1]:null;
+    const subject=actor&&(!destination||actor.index<destination.index)&&(!isPass||actor.index<clause.search(/passa|spelar pucken/))?actor[1]:null;
     const ref=subject&&/(\d{1,2}|[abc])$/.exec(subject);
     const playerKey=subject?(ref?({a:'1',b:'2',c:'3'}[ref[1]]||ref[1]):/första/.test(subject)?'1':/andra/.test(subject)?'2':'3'):activePlayer;
     const rememberMovement=end=>{remembered=end;if(playerKey){activePlayer=playerKey;references.set(playerKey,end);}};
-    const target=fromTo?.[2]||destination?.[1];
+    const recipient=isPass&&!destination?/\bpassa(?:r)?\s+(?:pucken\s+)?(.+)/.exec(clause)?.[1]:null;
+    const target=fromTo?.[2]||destination?.[1]||recipient;
     const waypoints=target?.split(/\s+via\s+/);
     let a=fromTo?resolve(fromTo[1],localContext):from?resolve(from[1],localContext):subject?resolve(subject):remembered;
     let b=target?resolve(waypoints[0],localContext):null;
@@ -185,8 +206,8 @@
     }else{
      if(!a&&/framåt|bakåt|baklänges|sväng/.test(clause)){warn('Ange var rörelsen börjar, till exempel: Åk framåt från mittpunkten.');}
      if(turn&&!around&&!destination&&!fromTo&&!/vänst|höger|högra|vänd|slalom/.test(clause)){warn('Ange sväng vänster, sväng höger eller ett mål för svängen.');a=null;}
-     if(a&&!b&&!destination&&!fromTo){
-      const metres=/(\d{1,2})\s*(?:meter|m\b)/.exec(clause),distance=metres?clamp(Number(metres[1])*14,20,350):120;
+     if(a&&!b&&!target&&!fromTo&&!isPass){
+      const metres=/(\d{1,2}|en|ett|två|tre|fyra|fem|sex|sju|åtta|nio|tio)\s*(?:meter|m\b)/.exec(clause),distance=metres?clamp((amounts[metres[1]]||Number(metres[1]))*14,14,350):120;
       let vector={...heading};
       if(/åt vänster|till vänster|sväng(?:er)? vänst/.test(clause))vector=point(-1,0);else if(/åt höger|till höger|sväng(?:er)? höger/.test(clause))vector=point(1,0);
       else if(/nedåt/.test(clause))vector=point(0,1);else if(/uppåt/.test(clause))vector=point(0,-1);
