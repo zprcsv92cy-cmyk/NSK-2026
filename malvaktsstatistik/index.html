@@ -54,6 +54,7 @@
   </style>
 <script>document.write('<script src="../navigation.js?v='+window.NSK_VERSION+'" defer><\/script>');</script>
 <script>document.write('<link rel="stylesheet" href="../arena-theme.css?v='+window.NSK_VERSION+'">');</script>
+<script src="https://cdn.jsdelivr.net/npm/tesseract.js@5.1.1/dist/tesseract.min.js" defer></script>
 </head>
 <body class="goalie-stats-page">
   <div class="wrap">
@@ -88,6 +89,16 @@
       <form id="poolSelectionForm" hidden>
         <label>Antal lag <input name="teams" type="number" min="1" value="1" required inputmode="numeric"></label>
         <label>Totalt antal spelare <input name="places" type="number" min="1" required inputmode="numeric"></label>
+        <details>
+          <summary>Importera från SvenskaLag</summary>
+          <p><label for="selectionImportImages">Välj skärmbilder</label> <input id="selectionImportImages" type="file" accept="image/*" multiple></p>
+          <label for="selectionImportText">Klistra in namn</label>
+          <textarea id="selectionImportText" rows="4" placeholder="Ett namn per rad"></textarea>
+          <p><button type="button" id="selectionImportRead">Granska</button>
+          <button type="button" id="selectionImportApply" disabled>Importera</button></p>
+          <p id="selectionImportStatus" role="status"></p>
+          <div id="selectionImportReview"></div>
+        </details>
         <fieldset>
           <legend>Spelare som kan delta</legend>
           <div id="poolSelectionPlayers"></div>
@@ -104,6 +115,7 @@
   document.write('<script src="../db.js?v=' + window.NSK_VERSION + '"><\/script>');
   document.write('<script src="../app.js?v=' + window.NSK_VERSION + '"><\/script>');
   document.write('<script src="../shared-training.js?v=' + window.NSK_VERSION + '"><\/script>');
+  document.write('<script src="../training-groups.js?v=' + window.NSK_VERSION + '"><\/script>');
   document.write('<script src="../pool-team-editor.js?v=' + window.NSK_VERSION + '"><\/script>');
 </script>
   </div>

@@ -302,11 +302,11 @@
     .replace(/\s*[-–]\s*(ass\.?\s*tränare|huvudtränare|materialare|materialförvaltare|lagledare).*$/i, '')
     .replace(/\s*\((?:spelare|tränare|materialförvaltare|materialare|kommer)\)\s*$/i, '')
     .trim();
-  function importCandidates(text){
+  function importCandidates(text, importRoster){
     const leaderRoster=typeof leaders==='undefined'?[]:leaders;
     const coachNames=new Set([...coaches,...equipment].map(p=>normalized(p.full_name)));
     const staffNames=new Set([...coachNames,...leaderRoster.map(p=>normalized(p.full_name))]);
-    const roster=[...players.filter(p=>!staffNames.has(normalized(p.full_name))).map(p=>({...p,kind:'player'})),...coaches.map(p=>({...p,kind:'coach',equipmentIds:equipment.filter(person=>String(equipmentCoach(person)?.id)===String(p.id)).map(person=>String(person.id))})),...equipment.filter(p=>!equipmentCoach(p)).map(p=>({...p,kind:'equipment'})),...leaderRoster.filter(p=>!coachNames.has(normalized(p.full_name))).map(p=>({...p,kind:'leader'}))];
+    const roster=importRoster||[...players.filter(p=>!staffNames.has(normalized(p.full_name))).map(p=>({...p,kind:'player'})),...coaches.map(p=>({...p,kind:'coach',equipmentIds:equipment.filter(person=>String(equipmentCoach(person)?.id)===String(p.id)).map(person=>String(person.id))})),...equipment.filter(p=>!equipmentCoach(p)).map(p=>({...p,kind:'equipment'})),...leaderRoster.filter(p=>!coachNames.has(normalized(p.full_name))).map(p=>({...p,kind:'leader'}))];
     const lines=String(text||'').split(/\n/).map(x=>x.trim()).filter(Boolean);
     const section=lines.findIndex(line=>/^anmalda(?:\s|$)/.test(normalized(line)));
     // OCR often separates "Kommer" and "14+9" into different lines, or
@@ -348,7 +348,10 @@
     return [...found.values()];
   }
   async function readImageText(){
-    const files=[...$('trainingImportImages').files].filter(f=>f.type.startsWith('image/'));
+    return recognizeImages($('trainingImportImages').files,importCandidates,message=>{$('trainingImportStatus').textContent=message;});
+  }
+  async function recognizeImages(images,parse,setStatus){
+    const files=[...images].filter(f=>f.type.startsWith('image/'));
     if(!files.length)return '';
     const texts=[];
     if(window.Tesseract?.createWorker){
@@ -356,7 +359,7 @@
       const worker=await window.Tesseract.createWorker('swe');
       try{
         for(let i=0;i<files.length;i++){
-          $('trainingImportStatus').textContent='Läser bild '+(i+1)+' av '+files.length+'…';
+          setStatus('Läser bild '+(i+1)+' av '+files.length+'…');
           const result=await worker.recognize(files[i]);
           texts.push(result.data?.text||'');
           // Retry with different in-memory image transformations until the
@@ -373,7 +376,7 @@
             const collect=()=>{
               recognized.clear();
               for(const pass of texts){
-                for(const person of importCandidates(pass)){
+                for(const person of parse(pass)){
                   recognized.set(person.kind+':'+person.id,person);
                 }
               }
@@ -386,7 +389,7 @@
               const matchedStaff=[...recognized.values()].filter(p=>p.kind!=='player').length;
               if(target&&matchedPlayers>=Number(target[1])&&matchedStaff>=Number(target[2]))break;
               const variant=variants[attempt];
-              $('trainingImportStatus').textContent='Förbättrar bildtolkning '+(attempt+2)+' av '+(variants.length+1)+'…';
+              setStatus('Förbättrar bildtolkning '+(attempt+2)+' av '+(variants.length+1)+'…');
               const canvas=document.createElement('canvas');
               canvas.width=Math.round(bitmap.width*variant.scale);
               canvas.height=Math.round(bitmap.height*variant.scale);
@@ -515,7 +518,9 @@
     });
   }
 
+  window.NSKAttendanceImport={importCandidates,recognizeImages};
   document.addEventListener('DOMContentLoaded',async()=>{
+    if(!$('trainingAttendance'))return;
     initImport();
     const requestedDate=new URLSearchParams(location.search).get('date');
     const today=new Date().toLocaleDateString('sv-SE',{timeZone:'Europe/Stockholm',year:'numeric',month:'2-digit',day:'2-digit'});
