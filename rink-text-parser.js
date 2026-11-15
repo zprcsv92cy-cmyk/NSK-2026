@@ -129,8 +129,12 @@
     if(!position){warn('Ange mållinjen, blålinjen eller mittlinjen för spelarledet.');continue;}
     const amount=/\bmed\s+(\d{1,2}|en|två|tre|fyra|fem|sex|sju|åtta|nio|tio)\s+spelare/.exec(phrase)?.[1];
     const count=clamp(amounts[amount]||Number(amount)||3,1,7);
-    for(let i=0;i<count;i++){
-     const player=add('player',point(flank==='left'?48+i*26:432-i*26,position.y),defaultColor);
+    const spacing=2.5,step=spacing*436/30;
+    const patternId='text-player-line-'+(lineFronts.length+1);
+    const available=Math.min(count,150-marks.length);
+    for(let i=0;i<available;i++){
+     const group=available>1?{patternId,patternType:'players',patternIndex:i,patternCount:available,patternSpacing:spacing,patternWidth:0,patternAngle:flank==='left'?270:90,patternBoard:false,patternOffset:0}:{};
+     const player=add('player',point(flank==='left'?48+i*step:432-i*step,position.y),defaultColor,undefined,group);
      if(!player)break;
      const key=String(references.size+1);
      if(i===0)lineFronts.push(key);
