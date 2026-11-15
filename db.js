@@ -158,10 +158,11 @@ window.DB = (() => {
     return [...matches.values()];
   }
   async function listPlayerMatchStats(){return withReadSnapshot(listPlayerMatchStatsData);}
-  async function listPlayerMatchStatsData(){
+  async function listPoolSelectionStats(pool){return withReadSnapshot(()=>listPlayerMatchStatsData(pool));}
+  async function listPlayerMatchStatsData(selectionPool){
     const team=await teamId();
     const [pools,players,configs,shifts]=await Promise.all([listPools(),listPlayers(),rows('matchkonfiguration',team),rows('bytesschema',team)]);
-    const owned=new Map(pools.filter(p=>!p.deleting).map(p=>[Number(p.id),p]));
+    const owned=new Map(pools.filter(p=>!p.deleting&&(!selectionPool||(!p.removed&&!p.removedPermanent&&String(p.id)!==String(selectionPool.id)&&p.pool_date&&p.pool_date<=selectionPool.pool_date))).map(p=>[Number(p.id),p]));
     const result=new Map(players.map(p=>[Number(p.id),{id:Number(p.id),name:p.full_name,goalie_matches:0,player_matches:0}]));
     const key=r=>`${first(r.Poolspel)}:${num(r.Lagnummer,1)}:${num(r.Matchnummer,1)}`;
     const played=new Map();
@@ -169,9 +170,16 @@ window.DB = (() => {
     const counted=new Set();
     for(const r of [...configs].sort((a,b)=>a.id-b.id)){
       const pool=owned.get(first(r.Poolspel)),k=key(r);if(!pool||counted.has(k)||(pool.active&&!played.has(k)))continue;counted.add(k);
-      const goalie=Number(first(r.Målvakt));if(result.has(goalie))result.get(goalie).goalie_matches++;
+      const goalie=Number(first(r.Målvakt));
+      function record(player,role){
+        if(!result.has(player))return;
+        const stats=result.get(player);
+        stats[role]++;
+        if(selectionPool&&(!stats.last_match||pool.pool_date>stats.last_match))stats.last_match=pool.pool_date;
+      }
+      record(goalie,'goalie_matches');
       const ids=pool.active?played.get(k):new Set(linked(r['Spelare på plan']).map(Number));
-      for(const id of ids||[])if(id!==goalie&&result.has(id))result.get(id).player_matches++;
+      for(const id of ids||[])if(id!==goalie)record(id,'player_matches');
     }
     return [...result.values()].map(r=>({...r,total_matches:r.goalie_matches+r.player_matches})).sort((a,b)=>b.total_matches-a.total_matches||b.player_matches-a.player_matches||a.name.localeCompare(b.name,'sv')||a.id-b.id);
   }
@@ -352,7 +360,7 @@ window.DB = (() => {
       return matchRequest(`/api/bytesschema/${shift.id}/done`,{done:!!done});
     });
   }
-  return {withReadSnapshot,invalidateReads,listPlayers,listCoaches,listStaff,listPools,getPool,listPoolTeamMatchConfigs,getPoolTeamMatchConfig,getPlayersOnField,getLineup,listUsedPlayersInPool,listShiftSchema,listGoalieStats,listPlayerMatchStats,listPlayerCoachMap,
+  return {withReadSnapshot,invalidateReads,listPlayers,listCoaches,listStaff,listPools,getPool,listPoolTeamMatchConfigs,getPoolTeamMatchConfig,getPlayersOnField,getLineup,listUsedPlayersInPool,listShiftSchema,listGoalieStats,listPlayerMatchStats,listPoolSelectionStats,listPlayerCoachMap,
     addPlayer,updatePlayer,deletePlayer:rowId=>serialWrite(()=>adminRequest(`/api/spelare/${encodeURIComponent(rowId)}`,'DELETE',{})),addCoach,updateCoach,deleteCoach:rowId=>serialWrite(()=>adminRequest(`/api/tranare/${encodeURIComponent(rowId)}`,'DELETE',{})),addEquipmentCoach,addStaff:(role,name)=>writeStaff('POST',role,null,name),updateStaff:(role,rowId,name)=>writeStaff('PATCH',role,rowId,name),deleteStaff:(role,rowId)=>writeStaff('DELETE',role,rowId,''),updatePoolTeams,addPool,updatePool,updatePoolActive,deletePool:async rowId=>{for(let i=0;i<100;i++){const result=await adminRequest('/api/poolspel/'+encodeURIComponent(rowId),'DELETE',{});if(result.deleted)return result;}throw Error('Raderingen behöver fortsätta. Tryck Ta bort igen.');},
     lineupBase,retimeShiftSchema,getPoolMaterial,savePoolMaterial,assertMatchReady,listPoolMatchPlan,saveMatchInfo,saveFullLineup:window.APP_CONFIG?.POOL_FLOW_ENABLED===true?saveFullLineup:undefined,listPoolMatchSummaries,saveCalendarMatchSchedule,savePoolTeamMatchConfig,saveLineup,getCoachSelection,saveCoachSelection,saveShiftSchema,deleteShiftSchema,setShiftDone,savePlayerCoachMap:failWrite,subscribeTruppen:async()=>({unsubscribe(){}})};
 })();
