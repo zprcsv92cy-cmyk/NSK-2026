@@ -117,7 +117,7 @@ test('SvenskaLag initials resolve compound surnames and Swedish names',()=>{
  ],equipment:[],coaches:[]};
  vm.createContext(context);
  vm.runInContext(js.slice(begin,end)+';globalThis.parseAttendance=importCandidates;',context);
- const matches=context.parseAttendance('Anmälda\nKommer 14+9\nNoé B\nOliver J\nAgnes D\nTheo Y');
+ const matches=context.parseAttendance('Anmälda\nKommer 14+9\nNoé BS\nOliver JZ\nAgnes D\nTheo Y');
  assert.equal(matches.length,4);
  assert.ok(matches.every(p=>!p.exact));
 });
@@ -137,7 +137,7 @@ test('desktop table skips the response tabs and ignores a leading OCR table bord
  const context={players:[{id:1,full_name:'Anna Testsson'},{id:2,full_name:'Erik Exempelsson'}],equipment:[],coaches:[{id:3,full_name:'Patrik Ledarsson'}]};
  vm.createContext(context);vm.runInContext(js.slice(begin,end)+';globalThis.parseAttendance=importCandidates;',context);
  const result=context.parseAttendance('Anmälan\nErik Exempelsson Kan ej\nAnmälda\nKan ej Kallade\n4+5 4+3\nNamn Anmäld\n| Anna Testsson 20 okt, 20:14\nPatrik Ledarsson | Tränare 20 okt, 21:00');
- assert.deepEqual([...result.map(x=>x.id)],[1,3]);
+ assert.deepEqual([...result.map(x=>x.id)],[]); // Without a verified Kommer header, fail closed
 });
 
 test('Kommer matches equipment managers separately and excludes Kan ej',()=>{
