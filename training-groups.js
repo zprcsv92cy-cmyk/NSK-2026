@@ -315,7 +315,10 @@
     // A missing OCR header must not silently turn a valid roster into zero matches.
     // If the Anmälda heading was recognized, skip the invitation section.
     const table=section<0?-1:lines.findIndex((line,i)=>i>section&&/^namn(?: |$)/.test(normalized(line)));
-    const relevant=lines.slice(table>=0?table+1:status>=0?status+1:section>=0?section+1:0);
+    // Never scan invitation rows or a screenshot with missing attendance headers.
+    // A valid SvenskaLag screenshot must identify both Anmälda and Kommer.
+    if(section<0||status<0)return [];
+    const relevant=lines.slice(table>=0&&table>status?table+1:status+1);
     const found=new Map();
     const skip=/^(kommer|kan ej|kallade|anmalda|anmalan|kalender|samling|svara senast|ej svarat)(?: |$)/;
     // Match each attendance entry against the active roster. Do not treat names
@@ -331,11 +334,14 @@
         if(parts.length<2)return null;
         // SvenskaLag abbreviates the first surname part; NSK may contain
         // compound surnames or a middle name (e.g. Oliver Johansson Zoumbios).
-        const surnameInitials=new Set(parts.slice(1).map(part=>part[0]));
-        const fullMatch=new RegExp('(?:^| )'+full+'(?: |$)').test(cleaned);
-        const shortMatch=[...surnameInitials].some(initial=>
-          new RegExp('(?:^| )'+parts[0]+' '+initial+'(?: |$)').test(cleaned));
-        return fullMatch||shortMatch?{...person,exact:true}:null;
+        const fullMatch=cleaned===full;
+        // Match all surname initials in order (JZ, BS), never only the first.
+        // An abbreviated name must be manually reviewed, even if unique.
+        const initials=parts.slice(1).map(part=>part[0]).join('');
+        const words=cleaned.split(' ');
+        const shortMatch=words.length===2&&words[0]===parts[0]&&
+          words[1]===initials;
+        return fullMatch||shortMatch?{...person,exact:fullMatch}:null;
       }).filter(Boolean);
       // A shared initial (e.g. two Oliver J) must never be auto-approved.
       const uniqueIds=new Set(matches.map(p=>p.kind+':'+p.id));
