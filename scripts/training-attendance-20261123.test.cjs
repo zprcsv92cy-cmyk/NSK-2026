@@ -59,3 +59,15 @@ test('actual 23 November screenshot: all 18 players and 6 staff under Kommer, no
  assert.equal(result.length,24);
  assert(result.every(p=>p.exact===true));
 });
+
+test('mobile screenshot response tabs precede all 24 Kommer names',()=>{
+ const names=["Oliver JZ","Emil T","August H","Måns Å","William Å","Melker A","Lea S","Gunnar E","Tommy E","Enzo O","Noé BS","Agnes D","Adrian E","Olle Å","Pelle Å","Henry G","Niklas G","Oliver E","Nikola K","Viggo K","Jood M","Theo Y","Joakim L","Peter H"];
+ const staff=new Set(["William Å","Tommy E","Olle Å","Niklas G","Joakim L","Peter H"]);
+ const players=names.filter(n=>!staff.has(n)).map((full_name,i)=>({id:i+1,full_name}));
+ const coaches=names.filter(n=>staff.has(n)).map((full_name,i)=>({id:i+101,full_name}));
+ const source=['Anmälan','August H Kallad Kommer','Sara B Ej svarat','Anmälda','Kommer','18+6','Kan ej','1+1','Kallade','6+6',...names,'Kan ej','Sara B'].join('\n');
+ const result=parse(source,players,coaches);
+ assert.equal(result.length,24);
+ assert.equal(result.filter(p=>p.kind==='player').length,18);
+ assert.equal(result.filter(p=>p.kind==='coach').length,6);
+});
