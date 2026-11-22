@@ -380,6 +380,8 @@
       // OCR runs locally in a Web Worker; do not send children's images to an OCR API.
       const worker=await window.Tesseract.createWorker('swe');
       try{
+        // Automatic page segmentation separates names from the icons on each side.
+        await worker.setParameters({tessedit_pageseg_mode:'3'});
         for(let i=0;i<files.length;i++){
           setStatus('Läser bild '+(i+1)+' av '+files.length+'…');
           const result=await worker.recognize(files[i]);

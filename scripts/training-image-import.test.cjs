@@ -15,6 +15,7 @@ test('attendance import replaces old attendance with confirmed unique names',()=
 });
 test('OCR uses local worker and releases it',()=>{
  assert.match(js,/Tesseract\.createWorker\('swe'\)/);
+ assert.match(js,/await worker\.setParameters\(\{tessedit_pageseg_mode:'3'\}\)/);
  assert.match(js,/await worker\.terminate\(\)/);
  assert.match(js,/worker\.recognize\(files\[i\]\)/);
 });
