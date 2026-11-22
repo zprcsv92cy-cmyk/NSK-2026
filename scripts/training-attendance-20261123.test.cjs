@@ -38,11 +38,11 @@ test('ambiguous same-name initials are not auto-imported',()=>{
 
 test('23 November: first surname initial resolves compound names only for unique candidates',()=>{
  const people=[{id:1,full_name:'Noé Bonnafous Sand'},{id:2,full_name:'Oliver Johansson Zoumblios'},{id:3,full_name:'Lea Svedlund'},{id:4,full_name:'August Hasselberg'}];
- const result=parse('Anmälan\\nAugust H Kallad\\nAnmälda\\nKommer 18+6\\nAugust H\\nNoé B\\nOliver J\\nLea S\\nKan ej',people);
+ const result=parse('Anmälan\nAugust H Kallad\nAnmälda\nKommer 18+6\nAugust H\nNoé B\nOliver J\nLea S\nKan ej',people);
  assert.deepEqual([...result.map(p=>p.id)].sort((a,b)=>a-b),[1,2,3,4]);
  assert(result.every(p=>p.exact===false));
 });
 test('compound surname prefix stays unselected when multiple players share it',()=>{
  const people=[{id:1,full_name:'Oliver Johansson Zoumblios'},{id:2,full_name:'Oliver Jansson'}];
- assert.equal(parse('Anmälda\\nKommer 1+0\\nOliver J',people).length,0);
+ assert.equal(parse('Anmälda\nKommer 1+0\nOliver J',people).length,0);
 });
