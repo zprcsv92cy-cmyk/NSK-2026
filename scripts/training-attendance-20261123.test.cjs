@@ -52,7 +52,7 @@ test('actual 23 November screenshot: all 18 players and 6 staff under Kommer, no
  const coaches=["William Å","Tommy E","Olle Å","Niklas G","Joakim L","Peter H"];
  const players=attending.filter(name=>!coaches.includes(name)).map((name,i)=>({id:i+1,full_name:name}));
  const staff=coaches.map((name,i)=>({id:100+i,full_name:name}));
- const source='Anmälan\\nAugust H Kallad Kommer\\nPeter H Kallad Kommer\\nSara B Ej svarat\\nAnmälda\\nKommer 18+6\\n'+attending.join('\\n')+'\\nKan ej 1+1';
+ const source='Anmälan\nAugust H Kallad Kommer\nPeter H Kallad Kommer\nSara B Ej svarat\nAnmälda\nKommer 18+6\n'+attending.join('\n')+'\nKan ej 1+1';
  const result=parse(source,players,staff);
  assert.equal(result.filter(p=>p.kind==='player').length,18);
  assert.equal(result.filter(p=>p.kind==='coach').length,6);
