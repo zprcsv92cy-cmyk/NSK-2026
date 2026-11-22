@@ -23,7 +23,7 @@ document.write('<script src="../shared-training.js?v=' + window.NSK_VERSION + '"
 document.write('<script src="../training-groups.js?v='+window.NSK_VERSION+'"><\/script>');
 </script>
 <style>
-.training-import-preview{max-width:100%;max-height:350px;object-fit:contain;display:block;margin:10px 0}.training-import-review{display:grid;gap:7px;margin:10px 0}.training-import-review label{display:flex;gap:8px;align-items:center}.training-import-review input{width:20px;height:20px}.training-controls{display:flex;gap:12px;flex-wrap:wrap;align-items:end}
+.training-import-preview{max-width:100%;max-height:350px;object-fit:contain;display:block;margin:10px 0}.training-controls{display:flex;gap:12px;flex-wrap:wrap;align-items:end}
 .training-controls label{flex:1 1 160px}
 .training-controls input,.training-controls select{width:100%;margin-top:5px}
 .training-count{font-size:1.15rem;font-weight:700;margin:10px 0}
@@ -65,7 +65,7 @@ document.write('<script src="../training-groups.js?v='+window.NSK_VERSION+'"><\/
 <label>Antal målvakter<select id="trainingGoalieCount"><option value="0">0 målvakter</option><option value="1">1 målvakt</option><option value="2">2 målvakter</option></select></label>
 <label>Antal tröjfärger<select id="trainingShirtColorCount"><option value="2">2 – röd och vit</option><option value="3" selected>3 – röd, vit och svart</option><option value="4">4 – röd, vit, svart och grön</option></select></label>
 </div>
-<details class="training-import no-print"><summary>Importera från SvenskaLag</summary><div class="training-import-body"><label class="training-file-label" for="trainingImportImages">Välj bilder</label><input id="trainingImportImages" type="file" accept="image/*" multiple aria-label="Välj skärmbilder"><label for="trainingImportText">Klistra in namn</label><textarea id="trainingImportText" rows="4" placeholder="Ett namn per rad"></textarea><div class="training-actions"><button type="button" id="trainingImportRead">Granska</button><button type="button" id="trainingImportApply" disabled>Importera</button></div><p id="trainingImportStatus" role="status" aria-live="polite"></p><div id="trainingImportReview" class="training-import-review"></div></div></details><p id="trainingStatus" class="training-save-status" role="status" aria-live="polite">Hämtar…</p>
+<details class="training-import no-print"><summary>Importera från SvenskaLag</summary><div class="training-import-body"><label class="training-file-label" for="trainingImportImages">Välj bilder</label><input id="trainingImportImages" type="file" accept="image/*" multiple aria-label="Välj skärmbilder"><label for="trainingImportText">Klistra in namn</label><textarea id="trainingImportText" rows="4" placeholder="Ett namn per rad"></textarea><div class="training-actions"><button type="button" id="trainingImportRead">Läs in</button><button type="button" id="trainingImportApply" disabled>Importera</button></div><p id="trainingImportStatus" role="status" aria-live="polite"></p></div></details><p id="trainingStatus" class="training-save-status" role="status" aria-live="polite">Hämtar…</p>
 <h2>Spelare</h2><p class="training-count" id="trainingCount">0 anmälda</p>
 <div class="training-roster" id="trainingRoster"></div>
 <h2 style="margin-top:18px">Tränare</h2>
