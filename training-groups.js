@@ -335,12 +335,13 @@
         // SvenskaLag abbreviates the first surname part; NSK may contain
         // compound surnames or a middle name (e.g. Oliver Johansson Zoumbios).
         const fullMatch=cleaned===full;
-        // Match all surname initials in order (JZ, BS), never only the first.
+        // Accept a unique prefix of surname initials (J for JZ, B for BS),
+        // but require manual review for every abbreviated name.
         // An abbreviated name must be manually reviewed, even if unique.
         const initials=parts.slice(1).map(part=>part[0]).join('');
         const words=cleaned.split(' ');
         const shortMatch=words.length===2&&words[0]===parts[0]&&
-          words[1]===initials;
+          initials.startsWith(words[1])&&words[1].length>=1;
         return fullMatch||shortMatch?{...person,exact:fullMatch}:null;
       }).filter(Boolean);
       // A shared initial (e.g. two Oliver J) must never be auto-approved.
