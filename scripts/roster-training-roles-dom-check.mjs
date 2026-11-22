@@ -29,8 +29,8 @@ test('training import marks both coach and material roles, counts one person and
   w.eval(read('training-groups.js'));w.document.dispatchEvent(new w.Event('DOMContentLoaded'));const get=id=>w.document.getElementById(id);
   async function until(check){for(let i=0;i<100;i++){if(check())return;await new Promise(resolve=>setTimeout(resolve,10));}throw Error(get('trainingStatus').textContent);}
   await until(()=>get('trainingRoster').children.length===1);
-  get('trainingImportText').value='Anmälda\nKommer 1+2\nAnna Spelare\nPatrik Tränare\nLisa Lagledare';get('trainingImportRead').click();await until(()=>!get('trainingImportApply').disabled);
-  assert.match(get('trainingImportStatus').textContent,/1 lagledare säkert identifierade/);assert.match(get('trainingImportStatus').textContent,/1 spelare och 2 ledare/);
+  get('trainingImportText').value='Anmälda\nKommer 1+1\nAnna Spelare\nPatrik Tränare\nLisa Lagledare';get('trainingImportRead').click();await until(()=>!get('trainingImportApply').disabled);
+  assert.match(get('trainingImportStatus').textContent,/1 lagledare säkert identifierade/);assert.match(get('trainingImportStatus').textContent,/1 spelare och 1 ledare/);
   get('trainingImportApply').click();await until(()=>writes.length===1);
   assert.equal(get('trainingCoachRoster').querySelector('input').checked,true);assert.equal(get('trainingEquipmentRoster').querySelector('input').checked,true);
   assert.equal(get('trainingPersonCount').textContent,'2 personer totalt · 1 spelare · 1 tränare/materialförvaltare');

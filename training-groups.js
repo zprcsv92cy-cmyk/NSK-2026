@@ -315,7 +315,17 @@
     // A missing OCR header must not silently turn a valid roster into zero matches.
     // If the Anmälda heading was recognized, skip the invitation section.
     const table=section<0?-1:lines.findIndex((line,i)=>i>section&&/^namn(?: |$)/.test(normalized(line)));
-    const relevant=lines.slice(table>=0?table+1:status>=0?status+1:section>=0?section+1:0);
+    // Never scan invitation rows or a screenshot with missing attendance headers.
+    // A valid SvenskaLag screenshot must identify both Anmälda and Kommer.
+    if(section<0||status<0)return [];
+    // Mobile screenshots may show the three response tabs before the attendee rows.
+    // Skip only a complete tab-counter sequence immediately after Kommer.
+    let start=status+1;
+    const isCount=line=>/^\d+\s*(?:\+| )\s*\d+$/.test(normalized(line));
+    const isTab=(line,label)=>normalized(line)===label;
+    if(start<lines.length&&isCount(lines[start]))start++;
+    if(start+3<lines.length&&isTab(lines[start],'kan ej')&&isCount(lines[start+1])&&isTab(lines[start+2],'kallade')&&isCount(lines[start+3]))start+=4;
+    const relevant=lines.slice(table>=0&&table>start?table+1:start);
     const found=new Map();
     const skip=/^(kommer|kan ej|kallade|anmalda|anmalan|kalender|samling|svara senast|ej svarat)(?: |$)/;
     // Match each attendance entry against the active roster. Do not treat names
@@ -331,11 +341,15 @@
         if(parts.length<2)return null;
         // SvenskaLag abbreviates the first surname part; NSK may contain
         // compound surnames or a middle name (e.g. Oliver Johansson Zoumbios).
-        const surnameInitials=new Set(parts.slice(1).map(part=>part[0]));
-        const fullMatch=new RegExp('(?:^| )'+full+'(?: |$)').test(cleaned);
-        const shortMatch=[...surnameInitials].some(initial=>
-          new RegExp('(?:^| )'+parts[0]+' '+initial+'(?: |$)').test(cleaned));
-        return fullMatch||shortMatch?{...person,exact:true}:null;
+        const fullMatch=cleaned===full;
+        // Accept a unique prefix of surname initials (J for JZ, B for BS),
+        // but require manual review for every abbreviated name.
+        // An abbreviated name must be manually reviewed, even if unique.
+        const initials=parts.slice(1).map(part=>part[0]).join('');
+        const words=cleaned.split(' ');
+        const shortMatch=words.length===2&&words[0]===parts[0]&&
+          initials.startsWith(words[1])&&words[1].length>=1;
+        return fullMatch||shortMatch?{...person,exact:fullMatch}:null;
       }).filter(Boolean);
       // A shared initial (e.g. two Oliver J) must never be auto-approved.
       const uniqueIds=new Set(matches.map(p=>p.kind+':'+p.id));
@@ -428,9 +442,10 @@
     }
     throw Error('Bildtolkning kunde inte startas. Kontrollera nätanslutningen eller skriv namnen manuellt.');
   }
+  let importSourceCount=null;
   function showImportReview(matches){
     const root=$('trainingImportReview');root.replaceChildren();
-    for(const person of matches.filter(p=>!p.exact)){
+    for(const person of matches){
       const label=document.createElement('label'),check=document.createElement('input');
       check.type='checkbox';check.checked=person.exact===true;check.dataset.kind=person.kind;check.dataset.id=String(person.id);
       label.append(check,document.createTextNode(person.full_name+' ('+(person.kind==='player'?'spelare':person.kind==='equipment'?'materialförvaltare':'tränare')+')'+(person.exact?'':' – kontrollera, endast initial matchade')));
@@ -478,6 +493,7 @@
       const attendanceHeader=String(text||'').match(/kommer\s*(\d+)\s*\+\s*(\d+)/i);
       const sourcePlayers=attendanceHeader?Number(attendanceHeader[1]):null;
       const sourceStaff=attendanceHeader?Number(attendanceHeader[2]):null;
+      importSourceCount=attendanceHeader?{players:sourcePlayers,staff:sourceStaff}:null;
       const matchedPlayers=importMatches.filter(p=>p.kind==='player').length;
       const matchedStaff=importMatches.filter(p=>p.kind!=='player').length;
       const ignoredLeaders=importMatches.filter(p=>p.kind==='leader').length;
@@ -503,7 +519,15 @@
     $('trainingImportApply').addEventListener('click',()=>{
       if(!importMatches.length)return;
       const checks=[...$('trainingImportReview').querySelectorAll('input:checked')];
-      const approved=[...importMatches.filter(p=>p.exact),...checks.map(check=>importMatches.find(p=>p.kind===check.dataset.kind&&String(p.id)===check.dataset.id)).filter(Boolean)];
+      const approved=checks.map(check=>importMatches.find(p=>p.kind===check.dataset.kind&&String(p.id)===check.dataset.id)).filter(Boolean);
+      if(!approved.some(p=>p.kind!=='leader')){$('trainingImportStatus').textContent='Ingen deltagare är vald. Befintlig närvaro har inte ändrats.';return;}
+      const sourceCount=importSourceCount;
+      const approvedPlayers=approved.filter(p=>p.kind==='player').length;
+      const approvedStaff=approved.filter(p=>p.kind!=='player'&&p.kind!=='leader').length;
+      if(!sourceCount||approvedPlayers!==sourceCount.players||approvedStaff!==sourceCount.staff){
+        const reason=sourceCount?'SvenskaLag anger '+sourceCount.players+' spelare och '+sourceCount.staff+' ledare, men du har valt '+approvedPlayers+' spelare och '+approvedStaff+' ledare.':'Antalet deltagare från SvenskaLag kunde inte verifieras.';
+        if(!window.confirm(reason+'\n\nImporten ersätter ALL tidigare närvaro för denna träning. Vill du fortsätta ändå?'))return;
+      }
       // A new confirmed import replaces the previous attendance for this date.
       selected=new Set(approved.filter(p=>p.kind==='player').map(p=>String(p.id)));
       selectedCoaches=new Set(approved.filter(p=>p.kind==='coach').map(p=>String(p.id)));
@@ -513,6 +537,7 @@
       $('trainingImportStatus').textContent=approved.filter(p=>p.kind!=='leader').length+' deltagare markerade som Kommer. Tidigare närvaro har ersatts.';
       $('trainingImportApply').disabled=true;
       importMatches=[];
+      importSourceCount=null;
       $('trainingImportText').value='';
       clearImportImages();
     });

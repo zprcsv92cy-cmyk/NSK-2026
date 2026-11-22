@@ -65,14 +65,19 @@ test('unnamed goalie places do not block saving',()=>{
 
 
 
-test('only uncertain OCR matches require review',()=>{
- assert.match(js,/matches\.filter\(p=>!p\.exact\)/);
- assert.match(js,/importMatches\.filter\(p=>p\.exact\)/);
- assert.match(js,/const approved=/);
+test('all OCR matches can be reviewed and incomplete attendance requires confirmation',()=>{
+ assert.match(js,/for\(const person of matches\)\{/);
+ assert.match(js,/check\.checked=person\.exact===true/);
+ assert.match(js,/const approved=checks\.map\(/);
+ assert.doesNotMatch(js,/const approved=\[\.\.\.importMatches\.filter/);
+ assert.match(js,/approvedPlayers!==sourceCount\.players/);
+ assert.match(js,/approvedStaff!==sourceCount\.staff/);
+ assert.match(js,/window\.confirm\(/);
+ assert.match(js,/Ingen deltagare är vald/);
 });
 
 test('OCR matches first name and surname initial within noisy lines',()=>{
- assert.match(js,/const surnameInitials=new Set/);
+ assert.match(js,/const initials=parts\.slice\(1\)/);
  assert.match(js,/uniqueIds\.size===1/);
  assert.match(js,/fullMatch\|\|shortMatch/);
 });
@@ -110,16 +115,16 @@ test('SvenskaLag initials resolve compound surnames and Swedish names',()=>{
  const begin=js.indexOf('  const normalized =');
  const end=js.indexOf('  async function readImageText()',begin);
  const context={players:[
-  {id:1,full_name:'Noé Bonafous Sand'},
-  {id:2,full_name:'Oliver Johansson Zoumbios'},
+  {id:1,full_name:'Noé Bonnafous Sand'},
+  {id:2,full_name:'Oliver Johansson Zoumblios'},
   {id:3,full_name:'Agnes Danielsson'},
   {id:4,full_name:'Theo Ydrenius'}
  ],equipment:[],coaches:[]};
  vm.createContext(context);
  vm.runInContext(js.slice(begin,end)+';globalThis.parseAttendance=importCandidates;',context);
- const matches=context.parseAttendance('Anmälda\nKommer 14+9\nNoé B\nOliver J\nAgnes D\nTheo Y');
+ const matches=context.parseAttendance('Anmälda\nKommer 14+9\nNoé BS\nOliver JZ\nAgnes D\nTheo Y');
  assert.equal(matches.length,4);
- assert.ok(matches.every(p=>p.exact));
+ assert.ok(matches.every(p=>!p.exact));
 });
 
 test('shirt colors support red/white, black and green in order',()=>{
@@ -137,7 +142,7 @@ test('desktop table skips the response tabs and ignores a leading OCR table bord
  const context={players:[{id:1,full_name:'Anna Testsson'},{id:2,full_name:'Erik Exempelsson'}],equipment:[],coaches:[{id:3,full_name:'Patrik Ledarsson'}]};
  vm.createContext(context);vm.runInContext(js.slice(begin,end)+';globalThis.parseAttendance=importCandidates;',context);
  const result=context.parseAttendance('Anmälan\nErik Exempelsson Kan ej\nAnmälda\nKan ej Kallade\n4+5 4+3\nNamn Anmäld\n| Anna Testsson 20 okt, 20:14\nPatrik Ledarsson | Tränare 20 okt, 21:00');
- assert.deepEqual([...result.map(x=>x.id)],[1,3]);
+ assert.deepEqual([...result.map(x=>x.id)],[]); // Without a verified Kommer header, fail closed
 });
 
 test('Kommer matches equipment managers separately and excludes Kan ej',()=>{
