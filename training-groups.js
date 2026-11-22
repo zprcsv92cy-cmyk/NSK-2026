@@ -318,7 +318,14 @@
     // Never scan invitation rows or a screenshot with missing attendance headers.
     // A valid SvenskaLag screenshot must identify both Anmälda and Kommer.
     if(section<0||status<0)return [];
-    const relevant=lines.slice(table>=0&&table>status?table+1:status+1);
+    // Mobile screenshots may show the three response tabs before the attendee rows.
+    // Skip only a complete tab-counter sequence immediately after Kommer.
+    let start=status+1;
+    const isCount=line=>/^\\d+\\s*(?:\\+| )\\s*\\d+$/.test(normalized(line));
+    const isTab=(line,label)=>normalized(line)===label;
+    if(start<lines.length&&isCount(lines[start]))start++;
+    if(start+3<lines.length&&isTab(lines[start],'kan ej')&&isCount(lines[start+1])&&isTab(lines[start+2],'kallade')&&isCount(lines[start+3]))start+=4;
+    const relevant=lines.slice(table>=0&&table>start?table+1:start);
     const found=new Map();
     const skip=/^(kommer|kan ej|kallade|anmalda|anmalan|kalender|samling|svara senast|ej svarat)(?: |$)/;
     // Match each attendance entry against the active roster. Do not treat names
