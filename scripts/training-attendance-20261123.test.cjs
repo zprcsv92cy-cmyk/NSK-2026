@@ -86,3 +86,23 @@ test('23 November mobile tabs with full-name roster candidates require manual in
  assert(result.every(p=>p.exact===false));
  assert.deepEqual([...result.map(p=>p.id)].sort((a,b)=>a-b),[1,2,3,4,5]);
 });
+
+test('mobile OCR reads horizontal tab counts and joins split-name candidates safely',()=>{
+ const players=[
+  {id:1,full_name:'Alex Lind'},
+  {id:2,full_name:'Bo Dahl'},
+  {id:3,full_name:'Bo Danielsson'},
+  {id:4,full_name:'Kim Lund'}
+ ];
+ const coaches=[{id:5,full_name:'Sam Ek'}];
+ const context={players,coaches,equipment:[],leaders:[]};
+ vm.createContext(context);
+ vm.runInContext(js.slice(begin,end)+';globalThis.verify=text=>({matches:importCandidates(text),count:readAttendanceHeader(text)});',context);
+ const source=[
+  'Anmälan','Kim L Kallad','Anmälda','Kommer Kan ej Kallade','2+1 1+1 6+6',
+  'AlexL','BoD','SamE | Ass. tränare','Kan ej','Kim L'
+ ].join('\n');
+ const {matches,count}=context.verify(source);
+ assert.deepEqual([...count.slice(1)],['2','1']);
+ assert.deepEqual([...matches.map(({id,exact})=>[id,exact])],[[1,false],[5,false]]);
+});
