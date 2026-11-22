@@ -321,7 +321,7 @@
     // Mobile screenshots may show the three response tabs before the attendee rows.
     // Skip only a complete tab-counter sequence immediately after Kommer.
     let start=status+1;
-    const isCount=line=>/^\\d+\\s*(?:\\+| )\\s*\\d+$/.test(normalized(line));
+    const isCount=line=>/^\d+\s*(?:\+| )\s*\d+$/.test(normalized(line));
     const isTab=(line,label)=>normalized(line)===label;
     if(start<lines.length&&isCount(lines[start]))start++;
     if(start+3<lines.length&&isTab(lines[start],'kan ej')&&isCount(lines[start+1])&&isTab(lines[start+2],'kallade')&&isCount(lines[start+3]))start+=4;
