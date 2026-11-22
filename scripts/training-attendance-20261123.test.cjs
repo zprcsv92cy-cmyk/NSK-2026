@@ -46,3 +46,16 @@ test('compound surname prefix stays unselected when multiple players share it',(
  const people=[{id:1,full_name:'Oliver Johansson Zoumblios'},{id:2,full_name:'Oliver Jansson'}];
  assert.equal(parse('Anmälda\nKommer 1+0\nOliver J',people).length,0);
 });
+
+test('actual 23 November screenshot: all 18 players and 6 staff under Kommer, no invitation duplicates',()=>{
+ const attending=["Oliver JZ","Emil T","August H","Måns Å","William Å","Melker A","Lea S","Gunnar E","Tommy E","Enzo O","Noé BS","Agnes D","Adrian E","Olle Å","Pelle Å","Henry G","Niklas G","Oliver E","Nikola K","Viggo K","Jood M","Theo Y","Joakim L","Peter H"];
+ const coaches=["William Å","Tommy E","Olle Å","Niklas G","Joakim L","Peter H"];
+ const players=attending.filter(name=>!coaches.includes(name)).map((name,i)=>({id:i+1,full_name:name.split(' ')[0]+' '+name.split(' ')[1]+'test'}));
+ const staff=coaches.map((name,i)=>({id:100+i,full_name:name.split(' ')[0]+' '+name.split(' ')[1]+'test'}));
+ const source='Anmälan\\nAugust H Kallad Kommer\\nPeter H Kallad Kommer\\nSara B Ej svarat\\nAnmälda\\nKommer 18+6\\n'+attending.join('\\n')+'\\nKan ej 1+1';
+ const result=parse(source,players,staff);
+ assert.equal(result.filter(p=>p.kind==='player').length,18);
+ assert.equal(result.filter(p=>p.kind==='coach').length,6);
+ assert.equal(result.length,24);
+ assert(result.every(p=>p.exact===false));
+});
