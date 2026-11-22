@@ -80,7 +80,7 @@ test('23 November mobile tabs with full-name roster candidates require manual in
   {id:4,full_name:'August Hasselberg'},
   {id:5,full_name:'Oliver Eriksson'}
  ];
- const source=['Anmälan','August H Kallad Kommer','Anmälda','Kommer','18+6','Kan ej','1+1','Kallade','6+6','Oliver JZ','August H','Noé BS','Lea S','Oliver E','Kan ej','1+1','Sara B'].join('\\n');
+ const source=['Anmälan','August H Kallad Kommer','Anmälda','Kommer','18+6','Kan ej','1+1','Kallade','6+6','Oliver JZ','August H','Noé BS','Lea S','Oliver E','Kan ej','1+1','Sara B'].join('\n');
  const result=parse(source,players);
  assert.equal(result.length,5);
  assert(result.every(p=>p.exact===false));
