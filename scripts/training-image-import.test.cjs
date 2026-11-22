@@ -4,7 +4,7 @@ const fs=require('node:fs');
 const js=fs.readFileSync('training-groups.js','utf8');
 const html=fs.readFileSync('traningsgrupper/index.html','utf8');
 test('image import requires explicit confirmation',()=>{
- for(const id of ['trainingImportImages','trainingImportText','trainingImportReview','trainingImportApply'])assert.ok(html.includes('id="'+id+'"'),id);
+ for(const id of ['trainingImportImages','trainingImportText','trainingImportApply'])assert.ok(html.includes('id="'+id+'"'),id);
  assert.match(html,/id="trainingImportApply" disabled/);
  assert.match(js,/trainingImportApply'\)\.addEventListener\('click'/);
 });
@@ -66,15 +66,12 @@ test('unnamed goalie places do not block saving',()=>{
 
 
 
-test('all OCR matches can be reviewed and incomplete attendance requires confirmation',()=>{
- assert.match(js,/for\(const person of matches\)\{/);
- assert.match(js,/check\.checked=person\.kind!=='leader'/);
- assert.match(js,/const approved=checks\.map\(/);
- assert.doesNotMatch(js,/const approved=\[\.\.\.importMatches\.filter/);
+test('import uses a summary and asks before applying incomplete attendance',()=>{
+ assert.doesNotMatch(html,/id="trainingImportReview"/);
+ assert.match(js,/const approved=importMatches\.filter\(person=>person\.kind!=='leader'\)/);
  assert.match(js,/approvedPlayers!==sourceCount\.players/);
  assert.match(js,/approvedStaff!==sourceCount\.staff/);
  assert.match(js,/window\.confirm\(/);
- assert.match(js,/Ingen deltagare är vald/);
 });
 
 test('OCR matches first name and surname initial within noisy lines',()=>{
