@@ -453,15 +453,8 @@
     throw Error('Bildtolkning kunde inte startas. Kontrollera nätanslutningen eller skriv namnen manuellt.');
   }
   let importSourceCount=null;
-  function showImportReview(matches){
-    const root=$('trainingImportReview');root.replaceChildren();
-    for(const person of matches){
-      const label=document.createElement('label'),check=document.createElement('input');
-      check.type='checkbox';check.checked=person.kind!=='leader';check.dataset.kind=person.kind;check.dataset.id=String(person.id);
-      label.append(check,document.createTextNode(person.full_name+' ('+(person.kind==='player'?'spelare':person.kind==='equipment'?'materialförvaltare':'tränare')+')'+(person.exact?'':' – matchad med efternamnsinitialer')));
-      root.append(label);
-    }
-    $('trainingImportApply').disabled=!matches.length;
+  function updateImportButton(matches){
+    $('trainingImportApply').disabled=!matches.some(person=>person.kind!=='leader');
   }
   function initImport(){
     // Never retain preview object URLs or selected image references after processing.
@@ -472,11 +465,13 @@
       // No preview is created: screenshots are only read transiently for OCR.
       $('trainingImportApply').disabled=true;
       importMatches=[];
-      $('trainingImportReview').replaceChildren();
+      importSourceCount=null;
     });
     $('trainingImportRead').addEventListener('click',async()=>{
       $('trainingImportApply').disabled=true;
       if(!players.length&&!coaches.length&&!equipment.length){clearImportImages();$('trainingImportStatus').textContent='Truppen måste hämtas först.';return;}
+      importMatches=[];
+      importSourceCount=null;
       let text=$('trainingImportText').value;
       try{
         const detected=await readImageText();
@@ -507,16 +502,15 @@
       const matchedPlayers=importMatches.filter(p=>p.kind==='player').length;
       const matchedStaff=importMatches.filter(p=>p.kind!=='player').length;
       const ignoredLeaders=importMatches.filter(p=>p.kind==='leader').length;
-      const playerCountMatches=sourcePlayers!==null&&matchedPlayers===sourcePlayers;
-      const sourceSummary=attendanceHeader
-        ?'SvenskaLag: '+sourcePlayers+' spelare och '+sourceStaff+' ledare/funktionärer. Matchade i NSK: '+matchedPlayers+' spelare och '+matchedStaff+' ledare/funktionärer. Ej matchade mot NSK: '+Math.max(0,sourcePlayers-matchedPlayers)+' spelare och '+Math.max(0,sourceStaff-matchedStaff)+' ledare/funktionärer (kan saknas i truppen). '
-        :'Antalet anmälda kunde inte avläsas säkert. Matchade i NSK: '+matchedPlayers+' spelare och '+matchedStaff+' ledare/funktionärer. ';
-      const countWarning=sourcePlayers===null?'OBS: Kontrollera antalet spelare mot SvenskaLag innan du bekräftar. ':playerCountMatches?'Spelarantalet stämmer med SvenskaLag. ':'OBS: '+Math.abs(sourcePlayers-matchedPlayers)+' spelare skiljer mot SvenskaLag. Kontrollera saknade namn före bekräftelse. ';
+      const matchedSummary='Matchade i NSK: '+matchedPlayers+' spelare och '+matchedStaff+' ledare/funktionärer.';
+      const countWarning=!attendanceHeader?' Antalet anmälda kunde inte avläsas.':
+        matchedPlayers!==sourcePlayers||matchedStaff!==sourceStaff
+          ?' SvenskaLag anger '+sourcePlayers+' spelare och '+sourceStaff+' ledare/funktionärer.':'';
+      const leaderNote=ignoredLeaders?' '+ignoredLeaders+' lagledare säkert identifierade, tas inte med i träningsplaneringen.':'';
       text=''; // OCR output is never copied to a field or persisted.
-      showImportReview(importMatches);
-      $('trainingImportStatus').textContent=importMatches.length
-        ?sourceSummary+countWarning+(ignoredLeaders?ignoredLeaders+' lagledare säkert identifierade, tas inte med i träningsplaneringen. ':'')+'Matchade deltagare är förvalda. Kontrollera listan och bekräfta för att uppdatera närvaron.'
-         :sourceSummary+countWarning+'Inga namn matchade mot NSK-truppen. Skriv ett namn per rad som i NSK-truppen. Kontrollera att namnen står på egna rader.';
+      updateImportButton(importMatches);
+      $('trainingImportStatus').textContent=matchedSummary+countWarning+leaderNote+
+        (importMatches.length?'':' Inga namn matchade. Kontrollera bilden eller ange ett namn per rad.');
     });
     $('trainingHall').addEventListener('change',()=>{
       trainingHall=$('trainingHall').value;
@@ -528,14 +522,13 @@
     });
     $('trainingImportApply').addEventListener('click',()=>{
       if(!importMatches.length)return;
-      const checks=[...$('trainingImportReview').querySelectorAll('input:checked')];
-      const approved=checks.map(check=>importMatches.find(p=>p.kind===check.dataset.kind&&String(p.id)===check.dataset.id)).filter(Boolean);
-      if(!approved.some(p=>p.kind!=='leader')){$('trainingImportStatus').textContent='Ingen deltagare är vald. Befintlig närvaro har inte ändrats.';return;}
+      const approved=importMatches.filter(person=>person.kind!=='leader');
+      if(!approved.length)return;
       const sourceCount=importSourceCount;
       const approvedPlayers=approved.filter(p=>p.kind==='player').length;
       const approvedStaff=approved.filter(p=>p.kind!=='player'&&p.kind!=='leader').length;
       if(!sourceCount||approvedPlayers!==sourceCount.players||approvedStaff!==sourceCount.staff){
-        const reason=sourceCount?'SvenskaLag anger '+sourceCount.players+' spelare och '+sourceCount.staff+' ledare, men du har valt '+approvedPlayers+' spelare och '+approvedStaff+' ledare.':'Antalet deltagare från SvenskaLag kunde inte verifieras.';
+        const reason=sourceCount?'SvenskaLag anger '+sourceCount.players+' spelare och '+sourceCount.staff+' ledare, men importen innehåller '+approvedPlayers+' spelare och '+approvedStaff+' ledare.':'Antalet deltagare från SvenskaLag kunde inte verifieras.';
         if(!window.confirm(reason+'\n\nImporten ersätter ALL tidigare närvaro för denna träning. Vill du fortsätta ändå?'))return;
       }
       // A new confirmed import replaces the previous attendance for this date.
