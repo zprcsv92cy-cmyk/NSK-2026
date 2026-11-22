@@ -67,7 +67,7 @@ test('unnamed goalie places do not block saving',()=>{
 
 test('all OCR matches can be reviewed and incomplete attendance requires confirmation',()=>{
  assert.match(js,/for\(const person of matches\)\{/);
- assert.match(js,/check\.checked=person\.exact===true/);
+ assert.match(js,/check\.checked=person\.kind!=='leader'/);
  assert.match(js,/const approved=checks\.map\(/);
  assert.doesNotMatch(js,/const approved=\[\.\.\.importMatches\.filter/);
  assert.match(js,/approvedPlayers!==sourceCount\.players/);
