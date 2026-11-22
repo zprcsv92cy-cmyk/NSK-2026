@@ -47,7 +47,7 @@ test('compound surname prefix stays unselected when multiple players share it',(
  assert.equal(parse('Anmälda\nKommer 1+0\nOliver J',people).length,0);
 });
 
-test('actual 23 November screenshot: all 18 players and 6 staff under Kommer, no invitation duplicates',()=>{
+test('23 November screenshot transcription against synthetic abbreviated roster: 18 players and 6 staff',()=>{
  const attending=["Oliver JZ","Emil T","August H","Måns Å","William Å","Melker A","Lea S","Gunnar E","Tommy E","Enzo O","Noé BS","Agnes D","Adrian E","Olle Å","Pelle Å","Henry G","Niklas G","Oliver E","Nikola K","Viggo K","Jood M","Theo Y","Joakim L","Peter H"];
  const coaches=["William Å","Tommy E","Olle Å","Niklas G","Joakim L","Peter H"];
  const players=attending.filter(name=>!coaches.includes(name)).map((name,i)=>({id:i+1,full_name:name}));
@@ -70,4 +70,19 @@ test('mobile screenshot response tabs precede all 24 Kommer names',()=>{
  assert.equal(result.length,24);
  assert.equal(result.filter(p=>p.kind==='player').length,18);
  assert.equal(result.filter(p=>p.kind==='coach').length,6);
+});
+
+test('23 November mobile tabs with full-name roster candidates require manual initials review',()=>{
+ const players=[
+  {id:1,full_name:'Noé Bonnafous Sand'},
+  {id:2,full_name:'Oliver Johansson Zoumblios'},
+  {id:3,full_name:'Lea Svedlund'},
+  {id:4,full_name:'August Hasselberg'},
+  {id:5,full_name:'Oliver Eriksson'}
+ ];
+ const source=['Anmälan','August H Kallad Kommer','Anmälda','Kommer','18+6','Kan ej','1+1','Kallade','6+6','Oliver JZ','August H','Noé BS','Lea S','Oliver E','Kan ej','1+1','Sara B'].join('\\n');
+ const result=parse(source,players);
+ assert.equal(result.length,5);
+ assert(result.every(p=>p.exact===false));
+ assert.deepEqual([...result.map(p=>p.id)].sort((a,b)=>a-b),[1,2,3,4,5]);
 });
