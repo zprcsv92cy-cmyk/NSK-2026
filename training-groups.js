@@ -302,6 +302,10 @@
     .replace(/\s*[-–]\s*(ass\.?\s*tränare|huvudtränare|materialare|materialförvaltare|lagledare).*$/i, '')
     .replace(/\s*\((?:spelare|tränare|materialförvaltare|materialare|kommer)\)\s*$/i, '')
     .trim();
+  function readAttendanceHeader(text){
+    // OCR can read the three mobile tab labels on one line and their counts on the next.
+    return String(text||'').match(/^[ \t]*kommer(?:[ \t]+kan[ \t]+ej[ \t]+kallade)?[ \t]*(?:\r?\n[ \t]*)?(\d+)[ \t]*\+[ \t]*(\d+)\b/im);
+  }
   function importCandidates(text, importRoster){
     const leaderRoster=typeof leaders==='undefined'?[]:leaders;
     const coachNames=new Set([...coaches,...equipment].map(p=>normalized(p.full_name)));
@@ -323,7 +327,9 @@
     let start=status+1;
     const isCount=line=>/^\d+\s*(?:\+| )\s*\d+$/.test(normalized(line));
     const isTab=(line,label)=>normalized(line)===label;
-    if(start<lines.length&&isCount(lines[start]))start++;
+    const horizontalTabs=normalized(lines[status])==='kommer kan ej kallade';
+    const horizontalCounts=/^\d+\s*\+\s*\d+\s+\d+\s*\+\s*\d+\s+\d+\s*\+\s*\d+\s*$/;
+    if(start<lines.length&&(isCount(lines[start])||(horizontalTabs&&horizontalCounts.test(lines[start]))))start++;
     if(start+3<lines.length&&isTab(lines[start],'kan ej')&&isCount(lines[start+1])&&isTab(lines[start+2],'kallade')&&isCount(lines[start+3]))start+=4;
     const relevant=lines.slice(table>=0&&table>start?table+1:start);
     const found=new Map();
@@ -347,8 +353,10 @@
         // An abbreviated name must be manually reviewed, even if unique.
         const initials=parts.slice(1).map(part=>part[0]).join('');
         const words=cleaned.split(' ');
-        const shortMatch=words.length===2&&words[0]===parts[0]&&
-          initials.startsWith(words[1])&&words[1].length>=1;
+        // OCR may drop the space before the initials (for example, "LeaS").
+        const suffix=words.length===2&&words[0]===parts[0]?words[1]:
+          words.length===1&&cleaned.startsWith(parts[0])?cleaned.slice(parts[0].length):'';
+        const shortMatch=Boolean(suffix)&&initials.startsWith(suffix);
         return fullMatch||shortMatch?{...person,exact:fullMatch}:null;
       }).filter(Boolean);
       // A shared initial (e.g. two Oliver J) must never be auto-approved.
@@ -396,7 +404,7 @@
               }
             };
             collect();
-            const header=()=>texts.join('\n').match(/kommer\s*(\d+)\s*\+\s*(\d+)/i);
+            const header=()=>readAttendanceHeader(texts.join('\n'));
             for(let attempt=0;attempt<variants.length;attempt++){
               const target=header();
               const matchedPlayers=[...recognized.values()].filter(p=>p.kind==='player').length;
@@ -490,7 +498,7 @@
       importMatches=[...byPerson.values()];
       // SvenskaLag's "Kommer 14+9" is a source count, not an NSK roster count.
       // OCR may put the count on the following line.
-      const attendanceHeader=String(text||'').match(/kommer\s*(\d+)\s*\+\s*(\d+)/i);
+      const attendanceHeader=readAttendanceHeader(text);
       const sourcePlayers=attendanceHeader?Number(attendanceHeader[1]):null;
       const sourceStaff=attendanceHeader?Number(attendanceHeader[2]):null;
       importSourceCount=attendanceHeader?{players:sourcePlayers,staff:sourceStaff}:null;

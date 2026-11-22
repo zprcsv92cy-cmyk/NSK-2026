@@ -102,12 +102,14 @@ test('attendance parsing matches abbreviated Swedish names and excludes non-atte
  assert.deepEqual([...matches.map(p=>p.id)].sort((a,b)=>a-b),[1,2,3,4,5]);
 });
 
-test('SvenskaLag 14+9 count uses real regex whitespace escapes',()=>{
- const line=js.split('\n').find(x=>x.includes('const attendanceHeader='));
- assert.ok(line);
- assert.ok(line.includes('\\s*'));
- assert.ok(line.includes('\\d+'));
- assert.ok(!line.includes('\\\\s*'));
+test('SvenskaLag 14+9 count accepts inline or wrapped whitespace',()=>{
+ const vm=require('node:vm');
+ const begin=js.indexOf('  function readAttendanceHeader(');
+ const end=js.indexOf('  function importCandidates(',begin);
+ const read=vm.runInNewContext(js.slice(begin,end)+';readAttendanceHeader;');
+ for(const input of ['Kommer 14+9','Kommer\n14 + 9','Kommer\t14+9']){
+  assert.deepEqual([...read(input).slice(1)],['14','9']);
+ }
 });
 
 test('SvenskaLag initials resolve compound surnames and Swedish names',()=>{
