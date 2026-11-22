@@ -72,7 +72,7 @@ test('only uncertain OCR matches require review',()=>{
 });
 
 test('OCR matches first name and surname initial within noisy lines',()=>{
- assert.match(js,/const surnameInitials=new Set/);
+ assert.match(js,/const initials=parts\.slice\(1\)/);
  assert.match(js,/uniqueIds\.size===1/);
  assert.match(js,/fullMatch\|\|shortMatch/);
 });
@@ -110,8 +110,8 @@ test('SvenskaLag initials resolve compound surnames and Swedish names',()=>{
  const begin=js.indexOf('  const normalized =');
  const end=js.indexOf('  async function readImageText()',begin);
  const context={players:[
-  {id:1,full_name:'Noé Bonafous Sand'},
-  {id:2,full_name:'Oliver Johansson Zoumbios'},
+  {id:1,full_name:'Noé Bonnafous Sand'},
+  {id:2,full_name:'Oliver Johansson Zoumblios'},
   {id:3,full_name:'Agnes Danielsson'},
   {id:4,full_name:'Theo Ydrenius'}
  ],equipment:[],coaches:[]};
@@ -119,7 +119,7 @@ test('SvenskaLag initials resolve compound surnames and Swedish names',()=>{
  vm.runInContext(js.slice(begin,end)+';globalThis.parseAttendance=importCandidates;',context);
  const matches=context.parseAttendance('Anmälda\nKommer 14+9\nNoé B\nOliver J\nAgnes D\nTheo Y');
  assert.equal(matches.length,4);
- assert.ok(matches.every(p=>p.exact));
+ assert.ok(matches.every(p=>!p.exact));
 });
 
 test('shirt colors support red/white, black and green in order',()=>{
