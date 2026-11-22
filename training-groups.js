@@ -455,8 +455,8 @@
     const root=$('trainingImportReview');root.replaceChildren();
     for(const person of matches){
       const label=document.createElement('label'),check=document.createElement('input');
-      check.type='checkbox';check.checked=person.exact===true;check.dataset.kind=person.kind;check.dataset.id=String(person.id);
-      label.append(check,document.createTextNode(person.full_name+' ('+(person.kind==='player'?'spelare':person.kind==='equipment'?'materialförvaltare':'tränare')+')'+(person.exact?'':' – kontrollera, endast initial matchade')));
+      check.type='checkbox';check.checked=person.kind!=='leader';check.dataset.kind=person.kind;check.dataset.id=String(person.id);
+      label.append(check,document.createTextNode(person.full_name+' ('+(person.kind==='player'?'spelare':person.kind==='equipment'?'materialförvaltare':'tränare')+')'+(person.exact?'':' – matchad med efternamnsinitialer')));
       root.append(label);
     }
     $('trainingImportApply').disabled=!matches.length;
@@ -513,7 +513,7 @@
       text=''; // OCR output is never copied to a field or persisted.
       showImportReview(importMatches);
       $('trainingImportStatus').textContent=importMatches.length
-        ?sourceSummary+countWarning+(ignoredLeaders?ignoredLeaders+' lagledare säkert identifierade, tas inte med i träningsplaneringen. ':'')+importMatches.filter(p=>p.exact).length+' säkra namn identifierade automatiskt. '+importMatches.filter(p=>!p.exact).length+' osäkra behöver granskas. Bekräfta för att uppdatera närvaron.'
+        ?sourceSummary+countWarning+(ignoredLeaders?ignoredLeaders+' lagledare säkert identifierade, tas inte med i träningsplaneringen. ':'')+'Matchade deltagare är förvalda. Kontrollera listan och bekräfta för att uppdatera närvaron.'
          :sourceSummary+countWarning+'Inga namn matchade mot NSK-truppen. Skriv ett namn per rad som i NSK-truppen. Kontrollera att namnen står på egna rader.';
     });
     $('trainingHall').addEventListener('change',()=>{
